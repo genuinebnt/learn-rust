@@ -3,15 +3,18 @@ The B+ tree of module 2c stores fixed-size byte keys. The rest of the engine thi
 > [!CHECK] Two integer keys are stored as 4 little-endian bytes each. Comparing the bytes with `memcmp` puts `-1` after `1` and `256` before `1`. What does your comparator do instead, and why does it need the key schema? What would change if the key were `(INTEGER, VARCHAR)`?
 > ||The comparator reads each column's value out of the key bytes using the key schema (which says where each column is and what type) and compares values with the SQL comparison from module 3a, first column first, moving to the next on a tie. It needs the schema because the bytes alone do not say whether four bytes are an integer, part of a string or a timestamp. For `(INTEGER, VARCHAR)` the key would not be fixed-size, so the byte key would not work: BusTub supports only integer keys of a few columns; other designs store a prefix or a separate variable-length key.||
 >
+> - A row's key is `(NULL, 3)`. Is it in the index? What does a lookup of `(NULL, 3)` return, and why is that the right answer?
 > - Where does the comparator get the column offsets?
 > - What does a tie on the first column mean for ordering?
 > - Why is `scan_key` a `Vec` and not an `Option`?
 
 ## The task
 
-In `index.rs`: `IndexMetadata::new(name, table, tuple_schema, key_attrs, is_primary_key)` (the key schema is the table schema restricted to `key_attrs` by `copy_schema`), `generic_key_from_tuple::<N>(tuple)` (a zeroed key with the tuple's bytes at the start; a tuple longer than `N` is a bug and panics), `SchemaComparator::<N>::compare` (column by column, by value), and `BPlusTreeIndex::<N>`: `new(metadata, bpm)` (a tree with the default node sizes on a freshly allocated header page) and the five `Index` methods over the tree.
+In `index.rs`: `IndexMetadata::new(name, table, tuple_schema, key_attrs, is_primary_key)` (the key schema is the table schema restricted to `key_attrs` by `copy_schema`), `generic_key_from_tuple::<N>(tuple)` (a zeroed key with the tuple's bytes at the start; a tuple longer than `N` is a bug and panics), `SchemaComparator::<N>::compare` (column by column, by value; a NULL is smaller than any value and equal to another NULL, so the order stays total), and `BPlusTreeIndex::<N>`: `new(metadata, bpm)` (a tree with the default node sizes on a freshly allocated header page) and the five `Index` methods over the tree.
 
-The tests: the metadata's key schema; a key tuple becomes fixed-size bytes; keys compare column by column as numbers (negative and composite keys); an index inserts (refusing a repeated key), scans and deletes (a missing key is no error); and a property: any inserts, deletes and scans on a two-column index agree with a `BTreeMap` from the key to its rid (`scan_key`, `scan_all` and `scan_from`).
+**A key with a NULL in it is never indexed.** `NULL = 5` is not true and neither is `NULL = NULL`, so no lookup could ever ask for such a row by key: `insert_entry` returns `false` for it, `delete_entry` ignores it, and `scan_key` finds nothing. (A scan of the whole index therefore does not list rows whose key is NULL; a table with NULLs in the indexed column must not be read in key order through its index.)
+
+The tests: the metadata's key schema; a key tuple becomes fixed-size bytes; keys compare column by column as numbers (negative and composite keys); an index inserts (refusing a repeated key), scans and deletes (a missing key is no error); a key with a NULL in any column is not indexed and finds nothing; and a property: any inserts, deletes and scans on a two-column index (some keys with a NULL) agree with a `BTreeMap` from the key to its rid (`scan_key`, `scan_all` and `scan_from`).
 
 ## Your freedom
 
@@ -40,7 +43,7 @@ How the comparator reads the keys (decoding through values, or comparing bytes o
 
 - The metadata's key schema; a key tuple becomes the bytes of a fixed-size key; an oversized key panics.
 - Keys compare column by column as numbers.
-- An index inserts, scans and deletes; scans are in key order for negative and composite keys.
+- An index inserts, scans and deletes; scans are in key order for negative and composite keys; a key with a NULL is not indexed.
 - Property: any operations agree with a `BTreeMap`.
 
 ## Hints

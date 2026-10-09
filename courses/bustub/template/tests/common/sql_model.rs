@@ -146,3 +146,23 @@ pub fn predicate(columns: &'static [&'static str]) -> impl Strategy<Value = Expr
 pub fn cell() -> impl Strategy<Value = Option<i64>> {
     prop_oneof![1 => Just(None), 8 => (-12i64..=12).prop_map(Some)]
 }
+
+/// The naive join: every pair, the ON predicate on the pair; a left join adds the unmatched left rows padded with NULLs. Sorted lines.
+pub fn naive_join(l: &[Row], r: &[Row], right_width: usize, left: bool, on: impl Fn(&Row) -> bool) -> Vec<String> {
+    let mut out = vec![];
+    for lr in l {
+        let mut matched = false;
+        for rr in r {
+            let pair: Row = lr.iter().chain(rr.iter()).copied().collect();
+            if on(&pair) {
+                matched = true;
+                out.push(line(&pair));
+            }
+        }
+        if left && !matched {
+            out.push(line(&lr.iter().copied().chain(std::iter::repeat(None).take(right_width)).collect()));
+        }
+    }
+    out.sort();
+    out
+}

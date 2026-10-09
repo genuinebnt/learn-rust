@@ -405,6 +405,24 @@ fn s3c_03_an_index_inserts_scans_and_deletes() {
 }
 
 #[test]
+fn s3c_03_a_key_with_a_null_is_not_indexed_and_finds_nothing() {
+    let bpm = bpm(20);
+    let table = three_ints();
+    let index = BPlusTreeIndex::<8>::new(IndexMetadata::new("i", "t", &table, vec![0, 1], false), &bpm);
+    let ks = index.metadata().get_key_schema().clone();
+    let null_key = |a: Option<i32>, b: Option<i32>| Tuple::new(&[a.map_or(Value::null(Integer), Value::integer), b.map_or(Value::null(Integer), Value::integer)], &ks);
+    assert!(index.insert_entry(&null_key(Some(1), Some(1)), Rid::new(PageId(2), 0)), "a key without NULLs is indexed");
+    assert!(!index.insert_entry(&null_key(None, Some(1)), Rid::new(PageId(2), 1)), "a key with a NULL is not indexed");
+    assert!(!index.insert_entry(&null_key(Some(1), None), Rid::new(PageId(2), 2)), "in any column");
+    assert!(!index.insert_entry(&null_key(None, None), Rid::new(PageId(2), 3)), "even if every column is NULL");
+    assert_eq!(index.scan_all().len(), 1, "only the first key is in the index");
+    assert!(index.scan_key(&null_key(None, Some(1))).is_empty(), "NULL = 1 is never true: a lookup with a NULL finds nothing");
+    assert!(index.scan_key(&null_key(None, None)).is_empty(), "NULL = NULL is never true either");
+    index.delete_entry(&null_key(None, Some(1)));
+    assert_eq!(index.scan_all().len(), 1, "deleting a key that was never there changes nothing");
+}
+
+#[test]
 fn s3c_03_a_scan_returns_rids_in_key_order_even_for_negative_and_composite_keys() {
     let bpm = bpm(50);
     let table = three_ints();
@@ -688,26 +706,29 @@ proptest! {
         prop_assert_eq!(heap.make_iterator().count(), model.len() + more.len());
     }
 
-    /// An index over two integer columns behaves like a `BTreeMap` from the key to a record id: inserts refuse a key that is there, deletes of
-    /// missing keys are fine, and every scan is in key order (negative numbers first).
+    /// An index over two integer columns behaves like a `BTreeMap` from the key to a record id: inserts refuse a key that is there (and a key
+    /// with a NULL in it), deletes of missing keys are fine, and every scan is in key order (negative numbers first).
     #[test]
-    fn s3c_03_an_index_behaves_like_a_btreemap(ops in prop::collection::vec((-6i32..6, -6i32..6, 0u8..3), 1..120), probe in (-7i32..7, -7i32..7)) {
+    fn s3c_03_an_index_behaves_like_a_btreemap(ops in prop::collection::vec((prop::option::weighted(0.88, -6i32..6), prop::option::weighted(0.88, -6i32..6), 0u8..3), 1..120), probe in (-7i32..7, -7i32..7)) {
         let bpm = bpm(50);
         let table = three_ints();
         let index = BPlusTreeIndex::<8>::new(IndexMetadata::new("i", "t", &table, vec![0, 1], false), &bpm);
         let ks = index.metadata().get_key_schema().clone();
+        let tuple = |a: Option<i32>, b: Option<i32>| Tuple::new(&[a.map_or(Value::null(Integer), Value::integer), b.map_or(Value::null(Integer), Value::integer)], &ks);
         let mut model: BTreeMap<(i32, i32), Rid> = BTreeMap::new();
         for (n, (a, b, op)) in ops.into_iter().enumerate() {
             let rid = Rid::new(PageId(2), n as u32);
+            // a key with a NULL in it is never indexed and never found
+            let real = a.zip(b);
             match op {
                 0 | 1 => {
-                    let fresh = !model.contains_key(&(a, b));
-                    prop_assert_eq!(index.insert_entry(&key(&ks, &[a, b]), rid), fresh);
-                    if fresh { model.insert((a, b), rid); }
+                    let fresh = real.is_some_and(|k| !model.contains_key(&k));
+                    prop_assert_eq!(index.insert_entry(&tuple(a, b), rid), fresh);
+                    if fresh { model.insert(real.unwrap(), rid); }
                 }
-                _ => { index.delete_entry(&key(&ks, &[a, b])); model.remove(&(a, b)); }
+                _ => { index.delete_entry(&tuple(a, b)); if let Some(k) = real { model.remove(&k); } }
             }
-            prop_assert_eq!(index.scan_key(&key(&ks, &[a, b])), model.get(&(a, b)).copied().into_iter().collect::<Vec<_>>());
+            prop_assert_eq!(index.scan_key(&tuple(a, b)), real.and_then(|k| model.get(&k).copied()).into_iter().collect::<Vec<_>>());
         }
         prop_assert_eq!(index.scan_all(), model.values().copied().collect::<Vec<_>>());
         prop_assert_eq!(index.scan_from(&key(&ks, &[probe.0, probe.1])), model.range(probe..).map(|(_, r)| *r).collect::<Vec<_>>());

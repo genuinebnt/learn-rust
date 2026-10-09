@@ -1,8 +1,0 @@
-id = "3h-06"
-title = "Boss: BusTub's plan-checking SQL tests"
-kind = "boss"
-difficulty = "hard"
-tests = ["sql_optimizer_test"]
-learn = ["tests that assert the plan, not only the result", "reading explain output to see which rule did not fire"]
-concepts = ["the-sql-pipeline", "rule-based-query-optimization"]
-retest = true

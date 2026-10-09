@@ -16,7 +16,7 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
 | L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 0a |
 | L8 Error design | `l8-error-design` | planned | core | R, 1a, 1b, 3a, 3d, 3e, 4b, 4c |
-| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e |
+| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e, 3h |
 | S2 Strings & text | `s2-strings-text` | written | core | 3a, 3b, 3d |
 | S3 Vec & slices | `s3-vec-slices` | written | core | R, 1a, 1c, 2a, 2c, 2d, 3b, 3g, 0c |
 | S4 Maps & sets | `s4-maps-sets` | written | core | 1a, 1c, 1d, 1e, 3c, 3f, 3g, 4a, 4b, 0a, 0d |
@@ -294,10 +294,11 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums as design | matching on plan-tree shapes, a visitor | the module |
-| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | owning trees: `Box`, rebuilding a node | the module |
-| [L4 Traits & dispatch](/t/l4-traits-dispatch) | Define & implement | a rule as a trait | the module |
-| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | equivalence: optimised plan and unoptimised plan return the same rows | the module |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums as design | matching on plan-tree shapes: `if let`, nested patterns, downcasting expressions | 3h-01, 3h-02, 3h-03 |
+| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | owning trees: `Arc` plans you rebuild and never mutate | 3h-01, 3h-02 |
+| [S1 Option & Result](/t/s1-option-result) | Understand it | `?` on `Option`, `collect::<Option<Vec<_>>>`, `bool::then` | 3h-01, 3h-03 |
+| [L4 Traits & dispatch](/t/l4-traits-dispatch) | Define & implement | a rule as a function from plan to plan (a trait, if you like) | 3h-01 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | equivalence: the optimised plan and the plain plan return the same rows, on random tables | 3h-01, 3h-02, 3h-03, 3h-04 |
 
 ### 4A · Timestamps, transactions and version chains
 

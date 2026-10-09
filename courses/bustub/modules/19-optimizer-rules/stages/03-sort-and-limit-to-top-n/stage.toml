@@ -1,7 +1,0 @@
-id = "3h-03"
-title = "Sort and limit to top-N"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_3h::s3h_03"]
-learn = ["matching a two-node pattern", "reusing the schema and children of the matched nodes", "testing a rule with EXPLAIN and with results"]
-concepts = ["rule-based-query-optimization", "top-n-with-a-bounded-heap"]

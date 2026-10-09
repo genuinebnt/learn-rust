@@ -1,7 +1,0 @@
-id = "3h-05"
-title = "Sequential scan to index scan"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3h::s3h_05"]
-learn = ["choosing an index for a predicate", "keeping the whole predicate as a filter", "rules that compose with earlier rules"]
-concepts = ["rule-based-query-optimization", "access-paths-index-vs-seq-scan", "predicate-pushdown"]

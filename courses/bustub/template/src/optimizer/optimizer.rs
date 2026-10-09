@@ -268,22 +268,22 @@ impl<'c, 'a> Optimizer<'c, 'a> {
 
     /// Turns a nested loop join whose predicate is equalities between the two sides into a hash join.
     pub fn optimize_nlj_as_hash_join(&self, plan: &PlanRef) -> PlanRef {
-        plan.clone() // 3h-02: optimize the children first (self.optimize_children(plan, &Self::optimize_nlj_as_hash_join)); then, for an INNER or LEFT NestedLoopJoin whose predicate gives equi-join keys, a HashJoin with the same schema, children and join type; otherwise the node unchanged
+        plan.clone() // 3h-01: optimize the children first (self.optimize_children(plan, &Self::optimize_nlj_as_hash_join)); then, for an INNER or LEFT NestedLoopJoin whose predicate gives equi-join keys, a HashJoin with the same schema, children and join type; otherwise the node unchanged
     }
 
     /// Turns `Limit(Sort(child))` into `TopN(child)`.
     pub fn optimize_sort_limit_as_top_n(&self, plan: &PlanRef) -> PlanRef {
-        plan.clone() // 3h-03: optimize the children first; then a Limit whose child is a Sort becomes a TopN with the limit's output schema, the sort's order-bys, n = the limit, and the sort's children
+        plan.clone() // 3h-02: optimize the children first; then a Limit whose child is a Sort becomes a TopN with the limit's output schema, the sort's order-bys, n = the limit, and the sort's children
     }
 
     /// If the predicate is `column = constant` (either way round) or an `OR` of such equalities on the **same** column: that column's
     /// index in the scan's output and the constant expressions, in order. Otherwise `None`.
     pub fn extract_point_lookup(predicate: &ExprRef) -> Option<(u32, Vec<ExprRef>)> {
-        None // 3h-04: an Equal comparison between a ColumnValueExpression and a ConstantValueExpression (either order) gives (the column's index, [the constant]); an OR of two such lookups on the same column gives the same column and the keys of both, left first; anything else None
+        None // 3h-03: an Equal comparison between a ColumnValueExpression and a ConstantValueExpression (either order) gives (the column's index, [the constant]); an OR of two such lookups on the same column gives the same column and the keys of both, left first; anything else None
     }
 
     /// Turns a scan with a point-lookup predicate on an indexed column into an index scan.
     pub fn optimize_seq_scan_as_index_scan(&self, plan: &PlanRef) -> PlanRef {
-        plan.clone() // 3h-05: optimize the children first; then a SeqScan with a filter predicate that is (or has an AND-conjunct that is) a point lookup on a column with an index (self.match_index(table_name, column)) becomes an IndexScan with the scan's schema, that index, the keys as pred_keys, and the WHOLE predicate as filter_predicate; otherwise unchanged
+        plan.clone() // 3h-03: optimize the children first; then a SeqScan with a filter predicate that is (or has an AND-conjunct that is) a point lookup on a column with an index (self.match_index(table_name, column)) becomes an IndexScan with the scan's schema, that index, the keys as pred_keys, and the WHOLE predicate as filter_predicate; otherwise unchanged
     }
 }

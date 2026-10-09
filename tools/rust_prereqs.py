@@ -257,10 +257,11 @@ MODULES = [
         ("Y5", "Build it", "a sorted vector as the oracle for sort, limit, top-N and rank", ["3g-01", "3g-03", "3g-04", "3g-05", "3g-06"]),
     ]),
     ("3h", "Optimizer rules", [
-        ("L7", "Enums as design", "matching on plan-tree shapes, a visitor", None),
-        ("S7", "Understand it", "owning trees: `Box`, rebuilding a node", None),
-        ("L4", "Define & implement", "a rule as a trait", None),
-        ("Y5", "Build it", "equivalence: optimised plan and unoptimised plan return the same rows", None),
+        ("L7", "Enums as design", "matching on plan-tree shapes: `if let`, nested patterns, downcasting expressions", ["3h-01", "3h-02", "3h-03"]),
+        ("S7", "Understand it", "owning trees: `Arc` plans you rebuild and never mutate", ["3h-01", "3h-02"]),
+        ("S1", "Understand it", "`?` on `Option`, `collect::<Option<Vec<_>>>`, `bool::then`", ["3h-01", "3h-03"]),
+        ("L4", "Define & implement", "a rule as a function from plan to plan (a trait, if you like)", ["3h-01"]),
+        ("Y5", "Build it", "equivalence: the optimised plan and the plain plan return the same rows, on random tables", ["3h-01", "3h-02", "3h-03", "3h-04"]),
     ]),
     ("4a", "Timestamps, transactions and version chains", [
         ("S7", "Understand it", "`Arc`, `Mutex`, shared state", None),

@@ -133,7 +133,7 @@ fn point_lookups_come_from_equalities_with_a_constant() {
 ### In the exercises
 
 - **3h-01:** `extract_equi_join_keys` is `equi_join_keys` over BusTub's expression tree.
-- **3h-04:** `extract_point_lookup` is `point_lookup`, with the constant a `ConstantValueExpression`.
+- **3h-03:** `extract_point_lookup` is `point_lookup`, with the constant a `ConstantValueExpression`.
 
 ### Where it is used
 

@@ -110,7 +110,7 @@ impl<const N: usize> SchemaComparator<N> {
 
 impl<const N: usize> KeyComparator<GenericKey<N>> for SchemaComparator<N> {
     fn compare(&self, lhs: &GenericKey<N>, rhs: &GenericKey<N>) -> Ordering {
-        todo!("3c-03: compare column by column (key_to_value for each side): the first column that differs decides; all equal is Equal")
+        todo!("3c-03: compare column by column (key_to_value for each side): a NULL is smaller than any value and equal to a NULL; otherwise the first column that differs decides; all equal is Equal")
     }
 }
 
@@ -127,21 +127,25 @@ impl<'a, const N: usize> BPlusTreeIndex<'a, N> {
     }
 }
 
+impl<const N: usize> BPlusTreeIndex<'_, N> {
+    // TODO(3c-03): a private helper of yours, if you want one
+}
+
 impl<const N: usize> Index for BPlusTreeIndex<'_, N> {
     fn metadata(&self) -> &IndexMetadata {
         &self.metadata
     }
 
     fn insert_entry(&self, key: &Tuple, rid: Rid) -> bool {
-        todo!("3c-03: the key tuple as a GenericKey, inserted into the tree")
+        todo!("3c-03: a key with a NULL in it is not indexed (false); otherwise the key tuple as a GenericKey, inserted into the tree")
     }
 
     fn delete_entry(&self, key: &Tuple) {
-        todo!("3c-03: remove the key from the tree")
+        todo!("3c-03: remove the key from the tree (a key with a NULL was never there)")
     }
 
     fn scan_key(&self, key: &Tuple) -> Vec<Rid> {
-        todo!("3c-03: the tree's lookup of the key")
+        todo!("3c-03: the tree's lookup of the key; a key with a NULL in it finds nothing")
     }
 
     fn scan_all(&self) -> Vec<Rid> {

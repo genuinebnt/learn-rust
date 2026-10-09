@@ -42,7 +42,7 @@ impl<'e> IndexScanExecutor<'e> {
     /// The rids this scan visits: with `pred_keys`, the rid under each key (in the order of the keys); without, every rid of the index in
     /// key order.
     fn collect_rids(&self) -> Result<Vec<Rid>> {
-        Ok(self.index_info.index.scan_all()) // 3e-04: with pred_keys: evaluate each key (a constant), make a one-column key tuple with the index's key schema and look it up (Index::scan_key)
+        Ok(self.index_info.index.scan_all()) // 3e-04: with pred_keys: evaluate each key (a constant), make a one-column key tuple with the index's key schema and look it up (Index::scan_key); a rid found under two keys is visited once
     }
 }
 

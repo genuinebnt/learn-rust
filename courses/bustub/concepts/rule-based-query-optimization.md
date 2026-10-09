@@ -107,9 +107,9 @@ fn the_rule_applies_below_other_nodes() {
 
 ### In the exercises
 
-- **3h-01 to 3h-02:** NLJ → hash join (the condition parser, then the rewrite).
-- **3h-03:** sort + limit → top-N.
-- **3h-04 to 3h-05:** seq scan with a point predicate → index scan.
+- **3h-01:** NLJ → hash join (the condition parser, then the rewrite).
+- **3h-02:** sort + limit → top-N.
+- **3h-03:** seq scan with a point predicate → index scan.
 - **Given rules** (module 3d): merge projection, merge filter into NLJ, merge filter into scan, order-by → index scan, NLJ → index join; they show the shape.
 
 ### Where it is used

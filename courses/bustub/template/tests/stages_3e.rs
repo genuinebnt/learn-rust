@@ -707,6 +707,16 @@ fn s3e_04_a_lookup_sees_an_update_made_in_the_same_session() {
 }
 
 #[test]
+fn s3e_04_a_key_listed_twice_finds_its_row_once() {
+    let (db, table_oid, index_oid) = db_with_index(&[vec![1, 10], vec![2, 20]]);
+    let info = db.catalog.read().unwrap().get_table_by_oid(table_oid).unwrap();
+    let rows = execute(&db, &index_scan_plan(&info, index_oid, None, vec![key(2), key(1), key(2)]));
+    let found: Vec<i32> = rows.iter().map(|t| t.get_value(&info.schema, 0).as_i64().unwrap() as i32).collect();
+    assert_eq!(found, vec![2, 1], "a key listed twice finds its row once, at its first place");
+    assert_eq!(sql(&db, "select * from t where a = 1 or a = 1"), vec!["1 10"], "an OR of the same equality is one row, not two");
+}
+
+#[test]
 fn s3e_04_a_batch_of_lookups_larger_than_the_batch_size() {
     let rows: Vec<Vec<i32>> = (0..100).map(|i| vec![i, i * 2]).collect();
     let (db, table_oid, index_oid) = db_with_index(&rows);
@@ -930,8 +940,9 @@ proptest! {
         prop_assume!(!probes.is_empty()); // no keys at all means "scan everything", checked above
         let found: Vec<(i32, i32)> = execute(&db, &index_scan_plan(&info, index_oid, None, probes.iter().map(|k| key(*k)).collect()))
             .iter().map(|t| (t.get_value(&info.schema, 0).as_i64().unwrap() as i32, t.get_value(&info.schema, 1).as_i64().unwrap() as i32)).collect();
-        let want: Vec<(i32, i32)> = probes.iter().filter(|k| keys.contains(k)).map(|k| (*k, k * 10)).collect();
-        prop_assert_eq!(found, want, "point lookups in the order given; absent keys find nothing");
+        let mut seen = std::collections::HashSet::new();
+        let want: Vec<(i32, i32)> = probes.iter().filter(|k| keys.contains(k) && seen.insert(**k)).map(|k| (*k, k * 10)).collect();
+        prop_assert_eq!(found, want, "point lookups in the order given, a repeated key finds its row once; absent keys find nothing");
     }
 }
 

@@ -1,0 +1,8 @@
+id = "3h-04"
+title = "Boss: optimised and plain plans return the same rows"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_3h::s3h_04", "sql_optimizer_test"]
+retest = true
+concepts = []
+concepts_optional = ["rule-based-query-optimization", "model-based-testing", "property-testing-and-fuzzing"]

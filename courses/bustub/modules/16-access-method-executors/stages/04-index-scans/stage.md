@@ -11,11 +11,11 @@ An index does not hold rows; it holds **record ids** in key order. An **index sc
 
 In `src/execution/executors/index_scan_executor.rs` (the struct and `new` are given):
 
-- `collect_rids()` (called by `init`): with **no** `pred_keys`, every rid of the index in key order (`index.scan_all()`); with `pred_keys`, for each key expression **in order**: evaluate it (it is a constant: use an empty tuple and an empty schema), make a one-column **key tuple** with the index's key schema (`Tuple::new(&[value], &self.index_info.key_schema)`), look it up with `index.scan_key(&key)` and append the rids found.
+- `collect_rids()` (called by `init`): with **no** `pred_keys`, every rid of the index in key order (`index.scan_all()`); with `pred_keys`, for each key expression **in order**: evaluate it (it is a constant: use an empty tuple and an empty schema), make a one-column **key tuple** with the index's key schema (`Tuple::new(&[value], &self.index_info.key_schema)`), look it up with `index.scan_key(&key)` and append the rids found. A rid found under two keys is visited **once**, at its first key: `v1 = 4 or v1 = 4` is one row, not two.
 - `init`: remember the rids to visit and start at the first.
 - `next`: fill the batch from the rids: fetch each row with `table.get_tuple(rid)?`, skip it if it is deleted or if the plan's `filter_predicate` (when there is one) is not TRUE, push the tuple and its rid; stop at `batch_size` or the end. Return `true` if the batch is not empty.
 
-The tests: exact scenarios (rows come back in key order, not storage order; negative keys sort as numbers; the batch size is respected; an empty table gives nothing; deleted rows do not come back; `order by` on an indexed column becomes an index scan; a key finds its row; several keys in the order given; a deleted row is not found; the filter applies to what the index found; a lookup sees an update from the same session; a batch of lookups larger than the batch size), and a property: **for a random set of keys inserted in a scrambled order**, a full index scan returns the rows in ascending key order, a filtered one returns the keys passing the filter, and a list of probes returns the rows of the present keys in the order given (absent keys find nothing).
+The tests: exact scenarios (rows come back in key order, not storage order; negative keys sort as numbers; the batch size is respected; an empty table gives nothing; deleted rows do not come back; `order by` on an indexed column becomes an index scan; a key finds its row; several keys in the order given; a key listed twice finds its row once; a deleted row is not found; the filter applies to what the index found; a lookup sees an update from the same session; a batch of lookups larger than the batch size), and a property: **for a random set of keys inserted in a scrambled order**, a full index scan returns the rows in ascending key order, a filtered one returns the keys passing the filter, and a list of probes returns the rows of the present keys in the order given (absent keys find nothing, a repeated key finds its row once).
 
 ## Your freedom
 
@@ -67,7 +67,7 @@ A point lookup is one tree descent (`depth + 1` page latches) plus one heap page
 Optional. Predict first, then run.
 
 1. **Lazy.** Ask the index for one key at a time inside `next` instead of at `init`. What changes if a row is inserted between two `next` calls?
-2. **Duplicates.** Probe the same key twice in the list. What does your scan return, and what should it?
+2. **Duplicates.** Remove your de-duplication of repeated keys. Which test fails, and what query would show the bug to a user?
 
 ## Other designs
 

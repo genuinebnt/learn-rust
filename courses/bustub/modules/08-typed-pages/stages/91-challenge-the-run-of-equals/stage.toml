@@ -1,0 +1,8 @@
+id = "2a-c2"
+title = "Challenge: the run of equals"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_2a::s2a_c2"]
+learn = ["finding a boundary bug in a binary search over duplicates"]
+concepts = []
+concepts_optional = ["slices-copy-within-and-binary-search", "property-testing-and-fuzzing"]

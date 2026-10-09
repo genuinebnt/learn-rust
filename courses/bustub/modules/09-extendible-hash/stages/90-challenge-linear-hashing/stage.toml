@@ -1,0 +1,8 @@
+id = "2b-c1"
+title = "Challenge: linear hashing"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_2b::s2b_c1"]
+learn = ["growing a hash table one bucket at a time without a directory"]
+concepts = []
+concepts_optional = ["extendible-hashing", "hash-functions-and-murmur3", "model-based-testing"]

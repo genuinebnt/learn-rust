@@ -1,0 +1,8 @@
+id = "2c-c2"
+title = "Challenge: the separator"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_2c::s2c_c2"]
+learn = ["finding a bug in what a node split keeps and what it moves up"]
+concepts = []
+concepts_optional = ["splitting-and-promoting", "routing-with-separator-keys", "checking-invariants"]

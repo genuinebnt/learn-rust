@@ -1,0 +1,8 @@
+id = "1b-c2"
+title = "Challenge: the gate"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1b::s1b_c2"]
+learn = ["finding a concurrency bug from a failing test that waits"]
+concepts = []
+concepts_optional = ["condvars-and-blocking-queues", "deadlock-and-lock-ordering"]

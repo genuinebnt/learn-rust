@@ -864,3 +864,228 @@ proptest! {
         prop_assert_eq!(total, data.len(), "the counts add up to the length of the data");
     }
 }
+
+// @@ challenge r-c3 begin
+mod ch_r_c3 {
+    use proptest::prelude::*;
+
+    use bustub::rust_primer::bits::BitSet;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn sr_c3_bits_across_word_boundaries() {
+        let mut b = BitSet::new(70);
+        for i in [0, 63, 64, 69] {
+            assert!(b.set(i), "bit {i} was clear");
+        }
+        assert_eq!(b.count(), 4);
+        assert_eq!(b.iter().collect::<Vec<_>>(), vec![0, 63, 64, 69]);
+        assert!(b.test(63) && b.test(64) && !b.test(65));
+    }
+
+    #[test]
+    fn sr_c3_set_and_clear_report_whether_they_changed_anything() {
+        let mut b = BitSet::new(10);
+        assert!(b.set(3));
+        assert!(!b.set(3), "already set");
+        assert!(b.clear(3));
+        assert!(!b.clear(3), "already clear");
+        assert_eq!(b.count(), 0);
+    }
+
+    #[test]
+    fn sr_c3_indexes_past_the_capacity_change_nothing() {
+        let mut b = BitSet::new(70);
+        assert!(!b.set(70));
+        assert!(!b.set(127), "inside the last word but past the capacity");
+        assert!(!b.set(10_000));
+        assert!(!b.test(70) && !b.test(10_000));
+        assert!(!b.clear(70));
+        assert_eq!(b.count(), 0);
+        assert_eq!(b.capacity(), 70);
+    }
+
+    #[test]
+    fn sr_c3_first_clear_on_empty_partial_and_full_sets() {
+        let mut b = BitSet::new(130);
+        assert_eq!(b.first_clear(), Some(0));
+        for i in 0..65 {
+            b.set(i);
+        }
+        assert_eq!(b.first_clear(), Some(65));
+        for i in 0..130 {
+            b.set(i);
+        }
+        assert_eq!(b.first_clear(), None, "a full set has no clear bit, and the unused bits of the last word do not count");
+        b.clear(100);
+        assert_eq!(b.first_clear(), Some(100));
+        assert_eq!(BitSet::new(0).first_clear(), None);
+    }
+
+    #[test]
+    fn sr_c3_union_sets_what_the_other_has() {
+        let (mut a, mut b) = (BitSet::new(100), BitSet::new(200));
+        a.set(1);
+        b.set(1);
+        b.set(99);
+        b.set(150);
+        a.union_with(&b);
+        assert_eq!(a.iter().collect::<Vec<_>>(), vec![1, 99], "bit 150 is past a's capacity and is ignored");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: a bit set behaves like a `BTreeSet` of indexes below the capacity.
+        #[test]
+        fn sr_c3_property_a_bit_set_is_a_set(capacity in 0usize..200, ops in proptest::collection::vec((0u8..3, 0usize..220), 0..100)) {
+            let mut b = BitSet::new(capacity);
+            let mut m = BTreeSet::new();
+            for (op, i) in ops {
+                let inside = i < capacity;
+                match op {
+                    0 => prop_assert_eq!(b.set(i), inside && m.insert(i)),
+                    1 => prop_assert_eq!(b.clear(i), inside && m.remove(&i)),
+                    _ => prop_assert_eq!(b.test(i), m.contains(&i)),
+                }
+                prop_assert_eq!(b.count(), m.len());
+            }
+            prop_assert_eq!(b.iter().collect::<Vec<_>>(), m.iter().copied().collect::<Vec<_>>());
+            prop_assert_eq!(b.first_clear(), (0..capacity).find(|i| !m.contains(i)));
+        }
+    }
+}
+// @@ challenge r-c3 end
+
+// @@ challenge r-c4 begin
+mod ch_r_c4 {
+    use proptest::prelude::*;
+
+    use bustub::rust_primer::framing::{FrameDecoder, FrameError};
+
+    fn frame(payload: &[u8]) -> Vec<u8> {
+        let mut v = (payload.len() as u16).to_be_bytes().to_vec();
+        v.extend_from_slice(payload);
+        v
+    }
+
+    #[test]
+    fn sr_c4_whole_frames_come_out_in_order() {
+        let mut d = FrameDecoder::new(100);
+        let mut bytes = frame(b"abc");
+        bytes.extend(frame(b""));
+        bytes.extend(frame(b"z"));
+        assert_eq!(d.push(&bytes).unwrap(), vec![b"abc".to_vec(), b"".to_vec(), b"z".to_vec()]);
+        assert_eq!(d.buffered(), 0);
+    }
+
+    #[test]
+    fn sr_c4_a_frame_split_across_pushes_waits_for_the_rest() {
+        let mut d = FrameDecoder::new(100);
+        assert_eq!(d.push(&[0, 3, b'a']).unwrap(), Vec::<Vec<u8>>::new());
+        assert_eq!(d.buffered(), 3);
+        assert_eq!(d.push(&[b'b', b'c', 0, 1, b'z']).unwrap(), vec![b"abc".to_vec(), b"z".to_vec()]);
+    }
+
+    #[test]
+    fn sr_c4_a_header_cut_in_the_middle_is_not_lost() {
+        let mut d = FrameDecoder::new(100);
+        assert!(d.push(&[0]).unwrap().is_empty());
+        assert_eq!(d.buffered(), 1);
+        assert_eq!(d.push(&[2, 9, 8]).unwrap(), vec![vec![9, 8]]);
+    }
+
+    #[test]
+    fn sr_c4_pushing_nothing_changes_nothing() {
+        let mut d = FrameDecoder::new(100);
+        d.push(&[0, 5, 1]).unwrap();
+        assert!(d.push(&[]).unwrap().is_empty());
+        assert_eq!(d.buffered(), 3);
+    }
+
+    #[test]
+    fn sr_c4_a_frame_that_is_too_long_is_an_error_and_the_decoder_recovers() {
+        let mut d = FrameDecoder::new(10);
+        assert_eq!(d.push(&[0, 11, 1, 2]), Err(FrameError::TooLong { len: 11 }));
+        assert_eq!(d.buffered(), 0, "the buffered bytes are forgotten");
+        assert_eq!(d.push(&frame(b"ok")).unwrap(), vec![b"ok".to_vec()]);
+        assert!(d.push(&frame(&[7; 10])).is_ok(), "exactly the maximum is fine");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: however the stream is cut into pieces, the same frames come out, and what is left is less than one whole frame.
+        #[test]
+        fn sr_c4_property_chunking_does_not_change_the_frames(frames in proptest::collection::vec(proptest::collection::vec(any::<u8>(), 0..20), 0..8), cuts in proptest::collection::vec(1usize..12, 1..30), tail in 0usize..3) {
+            let mut stream: Vec<u8> = frames.iter().flat_map(|f| frame(f)).collect();
+            let whole = stream.len();
+            stream.extend(std::iter::repeat_n(0u8, tail).take(tail.min(1))); // an unfinished header at the end
+            let mut d = FrameDecoder::new(64);
+            let mut got = Vec::new();
+            let mut at = 0;
+            let mut i = 0;
+            while at < stream.len() {
+                let n = cuts[i % cuts.len()].min(stream.len() - at);
+                got.extend(d.push(&stream[at..at + n]).unwrap());
+                at += n;
+                i += 1;
+            }
+            prop_assert_eq!(got, frames);
+            prop_assert_eq!(d.buffered(), stream.len() - whole);
+        }
+    }
+}
+// @@ challenge r-c4 end
+
+// @@ challenge r-c5 begin
+mod ch_r_c5 {
+    use proptest::prelude::*;
+
+    use bustub::rust_primer::offsets::{page_offset, pages_for};
+
+    #[test]
+    fn sr_c5_ordinary_values() {
+        assert_eq!(page_offset(3, 4096), Some(12288));
+        assert_eq!(page_offset(0, 4096), Some(0));
+        assert_eq!(pages_for(0, 4096), Some(0));
+        assert_eq!(pages_for(1, 4096), Some(1));
+        assert_eq!(pages_for(4096, 4096), Some(1));
+        assert_eq!(pages_for(4097, 4096), Some(2));
+    }
+
+    #[test]
+    fn sr_c5_a_page_size_of_zero_has_no_answer() {
+        assert_eq!(page_offset(5, 0), None);
+        assert_eq!(pages_for(5, 0), None);
+    }
+
+    #[test]
+    fn sr_c5_an_offset_that_does_not_fit_is_none_not_a_wrapped_number() {
+        assert_eq!(page_offset(u64::MAX, 2), None);
+        assert_eq!(page_offset(1 << 63, 2), None);
+        assert_eq!(page_offset((1 << 63) - 1, 2), Some(u64::MAX - 1));
+    }
+
+    #[test]
+    fn sr_c5_the_page_count_of_a_huge_file_is_right() {
+        assert_eq!(pages_for(u64::MAX, 4096), Some(4_503_599_627_370_496), "2^64 / 4096 = 2^52, rounded up from just below");
+        assert_eq!(pages_for(u64::MAX - 3, 4), Some((1 << 62) - 1), "2^64 - 4 is exactly 2^62 - 1 pages of 4");
+        assert_eq!(pages_for(u64::MAX, 1), Some(u64::MAX));
+        assert_eq!(pages_for(u64::MAX, u64::MAX), Some(1));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against 128-bit arithmetic, for ordinary and for huge values alike.
+        #[test]
+        fn sr_c5_property_the_arithmetic_matches_128_bit(a in prop_oneof![any::<u64>(), 0u64..5000, (u64::MAX - 5000)..=u64::MAX], s in prop_oneof![1u64..10, any::<u64>(), Just(4096u64)]) {
+            let wide = a as u128 * s as u128;
+            prop_assert_eq!(page_offset(a, s), if wide <= u64::MAX as u128 { Some(wide as u64) } else { None });
+            let pages = (a as u128).div_ceil(s as u128);
+            prop_assert_eq!(pages_for(a, s), Some(pages as u64));
+        }
+    }
+}
+// @@ challenge r-c5 end

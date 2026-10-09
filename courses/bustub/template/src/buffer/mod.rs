@@ -1,6 +1,10 @@
 pub mod arc_replacer;
 pub mod buffer_pool_manager;
+pub mod cache_sim;
 pub mod clock_replacer;
+pub mod fifo_replacer;
+pub mod k_history;
+pub mod lfu_replacer;
 pub mod lru_k_replacer;
 pub mod lru_replacer;
 pub mod replacer;

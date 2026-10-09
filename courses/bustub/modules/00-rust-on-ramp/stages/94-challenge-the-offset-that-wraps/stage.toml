@@ -1,0 +1,8 @@
+id = "r-c5"
+title = "Challenge: the offset that wraps"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_r::sr_c5"]
+learn = ["finding an integer-overflow bug that only shows on huge inputs"]
+concepts = []
+concepts_optional = ["overflow-and-checked-arithmetic", "integers-and-casts", "property-testing-and-fuzzing"]

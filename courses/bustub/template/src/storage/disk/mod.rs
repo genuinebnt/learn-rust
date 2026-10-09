@@ -3,3 +3,7 @@ pub mod disk_manager;
 pub mod disk_manager_memory;
 pub mod disk_scheduler;
 pub mod mirrored_disk;
+pub mod page_bitmap;
+pub mod slot_allocator;
+pub mod throttled_disk;
+pub mod versioned_pages;

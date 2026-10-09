@@ -1,0 +1,8 @@
+id = "2c-c1"
+title = "Challenge: bulk loading"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_2c::s2c_c1"]
+learn = ["planning a B+ tree built bottom-up from sorted keys"]
+concepts = []
+concepts_optional = ["b-plus-tree-anatomy", "splitting-and-promoting", "model-based-testing"]

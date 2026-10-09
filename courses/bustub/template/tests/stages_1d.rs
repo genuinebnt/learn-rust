@@ -478,3 +478,193 @@ fn s1d_04_long_runs_on_many_frames_agree_with_the_model() {
         }
     }
 }
+
+// ---- 1d-c1 and 1d-c2: challenges ------------------------------------------------------------------------------------------------------------
+
+use bustub::buffer::cache_sim::{belady_hits, simulate};
+use bustub::buffer::fifo_replacer::FifoReplacer;
+use bustub::buffer::k_history::KHistory;
+use bustub::buffer::lfu_replacer::LfuReplacer;
+use bustub::buffer::replacer::FrameReplacer;
+
+/// A least-recently-used policy written for the test, so that the simulator is checked against a policy that is not the learner's.
+struct TestLru {
+    order: Vec<FrameId>,
+    evictable: Vec<FrameId>,
+}
+
+impl FrameReplacer for TestLru {
+    fn record_access(&mut self, frame: FrameId, _page: bustub::common::config::PageId) {
+        self.order.retain(|x| *x != frame);
+        self.order.push(frame);
+    }
+    fn set_evictable(&mut self, frame: FrameId, evictable: bool) {
+        self.evictable.retain(|x| *x != frame);
+        if evictable && self.order.contains(&frame) {
+            self.evictable.push(frame);
+        }
+    }
+    fn evict(&mut self) -> Option<FrameId> {
+        let at = self.order.iter().position(|x| self.evictable.contains(x))?;
+        let frame = self.order.remove(at);
+        self.evictable.retain(|x| *x != frame);
+        Some(frame)
+    }
+    fn remove(&mut self, frame: FrameId) {
+        self.order.retain(|x| *x != frame);
+        self.evictable.retain(|x| *x != frame);
+    }
+    fn size(&self) -> usize {
+        self.evictable.len()
+    }
+}
+
+fn lru() -> Box<dyn FrameReplacer> {
+    Box::new(TestLru { order: Vec::new(), evictable: Vec::new() })
+}
+
+#[test]
+fn s1d_c1_a_pool_big_enough_for_every_page_only_misses_the_first_time() {
+    let trace = [1, 2, 3, 1, 2, 3, 1, 2, 3];
+    assert_eq!(simulate(&trace, 3, lru()), 6, "three misses, six hits");
+    assert_eq!(simulate(&trace, 10, lru()), 6);
+    assert_eq!(belady_hits(&trace, 3), 6);
+}
+
+#[test]
+fn s1d_c1_a_pool_of_one_frame_hits_only_on_immediate_repeats() {
+    assert_eq!(simulate(&[1, 1, 2, 2, 2, 1, 3], 1, lru()), 3, "the repeats of 1, 2 and 2");
+    assert_eq!(belady_hits(&[1, 1, 2, 2, 2, 1, 3], 1), 3);
+}
+
+#[test]
+fn s1d_c1_no_frames_means_no_hits_and_an_empty_trace_has_none() {
+    assert_eq!(simulate(&[1, 2, 1], 0, lru()), 0);
+    assert_eq!(belady_hits(&[1, 2, 1], 0), 0);
+    assert_eq!(simulate(&[], 4, lru()), 0);
+    assert_eq!(belady_hits(&[], 4), 0);
+}
+
+#[test]
+fn s1d_c1_a_scan_is_what_separates_lru_from_least_frequently_used() {
+    // a hot page 0 used between a long scan of cold pages 100.. in a pool of 3 frames
+    let mut trace = Vec::new();
+    for i in 0..60u32 {
+        trace.push(0);
+        trace.push(100 + i);
+    }
+    let lru_hits = simulate(&trace, 3, lru());
+    let lfu_hits = simulate(&trace, 3, Box::new(LfuReplacer::new()));
+    assert!(lfu_hits >= 59, "the hot page is never evicted by a frequency policy: {lfu_hits}");
+    assert!(lfu_hits >= lru_hits, "on this trace LFU is at least as good as LRU");
+    assert!(belady_hits(&trace, 3) >= lfu_hits);
+}
+
+#[test]
+fn s1d_c1_belady_on_a_trace_worked_by_hand() {
+    // capacity 2: 1 2 3 1 2 -> evict 2 at the miss of 3 (next use of 2 is further than 1's), then 1 hits, 2 misses
+    assert_eq!(belady_hits(&[1, 2, 3, 1, 2], 2), 1);
+    // FIFO on the same trace: evicts 1 for 3, then 1 misses (evicting 2), then 2 misses: no hits at all
+    assert_eq!(simulate(&[1, 2, 3, 1, 2], 2, Box::new(FifoReplacer::new())), 0);
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Property: no policy beats the optimum, and the optimum never gets worse with a bigger pool.
+    #[test]
+    fn s1d_c1_property_no_policy_beats_belady(trace in proptest::collection::vec(0u32..8, 0..80), capacity in 1usize..6) {
+        let best = belady_hits(&trace, capacity);
+        for (name, r) in [("lru", lru()), ("fifo", Box::new(FifoReplacer::new()) as Box<dyn FrameReplacer>), ("lfu", Box::new(LfuReplacer::new()))] {
+            let hits = simulate(&trace, capacity, r);
+            prop_assert!(hits <= best, "{} got {} hits, more than the optimum {}", name, hits, best);
+        }
+        prop_assert!(belady_hits(&trace, capacity + 1) >= best, "a bigger pool cannot do worse under the optimal policy");
+        let distinct = trace.iter().collect::<std::collections::BTreeSet<_>>().len();
+        prop_assert!(best <= trace.len().saturating_sub(distinct.min(capacity)), "at least the first use of {} pages must miss", distinct.min(capacity));
+    }
+
+    /// Property: the simulator against a one-line model of LRU.
+    #[test]
+    fn s1d_c1_property_simulating_lru_matches_a_model(trace in proptest::collection::vec(0u32..6, 0..80), capacity in 1usize..5) {
+        let mut pool: Vec<u32> = Vec::new(); // most recent last
+        let mut want = 0;
+        for &p in &trace {
+            if let Some(at) = pool.iter().position(|&x| x == p) {
+                want += 1;
+                pool.remove(at);
+            } else if pool.len() == capacity {
+                pool.remove(0);
+            }
+            pool.push(p);
+        }
+        prop_assert_eq!(simulate(&trace, capacity, lru()), want);
+    }
+}
+
+#[test]
+fn s1d_c2_a_page_with_fewer_than_k_accesses_has_no_distance() {
+    let mut h = KHistory::new(3);
+    assert_eq!(h.k_distance(10), None);
+    h.record(1);
+    h.record(4);
+    assert_eq!(h.k_distance(10), None, "two accesses of three");
+}
+
+#[test]
+fn s1d_c2_the_distance_is_measured_to_the_kth_most_recent_access() {
+    let mut h = KHistory::new(2);
+    h.record(1);
+    h.record(5);
+    assert_eq!(h.k_distance(10), Some(9), "the 2nd most recent access is the one at time 1");
+    h.record(9);
+    assert_eq!(h.k_distance(10), Some(5), "now the 2nd most recent is the one at time 5: the access at time 1 is no longer among the last two");
+}
+
+#[test]
+fn s1d_c2_with_k_equal_to_one_it_is_plain_recency() {
+    let mut h = KHistory::new(1);
+    h.record(3);
+    assert_eq!(h.k_distance(10), Some(7));
+    h.record(8);
+    assert_eq!(h.k_distance(10), Some(2));
+}
+
+#[test]
+fn s1d_c2_only_the_last_k_accesses_are_remembered() {
+    let mut h = KHistory::new(3);
+    for t in 1..=100 {
+        h.record(t);
+    }
+    assert_eq!(h.k_distance(100), Some(2), "the 3rd most recent access is at time 98");
+}
+
+#[test]
+fn s1d_c2_a_longer_history_never_makes_the_distance_shorter() {
+    let mut h = KHistory::new(2);
+    h.record(10);
+    h.record(20);
+    let before = h.k_distance(30).unwrap();
+    h.record(25);
+    assert!(h.k_distance(30).unwrap() <= before, "a more recent access can only bring the k-th most recent access closer");
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Property: against the definition, a list of every access time with the k-th from the end picked out.
+    #[test]
+    fn s1d_c2_property_k_distance_matches_the_definition(k in 1usize..5, gaps in proptest::collection::vec(0u64..5, 0..30), tail in 0u64..5) {
+        let mut h = KHistory::new(k);
+        let mut all = Vec::new();
+        let mut t = 0u64;
+        for g in gaps {
+            t += g;
+            h.record(t);
+            all.push(t);
+            let now = t + tail;
+            let want = if all.len() < k { None } else { Some(now - all[all.len() - k]) };
+            prop_assert_eq!(h.k_distance(now), want, "after {} accesses, k = {}", all.len(), k);
+        }
+    }
+}

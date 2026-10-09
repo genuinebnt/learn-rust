@@ -1,0 +1,8 @@
+id = "1c-c1"
+title = "Challenge: least frequently used"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1c::s1c_c1"]
+learn = ["writing a replacement policy of your own against the FrameReplacer contract", "breaking ties in a way a test can check"]
+concepts = []
+concepts_optional = ["replacement-policies", "model-based-testing"]

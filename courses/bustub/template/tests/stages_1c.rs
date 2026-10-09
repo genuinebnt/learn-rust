@@ -617,3 +617,257 @@ fn s1c_04_when_every_use_is_a_pin_and_an_unpin_clock_chooses_the_same_victims_as
     assert!(l > 0.4, "the hot set should mostly stay in memory: hit rate {l:.3}");
     assert_eq!(c_evicted, l_evicted, "with pin-then-unpin on every use, CLOCK must evict the same pages as LRU, in the same order");
 }
+
+// ---- 1c-c1 and 1c-c2: challenges ------------------------------------------------------------------------------------------------------------
+
+use bustub::buffer::fifo_replacer::FifoReplacer;
+use bustub::buffer::lfu_replacer::LfuReplacer;
+use bustub::buffer::replacer::FrameReplacer;
+use bustub::common::config::PageId;
+
+fn chpg() -> PageId {
+    PageId(0)
+}
+
+#[derive(Clone, Debug)]
+enum ChOp {
+    Access(usize),
+    SetEvictable(usize, bool),
+    Evict,
+    Remove(usize),
+}
+
+fn challenge_ops() -> impl Strategy<Value = Vec<ChOp>> {
+    proptest::collection::vec(
+        prop_oneof![
+            5 => (0..6usize).prop_map(ChOp::Access),
+            4 => (0..6usize, any::<bool>()).prop_map(|(f, e)| ChOp::SetEvictable(f, e)),
+            3 => Just(ChOp::Evict),
+            1 => (0..6usize).prop_map(ChOp::Remove),
+        ],
+        1..80,
+    )
+}
+
+#[test]
+fn s1c_c1_the_least_used_evictable_frame_goes_first() {
+    let mut r = LfuReplacer::new();
+    for fr in 0..3 {
+        r.record_access(f(fr), chpg());
+    }
+    for _ in 0..2 {
+        r.record_access(f(0), chpg());
+    }
+    r.record_access(f(1), chpg());
+    for fr in 0..3 {
+        r.set_evictable(f(fr), true);
+    }
+    // counts: frame 0 -> 3, frame 1 -> 2, frame 2 -> 1
+    assert_eq!(r.evict(), Some(f(2)));
+    assert_eq!(r.evict(), Some(f(1)));
+    assert_eq!(r.evict(), Some(f(0)));
+    assert_eq!(r.evict(), None);
+}
+
+#[test]
+fn s1c_c1_among_equals_the_oldest_last_access_goes_first() {
+    let mut r = LfuReplacer::new();
+    r.record_access(f(1), chpg());
+    r.record_access(f(2), chpg());
+    r.record_access(f(3), chpg());
+    for fr in 1..=3 {
+        r.set_evictable(f(fr), true);
+    }
+    r.record_access(f(1), chpg()); // frame 1 now has 2 accesses, the others 1
+    assert_eq!(r.evict(), Some(f(2)), "frames 2 and 3 are tied on one access; 2 was used first");
+    assert_eq!(r.evict(), Some(f(3)));
+    assert_eq!(r.evict(), Some(f(1)));
+}
+
+#[test]
+fn s1c_c1_a_new_frame_is_not_evictable_until_it_is_set() {
+    let mut r = LfuReplacer::new();
+    r.record_access(f(5), chpg());
+    assert_eq!((r.size(), r.evict()), (0, None));
+    r.set_evictable(f(5), true);
+    assert_eq!(r.size(), 1);
+    r.set_evictable(f(5), false);
+    assert_eq!((r.size(), r.evict()), (0, None), "pinned again");
+    r.set_evictable(f(9), true);
+    assert_eq!(r.size(), 0, "a frame the replacer has not met is ignored");
+}
+
+#[test]
+fn s1c_c1_an_evicted_frame_starts_again_from_one_access() {
+    let mut r = LfuReplacer::new();
+    for _ in 0..5 {
+        r.record_access(f(1), chpg());
+    }
+    r.record_access(f(2), chpg());
+    r.record_access(f(2), chpg());
+    r.set_evictable(f(1), true);
+    r.set_evictable(f(2), true);
+    assert_eq!(r.evict(), Some(f(2)));
+    assert_eq!(r.evict(), Some(f(1)));
+    r.record_access(f(1), chpg());
+    r.record_access(f(2), chpg());
+    r.record_access(f(2), chpg());
+    r.set_evictable(f(1), true);
+    r.set_evictable(f(2), true);
+    assert_eq!(r.evict(), Some(f(1)), "frame 1 forgot its five accesses when it was evicted");
+}
+
+#[test]
+fn s1c_c1_remove_forgets_an_evictable_frame_and_refuses_a_pinned_one() {
+    let mut r = LfuReplacer::new();
+    r.record_access(f(1), chpg());
+    r.set_evictable(f(1), true);
+    r.remove(f(1));
+    assert_eq!(r.size(), 0);
+    r.remove(f(7)); // unknown: nothing happens
+    r.record_access(f(2), chpg());
+    let pinned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| r.remove(f(2))));
+    assert!(pinned.is_err(), "removing a frame that is in use is a bug of the caller and panics");
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Property: against a model of the policy (fewest accesses, then oldest last access), for any sequence of calls.
+    #[test]
+    fn s1c_c1_property_lfu_matches_its_model(ops in challenge_ops()) {
+        let mut r = LfuReplacer::new();
+        let mut model: Vec<(usize, u64, u64, bool)> = Vec::new();
+        let mut tick = 0u64;
+        for op in ops {
+            match op {
+                ChOp::Access(fr) => {
+                    tick += 1;
+                    r.record_access(f(fr), chpg());
+                    match model.iter_mut().find(|e| e.0 == fr) {
+                        Some(e) => { e.1 += 1; e.2 = tick; }
+                        None => model.push((fr, 1, tick, false)),
+                    }
+                }
+                ChOp::SetEvictable(fr, e) => {
+                    r.set_evictable(f(fr), e);
+                    if let Some(x) = model.iter_mut().find(|x| x.0 == fr) { x.3 = e; }
+                }
+                ChOp::Evict => {
+                    let want = model.iter().filter(|e| e.3).min_by_key(|e| (e.1, e.2)).map(|e| e.0);
+                    prop_assert_eq!(r.evict(), want.map(f));
+                    if let Some(w) = want { model.retain(|e| e.0 != w); }
+                }
+                ChOp::Remove(fr) => {
+                    match model.iter().find(|e| e.0 == fr) {
+                        Some(e) if !e.3 => continue,
+                        _ => {}
+                    }
+                    r.remove(f(fr));
+                    model.retain(|e| e.0 != fr);
+                }
+            }
+            prop_assert_eq!(r.size(), model.iter().filter(|e| e.3).count());
+        }
+    }
+}
+
+#[test]
+fn s1c_c2_the_oldest_arrival_goes_first_however_often_frames_are_used() {
+    let mut r = FifoReplacer::new();
+    for fr in 0..3 {
+        r.record_access(f(fr), chpg());
+        r.set_evictable(f(fr), true);
+    }
+    for _ in 0..10 {
+        r.record_access(f(0), chpg());
+    }
+    assert_eq!(r.evict(), Some(f(0)), "using frame 0 again does not move it: this is first in, first out");
+    assert_eq!(r.evict(), Some(f(1)));
+}
+
+#[test]
+fn s1c_c2_a_pinned_frame_is_skipped_and_keeps_its_place() {
+    let mut r = FifoReplacer::new();
+    for fr in 0..3 {
+        r.record_access(f(fr), chpg());
+        r.set_evictable(f(fr), true);
+    }
+    r.set_evictable(f(0), false);
+    assert_eq!(r.evict(), Some(f(1)), "frame 0 is in use");
+    r.set_evictable(f(0), true);
+    assert_eq!(r.evict(), Some(f(0)), "and it is still first in line once it may go");
+}
+
+#[test]
+fn s1c_c2_size_counts_the_evictable_frames_through_every_change() {
+    let mut r = FifoReplacer::new();
+    r.record_access(f(1), chpg());
+    r.record_access(f(2), chpg());
+    assert_eq!(r.size(), 0);
+    r.set_evictable(f(1), true);
+    r.set_evictable(f(2), true);
+    assert_eq!(r.size(), 2);
+    r.set_evictable(f(1), false);
+    assert_eq!(r.size(), 1, "a frame that is in use again is not counted");
+    r.set_evictable(f(1), false);
+    assert_eq!(r.size(), 1, "saying it twice changes nothing");
+    r.set_evictable(f(2), true);
+    assert_eq!(r.size(), 1, "nor does saying 'evictable' twice");
+}
+
+#[test]
+fn s1c_c2_nothing_to_evict_is_none_and_unknown_frames_are_ignored() {
+    let mut r = FifoReplacer::new();
+    assert_eq!(r.evict(), None);
+    r.set_evictable(f(4), true);
+    assert_eq!((r.size(), r.evict()), (0, None));
+    r.record_access(f(4), chpg());
+    assert_eq!(r.evict(), None, "known but not evictable");
+}
+
+#[test]
+fn s1c_c2_remove_forgets_a_frame_and_its_count() {
+    let mut r = FifoReplacer::new();
+    r.record_access(f(1), chpg());
+    r.set_evictable(f(1), true);
+    r.remove(f(1));
+    assert_eq!((r.size(), r.evict()), (0, None));
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Property: against a model written as plainly as possible, for any sequence of calls.
+    #[test]
+    fn s1c_c2_property_fifo_matches_its_model(ops in challenge_ops()) {
+        let mut r = FifoReplacer::new();
+        let mut model: Vec<(usize, bool)> = Vec::new(); // in arrival order
+        for op in ops {
+            match op {
+                ChOp::Access(fr) => {
+                    r.record_access(f(fr), chpg());
+                    if !model.iter().any(|e| e.0 == fr) { model.push((fr, false)); }
+                }
+                ChOp::SetEvictable(fr, e) => {
+                    r.set_evictable(f(fr), e);
+                    if let Some(x) = model.iter_mut().find(|x| x.0 == fr) { x.1 = e; }
+                }
+                ChOp::Evict => {
+                    let want = model.iter().find(|e| e.1).map(|e| e.0);
+                    prop_assert_eq!(r.evict(), want.map(f));
+                    if let Some(w) = want { model.retain(|e| e.0 != w); }
+                }
+                ChOp::Remove(fr) => {
+                    match model.iter().find(|e| e.0 == fr) {
+                        Some(e) if !e.1 => continue,
+                        _ => {}
+                    }
+                    r.remove(f(fr));
+                    model.retain(|e| e.0 != fr);
+                }
+            }
+            prop_assert_eq!(r.size(), model.iter().filter(|e| e.1).count(), "size after {:?}", op);
+        }
+    }
+}

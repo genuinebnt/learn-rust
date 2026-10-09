@@ -1,4 +1,7 @@
+pub mod bits;
 pub mod bytes;
+pub mod framing;
+pub mod offsets;
 pub mod records;
 pub mod ring;
 pub mod rle;

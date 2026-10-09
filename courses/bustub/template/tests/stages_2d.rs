@@ -362,3 +362,56 @@ fn s2d_03_long_runs_for_every_buffer_size_agree_with_a_set() {
         }
     }
 }
+
+// ---- 2d-c1: challenge ----------------------------------------------------------------------------------------------------------------------
+
+use bustub::storage::index::live_iter::{LiveKeys, Slot};
+
+fn ch_leaves(spec: &[&[Option<i64>]]) -> Vec<Vec<Slot>> {
+    spec.iter().map(|l| l.iter().map(|s| s.map_or(Slot::Tombstone, Slot::Live)).collect()).collect()
+}
+
+#[test]
+fn s2d_c1_live_keys_come_out_in_order_and_tombstones_are_skipped() {
+    let leaves = ch_leaves(&[&[Some(1), None, Some(3)], &[Some(4), Some(5), None]]);
+    assert_eq!(LiveKeys::new(&leaves).collect::<Vec<_>>(), vec![1, 3, 4, 5]);
+}
+
+#[test]
+fn s2d_c1_a_leaf_of_only_tombstones_does_not_end_the_walk() {
+    let leaves = ch_leaves(&[&[Some(1)], &[None, None, None], &[Some(9)]]);
+    assert_eq!(LiveKeys::new(&leaves).collect::<Vec<_>>(), vec![1, 9], "the dead leaf is in the middle: keys after it are still live");
+}
+
+#[test]
+fn s2d_c1_several_dead_leaves_in_a_row_and_dead_leaves_at_the_ends() {
+    let leaves = ch_leaves(&[&[None], &[None, None], &[Some(5)], &[None], &[None], &[Some(6), None], &[None]]);
+    assert_eq!(LiveKeys::new(&leaves).collect::<Vec<_>>(), vec![5, 6]);
+}
+
+#[test]
+fn s2d_c1_empty_input_and_empty_leaves() {
+    assert_eq!(LiveKeys::new(&[]).count(), 0);
+    let leaves = ch_leaves(&[&[], &[Some(2)], &[]]);
+    assert_eq!(LiveKeys::new(&leaves).collect::<Vec<_>>(), vec![2]);
+}
+
+#[test]
+fn s2d_c1_the_iterator_stays_finished_once_it_is_finished() {
+    let leaves = ch_leaves(&[&[Some(1)]]);
+    let mut it = LiveKeys::new(&leaves);
+    assert_eq!(it.next(), Some(1));
+    assert_eq!((it.next(), it.next()), (None, None));
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// Property: the iterator yields exactly the live keys, in order, whatever pattern of dead slots and dead leaves.
+    #[test]
+    fn s2d_c1_property_live_keys_match_a_flat_filter(shape in proptest::collection::vec(proptest::collection::vec(proptest::option::weighted(0.4, 0i64..100), 0..6), 0..8)) {
+        let leaves: Vec<Vec<Slot>> = shape.iter().map(|l| l.iter().map(|s| s.map_or(Slot::Tombstone, Slot::Live)).collect()).collect();
+        let want: Vec<i64> = shape.iter().flatten().flatten().copied().collect();
+        prop_assert_eq!(LiveKeys::new(&leaves).collect::<Vec<_>>(), want);
+    }
+}

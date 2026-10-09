@@ -1,23 +1,51 @@
 A challenge: no walkthrough, no hints, no solution. It is extra practice and does not count towards the course.
 
-## What to build
+## What to fix
 
-Nothing new. `src/rust_primer/rle.rs` has a complete run-length codec: `aaab` becomes the pairs (3, a) (1, b). It looks right, and it has one bug. Find it with the tests, and fix it.
+`src/rust_primer/rle.rs` has a complete run-length codec: `aaab` becomes the pairs (3, a) (1, b). It looks right, and it has one bug. Find it with the tests, and fix it.
 
 ## Why
 
-Most real debugging starts from a failing test and a counterexample, not from reading code. A property test that fails prints the *smallest* input it could find that breaks the rule, and that input is usually the whole bug report. Reading a shrunk counterexample well is a skill worth practising on something small.
+Most real debugging starts from a failing test and a counterexample, not from reading code. A property test that fails prints the *smallest* input it could find that breaks the rule, and that input is usually the whole bug report.
 
 ## The contract
 
-`rle_encode` turns data into (count, byte) pairs with counts from 1 to 255, and `rle_decode` turns them back. Decoding the encoding of any data gives that data back.
+- `rle_encode` turns data into (count, byte) pairs with counts from 1 to 255.
+- `rle_decode` turns them back and reports a count of 0 or a missing byte as an error.
+
+## Invariants
+
+These must hold after every step, whatever the input:
+
+- Every count in the encoding is between 1 and 255.
+- The counts add up to the length of the data.
+- No pair is wider than two bytes.
+
+## Relations between input and output
+
+How the answer must change when the input changes. The property tests check these on random inputs:
+
+- `decode(encode(x)) == x` for every `x`.
+- The encoding is never more than twice the length of the data.
+- Encoding data made of one repeated byte gives `ceil(len / 255)` pairs.
+
+## Examples
+
+Worked cases (the tests include them):
+
+```text
+[] -> []
+"aaab" -> [3, a, 1, b]
+[7; 255] -> [255, 7]
+[7; 256] -> [255, 7, 1, 7]
+```
 
 ## What the tests check
 
 - The exact pairs for small inputs and for the longest run one pair can hold.
-- That data comes back after a round trip, whatever its runs look like.
-- That the encoding is well formed and its counts add up to the length of the data.
-- That bad input to the decoder is an error.
+- Round trips of random data, including long runs.
+- A well-formedness property: counts and lengths.
+- Bad input to the decoder is an error.
 
 ## Done when
 

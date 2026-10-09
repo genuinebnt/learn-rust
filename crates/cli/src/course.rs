@@ -1641,7 +1641,7 @@ fn test(stage: Option<&str>, opts: TestOpts, filter: Option<&str>) -> anyhow::Re
     let earlier: Vec<String> = if only {
         Vec::new()
     } else {
-        course.stages.iter().filter(|s| s.rank < target.rank && (all || progress.passed.contains_key(&s.def.id))).flat_map(|s| s.def.tests.clone()).collect()
+        course.stages.iter().filter(|s| s.rank < target.rank && (progress.passed.contains_key(&s.def.id) || (all && s.def.kind != "challenge"))).flat_map(|s| s.def.tests.clone()).collect()
     };
     if !earlier.is_empty() {
         let mut uniq = earlier;
@@ -1786,6 +1786,11 @@ fn lint(course_id: &str, courses: &Path, all: bool) -> anyhow::Result<ExitCode> 
                 checked += 1;
                 if st.learn.is_empty() {
                     problems.push(format!("{}: `learn` needs at least 1 entry (what this challenge practises)", st.id));
+                }
+                for (needed, what) in [("invariants", "what must hold after every step"), ("relations-between-input-and-output", "how the answer must change with the input"), ("examples", "worked cases")] {
+                    if !st.sections.iter().any(|x| x.id == needed) {
+                        problems.push(format!("{}: a challenge page needs a `## {}` section ({what})", st.id, if needed == "relations-between-input-and-output" { "Relations between input and output" } else if needed == "invariants" { "Invariants" } else { "Examples" }));
+                    }
                 }
                 continue;
             }
@@ -1954,10 +1959,11 @@ fn verify(course_id: &str, courses: &Path, only: Option<&str>, from: Option<&str
         // A stage re-runs the earlier stages of its own module; the module's last stage (its boss) re-runs everything before it.
         let module_of = |id: &str| id.split('-').next().unwrap_or("").to_owned();
         let last_of_module = course.stages.iter().rev().filter(|x| x.def.kind != "challenge").find(|x| module_of(&x.def.id) == module_of(&s.def.id)).is_some_and(|x| x.rank == s.rank);
+        // a challenge stands alone: it is not a step on the way, so there is nothing before it to keep green
         let mut earlier: Vec<String> = course
             .stages
             .iter()
-            .filter(|x| x.rank < s.rank && (last_of_module || module_of(&x.def.id) == module_of(&s.def.id)))
+            .filter(|x| s.def.kind != "challenge" && x.rank < s.rank && (last_of_module || module_of(&x.def.id) == module_of(&s.def.id)))
             .flat_map(|x| x.def.tests.clone())
             .collect();
         earlier.sort();

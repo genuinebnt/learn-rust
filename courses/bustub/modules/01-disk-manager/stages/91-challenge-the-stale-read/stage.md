@@ -1,23 +1,48 @@
 A challenge: no walkthrough, no hints, no solution. It is extra practice and does not count towards the course.
 
-## What to build
+## What to fix
 
-Nothing new. `src/storage/disk/cached_disk.rs` is a complete page cache in front of any disk. It is meant to be invisible: to everyone using it, it should behave exactly like the disk underneath. It looks right, and it has one bug. Find it with the tests and fix it.
+`src/storage/disk/cached_disk.rs` is a complete write-through page cache in front of any disk. It is meant to be invisible: to everyone using it, it behaves exactly like the disk underneath. It looks right, and it has one bug. Find it and fix it.
 
 ## Why
 
-A cache is a second copy of the truth, and every second copy can go stale. Cache bugs are rarely in the code that reads or writes; they are in the operations that someone forgot to tell the cache about. The same lesson returns with the buffer pool in module 1f, where a stale page is a much worse failure.
+A cache is a second copy of the truth, and every second copy can go stale. Cache bugs are rarely in the code that reads or writes; they are in the operations that someone forgot to tell the cache about. The same lesson returns with the buffer pool in module 1f.
 
 ## The contract
 
-A `CachedDisk` answers every read, write and delete exactly as the disk underneath would, whatever its capacity. It writes through: the disk underneath is always current. It saves reads, nothing else.
+- A `CachedDisk` answers every read, write and delete exactly as the disk underneath would, whatever its capacity.
+- It writes through: the disk underneath is always current.
+
+## Invariants
+
+These must hold after every step, whatever the input:
+
+- Every page in the cache equals that page on the disk underneath.
+- The cache never holds more than its capacity.
+- A deleted page is in neither.
+
+## Relations between input and output
+
+How the answer must change when the input changes. The property tests check these on random inputs:
+
+- Replacing the cache by the plain disk never changes any answer.
+- A bigger cache never changes answers, only the number of reads that reach the disk.
+
+## Examples
+
+Worked cases (the tests include them):
+
+```text
+write 7; read 7; delete 7; read 7 -> zeros
+capacity 2, write pages 0..5, read all -> all correct
+```
 
 ## What the tests check
 
 - A page just written is served from memory.
 - A full cache forgets old pages without losing data.
-- A deleted page reads as zeros, and the cache and the disk underneath agree.
-- A property over random sequences of writes, reads and deletes, compared with a plain map of pages.
+- A deleted page reads as zeros, and cache and disk agree.
+- A property against a plain map of pages.
 
 ## Done when
 

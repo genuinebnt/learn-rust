@@ -1,0 +1,8 @@
+id = "2a-c1"
+title = "Challenge: rank and select"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_2a::s2a_c1"]
+learn = ["answering order-statistic queries over a sorted structure with binary search"]
+concepts = []
+concepts_optional = ["slices-copy-within-and-binary-search", "model-based-testing"]

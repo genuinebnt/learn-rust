@@ -425,3 +425,143 @@ fn s2a_05_an_ordering_is_a_total_order_on_the_keys_it_will_index() {
         }
     }
 }
+
+// ---- 2a-c1 and 2a-c2: challenges ------------------------------------------------------------------------------------------------------------
+
+use bustub::storage::page::bound_search::{count_of, lower_bound, upper_bound};
+use bustub::storage::page::ranked_array::RankedSet;
+
+fn ch_config() -> ProptestConfig {
+    ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() }
+}
+
+#[test]
+fn s2a_c1_rank_counts_the_smaller_numbers_whether_or_not_the_number_is_there() {
+    let mut s = RankedSet::new();
+    for x in [10, 30, 20, 40] {
+        assert!(s.insert(x));
+    }
+    assert_eq!((s.rank(5), s.rank(10), s.rank(15), s.rank(40), s.rank(41)), (0, 0, 1, 3, 4));
+}
+
+#[test]
+fn s2a_c1_select_is_the_inverse_of_rank() {
+    let mut s = RankedSet::new();
+    for x in [7, 3, 9, 5] {
+        s.insert(x);
+    }
+    assert_eq!((s.select(0), s.select(1), s.select(3), s.select(4)), (Some(3), Some(5), Some(9), None));
+    for i in 0..s.len() {
+        assert_eq!(s.rank(s.select(i).unwrap()), i);
+    }
+}
+
+#[test]
+fn s2a_c1_inserting_twice_and_removing_what_is_not_there_say_so() {
+    let mut s = RankedSet::new();
+    assert!(s.insert(1));
+    assert!(!s.insert(1));
+    assert_eq!(s.len(), 1);
+    assert!(!s.remove(2));
+    assert!(s.remove(1));
+    assert!(s.is_empty());
+    assert_eq!((s.rank(100), s.select(0)), (0, None));
+}
+
+#[test]
+fn s2a_c1_count_range_is_half_open_and_forgiving() {
+    let mut s = RankedSet::new();
+    for x in 0..10u64 {
+        s.insert(x * 10);
+    }
+    assert_eq!(s.count_range(20, 50), 3, "20, 30 and 40");
+    assert_eq!(s.count_range(20, 21), 1);
+    assert_eq!(s.count_range(50, 20), 0, "an empty or reversed range");
+    assert_eq!(s.count_range(0, u64::MAX), 10);
+    assert_eq!(s.count_range(91, 1000), 0);
+}
+
+#[test]
+fn s2a_c1_a_large_set_answers_quickly() {
+    let mut s = RankedSet::new();
+    for x in (0..20_000u64).rev() {
+        s.insert(x * 3);
+    }
+    let t = std::time::Instant::now();
+    let mut total = 0;
+    for q in 0..200_000u64 {
+        total += s.rank(q);
+    }
+    assert!(total > 0);
+    assert!(t.elapsed() < std::time::Duration::from_secs(5), "200 000 ranks over 20 000 numbers took {:?}: rank must not scan", t.elapsed());
+}
+
+proptest! {
+    #![proptest_config(ch_config())]
+
+    /// Property: against a `BTreeSet` and counting by brute force, after any sequence of inserts and removes.
+    #[test]
+    fn s2a_c1_property_rank_and_select_match_a_model(ops in proptest::collection::vec((any::<bool>(), 0u64..40), 0..80), probes in proptest::collection::vec((0u64..45, 0u64..45), 1..10)) {
+        let mut s = RankedSet::new();
+        let mut m = std::collections::BTreeSet::new();
+        for (ins, x) in ops {
+            if ins { prop_assert_eq!(s.insert(x), m.insert(x)); } else { prop_assert_eq!(s.remove(x), m.remove(&x)); }
+        }
+        prop_assert_eq!(s.len(), m.len());
+        for (a, b) in probes {
+            prop_assert_eq!(s.rank(a), m.range(..a).count());
+            prop_assert_eq!(s.count_range(a, b), if b <= a { 0 } else { m.range(a..b).count() });
+        }
+        for i in 0..m.len() + 2 {
+            prop_assert_eq!(s.select(i), m.iter().nth(i).copied());
+        }
+    }
+}
+
+#[test]
+fn s2a_c2_the_bounds_of_a_run_of_equal_keys() {
+    let v = [1, 3, 3, 3, 7];
+    assert_eq!((lower_bound(&v, 3), upper_bound(&v, 3)), (1, 4));
+    assert_eq!(count_of(&v, 3), 3);
+    assert_eq!(count_of(&v, 1), 1);
+}
+
+#[test]
+fn s2a_c2_a_key_that_is_not_there_has_equal_bounds() {
+    let v = [1, 3, 3, 7];
+    assert_eq!((lower_bound(&v, 5), upper_bound(&v, 5)), (3, 3));
+    assert_eq!((lower_bound(&v, 0), upper_bound(&v, 0)), (0, 0));
+    assert_eq!((lower_bound(&v, 100), upper_bound(&v, 100)), (4, 4));
+    assert_eq!(count_of(&v, 5), 0);
+}
+
+#[test]
+fn s2a_c2_the_empty_slice_and_the_all_equal_slice() {
+    assert_eq!((lower_bound(&[], 1), upper_bound(&[], 1)), (0, 0));
+    let v = [5; 9];
+    assert_eq!((lower_bound(&v, 5), upper_bound(&v, 5)), (0, 9));
+    assert_eq!((lower_bound(&v, 4), upper_bound(&v, 4)), (0, 0));
+    assert_eq!((lower_bound(&v, 6), upper_bound(&v, 6)), (9, 9));
+}
+
+#[test]
+fn s2a_c2_negative_keys_and_the_extremes() {
+    let v = [i64::MIN, -5, -5, 0, i64::MAX];
+    assert_eq!(count_of(&v, -5), 2);
+    assert_eq!(count_of(&v, i64::MIN), 1);
+    assert_eq!(count_of(&v, i64::MAX), 1);
+    assert_eq!(upper_bound(&v, i64::MAX), 5);
+}
+
+proptest! {
+    #![proptest_config(ch_config())]
+
+    /// Property: the bounds are what `partition_point` says, for any sorted slice with duplicates.
+    #[test]
+    fn s2a_c2_property_bounds_match_partition_point(mut v in proptest::collection::vec(-6i64..6, 0..40), key in -8i64..8) {
+        v.sort();
+        prop_assert_eq!(lower_bound(&v, key), v.partition_point(|&x| x < key));
+        prop_assert_eq!(upper_bound(&v, key), v.partition_point(|&x| x <= key));
+        prop_assert_eq!(count_of(&v, key), v.iter().filter(|&&x| x == key).count());
+    }
+}

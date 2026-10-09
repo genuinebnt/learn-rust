@@ -1,0 +1,8 @@
+id = "2b-c2"
+title = "Challenge: the directory"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_2b::s2b_c2"]
+learn = ["finding a bug in the doubling of an extendible hash directory"]
+concepts = []
+concepts_optional = ["extendible-hashing", "checking-invariants"]

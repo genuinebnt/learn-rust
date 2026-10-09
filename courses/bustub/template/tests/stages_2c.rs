@@ -634,3 +634,136 @@ fn s2c_06_a_long_run_of_inserts_removes_scans_and_lookups_agrees_with_a_btreemap
         assert_nothing_pinned(&bpm);
     }
 }
+
+// ---- 2c-c1 and 2c-c2: challenges ------------------------------------------------------------------------------------------------------------
+
+use bustub::storage::index::bulk_layout::{leaf_sizes, level_widths};
+use bustub::storage::index::node_split::split_keys;
+
+fn ch_config() -> ProptestConfig {
+    ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() }
+}
+
+#[test]
+fn s2c_c1_exact_leaf_sizes_for_small_cases() {
+    assert_eq!(leaf_sizes(0, 4), Vec::<usize>::new());
+    assert_eq!(leaf_sizes(3, 4), vec![3], "a single leaf may be below the minimum");
+    assert_eq!(leaf_sizes(8, 4), vec![4, 4]);
+    assert_eq!(leaf_sizes(9, 4), vec![4, 3, 2], "the last two share 4 + 1 keys: 3 and 2");
+    assert_eq!(leaf_sizes(10, 4), vec![4, 4, 2], "2 is enough for max 4 (min 2)");
+}
+
+#[test]
+fn s2c_c1_an_uneven_end_is_shared_between_the_last_two_leaves() {
+    assert_eq!(leaf_sizes(5, 4), vec![3, 2], "4 + 1 = 5 keys shared: the second to last gets the extra one");
+    assert_eq!(leaf_sizes(13, 6), vec![6, 4, 3], "min is 3; the last leaf of 1 is too small, so 6 + 1 = 7 are shared 4 and 3");
+    assert_eq!(leaf_sizes(7, 3), vec![3, 3, 1], "max 3 gives min 1: a last leaf of 1 is fine, nothing is shared");
+}
+
+#[test]
+fn s2c_c1_levels_up_to_a_single_root() {
+    assert_eq!(level_widths(0, 4, 4), Vec::<usize>::new());
+    assert_eq!(level_widths(3, 4, 4), vec![1], "one leaf is the root");
+    assert_eq!(level_widths(16, 4, 4), vec![4, 1]);
+    assert_eq!(level_widths(17, 4, 4), vec![5, 2, 1]);
+    assert_eq!(level_widths(1000, 10, 5), vec![100, 20, 4, 1]);
+}
+
+#[test]
+fn s2c_c1_a_big_tree_is_planned_without_building_it() {
+    let sizes = leaf_sizes(1_000_000, 100);
+    assert_eq!(sizes.len(), 10_000);
+    assert_eq!(sizes.iter().sum::<usize>(), 1_000_000);
+    assert_eq!(level_widths(1_000_000, 100, 100), vec![10_000, 100, 1]);
+}
+
+proptest! {
+    #![proptest_config(ch_config())]
+
+    /// Property: every plan keeps all the keys, respects the size limits, uses as few leaves as possible, and is full from the left.
+    #[test]
+    fn s2c_c1_property_a_leaf_plan_is_valid_and_minimal(n in 0usize..500, max in 2usize..12) {
+        let sizes = leaf_sizes(n, max);
+        prop_assert_eq!(sizes.iter().sum::<usize>(), n);
+        prop_assert_eq!(sizes.len(), n.div_ceil(max), "as few leaves as possible");
+        let min = max / 2;
+        for (i, &s) in sizes.iter().enumerate() {
+            prop_assert!(s <= max && s >= 1);
+            if sizes.len() > 1 {
+                prop_assert!(s >= min, "leaf {} of {:?} has {} keys, below the minimum {}", i, sizes, s, min);
+            }
+        }
+        // full from the left: every leaf but the last two is full
+        for &s in sizes.iter().take(sizes.len().saturating_sub(2)) {
+            prop_assert_eq!(s, max);
+        }
+    }
+
+    #[test]
+    fn s2c_c1_property_levels_shrink_to_one_root(n in 1usize..5000, leaf in 2usize..20, fanout in 2usize..20) {
+        let w = level_widths(n, leaf, fanout);
+        prop_assert_eq!(w[0], leaf_sizes(n, leaf).len());
+        prop_assert_eq!(*w.last().unwrap(), 1);
+        for pair in w.windows(2) {
+            prop_assert_eq!(pair[1], pair[0].div_ceil(fanout), "each level has just enough parents for the level below");
+        }
+    }
+}
+
+#[test]
+fn s2c_c2_a_leaf_split_copies_the_separator_up_and_keeps_it_in_the_right_node() {
+    let s = split_keys(&[1, 2, 3, 4], true);
+    assert_eq!((s.left, s.separator, s.right), (vec![1, 2], 3, vec![3, 4]));
+}
+
+#[test]
+fn s2c_c2_an_inner_split_moves_the_separator_up_and_out_of_both_nodes() {
+    let s = split_keys(&[10, 20, 30, 40, 50], false);
+    assert_eq!((s.left, s.separator, s.right), (vec![10, 20, 30], 40, vec![50]));
+}
+
+#[test]
+fn s2c_c2_odd_and_even_counts_give_the_left_node_the_extra_key() {
+    assert_eq!(split_keys(&[1, 2, 3], true).left, vec![1, 2]);
+    assert_eq!(split_keys(&[1, 2, 3], true).right, vec![3]);
+    assert_eq!(split_keys(&[1, 2], true).left, vec![1]);
+    assert_eq!(split_keys(&[1, 2], true).right, vec![2]);
+}
+
+#[test]
+fn s2c_c2_no_key_is_lost_or_invented() {
+    for n in 2..12 {
+        let keys: Vec<i64> = (0..n).map(|i| i * 10).collect();
+        let leaf = split_keys(&keys, true);
+        assert_eq!(leaf.left.len() + leaf.right.len(), keys.len(), "a leaf split keeps every key (n = {n})");
+        if n > 2 {
+            let inner = split_keys(&keys, false);
+            assert_eq!(inner.left.len() + inner.right.len() + 1, keys.len(), "an inner split moves one key up (n = {n})");
+        }
+    }
+}
+
+proptest! {
+    #![proptest_config(ch_config())]
+
+    /// Property: left < separator <= right for a leaf; left < separator < right for an inner node; nothing lost; order kept.
+    #[test]
+    fn s2c_c2_property_a_split_keeps_the_search_invariant(mut keys in proptest::collection::btree_set(-50i64..50, 3..20).prop_map(|s| s.into_iter().collect::<Vec<_>>()), leaf in any::<bool>()) {
+        keys.sort();
+        let s = split_keys(&keys, leaf);
+        prop_assert!(s.left.iter().all(|&k| k < s.separator));
+        if leaf {
+            prop_assert!(s.right.iter().all(|&k| k >= s.separator));
+            prop_assert_eq!(s.right.first().copied(), Some(s.separator), "the separator is a copy of the right node's first key");
+            let mut all = s.left.clone();
+            all.extend(&s.right);
+            prop_assert_eq!(all, keys);
+        } else {
+            prop_assert!(s.right.iter().all(|&k| k > s.separator), "an inner separator is in neither node");
+            let mut all = s.left.clone();
+            all.push(s.separator);
+            all.extend(&s.right);
+            prop_assert_eq!(all, keys);
+        }
+    }
+}

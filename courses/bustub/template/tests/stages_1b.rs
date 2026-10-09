@@ -641,3 +641,218 @@ fn s1b_07_the_scheduler_works_over_the_real_disk_manager_too() {
     drop(sched);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+// ---- 1b-c1 and 1b-c2: challenges ------------------------------------------------------------------------------------------------------------
+
+use bustub::common::gate::Gate;
+use bustub::storage::disk::throttled_disk::{Clock, ThrottledDisk};
+
+/// A clock that moves only when the test says so.
+struct ManualClock(std::sync::atomic::AtomicU64);
+
+impl ManualClock {
+    fn new() -> Arc<ManualClock> {
+        Arc::new(ManualClock(std::sync::atomic::AtomicU64::new(0)))
+    }
+    fn advance(&self, d: Duration) {
+        self.0.fetch_add(d.as_nanos() as u64, Ordering::SeqCst);
+    }
+}
+
+impl Clock for ManualClock {
+    fn now(&self) -> Duration {
+        Duration::from_nanos(self.0.load(Ordering::SeqCst))
+    }
+}
+
+fn throttled(rate: u32, burst: u32) -> (ThrottledDisk, Arc<ManualClock>, Arc<DiskManagerUnlimitedMemory>) {
+    let clock = ManualClock::new();
+    let inner = Arc::new(DiskManagerUnlimitedMemory::new());
+    (ThrottledDisk::new(inner.clone(), clock.clone(), rate, burst), clock, inner)
+}
+
+fn page(byte: u8) -> PageData {
+    [byte; PS]
+}
+
+#[test]
+fn s1b_c1_a_full_bucket_lets_a_burst_through_and_then_refuses() {
+    let (d, _clock, inner) = throttled(1, 3);
+    for i in 0..3 {
+        d.write_page(PageId(i), &page(1)).expect("the first three writes use the burst");
+    }
+    let err = d.write_page(PageId(3), &page(1)).expect_err("the bucket is empty");
+    assert_eq!(err.kind(), io::ErrorKind::WouldBlock);
+    let mut buf = [0u8; PS];
+    inner.read_page(PageId(3), &mut buf).unwrap();
+    assert_eq!(buf, [0u8; PS], "a refused write never reaches the disk underneath");
+}
+
+#[test]
+fn s1b_c1_tokens_come_back_with_time_continuously() {
+    let (d, clock, _inner) = throttled(2, 1);
+    d.write_page(PageId(0), &page(1)).unwrap();
+    assert!(d.write_page(PageId(1), &page(1)).is_err());
+    clock.advance(Duration::from_millis(250));
+    assert!(d.write_page(PageId(1), &page(1)).is_err(), "a quarter of a second at 2 per second is half a token");
+    clock.advance(Duration::from_millis(250));
+    assert!(d.write_page(PageId(1), &page(1)).is_ok(), "two quarters make a whole token: tokens add up between calls");
+    assert!(d.write_page(PageId(2), &page(1)).is_err());
+}
+
+#[test]
+fn s1b_c1_the_bucket_never_holds_more_than_the_burst() {
+    let (d, clock, _inner) = throttled(10, 2);
+    clock.advance(Duration::from_secs(100));
+    assert!(d.write_page(PageId(0), &page(1)).is_ok());
+    assert!(d.write_page(PageId(1), &page(1)).is_ok());
+    assert!(d.write_page(PageId(2), &page(1)).is_err(), "100 seconds of idleness do not buy more than the burst of 2");
+}
+
+#[test]
+fn s1b_c1_reads_and_deletes_are_never_limited() {
+    let (d, _clock, _inner) = throttled(1, 1);
+    d.write_page(PageId(0), &page(7)).unwrap();
+    assert!(d.write_page(PageId(1), &page(8)).is_err());
+    let mut buf = [0u8; PS];
+    for _ in 0..100 {
+        d.read_page(PageId(0), &mut buf).unwrap();
+        assert_eq!(buf, page(7));
+    }
+    d.delete_page(PageId(0));
+}
+
+#[test]
+fn s1b_c1_many_threads_never_get_more_writes_than_there_are_tokens() {
+    let (d, _clock, _inner) = throttled(1, 20);
+    let d = Arc::new(d);
+    let ok = Arc::new(AtomicUsize::new(0));
+    let hs: Vec<_> = (0..8)
+        .map(|t| {
+            let (d, ok) = (Arc::clone(&d), Arc::clone(&ok));
+            thread::spawn(move || {
+                for i in 0..10 {
+                    if d.write_page(PageId(t * 10 + i), &page(1)).is_ok() {
+                        ok.fetch_add(1, Ordering::SeqCst);
+                    }
+                }
+            })
+        })
+        .collect();
+    for h in hs {
+        h.join().unwrap();
+    }
+    assert_eq!(ok.load(Ordering::SeqCst), 20, "80 attempts against a bucket of 20 tokens and a clock that does not move");
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Property: against a model that counts tokens exactly (in billionths), for any mix of writes and pauses.
+    #[test]
+    fn s1b_c1_property_a_throttled_disk_matches_a_token_bucket(rate in 1u32..5, burst in 1u32..5, steps in proptest::collection::vec((any::<bool>(), 0u64..8), 1..60)) {
+        let (d, clock, _inner) = throttled(rate, burst);
+        let one: u128 = 1_000_000_000;
+        let mut tokens: u128 = burst as u128 * one;
+        for (i, (write, quarters)) in steps.into_iter().enumerate() {
+            if !write {
+                let dt = Duration::from_millis(250 * quarters);
+                clock.advance(dt);
+                tokens = (tokens + dt.as_nanos() * rate as u128).min(burst as u128 * one);
+                continue;
+            }
+            let want = if tokens >= one { tokens -= one; true } else { false };
+            let got = d.write_page(PageId(i as i32), &page(1)).is_ok();
+            prop_assert_eq!(got, want, "write number {}", i);
+        }
+    }
+}
+
+#[test]
+fn s1b_c2_a_gate_that_is_open_lets_everybody_through() {
+    let g = Gate::new();
+    assert!(!g.is_open());
+    g.open();
+    assert!(g.is_open());
+    g.wait();
+    g.wait();
+    g.open();
+    assert!(g.is_open(), "opening twice is fine");
+}
+
+#[test]
+fn s1b_c2_a_waiter_goes_on_when_the_gate_opens() {
+    let g = Arc::new(Gate::new());
+    let (tx, rx) = mpsc::channel();
+    let h = {
+        let g = Arc::clone(&g);
+        thread::spawn(move || {
+            g.wait();
+            tx.send(()).unwrap();
+        })
+    };
+    assert!(rx.recv_timeout(SHORT).is_err(), "the gate is closed: the waiter waits");
+    g.open();
+    rx.recv_timeout(WAIT).expect("the waiter goes on once the gate is open");
+    h.join().unwrap();
+}
+
+#[test]
+fn s1b_c2_every_waiter_goes_on_not_just_one() {
+    let g = Arc::new(Gate::new());
+    let (tx, rx) = mpsc::channel();
+    let hs: Vec<_> = (0..4)
+        .map(|i| {
+            let (g, tx) = (Arc::clone(&g), tx.clone());
+            thread::spawn(move || {
+                g.wait();
+                tx.send(i).unwrap();
+            })
+        })
+        .collect();
+    thread::sleep(SHORT);
+    g.open();
+    let mut got = Vec::new();
+    for _ in 0..4 {
+        got.push(rx.recv_timeout(WAIT).expect("a waiter was left behind: opening the gate must release everyone who waits at it"));
+    }
+    got.sort();
+    assert_eq!(got, vec![0, 1, 2, 3]);
+    for h in hs {
+        h.join().unwrap();
+    }
+}
+
+#[test]
+fn s1b_c2_a_late_arrival_does_not_wait() {
+    let g = Arc::new(Gate::new());
+    g.open();
+    let (tx, rx) = mpsc::channel();
+    let h = {
+        let g = Arc::clone(&g);
+        thread::spawn(move || {
+            g.wait();
+            tx.send(()).unwrap();
+        })
+    };
+    rx.recv_timeout(WAIT).expect("a gate that is already open lets a late waiter through at once");
+    h.join().unwrap();
+}
+
+#[test]
+fn s1b_c2_gates_are_independent() {
+    let (a, b) = (Arc::new(Gate::new()), Arc::new(Gate::new()));
+    let (tx, rx) = mpsc::channel();
+    let h = {
+        let (b, tx) = (Arc::clone(&b), tx.clone());
+        thread::spawn(move || {
+            b.wait();
+            tx.send(()).unwrap();
+        })
+    };
+    a.open();
+    assert!(rx.recv_timeout(SHORT).is_err(), "opening one gate does not open another");
+    b.open();
+    rx.recv_timeout(WAIT).unwrap();
+    h.join().unwrap();
+}

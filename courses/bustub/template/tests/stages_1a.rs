@@ -889,3 +889,252 @@ proptest! {
         }
     }
 }
+
+// @@ challenge 1a-c3 begin
+mod ch_1a_c3 {
+    use proptest::prelude::*;
+
+    use bustub::storage::disk::page_bitmap::{FreeError, PageBitmap};
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn s1a_c3_pages_are_handed_out_in_increasing_order_until_none_is_left() {
+        let mut b = PageBitmap::new(3);
+        assert_eq!((b.allocate(), b.allocate(), b.allocate(), b.allocate()), (Some(0), Some(1), Some(2), None));
+        assert_eq!(b.used(), 3);
+    }
+
+    #[test]
+    fn s1a_c3_the_lowest_free_page_is_reused_first() {
+        let mut b = PageBitmap::new(5);
+        for _ in 0..5 {
+            b.allocate();
+        }
+        b.free(3).unwrap();
+        b.free(1).unwrap();
+        assert_eq!(b.allocate(), Some(1));
+        assert_eq!(b.allocate(), Some(3));
+        assert_eq!(b.allocate(), None);
+    }
+
+    #[test]
+    fn s1a_c3_a_double_free_and_an_out_of_range_free_are_refused() {
+        let mut b = PageBitmap::new(4);
+        let p = b.allocate().unwrap();
+        assert_eq!(b.free(p), Ok(()));
+        assert_eq!(b.free(p), Err(FreeError::DoubleFree));
+        assert_eq!(b.free(2), Err(FreeError::DoubleFree), "never allocated, so already free");
+        assert_eq!(b.free(4), Err(FreeError::OutOfRange));
+        assert_eq!(b.used(), 0, "errors change nothing");
+        assert_eq!((b.allocate(), b.allocate()), (Some(0), Some(1)), "and no page is handed out twice after a refused free");
+    }
+
+    #[test]
+    fn s1a_c3_is_allocated_tracks_the_state() {
+        let mut b = PageBitmap::new(2);
+        assert!(!b.is_allocated(0) && !b.is_allocated(9));
+        b.allocate();
+        assert!(b.is_allocated(0) && !b.is_allocated(1));
+    }
+
+    #[test]
+    fn s1a_c3_an_empty_bitmap_has_nothing_to_give() {
+        let mut b = PageBitmap::new(0);
+        assert_eq!(b.allocate(), None);
+        assert_eq!(b.free(0), Err(FreeError::OutOfRange));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a set of free pages, for any sequence of allocations and frees (including wrong ones).
+        #[test]
+        fn s1a_c3_property_a_bitmap_matches_a_set_of_free_pages(capacity in 0usize..12, ops in proptest::collection::vec(prop_oneof![Just(None), (0usize..14).prop_map(Some)], 0..60)) {
+            let mut b = PageBitmap::new(capacity);
+            let mut free: BTreeSet<usize> = (0..capacity).collect();
+            for op in ops {
+                match op {
+                    None => {
+                        let want = free.iter().next().copied();
+                        prop_assert_eq!(b.allocate(), want);
+                        if let Some(p) = want { free.remove(&p); }
+                    }
+                    Some(p) => {
+                        let want = if p >= capacity { Err(FreeError::OutOfRange) } else if free.contains(&p) { Err(FreeError::DoubleFree) } else { Ok(()) };
+                        if want.is_ok() { free.insert(p); }
+                        prop_assert_eq!(b.free(p), want);
+                    }
+                }
+                prop_assert_eq!(b.used(), capacity - free.len());
+            }
+        }
+    }
+}
+// @@ challenge 1a-c3 end
+
+// @@ challenge 1a-c4 begin
+mod ch_1a_c4 {
+    use proptest::prelude::*;
+
+    use bustub::storage::disk::versioned_pages::VersionedPages;
+    use std::collections::HashMap;
+
+    #[test]
+    fn s1a_c4_a_snapshot_keeps_the_value_it_saw() {
+        let mut s = VersionedPages::new();
+        s.write(1, 10);
+        let snap = s.snapshot();
+        s.write(1, 20);
+        assert_eq!((s.read(1), s.read_at(snap, 1)), (Some(20), Some(10)));
+    }
+
+    #[test]
+    fn s1a_c4_a_page_written_after_the_snapshot_is_absent_from_it() {
+        let mut s = VersionedPages::new();
+        let snap = s.snapshot();
+        s.write(2, 5);
+        assert_eq!((s.read(2), s.read_at(snap, 2)), (Some(5), None));
+    }
+
+    #[test]
+    fn s1a_c4_snapshots_taken_at_different_times_see_different_pasts() {
+        let mut s = VersionedPages::new();
+        s.write(0, 1);
+        let a = s.snapshot();
+        s.write(0, 2);
+        let b = s.snapshot();
+        s.write(0, 3);
+        assert_eq!((s.read_at(a, 0), s.read_at(b, 0), s.read(0)), (Some(1), Some(2), Some(3)));
+    }
+
+    #[test]
+    fn s1a_c4_dropping_one_snapshot_leaves_the_others_alone() {
+        let mut s = VersionedPages::new();
+        s.write(0, 1);
+        let a = s.snapshot();
+        let b = s.snapshot();
+        assert!(s.drop_snapshot(a));
+        assert!(!s.drop_snapshot(a), "already dropped");
+        assert!(!s.drop_snapshot(99));
+        assert_eq!(s.read_at(a, 0), None);
+        assert_eq!(s.read_at(b, 0), Some(1));
+        let c = s.snapshot();
+        assert!(c != a && c != b, "ids are never reused");
+    }
+
+    #[test]
+    fn s1a_c4_two_snapshots_with_nothing_written_between_them_agree() {
+        let mut s = VersionedPages::new();
+        for p in 0..5 {
+            s.write(p, p as u64 * 7);
+        }
+        let (a, b) = (s.snapshot(), s.snapshot());
+        for p in 0..6 {
+            assert_eq!(s.read_at(a, p), s.read_at(b, p));
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a model that copies the whole map at every snapshot.
+        #[test]
+        fn s1a_c4_property_snapshots_equal_copies(ops in proptest::collection::vec((0u8..4, 0u32..6, any::<u64>()), 0..60)) {
+            let mut s = VersionedPages::new();
+            let mut now: HashMap<u32, u64> = HashMap::new();
+            let mut copies: Vec<(u64, Option<HashMap<u32, u64>>)> = Vec::new();
+            for (op, page, value) in ops {
+                match op {
+                    0 | 1 => { s.write(page, value); now.insert(page, value); }
+                    2 => { let id = s.snapshot(); copies.push((id, Some(now.clone()))); }
+                    _ => {
+                        let idx = (value as usize) % copies.len().max(1);
+                        if let Some(c) = copies.get_mut(idx) {
+                            prop_assert_eq!(s.drop_snapshot(c.0), c.1.is_some());
+                            c.1 = None;
+                        }
+                    }
+                }
+                for (id, copy) in &copies {
+                    for p in 0..6 {
+                        prop_assert_eq!(s.read_at(*id, p), copy.as_ref().and_then(|m| m.get(&p).copied()));
+                    }
+                }
+                for p in 0..6 { prop_assert_eq!(s.read(p), now.get(&p).copied()); }
+            }
+        }
+    }
+}
+// @@ challenge 1a-c4 end
+
+// @@ challenge 1a-c5 begin
+mod ch_1a_c5 {
+    use proptest::prelude::*;
+
+    use bustub::storage::disk::slot_allocator::SlotAllocator;
+    use std::collections::HashSet;
+
+    #[test]
+    fn s1a_c5_slots_are_handed_out_and_reused() {
+        let mut a = SlotAllocator::new();
+        assert_eq!((a.allocate(), a.allocate(), a.allocate()), (0, 1, 2));
+        assert!(a.free(1));
+        assert_eq!(a.allocate(), 1, "a freed slot is reused before a fresh one");
+        assert_eq!(a.in_use(), 3);
+    }
+
+    #[test]
+    fn s1a_c5_freeing_twice_is_the_same_as_once() {
+        let mut a = SlotAllocator::new();
+        a.allocate();
+        a.allocate();
+        assert!(a.free(0));
+        assert!(!a.free(0), "already free");
+        assert_eq!(a.in_use(), 1);
+        let (x, y) = (a.allocate(), a.allocate());
+        assert_ne!(x, y, "the freed slot must not be handed out twice");
+    }
+
+    #[test]
+    fn s1a_c5_a_slot_that_was_never_handed_out_cannot_be_freed() {
+        let mut a = SlotAllocator::new();
+        assert!(!a.free(5));
+        assert_eq!(a.in_use(), 0);
+        assert_eq!(a.allocate(), 0, "and it does not enter the free list");
+    }
+
+    #[test]
+    fn s1a_c5_in_use_counts_allocations_minus_frees() {
+        let mut a = SlotAllocator::new();
+        let s: Vec<_> = (0..5).map(|_| a.allocate()).collect();
+        for &x in &s[..3] {
+            a.free(x);
+            a.free(x);
+        }
+        assert_eq!(a.in_use(), 2);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: whatever mix of allocations and frees (right and wrong), no slot is ever in use twice and the count is right.
+        #[test]
+        fn s1a_c5_property_no_slot_is_in_use_twice(ops in proptest::collection::vec(prop_oneof![Just(None), (0usize..8).prop_map(Some)], 0..80)) {
+            let mut a = SlotAllocator::new();
+            let mut live: HashSet<usize> = HashSet::new();
+            for op in ops {
+                match op {
+                    None => {
+                        let s = a.allocate();
+                        prop_assert!(live.insert(s), "slot {} handed out while still in use", s);
+                    }
+                    Some(s) => {
+                        prop_assert_eq!(a.free(s), live.remove(&s));
+                    }
+                }
+                prop_assert_eq!(a.in_use(), live.len());
+            }
+        }
+    }
+}
+// @@ challenge 1a-c5 end

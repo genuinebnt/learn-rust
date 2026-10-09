@@ -1,0 +1,8 @@
+id = "1b-c1"
+title = "Challenge: a throttled disk"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_1b::s1b_c1"]
+learn = ["building a component behind the DiskIo trait from a behavioural description", "a rate limit that is exact when time is injected"]
+concepts = []
+concepts_optional = ["atomics-ordering-and-the-log", "model-based-testing", "performance-tests-and-measuring"]

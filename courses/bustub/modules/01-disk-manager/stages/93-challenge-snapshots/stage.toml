@@ -1,0 +1,8 @@
+id = "1a-c4"
+title = "Challenge: snapshots"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_1a::s1a_c4"]
+learn = ["a store whose old versions stay readable", "sharing unchanged data between versions instead of copying it"]
+concepts = []
+concepts_optional = ["persistent-data-structures-and-path-copying", "model-based-testing"]

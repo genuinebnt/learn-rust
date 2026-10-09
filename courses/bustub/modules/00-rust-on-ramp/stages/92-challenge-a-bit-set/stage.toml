@@ -1,0 +1,8 @@
+id = "r-c3"
+title = "Challenge: a bit set"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_r::sr_c3"]
+learn = ["storing many yes/no answers in machine words", "shifts and masks, with indexes that may be out of range"]
+concepts = []
+concepts_optional = ["shifts-masks-and-bit-tricks", "bytes-endianness-and-views"]

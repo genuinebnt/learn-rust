@@ -2,6 +2,7 @@ pub mod bustub_instance;
 pub mod channel;
 pub mod config;
 pub mod exception;
+pub mod gate;
 pub mod index_list;
 pub mod promise;
 pub mod rid;

@@ -1,0 +1,8 @@
+id = "1a-c3"
+title = "Challenge: a page bitmap"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1a::s1a_c3"]
+learn = ["allocating and freeing page numbers from a bitmap", "rejecting a double free and an out-of-range free"]
+concepts = []
+concepts_optional = ["slot-allocation-and-invariants", "shifts-masks-and-bit-tricks"]

@@ -673,3 +673,170 @@ fn s2b_05_a_long_single_threaded_run_agrees_with_a_hashmap() {
         }
     }
 }
+
+// ---- 2b-c1 and 2b-c2: challenges ------------------------------------------------------------------------------------------------------------
+
+use bustub::container::hash::directory_split::Directory;
+use bustub::container::hash::linear_hash_set::LinearHashSet;
+
+fn ch_config() -> ProptestConfig {
+    ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() }
+}
+
+#[test]
+fn s2b_c1_keys_are_found_after_any_number_of_splits() {
+    let mut s = LinearHashSet::new(2, 2.0);
+    for k in 0..500u64 {
+        assert!(s.insert(k * 7919));
+    }
+    assert_eq!(s.len(), 500);
+    for k in 0..500u64 {
+        assert!(s.contains(k * 7919), "key {} lost after the table grew", k * 7919);
+    }
+    assert!(!s.contains(1));
+    assert!(s.bucket_count() > 2, "500 keys at a load of at most 2 need more than 2 buckets");
+}
+
+#[test]
+fn s2b_c1_the_table_grows_one_bucket_at_a_time_and_keeps_its_load() {
+    let mut s = LinearHashSet::new(1, 3.0);
+    let mut last = s.bucket_count();
+    for k in 0..400u64 {
+        s.insert(k);
+        assert!(s.bucket_count() - last <= 1, "one insert may split at most one bucket");
+        last = s.bucket_count();
+        assert!(s.load() <= 3.0 + 1e-9, "load {} after {} keys", s.load(), k + 1);
+    }
+}
+
+#[test]
+fn s2b_c1_duplicates_and_removals() {
+    let mut s = LinearHashSet::new(4, 4.0);
+    assert!(s.insert(10));
+    assert!(!s.insert(10));
+    assert_eq!(s.len(), 1);
+    assert!(s.remove(10));
+    assert!(!s.remove(10));
+    assert!(s.is_empty() && !s.contains(10));
+}
+
+#[test]
+fn s2b_c1_a_split_moves_only_the_keys_of_one_bucket() {
+    // after every insert, every key is in the bucket the lookup rule names: find them all
+    let mut s = LinearHashSet::new(3, 1.5);
+    let keys: Vec<u64> = (0..300).map(|i| i * 104_729 + 13).collect();
+    for (n, &k) in keys.iter().enumerate() {
+        s.insert(k);
+        if n % 25 == 0 {
+            assert!(keys[..=n].iter().all(|&x| s.contains(x)), "a key went missing in the split after insert {n}");
+        }
+    }
+}
+
+#[test]
+fn s2b_c1_the_first_bucket_of_a_round_is_split_first() {
+    let mut s = LinearHashSet::new(1, 1.0);
+    assert_eq!(s.bucket_count(), 1);
+    s.insert(1);
+    assert_eq!(s.bucket_count(), 1, "one key in one bucket is a load of 1, not over it");
+    s.insert(2);
+    assert_eq!(s.bucket_count(), 2, "two keys in one bucket is over: the single bucket splits");
+}
+
+proptest! {
+    #![proptest_config(ch_config())]
+
+    /// Property: against a `HashSet`, for any sequence of inserts and removes, and the load bound holds after every step that inserted.
+    #[test]
+    fn s2b_c1_property_a_linear_hash_set_is_a_set(initial in 1usize..6, ops in proptest::collection::vec((any::<bool>(), 0u64..200), 0..150)) {
+        let mut s = LinearHashSet::new(initial, 2.0);
+        let mut m = std::collections::HashSet::new();
+        for (ins, k) in ops {
+            if ins {
+                prop_assert_eq!(s.insert(k), m.insert(k));
+                prop_assert!(s.load() <= 2.0 + 1e-9);
+            } else {
+                prop_assert_eq!(s.remove(k), m.remove(&k));
+            }
+            prop_assert_eq!(s.len(), m.len());
+        }
+        for k in 0..200u64 {
+            prop_assert_eq!(s.contains(k), m.contains(&k), "key {}", k);
+        }
+    }
+}
+
+#[test]
+fn s2b_c2_a_new_directory_is_one_bucket_in_one_slot() {
+    let d = Directory::new();
+    assert_eq!((d.global_depth(), d.bucket_count(), d.local_depth(0)), (0, 1, 0));
+    assert_eq!(d.bucket_for(0xdead_beef), 0);
+}
+
+#[test]
+fn s2b_c2_the_first_split_doubles_the_directory_and_separates_on_the_low_bit() {
+    let mut d = Directory::new();
+    let new = d.split(0);
+    assert_eq!((d.global_depth(), d.bucket_count(), new), (1, 2, 1));
+    assert_eq!((d.local_depth(0), d.local_depth(1)), (1, 1));
+    assert_eq!((d.bucket_for(0b10), d.bucket_for(0b11)), (0, 1), "the low bit decides");
+}
+
+#[test]
+fn s2b_c2_splitting_a_shallow_bucket_does_not_double_the_directory() {
+    let mut d = Directory::new();
+    d.split(0); // depth 1, slots [0, 1]
+    let b = d.split(1); // bucket 1 -> depth 2, the directory doubles to 4 slots
+    assert_eq!(d.global_depth(), 2);
+    assert_eq!(d.slots_of(0), vec![0, 2], "bucket 0 stays at depth 1 and is still reached by both slots ending in 0");
+    assert_eq!((d.slots_of(1), d.slots_of(b)), (vec![1], vec![3]));
+    let before = d.global_depth();
+    d.split(0); // bucket 0 has local depth 1 < 2: no doubling
+    assert_eq!(d.global_depth(), before);
+    assert_eq!(d.local_depth(0), 2);
+}
+
+#[test]
+fn s2b_c2_after_a_doubling_every_bucket_is_still_reached_by_the_slots_that_agree_with_it() {
+    let mut d = Directory::new();
+    d.split(0);
+    d.split(0);
+    d.split(1);
+    for h in 0u32..64 {
+        let b = d.bucket_for(h);
+        let depth = d.local_depth(b);
+        let mask = (1u32 << depth) - 1;
+        for h2 in 0u32..64 {
+            if h2 & mask == h & mask {
+                assert_eq!(d.bucket_for(h2), b, "hashes {h} and {h2} agree on their low {depth} bits and must share a bucket");
+            }
+        }
+    }
+}
+
+proptest! {
+    #![proptest_config(ch_config())]
+
+    /// Property: after any sequence of splits, the structure is a valid extendible-hashing directory: every bucket is pointed at by exactly
+    /// 2^(global - local) slots, all of which agree on its low `local` bits, and no local depth exceeds the global depth.
+    #[test]
+    fn s2b_c2_property_a_directory_stays_valid_under_splits(picks in proptest::collection::vec(0usize..16, 0..24)) {
+        let mut d = Directory::new();
+        for p in picks {
+            let b = p % d.bucket_count();
+            if d.global_depth() >= 6 && d.local_depth(b) == d.global_depth() { continue; }
+            d.split(b);
+            let mut total = 0;
+            for bucket in 0..d.bucket_count() {
+                let local = d.local_depth(bucket);
+                prop_assert!(local <= d.global_depth());
+                let slots = d.slots_of(bucket);
+                prop_assert_eq!(slots.len(), 1usize << (d.global_depth() - local), "bucket {} of depth {}", bucket, local);
+                let mask = (1usize << local) - 1;
+                prop_assert!(slots.iter().all(|s| s & mask == slots[0] & mask), "slots of bucket {} do not agree on their low {} bits: {:?}", bucket, local, slots);
+                total += slots.len();
+            }
+            prop_assert_eq!(total, 1usize << d.global_depth(), "every slot belongs to exactly one bucket");
+        }
+    }
+}

@@ -1,0 +1,8 @@
+id = "1d-c1"
+title = "Challenge: a cache simulator"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_1d::s1d_c1"]
+learn = ["measuring a replacement policy by replaying a trace", "computing the optimal policy as a yardstick"]
+concepts = []
+concepts_optional = ["replacement-policies", "lru-k-and-scan-resistance", "performance-tests-and-measuring"]

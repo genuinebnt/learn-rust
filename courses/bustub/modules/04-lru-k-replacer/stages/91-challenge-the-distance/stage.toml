@@ -1,0 +1,8 @@
+id = "1d-c2"
+title = "Challenge: the distance"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1d::s1d_c2"]
+learn = ["finding an off-by-one in a bounded history from a definition-based property"]
+concepts = []
+concepts_optional = ["lru-k-and-scan-resistance", "property-testing-and-fuzzing", "logical-clocks-and-timestamps"]

@@ -1,0 +1,8 @@
+id = "1a-c5"
+title = "Challenge: the slot handed out twice"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1a::s1a_c5"]
+learn = ["finding a free-list bug from an invariant that two owners never share a slot"]
+concepts = []
+concepts_optional = ["slot-allocation-and-invariants", "property-testing-and-fuzzing", "checking-invariants"]

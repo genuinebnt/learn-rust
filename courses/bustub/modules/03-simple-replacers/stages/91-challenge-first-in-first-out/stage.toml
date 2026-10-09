@@ -1,0 +1,8 @@
+id = "1c-c2"
+title = "Challenge: first in, first out"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1c::s1c_c2"]
+learn = ["finding a bookkeeping bug from a model-based counterexample"]
+concepts = []
+concepts_optional = ["replacement-policies", "property-testing-and-fuzzing", "checking-invariants"]

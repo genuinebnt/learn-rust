@@ -359,7 +359,7 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 @media (max-width:1100px){.stage.lc,.stage.rc,.stage.lc.rc{grid-template-columns:minmax(0,1fr)}}
 
 /* ---------- SIDENOTES ---------- */
-.snr{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:44px;align-items:start;margin:0 0 22px}
+.snr{display:block;margin:0 0 22px}.snr>div{display:contents}
 .snr p{margin:0}
 .snm{display:inline-grid;place-items:center;min-width:17px;height:17px;margin-left:3px;padding:0 4px;border-radius:9px;background:var(--grn-bg);color:var(--grn);font:700 10px var(--mono);vertical-align:super;cursor:pointer;transition:background .2s,color .2s,transform .25s var(--ease)}
 .snm:hover,.snr:has(.sn:hover) .snm{background:var(--grn);color:var(--on-acc);transform:scale(1.15)}
@@ -367,7 +367,7 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .sn b{display:inline-grid;place-items:center;min-width:16px;height:16px;margin-right:6px;border-radius:8px;background:var(--raise);color:var(--mut);font:700 9.5px var(--mono)}
 .sn:hover,.snr:has(.snm:hover) .sn{border-color:var(--grn);color:var(--mut)}
 .sn code{font-size:11.5px;color:var(--fg)}
-@container (max-width:900px){.snr{grid-template-columns:minmax(0,1fr)}.snr>div{display:contents}.sn{display:none}.sn.open{display:block;margin-top:10px;padding:12px 14px;border:1px solid var(--line2);border-left:3px solid var(--grn);border-radius:10px;background:color-mix(in oklab,var(--grn) 5%,var(--panel));animation:fade .3s var(--ease)}}
+.sn{display:none}.sn.open{display:block;margin-top:10px;padding:12px 14px;border:1px solid var(--line2);border-left:3px solid var(--grn);border-radius:10px;background:color-mix(in oklab,var(--grn) 5%,var(--panel));animation:fade .3s var(--ease)}
 /* ---------- MODAL / POPUPS ---------- */
 .ov{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:color-mix(in oklab,var(--bg) 55%,transparent);backdrop-filter:blur(0);opacity:0;visibility:hidden;transition:opacity .3s,backdrop-filter .3s,visibility .3s}
 .ov.on{opacity:1;visibility:visible;backdrop-filter:blur(7px)}
@@ -479,6 +479,21 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .asd .in3{padding:4px 18px 18px;border-top:1px solid var(--line2);color:var(--mut);font-size:14.5px}.asd .in3 p{margin:12px 0 0;max-width:68ch}
 .asd .chev{transition:transform .3s var(--ease)}.asd.open .chev{transform:rotate(90deg)}
 .asd table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13.5px}.asd th{text-align:left;padding:8px 12px;font:600 10.5px var(--mono);letter-spacing:.12em;color:var(--dim);background:var(--raise)}.asd td{padding:8px 12px;border-top:1px solid var(--line2)}.asd td code{font:400 12.5px var(--code);color:var(--fg)}
+
+/* notes in the side panel */
+.pnote{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;padding:10px 10px 10px 8px;margin:0 -8px 2px;border-radius:10px;border:1px solid transparent;cursor:pointer;transition:background .25s,border-color .25s}
+.pnote:hover{background:var(--raise)}
+.pnote>b{display:grid;place-items:center;width:20px;height:20px;border-radius:10px;background:var(--raise);color:var(--mut);font:700 10px var(--mono);transition:background .25s,color .25s}
+.pnote .pb2{font-size:13px;line-height:1.55;color:var(--dim);max-height:1.55em;overflow:hidden;transition:max-height .45s var(--ease),color .25s}
+.pnote .pb2 code{font-size:12px;color:var(--fg)}
+.pnote.cur,.pnote.sel{background:color-mix(in oklab,var(--grn) 7%,var(--panel));border-color:color-mix(in oklab,var(--grn) 35%,var(--line2))}
+.pnote.cur>b,.pnote.sel>b{background:var(--grn);color:var(--on-acc)}
+.pnote.cur .pb2,.pnote.sel .pb2{max-height:420px;color:var(--mut)}
+.pnote pre.sc{margin:8px 0 0;padding:9px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--line2);font:400 11px/1.6 var(--code);overflow-x:auto;color:var(--fg);scrollbar-width:none;white-space:pre}.pnote pre.sc::-webkit-scrollbar{display:none}
+.pnote .acts3{display:flex;gap:6px;margin-top:8px;max-height:60px;overflow:hidden;transition:opacity .25s,max-height .3s}.pnote:not(.cur):not(.sel) .acts3{max-height:0;margin-top:0;opacity:0}.pnote:not(.cur):not(.sel) .pb2{white-space:nowrap;text-overflow:ellipsis}
+.pnote .sx2{font:600 10px var(--mono);letter-spacing:.08em;color:var(--dim);padding:3px 7px;border:1px solid var(--line2);border-radius:5px}.pnote .sx2:hover{color:var(--fg);border-color:var(--line)}
+.snm.flash{animation:flash 1s var(--ease)}@keyframes flash{0%,100%{box-shadow:0 0 0 0 transparent}30%{box-shadow:0 0 0 7px var(--grn-bg)}}
+.snm.on{background:var(--grn);color:var(--on-acc)}
 </style>
 </head>
 <body>
@@ -644,13 +659,14 @@ free.<span class="fnn">push</span>(<span class="nm">7</span>);
       <span class="rz r" id="rzr" title="Drag to resize · double-click to reset"><span class="grip"></span></span>
       <div class="rcard"><div class="pcard"><div class="pring" style="--p:67"><span><div>4/6<small>TESTS</small></div></span></div><div><b style="font-size:15px">Stage 4 of 8</b><div style="font:500 11.5px var(--mono);color:var(--dim);margin-top:2px">1A · Disk manager</div><div class="tbars" id="tbars"></div></div></div></div>
       <div class="rcard"><h6>ON THIS PAGE <button class="sbtn" id="rt" aria-label="Hide sidebar" title="Hide (⌘.)">»</button></h6><div id="toc" style="position:relative;border-left:1px solid var(--line2)"><span class="mk" id="mk"></span><a href="#a1" class="on">The task</a><a href="#a2">Tests</a><a href="#a3">Notes</a><a href="#a4">Code</a><a href="#a5">The C/C++ way</a><a href="#a6">Optional: performance</a><a href="#a7">Check yourself</a></div></div>
+      <div class="rcard" id="notesCard"><h6>NOTES <span class="pin" id="nCount">3</span></h6><div id="nlist"></div></div>
       <div class="rcard"><h6>CONCEPTS <span class="pin req">REQUIRED</span></h6>
         <div class="cc2"><span class="ci">✓</span><div><b>Durability and fsync</b><small>9 min read</small></div><span class="st4">READ</span></div>
         <div class="cc2 todo"><span class="ci">2</span><div><b>Atomics and the log</b><small>7 min read</small></div><span class="st4">TO READ</span></div>
         <div class="cc2 todo"><span class="ci">3</span><div><b>Mutex owns its data</b><small>6 min read</small></div><span class="st4">TO READ</span></div></div>
       <div class="rcard"><h6>THIS STAGE <span class="pin">PINNED</span></h6><div class="pincmd"><span>anneal course test 1a-04</span><button class="copy fx" data-c="anneal course test 1a-04">COPY</button></div>
-        <div class="kv2"><span>Last run</span><b>4 / 6 · 2 min ago</b></div><div class="kv2"><span>Hints used</span><b>0 / 3</b></div><div class="hl2"><i></i><i></i><i></i></div><div class="kv2" style="margin-top:6px"><span>Time on stage</span><b>18:42</b></div></div>
-      <div class="rcard"><h6>SHORTCUTS</h6><div class="keys"><div><span>previous / next</span><span><kbd>[</kbd> <kbd>]</kbd></span></div><div><span>left sidebar</span><span><kbd>⌘B</kbd></span></div><div><span>right sidebar</span><span><kbd>⌘.</kbd></span></div><div><span>run tests</span><span><kbd>⌘↵</kbd></span></div></div></div>
+        <div class="kv2"><span>Last run</span><b>4 / 6 · 2 min ago</b></div><div class="kv2"><span>Hints used</span><b>0 / 3</b></div><div class="hl2"><i></i><i></i><i></i></div></div>
+      
     </aside>
   </div>
   <div class="strip" id="strip">
@@ -870,8 +886,26 @@ $('#wsRun').onclick=()=>wsRun(fail=>{if(!fail){$('#wsRun').classList.add('done')
 $('#wsSub').onclick=()=>{const sub=$('#wsSub');if(!wsOK){sub.classList.remove('shake');void sub.offsetWidth;sub.classList.add('shake');pushToast(wsFailMsg());return}sub.classList.add('busy');sub.disabled=true;setTimeout(()=>{sub.classList.remove('busy');sub.disabled=false;sub.classList.add('done');setTimeout(()=>sub.classList.remove('done'),1600);win()},reduce?0:900)};
 function wsFailMsg(){return $('#wsFail').classList.contains('on')?'er':'in'}
 $('#wsFail').onclick=function(){this.classList.toggle('on');wsOK=false};
-/* sidenote markers on narrow screens */
-$$('.snm').forEach(m=>m.onclick=()=>{const n=m.closest('.snr').querySelector(`.sn[data-sn="${m.dataset.sn}"]`);n&&n.classList.toggle('open')});
+/* sidenotes live in the right panel; with the panel hidden (or on narrow screens) a marker opens the note inline */
+$$('.sn .sx').forEach(x=>x.remove());
+const panelOn=()=>!document.querySelector('.stage').classList.contains('rc')&&innerWidth>1100;
+$('#nlist').innerHTML=$$('.sn').map(n=>{const num=n.dataset.sn,body=n.cloneNode(true);body.querySelector('b').remove();const hasCode=!!body.querySelector('pre');return `<div class="pnote" data-sn="${num}"><b>${num}</b><div><div class="pb2">${body.innerHTML}</div><div class="acts3"><button class="sx2" data-show>SHOW IN TEXT ↗</button>${hasCode?'<button class="sx2" data-cp>COPY CODE</button>':''}</div></div></div>`}).join('');
+$('#nCount').textContent=$$('.sn').length;
+function noteFor(num){return $(`.pnote[data-sn="${num}"]`)}
+$$('.snm').forEach(m=>m.onclick=()=>{const num=m.dataset.sn;if(panelOn()){$$('.pnote').forEach(n=>n.classList.toggle('sel',n.dataset.sn===num&&!n.classList.contains('sel')));const n=noteFor(num);n.scrollIntoView({behavior:reduce?'auto':'smooth',block:'nearest'})}else{const n=m.closest('.snr').querySelector(`.sn[data-sn="${num}"]`);n&&n.classList.toggle('open')}});
+$('#nlist').onclick=e=>{const n=e.target.closest('.pnote');if(!n)return;const num=n.dataset.sn;
+  if(e.target.closest('[data-show]')){const o=document.querySelector(`.sn[data-sn="${num}"]`);o.classList.toggle('open');o.scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'});return}
+  if(e.target.closest('[data-cp]')){const t=n.querySelector('pre').textContent;try{navigator.clipboard.writeText(t)}catch(_){}toast('Code copied','ok');return}
+  const m=document.querySelector(`.snm[data-sn="${num}"]`);n.classList.toggle('sel');m.classList.remove('flash');void m.offsetWidth;m.classList.add('flash');m.scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'})};
+$$('.pnote').forEach(n=>n.addEventListener('mouseenter',()=>document.querySelector(`.snm[data-sn="${n.dataset.sn}"]`).classList.add('on')));
+$$('.pnote').forEach(n=>n.addEventListener('mouseleave',()=>document.querySelector(`.snm[data-sn="${n.dataset.sn}"]`).classList.remove('on')));
+$$('.snm').forEach(m=>{m.addEventListener('mouseenter',()=>noteFor(m.dataset.sn).classList.add('sel'));m.addEventListener('mouseleave',()=>noteFor(m.dataset.sn).classList.remove('sel'))});
+let curNotes='';
+function noteSpy(){const rows=$$('.snr');let cur=null;rows.forEach(r=>{const b=r.getBoundingClientRect();if(b.top<230&&b.bottom>110)cur=r});if(!cur)cur=rows.find(r=>r.getBoundingClientRect().top>=230)||null;
+  const nums=cur?[...cur.querySelectorAll('.snm')].map(m=>m.dataset.sn):[];const key=nums.join();if(key===curNotes)return;curNotes=key;
+  $$('.pnote').forEach(n=>n.classList.toggle('cur',nums.includes(n.dataset.sn)));
+  const f=nums[0]&&noteFor(nums[0]);if(f&&panelOn())f.scrollIntoView({behavior:reduce?'auto':'smooth',block:'nearest'})}
+addEventListener('scroll',noteSpy,{passive:true});setTimeout(noteSpy,100);
 
 /* resizable panels */
 (function(){const st=$('.stage'),LIM={l:[250,480],r:[270,480]};

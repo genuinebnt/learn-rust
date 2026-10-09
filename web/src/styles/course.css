@@ -264,7 +264,7 @@
 .cx-prose .cx-tbl.versus th+th,.cx-prose .cx-tbl.versus td+td{border-left:1px solid var(--line2)}
 .cx-prose .cx-tbl td.key{width:34%;color:var(--fg)}
 .cx-prose .cx-tbl tbody tr:hover td{background:color-mix(in oklab,var(--fg) 4%,transparent)}
-.cx-prose .cx-tbl td code{white-space:pre-wrap;overflow-wrap:anywhere}
+.cx-prose .cx-tbl td code{white-space:pre-wrap;overflow-wrap:break-word}
 .cx-co{margin:20px 0;padding:14px 18px;border:1px solid var(--line2);border-left:3px solid var(--c);border-radius:8px;background:color-mix(in oklab,var(--c) 6%,var(--panel))}
 .cx-co-t{margin-bottom:6px;font:600 10.5px var(--mono);letter-spacing:.16em;color:var(--c)}
 .cx-co-b p{margin:0 0 8px;font-size:15px;line-height:1.7}.cx-co-b p:last-child{margin-bottom:0}
@@ -405,3 +405,5 @@
 .cx-contb{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .cx-contb b{flex:none}
 .cx-contb small{font:500 11.5px var(--mono);color:var(--dim)}
+
+.cx-si.ok.asst{background:transparent;color:var(--grn)}

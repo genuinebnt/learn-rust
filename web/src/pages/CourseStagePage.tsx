@@ -319,7 +319,7 @@ function Sidebar({ course, page }: { course: string; page: Page }) {
                                                 <div className="cx-leaves">
                                                     {m.stages.map((s: CourseStageRow, i) => (
                                                         <Link key={s.id} className={`cx-leaf${s.id === page.stage.id ? " cur" : ""}${s.kind === "boss" ? " boss" : ""}`} to="/courses/$course/$stage" params={{ course, stage: s.id }}>
-                                                            <span className={`cx-si${s.state !== "todo" ? " ok" : s.id === page.stage.id ? " now" : ""}`}>{s.state !== "todo" ? "✓" : ""}</span>
+                                                            <span className={`cx-si${s.state !== "todo" ? " ok" : s.id === page.stage.id ? " now" : ""}${s.state === "assisted" ? " asst" : ""}`} title={s.state === "assisted" ? "passed with help" : undefined}>{s.state !== "todo" ? "✓" : ""}</span>
                                                             <span className="cx-ln2">{String(i + 1).padStart(2, "0")}</span>
                                                             <span className="cx-lt">{s.title}</span>
                                                             <span className="cx-dot" style={{ background: DIFFICULTY_COLOR[s.difficulty] }} title={s.difficulty} />

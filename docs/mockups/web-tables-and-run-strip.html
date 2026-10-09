@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tables, comparison tables, pinned run strip (mockup)</title>
+<style>
+:root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--warn-bg:oklch(0.83 0.12 85 / 0.12);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--str:oklch(0.79 0.11 160);--num:oklch(0.79 0.11 45);--mac:oklch(0.79 0.09 200);--com:oklch(0.58 0.012 255);--sel:oklch(0.76 0.11 55 / 0.07);--mono:'JetBrains Mono',ui-monospace,Menlo,monospace;--code:'Fira Code',ui-monospace,Menlo,monospace;--sans:'Plus Jakarta Sans',system-ui,sans-serif;color-scheme:dark}
+:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--acc-bg:oklch(0.58 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);--warn-bg:oklch(0.58 0.12 75 / 0.10);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--com:oklch(0.56 0.012 255);--sel:oklch(0.58 0.13 50 / 0.06);color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans);padding:40px 24px 90px}
+.page{max-width:1000px;margin:0 auto;display:grid;gap:64px}
+h1{margin:0;font-size:26px;letter-spacing:-.01em}
+.lede{color:var(--mut);margin:8px 0 0;max-width:72ch}
+.theme{float:right;background:var(--panel);border:1px solid var(--line2);color:var(--mut);font:500 11px var(--mono);letter-spacing:.12em;padding:6px 12px;border-radius:5px;cursor:pointer}
+.cap{font:500 10.5px var(--mono);letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin:0 0 6px;display:flex;gap:12px;align-items:center}
+.cap b{color:var(--acc);font-weight:600}.cap::after{content:"";flex:1;height:1px;background:var(--line2)}
+h2{margin:0 0 6px;font-size:19px}
+.sub{margin:0 0 18px;color:var(--mut);max-width:78ch;font-size:14px}
+code{font-family:var(--code);font-size:.92em;padding:1px 6px;border-radius:4px;background:var(--raise)}
+.t-k{color:var(--kw)}.t-t{color:var(--ty)}.t-f{color:var(--fn)}.t-s{color:var(--str)}.t-n{color:var(--num)}.t-m{color:var(--mac)}.t-c{color:var(--com)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+/* ---------- A. problem table ---------- */
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.fbox{display:flex;align-items:center;gap:8px;flex:1;min-width:220px;max-width:380px;height:34px;padding:0 10px;border:1px solid var(--line2);border-radius:6px;background:var(--panel)}
+.fbox:focus-within{border-color:var(--vio)}
+.fbox input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--fg);font:500 12.5px var(--mono)}
+.fbox kbd,.keys kbd{font:500 10.5px var(--mono);padding:1px 6px;border:1px solid var(--line);border-radius:4px;color:var(--dim)}
+.count{font:500 11.5px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.chip{height:30px;padding:0 12px;border-radius:15px;border:1px solid var(--line2);font:500 11.5px var(--mono);color:var(--mut);white-space:nowrap}
+.chip.on{border-color:var(--acc);background:var(--acc-bg);color:var(--acc)}
+.reset{margin-left:auto;font:500 11px var(--mono);letter-spacing:.1em;color:var(--dim);border:1px solid var(--line2);border-radius:4px;padding:5px 9px}
+.reset[hidden]{display:none}
+.tblw{border:1px solid var(--line2);border-radius:8px;background:var(--panel);overflow:clip}
+.tr{display:grid;grid-template-columns:34px 44px minmax(0,1.4fr) 100px 100px minmax(0,1fr) 130px;gap:0 14px;align-items:center;min-height:52px;padding:6px 20px;border-bottom:1px solid var(--line2);position:relative;cursor:pointer}
+.tr:last-child{border-bottom:0}
+.tr:hover{background:var(--sel)}
+.tr.focus{background:var(--sel);box-shadow:inset 3px 0 0 var(--vio)}
+.th{min-height:42px;cursor:default;background:var(--panel);position:sticky;top:0;z-index:2}
+.th:hover{background:var(--panel)}
+.th button{display:flex;align-items:center;gap:6px;text-align:left;font:500 10.5px var(--mono);letter-spacing:.2em;color:var(--dim);text-transform:uppercase;padding:6px 0}
+.th button:hover,.th button[aria-sort]:not([aria-sort=none]){color:var(--fg)}
+.th .ar{font-size:9px;letter-spacing:0;opacity:.35}.th [aria-sort=ascending] .ar,.th [aria-sort=descending] .ar{opacity:1;color:var(--vio)}
+.n{font:500 12px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.pt{font-size:14.5px;font-weight:600}
+.pt mark{background:var(--acc-bg);color:var(--acc);border-radius:2px}
+.mode{display:inline-block;padding:3px 8px;border-radius:3px;border:1px solid;font:600 10px var(--mono);letter-spacing:.1em;white-space:nowrap}
+.mode.fix{color:var(--vio);border-color:var(--vio)}.mode.write{color:var(--acc);border-color:var(--acc)}
+.lvl{font:500 12px var(--mono);color:var(--mut)}.lvl i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}
+.tags{font:400 11.5px var(--mono);color:var(--dim);min-width:0}
+.st{display:inline-flex;align-items:center;gap:8px;justify-self:end;font:500 12px var(--mono)}
+.st svg{width:15px;height:15px;flex:none}
+.st.none{color:var(--mut)}.st.prog{color:var(--warn)}.st.done{color:var(--grn)}.st.draft{color:var(--dim)}
+.empty{padding:26px 20px;color:var(--dim);font-size:14px}
+.keys{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font:500 11.5px var(--mono);color:var(--dim)}
+.keys span{display:inline-flex;gap:6px;align-items:center}
+.legend{display:flex;gap:22px;flex-wrap:wrap;margin:14px 0 0;font:500 11.5px var(--mono);color:var(--mut)}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend svg{width:15px;height:15px}
+.diff{display:grid;gap:10px;margin:18px 0 0;color:var(--mut);font-size:14px}
+.diff li{margin-left:20px}
+@media (max-width:820px){.tr{grid-template-columns:28px auto auto minmax(0,1fr);grid-template-areas:"s p p p" ". m l st";gap:6px 12px;padding:12px 16px}.tr>:nth-child(1){grid-area:s}.tr>:nth-child(2),.tr>:nth-child(6){display:none}.tr>:nth-child(3){grid-area:p}.tr>:nth-child(4){grid-area:m}.tr>:nth-child(5){grid-area:l}.tr>:nth-child(7){grid-area:st}.th{display:none}}
+
+/* ---------- B. versus table ---------- */
+.vs{border:1px solid var(--line2);border-radius:8px;background:var(--panel);overflow:hidden}
+.vs table{width:100%;border-collapse:collapse;table-layout:fixed}
+.vs th{padding:10px 16px;text-align:left;background:var(--raise);font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.vs th.c{color:var(--warn);box-shadow:inset 0 -2px 0 var(--warn)}.vs th.r{color:var(--grn);box-shadow:inset 0 -2px 0 var(--grn)}
+.vs td{padding:10px 16px;border-top:1px solid var(--line2);vertical-align:middle;position:relative}
+.vs td.c{background:color-mix(in oklab,var(--warn) 5%,transparent)}
+.vs td code.src{display:block;padding:0;background:none;font:400 13px/1.55 var(--code);white-space:pre-wrap;overflow-wrap:anywhere;padding-right:46px}
+.vs td .cp{position:absolute;right:10px;top:50%;transform:translateY(-50%);height:24px;padding:0 9px;border:1px solid var(--line2);border-radius:4px;background:var(--panel);font:500 11px var(--mono);color:var(--dim);opacity:0}
+.vs td:hover .cp,.vs td:focus-within .cp,.vs .cp:focus{opacity:1}
+.vs td .cp:hover{color:var(--fg);border-color:var(--line)}
+.vs.plain td code.src{color:var(--fg);padding-right:0}
+.vs td.what{width:150px;font:500 11.5px var(--mono);color:var(--dim);vertical-align:middle}
+.vs tr.aligned td{height:58px}
+.vs tr.hl td.what{color:var(--fg)}
+@media (hover:none){.vs td .cp{opacity:1}}
+
+/* ---------- C. workspace pane ---------- */
+.states{display:flex;gap:8px;margin-bottom:14px}
+.pane{width:380px;max-width:100%;height:480px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.pane .tabs{display:flex;gap:18px;padding:0 18px;height:40px;align-items:center;border-bottom:1px solid var(--line2);font-size:13px;color:var(--dim);flex:none}
+.pane .tabs b{color:var(--fg);font-weight:500;border-bottom:2px solid var(--acc);height:40px;display:flex;align-items:center}
+.pbody{flex:1;overflow:auto;scrollbar-width:none;position:relative}.pbody::-webkit-scrollbar{display:none}
+.strip{position:sticky;top:0;z-index:3;padding:12px 18px 12px;background:color-mix(in oklab,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line2)}
+.strip.shadow{box-shadow:0 8px 14px -10px var(--shadow,#000)}
+.srow{display:flex;align-items:center;gap:12px}
+.sbig{font:600 18px var(--sans);letter-spacing:-.01em}.sbig em{font-style:normal}
+.sbig.bad em{color:var(--bad)}.sbig.ok em{color:var(--grn)}.sbig.idle{color:var(--mut)}
+.smeta{font:500 11px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.run{margin-left:auto;height:28px;padding:0 12px;border:1px solid var(--acc);border-radius:6px;background:var(--acc-bg);color:var(--acc);font:600 11.5px var(--mono);white-space:nowrap}
+.run kbd{font:500 10px var(--mono);opacity:.7;margin-left:6px}
+.sbar{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:3px;margin-top:10px}
+.sbar i{height:5px;border-radius:2px;background:var(--line2)}.sbar i.p{background:var(--grn)}.sbar i.f{background:var(--bad)}
+.sbar i.w{background:var(--warn);animation:pulse 1s infinite alternate}
+@keyframes pulse{to{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.sbar i.w{animation:none}}
+.cases{padding:0 18px 20px}
+.case{padding:12px 0;border-bottom:1px solid var(--line2);font:500 12.5px var(--mono)}
+.case .h{display:flex;gap:10px;align-items:center}
+.case .h svg{width:13px;height:13px;flex:none}
+.case.bad .h{color:var(--bad)}.case .h .v{margin-left:auto;font:400 11px var(--mono);color:var(--dim)}
+.case .kv{display:grid;grid-template-columns:56px 1fr;gap:3px 10px;margin:8px 0 0 23px;font:400 11.5px/1.55 var(--mono);color:var(--mut)}
+.case .kv span{color:var(--dim)}
+
+/* ---------- D. stage + course extras ---------- */
+.mini{border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:22px 24px}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.2em;color:var(--grn);text-transform:uppercase}
+.mini h3{margin:6px 0 12px;font-size:28px;letter-spacing:-.02em}
+.cli{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font:500 12px var(--mono);color:var(--dim)}
+.cli code{background:var(--raise);padding:4px 10px;color:var(--fg);font-size:12px}
+.cli button{height:24px;padding:0 9px;border:1px solid var(--line2);border-radius:4px;font:500 11px var(--mono);letter-spacing:.1em;color:var(--dim)}
+.cli button:hover{color:var(--fg);border-color:var(--line)}
+.where{display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;padding:16px 20px;border:1px solid color-mix(in oklab,var(--grn) 45%,var(--line2));border-radius:10px;background:var(--panel)}
+.ring{width:54px;height:54px;border-radius:50%;background:conic-gradient(var(--grn) calc(var(--p)*1%),var(--line2) 0);display:grid;place-items:center}
+.ring span{width:42px;height:42px;border-radius:50%;background:var(--panel);display:grid;place-items:center;font:600 12px var(--mono)}
+.where h4{margin:0;font-size:15px}.where p{margin:2px 0 0;font:500 11.5px var(--mono);color:var(--dim)}
+.where .go{height:32px;padding:0 14px;border:1px solid var(--grn);border-radius:6px;background:var(--grn-bg);color:var(--grn);font:600 12px var(--mono);white-space:nowrap}
+.note{padding:12px 16px;border-left:2px solid var(--warn);background:color-mix(in oklab,var(--warn) 8%,transparent);color:var(--mut);font-size:13.5px;border-radius:0 6px 6px 0}
+.dec{display:grid;gap:10px;margin:0;padding-left:20px;color:var(--mut);font-size:14px}.dec b{color:var(--fg)}
+.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-none" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-prog" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></symbol>
+  <symbol id="i-done" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="3" fill="currentColor"/><path d="M5 8.3l2 2 4-4.3" fill="none" stroke="var(--panel)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-draft" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.2 2"/></symbol>
+  <symbol id="i-ok" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-wait" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 3"/></symbol>
+</svg>
+<div class="page">
+
+<header>
+  <button class="theme" onclick="var r=document.documentElement;r.dataset.theme=r.dataset.theme==='light'?'dark':'light'">THEME</button>
+  <h1>The remaining table and run-result items</h1>
+  <p class="lede">Mockup for approval. The table below sorts, filters and moves with the keyboard as proposed, so try it: click a header, type in the box, press <code>/</code>, then <code>j</code> / <code>k</code> / <code>Enter</code>. Everything uses the tokens and fonts that are already in the app. Nothing existing is removed: the stage, tag and company filters stay where they are.</p>
+</header>
+
+<!-- A -->
+<section>
+  <p class="cap"><b>1</b> Problem list: filter box, sortable columns, keyboard, status that is not only colour</p>
+  <h2>Ownership &amp; moves (track page)</h2>
+  <p class="sub">The filter box sits above the table next to the existing chips. Sorting is by clicking a column header (click again to reverse, a third click returns to the recommended order). Status gets a different <em>shape</em> and a word, so it reads without colour.</p>
+  <div class="bar">
+    <label class="fbox"><span style="color:var(--dim)">&#8981;</span><input id="q" placeholder="filter problems, tags…" autocomplete="off" spellcheck="false"><kbd>/</kbd></label>
+    <span class="count" id="cnt"></span>
+    <button class="chip on" data-mode="">all</button><button class="chip" data-mode="fix">fix this</button><button class="chip" data-mode="write">write it</button>
+    <button class="reset" id="rst" hidden>RESET ORDER</button>
+  </div>
+  <div class="tblw" id="tbl">
+    <div class="tr th" role="row">
+      <span></span>
+      <button data-k="n" aria-sort="none">#<span class="ar">&#9650;</span></button>
+      <button data-k="t" aria-sort="none">Problem<span class="ar">&#9650;</span></button>
+      <button data-k="m" aria-sort="none">Mode<span class="ar">&#9650;</span></button>
+      <button data-k="l" aria-sort="none">Level<span class="ar">&#9650;</span></button>
+      <span style="font:500 10.5px var(--mono);letter-spacing:.2em;color:var(--dim)">TAGS</span>
+      <button data-k="s" aria-sort="none" style="justify-self:end">Status<span class="ar">&#9650;</span></button>
+    </div>
+    <div id="rows"></div>
+    <div class="empty" id="none" hidden>No problem matches that filter. <button style="color:var(--acc)" onclick="q.value='';draw()">Clear it</button></div>
+  </div>
+  <div class="keys"><span><kbd>/</kbd> filter</span><span><kbd>j</kbd><kbd>k</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> leave the box</span><span id="opened" style="color:var(--grn)"></span></div>
+  <div class="legend" aria-label="status legend">
+    <span style="color:var(--mut)"><svg><use href="#i-none"/></svg>not started</span>
+    <span style="color:var(--warn)"><svg><use href="#i-prog"/></svg>in progress</span>
+    <span style="color:var(--grn)"><svg><use href="#i-done"/></svg>solved</span>
+    <span style="color:var(--dim)"><svg><use href="#i-draft"/></svg>not written</span>
+  </div>
+  <ul class="diff">
+    <li><b>Keys</b> work only while no input or editor has focus, and never on a page with the code editor, so Vim mode is untouched. <code>j</code>/<code>k</code> are the same keys the pattern pages already use.</li>
+    <li><b>Where it would go:</b> the Rust track table first. The Progress page&rsquo;s tables (compiler errors, rule violations) are short, so they get sortable headers only, no filter box.</li>
+    <li><b>On a phone</b> the cards from the last change stay; sorting moves to a small &ldquo;Sort&rdquo; menu above them (the header row is hidden there).</li>
+  </ul>
+</section>
+
+<!-- B -->
+<section>
+  <p class="cap"><b>2</b> C++ / Rust comparison tables</p>
+  <h2>Highlighted code, rows that line up, a copy button</h2>
+  <p class="sub">These tables are the course&rsquo;s main teaching device. Today the cells are plain inline <code>code</code>. Proposed: each cell goes through the same highlighters the code blocks already use (<code>highlightCpp</code>, <code>highlightRust</code>), both columns share a row height so the C++ line and its Rust line sit side by side, and hovering a cell shows <em>copy</em>. A first column names what each row compares.</p>
+  <div class="row2" style="grid-template-columns:1fr">
+  <div>
+    <p class="cap" style="margin-bottom:8px">today</p>
+    <div class="vs plain"><table>
+      <thead><tr><th class="c">C / C++</th><th class="r">Rust</th></tr></thead>
+      <tbody>
+        <tr><td class="c"><code class="src">fsync(fd)</code></td><td><code class="src">file.sync_all()</code></td></tr>
+        <tr><td class="c"><code class="src">std::lock_guard&lt;std::mutex&gt; g(m);</code></td><td><code class="src">let g = m.lock().unwrap();</code></td></tr>
+      </tbody></table></div>
+  </div>
+  <div>
+    <p class="cap" style="margin:18px 0 8px"><b>proposed</b></p>
+    <div class="vs"><table>
+      <thead><tr><th style="width:150px"></th><th class="c">C / C++</th><th class="r">Rust</th></tr></thead>
+      <tbody>
+        <tr class="aligned"><td class="what">flush to disk</td>
+          <td class="c"><code class="src"><span class="t-f">fsync</span>(fd)</code><button class="cp" data-c="fsync(fd)">copy</button></td>
+          <td><code class="src">file.<span class="t-f">sync_all</span>()</code><button class="cp" data-c="file.sync_all()">copy</button></td></tr>
+        <tr class="aligned"><td class="what">lock a mutex</td>
+          <td class="c"><code class="src"><span class="t-t">std</span>::<span class="t-t">lock_guard</span>&lt;<span class="t-t">std</span>::<span class="t-t">mutex</span>&gt; g(m);</code><button class="cp" data-c="std::lock_guard<std::mutex> g(m);">copy</button></td>
+          <td><code class="src"><span class="t-k">let</span> g = m.<span class="t-f">lock</span>().<span class="t-f">unwrap</span>();</code><button class="cp" data-c="let g = m.lock().unwrap();">copy</button></td></tr>
+        <tr class="aligned"><td class="what">own on the heap</td>
+          <td class="c"><code class="src"><span class="t-t">auto</span> p = <span class="t-f">make_unique</span>&lt;<span class="t-t">Page</span>&gt;();</code><button class="cp" data-c="auto p = make_unique<Page>();">copy</button></td>
+          <td><code class="src"><span class="t-k">let</span> p = <span class="t-t">Box</span>::<span class="t-f">new</span>(<span class="t-t">Page</span>::<span class="t-f">new</span>());</code><button class="cp" data-c="let p = Box::new(Page::new());">copy</button></td></tr>
+        <tr class="aligned"><td class="what">comment</td>
+          <td class="c"><code class="src"><span class="t-c">// release at scope exit</span></code></td>
+          <td><code class="src"><span class="t-c">// dropped at scope exit</span></code></td></tr>
+      </tbody></table></div>
+  </div>
+  </div>
+  <ul class="diff">
+    <li><b>Prose cells stay prose.</b> Only cells that are entirely inline code are highlighted; a cell with words and a code fragment keeps its fragment as it is today.</li>
+    <li><b>Language per column</b> comes from the header (C / C++ or Rust), which the renderer already detects to colour the headers.</li>
+    <li><b>The first column</b> is optional: it appears when the markdown table has a third, unlabelled column, so no existing article needs rewriting.</li>
+    <li><b>Touch screens</b> show the copy button all the time. Under 640px the table keeps horizontal scroll inside its box, as it does now.</li>
+  </ul>
+</section>
+
+<!-- C -->
+<section>
+  <p class="cap"><b>3</b> Rust workspace: the result stays pinned above the test cases</p>
+  <h2>Tests pane, with the last-run strip fixed at the top</h2>
+  <p class="sub">Today the &ldquo;Not run yet / 3 of 5&rdquo; heading is the first thing <em>inside</em> the scrolling pane, so it scrolls out of sight as soon as a case is expanded. Proposed: it becomes a strip that stays at the top of the pane, with the Run button repeated in it and a count that updates while the tests run. Scroll the list to see it stay.</p>
+  <div class="states" id="states">
+    <button class="chip" data-s="idle">not run</button><button class="chip" data-s="run">running</button><button class="chip on" data-s="bad">3 fail</button><button class="chip" data-s="ok">all pass</button>
+  </div>
+  <div class="pane">
+    <div class="tabs"><b>Tests</b><span>Output</span></div>
+    <div class="pbody" id="pb">
+      <div class="strip" id="strip"></div>
+      <div class="cases" id="cases"></div>
+    </div>
+  </div>
+  <ul class="diff">
+    <li><b>Nothing is removed:</b> the cases list, the visible-versus-hidden note and the Submit button are unchanged.</li>
+    <li><b>Failed cases</b> are listed first and open, passed ones after them, the same order as the course Run tab, so the two screens agree.</li>
+    <li><b>Running</b> shows one pulsing segment per case that has not finished (no motion with reduced-motion on).</li>
+    <li>Status uses icons as well as colour: a tick for pass, a cross for fail, a dashed ring for waiting.</li>
+  </ul>
+</section>
+
+<!-- D -->
+<section>
+  <p class="cap"><b>4</b> Course pages: the CLI command and a where-am-I strip</p>
+  <div class="row2">
+    <div>
+      <h2>Stage header</h2>
+      <p class="sub">The command for this stage sits under the title with a copy button, so the step from reading to running is one paste.</p>
+      <div class="mini">
+        <div class="eyebrow">4A &middot; Stage 4 of 9 &middot; Medium</div>
+        <h3>Reconstructing a tuple</h3>
+        <div class="cli"><span>test this stage</span><code id="cmd">anneal course test 4a-04</code><button id="cc">COPY</button></div>
+      </div>
+    </div>
+    <div>
+      <h2>Course page</h2>
+      <p class="sub">Between the heading and the project list: the module you are in, as a ring, and the next stage. The DSA workspace already uses this ring.</p>
+      <div class="where">
+        <div class="ring" style="--p:11"><span>1/9</span></div>
+        <div><h4>4A &middot; Timestamps, transactions and version chains</h4><p>next: 4a-03 Committing and aborting</p></div>
+        <button class="go">Continue &rsaquo;</button>
+      </div>
+    </div>
+  </div>
+  <ul class="diff">
+    <li>Switching between Instructions and Hints will also keep your scroll position per tab. That has no visual, so it is not drawn here.</li>
+  </ul>
+</section>
+
+<section>
+  <p class="cap"><b>Decisions</b></p>
+  <ol class="dec">
+    <li><b>Which of the four to build first?</b> My order: the pinned run strip (small, in the workspace you use most), then the problem-table sort and filter with keys, then the comparison tables, then the course-page extras.</li>
+    <li><b>Sort on the phone:</b> a small &ldquo;Sort&rdquo; menu (drawn in my head, not here), or no sorting on phones? I would add the menu.</li>
+    <li><b>Status icons</b> replace the plain coloured squares on the track table and the course tree. OK to change both, or the track table only?</li>
+  </ol>
+  <p class="note" style="margin-top:18px">Per-test durations and grouping by stage are still left out, for the reason given on the Run-tab mockup: a reported run carries one total time, and stable <code>cargo test</code> does not measure per test.</p>
+</section>
+
+</div>
+<script>
+const P=[
+ ["Fix: use after move","fix","easy","E0382 · move · partial moves","none"],
+ ["Fix: Copy, Clone and what derive asks for","fix","easy","Copy · Clone · derive","none"],
+ ["Fix: values moved in a loop","fix","easy","E0382 · loops · mem::take","prog"],
+ ["Hand ownership back on failure","write","easy","ownership · builder · Result","done"],
+ ["Fix: by value, & or &mut","fix","easy","&T · &mut T · API design","done"],
+ ["Fix: borrowed where owned was needed","fix","easy","E0308 · impl Into<String>","none"],
+ ["Parameters that take &str and String alike","fix","easy","&str · AsRef<str> · IntoIterator","none"],
+ ["Fix: remove every clone","fix","medium","borrowing · clone · lifetimes","none"],
+ ["Allocate only when you must: Cow","write","medium","Cow · borrow or own","none"],
+ ["Predict the drop order","write","medium","Drop · scopes · temporaries","draft"],
+ ["An RAII span guard","write","medium","Drop · RAII · unwinding","none"],
+ ["Fix: closures that outlive their function","fix","medium","E0373 · move · impl Fn","none"],
+ ["Move data into threads, or borrow it with scope","write","medium","thread::spawn · thread::scope","none"],
+ ["Fix: partial moves (E0382, E0507, E0509)","fix","hard","partial moves · E0507 · Drop","none"],
+ ["State transitions with mem::replace","write","hard","mem::replace · mem::swap · enum","draft"],
+ ["A batcher with Option::take","write","hard","Option::take · Box · panic safety","none"]
+].map((r,i)=>({n:i+1,t:r[0],m:r[1],l:r[2],g:r[3],s:r[4]}));
+const LV={easy:0,medium:1,hard:2},ST={none:0,prog:1,done:2,draft:3};
+const LC={easy:'var(--grn)',medium:'var(--warn)',hard:'var(--bad)'};
+const SL={none:'not started',prog:'in progress',done:'solved',draft:'not written'};
+const $=s=>document.querySelector(s);
+const q=$('#q'),rows=$('#rows');
+let sort={k:null,dir:1},mode='',cur=0,vis=[];
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function mark(s,f){s=esc(s);if(!f)return s;const i=s.toLowerCase().indexOf(esc(f.toLowerCase()));return i<0?s:s.slice(0,i)+'<mark>'+s.slice(i,i+f.length)+'</mark>'+s.slice(i+f.length)}
+function draw(){
+  const f=q.value.trim();
+  vis=P.filter(p=>(!mode||p.m===mode)&&(!f||(p.t+' '+p.g).toLowerCase().includes(f.toLowerCase())));
+  if(sort.k){const key={n:p=>p.n,t:p=>p.t.toLowerCase(),m:p=>p.m,l:p=>LV[p.l],s:p=>ST[p.s]}[sort.k];vis=[...vis].sort((a,b)=>{const x=key(a),y=key(b);return (x<y?-1:x>y?1:a.n-b.n)*sort.dir})}
+  cur=Math.min(cur,Math.max(0,vis.length-1));
+  rows.innerHTML=vis.map((p,i)=>`<div class="tr${i===cur?' focus':''}" data-i="${i}" role="row">
+    <svg width="15" height="15" style="color:var(--dim)"><use href="#i-${p.s}"/></svg>
+    <span class="n">${String(p.n).padStart(2,'0')}</span>
+    <span class="pt">${mark(p.t,f)}</span>
+    <span><span class="mode ${p.m}">${p.m==='fix'?'FIX THIS':'WRITE IT'}</span></span>
+    <span class="lvl"><i style="background:${LC[p.l]}"></i>${p.l}</span>
+    <span class="tags">${mark(p.g,f)}</span>
+    <span class="st ${p.s}"><svg><use href="#i-${p.s}"/></svg>${SL[p.s]}</span></div>`).join('');
+  $('#none').hidden=vis.length>0;
+  $('#cnt').textContent=vis.length+' of '+P.length;
+  $('#rst').hidden=!sort.k;
+  document.querySelectorAll('.th button[data-k]').forEach(b=>{b.setAttribute('aria-sort',b.dataset.k===sort.k?(sort.dir>0?'ascending':'descending'):'none');b.querySelector('.ar').innerHTML=b.dataset.k===sort.k&&sort.dir<0?'&#9660;':'&#9650;'});
+}
+document.querySelectorAll('.th button[data-k]').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(sort.k!==k)sort={k,dir:1};else if(sort.dir>0)sort.dir=-1;else sort={k:null,dir:1};draw()});
+$('#rst').onclick=()=>{sort={k:null,dir:1};draw()};
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('on',x===b));draw()});
+q.oninput=()=>{cur=0;draw()};
+rows.onclick=e=>{const r=e.target.closest('.tr');if(r){cur=+r.dataset.i;open()}};
+function open(){const p=vis[cur];if(p){$('#opened').textContent='→ would open "'+p.t+'"';draw()}}
+document.addEventListener('keydown',e=>{
+  const typing=/INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if(e.key==='Escape'&&typing){document.activeElement.blur();return}
+  if(typing||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.key==='/'){e.preventDefault();q.focus();q.select();return}
+  if(e.key==='j'||e.key==='k'){cur=Math.max(0,Math.min(vis.length-1,cur+(e.key==='j'?1:-1)));draw();const el=rows.children[cur];el&&el.scrollIntoView({block:'nearest'})}
+  if(e.key==='Enter'&&vis.length)open();
+});
+draw();
+
+/* copy buttons */
+document.querySelectorAll('.cp').forEach(b=>b.onclick=()=>{const t=b.dataset.c;const done=()=>{b.textContent='copied';setTimeout(()=>b.textContent='copy',1100)};try{navigator.clipboard.writeText(t).then(done,done)}catch(_){done()}});
+$('#cc').onclick=function(){const b=this,done=()=>{b.textContent='COPIED';setTimeout(()=>b.textContent='COPY',1100)};try{navigator.clipboard.writeText($('#cmd').textContent).then(done,done)}catch(_){done()}};
+
+/* pane */
+const CASES=[
+ ['labelled','id 7, label "nightly", items ["build","api","ship"]','"nightly: 3 items (2 long), longest build"',1],
+ ['unlabelled','id 7, label None, items ["a","bbbb"]','"#7: 2 items (1 long), longest bbbb [unlabelled]"',0,'"#7: 2 items (1 long), longest a [unlabelled]"'],
+ ['no_items','id 7, label "empty", items []','"empty: 0 items (0 long), longest -"',1],
+ ['tie_first_wins','id 7, label "t", items ["abcd","wxyz"]','"t: 2 items (2 long), longest abcd"',0,'"t: 2 items (2 long), longest wxyz"'],
+ ['items_come_back','the returned items are the batch\'s own Vec','(vec!["x".to_string(), ...])',0,'a different Vec (a clone)']
+];
+const icon=n=>`<svg><use href="#i-${n}"/></svg>`;
+function pane(s){
+  const bad=CASES.filter(c=>!c[3]).length;
+  let big,meta,n;
+  if(s==='idle'){big='<span class="sbig idle">Not run yet</span>';meta='5 visible · hidden on Submit';n=CASES.map(()=>'')}
+  else if(s==='run'){big='<span class="sbig idle">Running…</span>';meta='3 of 5 finished';n=['p','p','p','w','w']}
+  else if(s==='ok'){big='<span class="sbig ok"><em>5 of 5 passed</em></span>';meta='just now · 0.8s';n=CASES.map(()=>'p')}
+  else{big='<span class="sbig bad"><em>3 of 5 failed</em></span>';meta='just now · 0.8s';n=CASES.map(c=>c[3]?'p':'f')}
+  $('#strip').innerHTML=`<div class="srow">${big}<span class="smeta">${meta}</span><button class="run">Run tests<kbd>⌘↵</kbd></button></div><div class="sbar">${n.map(x=>`<i class="${x}"></i>`).join('')}</div>`;
+  const ordered=s==='bad'?[...CASES.filter(c=>!c[3]),...CASES.filter(c=>c[3])]:CASES;
+  $('#cases').innerHTML=ordered.map(c=>{
+    const failed=s==='bad'&&!c[3],passed=(s==='bad'&&c[3])||s==='ok';
+    const ic=failed?`<span style="color:var(--bad)">${icon('x')}</span>`:passed?`<span style="color:var(--grn)">${icon('ok')}</span>`:s==='run'?`<span style="color:var(--warn)">${icon('wait')}</span>`:`<span style="color:var(--dim)">${icon('wait')}</span>`;
+    return `<div class="case${failed?' bad':''}"><div class="h">${ic}<span>${c[0]}</span><span class="v">${failed?'failed':passed?'passed':''}</span></div>
+      <div class="kv"><span>input</span><div>${esc(c[1])}</div><span>expected</span><div style="color:var(--str)">${esc(c[2])}</div>${failed?`<span style="color:var(--bad)">got</span><div style="color:var(--fg)">${esc(c[4]||'')}</div>`:''}</div></div>`}).join('');
+}
+document.querySelectorAll('#states [data-s]').forEach(b=>b.onclick=()=>{document.querySelectorAll('#states .chip').forEach(x=>x.classList.toggle('on',x===b));pane(b.dataset.s)});
+$('#pb').addEventListener('scroll',e=>$('#strip').classList.toggle('shadow',e.target.scrollTop>4));
+pane('bad');
+</script>
+</body>
+</html>

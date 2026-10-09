@@ -65,6 +65,9 @@ Other web ideas: show the CLI command next to each stage (`anneal course test 4a
 Recommendation: do the table basics (tabular numbers, sticky headers, phone cards) as one change after a screenshot review, then mock up
 the tests-tab regrouping before building it.
 
+Mockups: [course-run-tab.html](mockups/course-run-tab.html) (built: the Run tab) and
+[web-tables-and-run-strip.html](mockups/web-tables-and-run-strip.html) (sort and filter, keys, status icons, comparison tables, pinned run strip, CLI command, where-am-I strip; awaiting approval).
+
 ## What was built (CLI)
 
 - `anneal course test`: exit 1 when tests fail, 2 when nothing could run; failures grouped by message and cleaned of thread ids and

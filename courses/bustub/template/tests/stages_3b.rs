@@ -18,7 +18,7 @@ use bustub::types::value::{CmpBool, Value};
 use proptest::prelude::*;
 
 fn config() -> ProptestConfig {
-    ProptestConfig { cases: 128, max_shrink_iters: 2000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 128, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 fn meta(is_deleted: bool) -> TupleMeta {

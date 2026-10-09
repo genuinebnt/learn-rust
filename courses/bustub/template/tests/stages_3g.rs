@@ -852,7 +852,7 @@ fn s3g_05_rank_needs_an_order_by_and_other_frames_are_refused() {
 // ---- properties: sorting, limits and windows against plain Rust --------------------------------------------------------------------
 
 fn pconfig() -> ProptestConfig {
-    ProptestConfig { cases: 40, max_shrink_iters: 1000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 40, max_shrink_iters: 1000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 fn opt_value(v: Option<i32>) -> Value {
@@ -1078,7 +1078,7 @@ proptest! {
 // ---- 3g-06 · boss: the whole pipeline against a sorted vector ----------------------------------------------------------------------
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 24, max_shrink_iters: 500, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 24, max_shrink_iters: 500, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// A query that sorts, limits and ranks through the optimizer (which turns `order by .. limit` into a top-N) agrees with a
     /// sorted vector three ways: the full sort, its prefix, and the rank of every row in that order.

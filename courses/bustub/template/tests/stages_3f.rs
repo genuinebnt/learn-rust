@@ -680,7 +680,7 @@ fn s3f_05_without_an_index_the_join_stays_a_nested_loop() {
 // ---- properties: aggregation and joins against plain Rust ------------------------------------------------------------------------
 
 fn pconfig() -> ProptestConfig {
-    ProptestConfig { cases: 40, max_shrink_iters: 1000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 40, max_shrink_iters: 1000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 /// A grouping value: NULLs of several types, integers that fit every width, decimals (zero has two spellings), text and booleans.
@@ -893,7 +893,7 @@ proptest! {
 // ---- 3f-06 · boss: three join algorithms and a naive one ---------------------------------------------------------------------------
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 48, max_shrink_iters: 1000, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 48, max_shrink_iters: 1000, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// The same equality join, run as a nested loop join, as a hash join and as a nested index join, gives the same rows as the
     /// naive one, for inner and left joins; swapping the two tables gives the same multiset with the columns swapped; and an

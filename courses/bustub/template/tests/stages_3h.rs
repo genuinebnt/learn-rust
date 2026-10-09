@@ -391,7 +391,7 @@ fn s3h_03_an_empty_table_with_an_index() {
 // ---- properties: rules against their specification and against plain Rust --------------------------------------------------------
 
 fn pconfig() -> ProptestConfig {
-    ProptestConfig { cases: 48, max_shrink_iters: 1000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 48, max_shrink_iters: 1000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 /// A conjunct of a join predicate between the left input (tuple 0) and the right input (tuple 1), described so that the model can
@@ -592,7 +592,7 @@ proptest! {
 // ---- 3h-04 · boss: optimised and plain plans return the same rows ------------------------------------------------------------------
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 40, max_shrink_iters: 500, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 40, max_shrink_iters: 500, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// A query that joins, filters, sorts and limits returns the same rows with every optimizer rule on, with only BusTub's starter
     /// rules, and in a plain Rust computation: the definition of a correct rewrite.

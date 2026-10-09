@@ -24,7 +24,7 @@ use proptest::prelude::*;
 mod common;
 
 fn config() -> ProptestConfig {
-    ProptestConfig { cases: 128, max_shrink_iters: 2000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 128, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 // ---- 2a-01 · Ids that survive bytes -------------------------------------------------------------------------------------

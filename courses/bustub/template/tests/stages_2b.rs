@@ -273,7 +273,7 @@ fn run_model(shape: Shape, ops: &[Op], frames: usize) -> Result<(), TestCaseErro
 }
 
 fn config() -> ProptestConfig {
-    ProptestConfig { cases: 48, max_shrink_iters: 3000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 48, max_shrink_iters: 3000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 // ---- 2b-02 · Lookups and inserts without splits -------------------------------------------------------------------------

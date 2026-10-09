@@ -617,7 +617,7 @@ fn s3c_04_a_composite_index_scans_in_key_order() {
 // ---- Properties against models ---------------------------------------------------------------------------------------------
 
 fn pconfig() -> ProptestConfig {
-    ProptestConfig { cases: 48, max_shrink_iters: 2000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 48, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 #[derive(Clone, Copy, Debug)]

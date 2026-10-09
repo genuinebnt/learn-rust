@@ -155,7 +155,7 @@ fn s2d_01_a_tree_without_tombstones_has_none_to_report() {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 24, max_shrink_iters: 2000, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 24, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// On one big leaf (nothing splits) any operations agree with a set, and a leaf holds at most `T` tombstones.
     #[test]
@@ -268,7 +268,7 @@ fn s2d_02_once_the_buffers_overflow_the_dead_pairs_go_for_real_and_leaves_merge_
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 24, max_shrink_iters: 2000, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 24, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// Trees of random shape and buffer size, random inserts and removes: after every step the structure rules of `check_shape_t` hold.
     #[test]

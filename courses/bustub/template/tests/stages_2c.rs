@@ -34,7 +34,7 @@ impl Lcg {
 }
 
 fn config() -> ProptestConfig {
-    ProptestConfig { cases: 24, max_shrink_iters: 2000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 24, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 fn new_pool(frames: usize) -> BufferPoolManager {

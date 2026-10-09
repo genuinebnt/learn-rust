@@ -26,7 +26,7 @@ fn f(n: usize) -> FrameId {
 }
 
 fn config() -> ProptestConfig {
-    ProptestConfig { cases: 64, max_shrink_iters: 2000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 64, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 /// Runs `work` on a thread and fails the test if it takes longer than `limit`: a quadratic design must fail, not hang the run.

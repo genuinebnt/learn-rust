@@ -449,7 +449,7 @@ fn s3d_06_the_function_is_planned_over_a_columns_and_shows_in_explain() {
 // ---- properties over the evaluators -----------------------------------------------------------------------------------------------
 
 fn pconfig() -> ProptestConfig {
-    ProptestConfig { cases: 96, max_shrink_iters: 2000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 96, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 /// An integer or an integer NULL; `i32::MIN` is the NULL encoding, so it is never a value.
@@ -899,7 +899,7 @@ fn bool_expr() -> impl Strategy<Value = Expr> {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 64, max_shrink_iters: 500, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 64, max_shrink_iters: 500, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// `select <integer expression>` through the lexer, the parser, the binder, the planner and the evaluator answers what a 64-bit
     /// computation does: the value, `integer_null`, or an overflow error.

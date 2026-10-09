@@ -25,7 +25,7 @@ fn pg(n: i32) -> PageId {
 }
 
 fn config() -> ProptestConfig {
-    ProptestConfig { cases: 96, max_shrink_iters: 3000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 96, max_shrink_iters: 3000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 fn within<T: Send + 'static>(what: &str, limit: Duration, work: impl FnOnce() -> T + Send + 'static) -> T {

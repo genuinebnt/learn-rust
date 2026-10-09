@@ -28,7 +28,7 @@ const WAIT: Duration = Duration::from_secs(10);
 const SHORT: Duration = Duration::from_millis(150);
 
 fn config() -> ProptestConfig {
-    ProptestConfig { cases: 32, max_shrink_iters: 1000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 32, max_shrink_iters: 1000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 /// Runs `f` on a thread and returns its result, or fails the test if it does not finish in time: a hang is a bug, not a stuck run.

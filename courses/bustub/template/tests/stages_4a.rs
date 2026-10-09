@@ -1023,7 +1023,7 @@ fn s4a_06_generate_undo_log_test() {
 // ---- properties: timestamps, chains and snapshots against a model of versions ------------------------------------------------------
 
 fn pconfig() -> ProptestConfig {
-    ProptestConfig { cases: 40, max_shrink_iters: 1000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 40, max_shrink_iters: 1000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 /// What a watermark operation does to the model: a multiset of live read timestamps and the last commit timestamp.
@@ -1305,7 +1305,7 @@ fn expected_rows(model: &[RowModel], ti: usize, txn: &Transaction) -> Vec<String
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 40, max_shrink_iters: 1500, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 40, max_shrink_iters: 1500, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// A random session, run by hand the way module 4b's executors will run it: transactions begin, insert rows, write rows (the first
     /// write adds a new undo log with `generate_new_undo_log`, later ones fold into it with `generate_updated_undo_log`) and commit. At

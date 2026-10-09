@@ -140,7 +140,7 @@ fn run_guards(policy: Policy, frames: usize, ops: &[GuardOp]) -> Result<(), Test
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 48, max_shrink_iters: 2000, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 48, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() })]
 
     #[test]
     fn s1g_01_pin_counts_match_the_live_guards_for_guards_taken_and_dropped_in_any_order(ops in guard_ops()) {
@@ -534,7 +534,7 @@ fn s1g_03_many_threads_incrementing_one_page_lose_nothing() {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 24, max_shrink_iters: 2000, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 24, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// The guard model once more, on a pool that uses the replacers you built.
     #[test]

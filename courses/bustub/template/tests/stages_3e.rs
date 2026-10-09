@@ -731,7 +731,7 @@ fn s3e_04_a_batch_of_lookups_larger_than_the_batch_size() {
 // ---- properties: the executors against plain Rust vectors ------------------------------------------------------------------------
 
 fn pconfig() -> ProptestConfig {
-    ProptestConfig { cases: 40, max_shrink_iters: 1000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 40, max_shrink_iters: 1000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 fn cell_value(c: Option<i64>) -> Value {
@@ -967,7 +967,7 @@ fn step_strategy() -> impl Strategy<Value = Step> {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig { cases: 32, max_shrink_iters: 1000, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 32, max_shrink_iters: 1000, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// A random session of inserts, deletes, updates and selects, with an index created at a random moment, agrees with a vector of
     /// rows after every statement; the index agrees with the table; and once the index exists `order by a` comes back in key order

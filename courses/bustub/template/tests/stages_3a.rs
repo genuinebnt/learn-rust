@@ -24,7 +24,7 @@ fn kind<T: std::fmt::Debug>(r: Result<T, Exception>) -> ExceptionType {
 }
 
 fn config() -> ProptestConfig {
-    ProptestConfig { cases: 200, max_shrink_iters: 2000, ..ProptestConfig::default() }
+    ProptestConfig { cases: 200, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
 }
 
 /// The usable range of an integer type: the smallest number is reserved for NULL.

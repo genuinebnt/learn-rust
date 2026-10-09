@@ -68,6 +68,9 @@ the tests-tab regrouping before building it.
 Mockups: [course-run-tab.html](mockups/course-run-tab.html) (built: the Run tab) and
 [web-tables-and-run-strip.html](mockups/web-tables-and-run-strip.html) (sort and filter, keys, status icons, comparison tables, pinned run strip, CLI command, where-am-I strip; awaiting approval).
 
+Motion and component mockups (awaiting approval, nothing built): [course-motion.html](mockups/course-motion.html) (course page, stage page, component kit,
+popups; `#static`, `#static-stage`, `#static-kit`, `#static-win` open a state without animation) and [section-page.html](mockups/section-page.html) (Rust/DSA section page).
+
 ## What was built (CLI)
 
 - `anneal course test`: exit 1 when tests fail, 2 when nothing could run; failures grouped by message and cleaned of thread ids and

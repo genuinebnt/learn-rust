@@ -1,5 +1,12 @@
 Merging two replicas is the union of their add pairs and the union of their removed pairs. That is all, and it is enough: union is commutative (order does not matter), associative (grouping does not matter) and idempotent (merging twice changes nothing), so replicas that have heard the same updates in any order are equal. A remove on one replica only killed pairs it had seen, so a concurrent add on another replica survives: **add wins**.
 
+> [!CHECK] Replica A adds x (unique id 1) and then removes x. Replica B, at the same time, adds x (unique id 2). After the two replicas merge, is x in the set? Why is this called an observed-remove set?
+> ||Yes. A's remove only marked the pair (x, 1), the one it had observed; B's pair (x, 2) was never removed, so x has a live pair. A remove removes only the adds it has seen.||
+>
+> - What exactly does `remove(x)` mark as removed?
+> - What does merge do with the adds and the removed pairs?
+> - When is an element in `elements()`?
+
 ## The task
 
 In `src/primer/orset.rs`:

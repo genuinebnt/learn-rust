@@ -1,14 +1,24 @@
 Every update leaves a log; every transaction stays in the transaction manager's map as long as its logs might be read. Nothing ever shrinks unless somebody works out what is no longer needed. This stage writes that somebody. In BusTub it is **stop-the-world**: you may assume no transaction is executing a statement while it runs.
 
+> [!CHECK] The watermark is 10. A tuple with timestamp 15 has an undo chain: a log owned by T1 (ts 12), then one owned by T2 (ts 9), then one owned by T3 (ts 4). Which transactions must garbage collection keep, and why does it stop where it does?
+> ||T1 and T2. The log at 12 is newer than the watermark, so a reader may need it; the log at 9 is the first at or below the watermark, i.e. the oldest version anybody can still ask for, so the walk includes it and stops. T3's log can never be needed.||
+>
+> - Which version does a reader at timestamp 10 get?
+> - What does the oldest reader need: logs newer than itself, and one more?
+> - What if the tuple's own timestamp were 8?
+
 ## The task
 
-In `src/concurrency/transaction_manager.rs`, `garbage_collection(&self)`, the region marked `4b-05`:
+In `src/concurrency/transaction_manager.rs`, `garbage_collection(&self)`, the region marked `4b-05`.
 
-1. `watermark = self.get_watermark()`.
-2. For every table in the catalog (`catalog.get_table_names()`, `get_table(name)`), for every tuple (`make_eager_iterator`): read its metadata and head link (`get_tuple_and_undo_link`).
-   - If the tuple's timestamp is at or below the watermark, no reader can need anything below it: clear its link (`update_undo_link(rid, None, None)`) and go on.
-   - Otherwise walk its chain from the head: for each log note the **transaction that owns it** as *needed*; stop after the first log whose `ts` is at or below the watermark (it is the oldest version anybody can ask for). A log that can't be fetched ends the walk.
-3. Keep in `txn_map` exactly the transactions that are `Running` or `Tainted`, or *needed*; drop the rest.
+`garbage_collection` leaves in `txn_map` exactly the transactions that are `Running` or `Tainted`, or that own an undo log some reader could still need. A tuple stamped at or below the watermark needs no chain: its link is cleared. For any other tuple the chain is followed from the head, noting each log's **owner** as needed, up to and including the first log at or below the watermark (the oldest version anybody can ask for), or until a log cannot be fetched. Every other transaction is dropped.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. `watermark = self.get_watermark()`.
+> 2. For every table in the catalog (`catalog.get_table_names()`, `get_table(name)`), for every tuple (`make_eager_iterator`): read its metadata and head link (`get_tuple_and_undo_link`).
+>    - If the tuple's timestamp is at or below the watermark, no reader can need anything below it: clear its link (`update_undo_link(rid, None, None)`) and go on.
+>    - Otherwise walk its chain from the head: for each log note the **transaction that owns it** as *needed*; stop after the first log whose `ts` is at or below the watermark (it is the oldest version anybody can ask for). A log that can't be fetched ends the walk.
+> 3. Keep in `txn_map` exactly the transactions that are `Running` or `Tainted`, or *needed*; drop the rest.
 
 ## Tests
 

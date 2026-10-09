@@ -70,4 +70,4 @@ Check for the duplicate name first, then take the oid. The test "a refused creat
 
 ### Clone the `Arc`, not the table
 
-`tables.insert(oid, info.clone())` and return `info`: two handles to the same `TableInfo`. The test checks pointer equality with `Arc::ptr_eq`.
+The map by oid, the map by name and the caller must all hold the same `TableInfo`, not copies of it: the test checks pointer equality with `Arc::ptr_eq`. Which operation on an `Arc` gives you another handle?

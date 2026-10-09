@@ -1,5 +1,12 @@
 Old versions of tuples are garbage once no transaction can need them. The **watermark** is the line between needed and garbage: the smallest read timestamp among the running transactions, or the last commit's timestamp if none is running. This stage writes the structure that tracks it. It is small, self-contained, and the transaction manager of the next stage depends on it.
 
+> [!CHECK] Three transactions read at timestamps 3, 5 and 5, and the last commit was at timestamp 8. What is the watermark? What after the transaction at 3 ends? What after both at 5 end too?
+> ||3, then 5, then 8. The watermark is the smallest read timestamp among the running transactions, or the last commit timestamp when none is running. Two transactions at 5 count twice: one of them ending leaves the watermark at 5.||
+>
+> - What does the watermark promise to the garbage collector?
+> - Why does the map keep a count per timestamp?
+> - What is the watermark when nobody is running?
+
 ## The task
 
 In `src/concurrency/watermark.rs`, `Watermark` has `commit_ts` (the timestamp of the last commit, kept up to date by the given `update_commit_ts`) and `current_reads` (an ordered map from read timestamp to the number of running transactions that have it). Write:

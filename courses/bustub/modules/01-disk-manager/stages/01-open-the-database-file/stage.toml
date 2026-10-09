@@ -1,7 +1,0 @@
-id = "1a-01"
-title = "Open the database file"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1a::s1a_01", "stages_1a::s1a_02", "stages_1a::s1a_03", "stages_1a::s1a_04"]
-learn = ["file offsets as u64, widened before multiplying", "opening files without truncating them", "reserving space with set_len and sparse files"]
-concepts = ["positional-io-and-short-reads", "integers-and-casts", "rust-io-errors", "ownership-of-files-and-raii"]

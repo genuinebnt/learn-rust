@@ -1,5 +1,12 @@
 Emptying a bucket on removal would cut the probe chains of keys that went past it. Instead `remove` leaves a **tombstone**: lookups probe past it, inserts may reuse it. This stage adds `remove`, `clear` and the statistic `max_probe_distance`, and checks the whole set against Rust's `HashSet` on a random workload.
 
+> [!CHECK] Capacity 8; three keys a, b, c share home bucket 2 and sit in buckets 2, 3 and 4. You remove b. Why does the table put a tombstone in bucket 3 instead of marking it empty? What would `find(c)` do otherwise?
+> ||`find` stops at the first empty bucket, because a key cannot be beyond one. With bucket 3 empty, `find(c)` would probe 2, see a, probe 3, stop, and report "absent" although c is in bucket 4. A tombstone says "something was here, keep probing".||
+>
+> - What ends a search?
+> - Which keys were placed by probing past bucket 3?
+> - What may a later insert do with a tombstone?
+
 ## The task
 
 In `src/primer/robin_hood_hash_set.rs`:

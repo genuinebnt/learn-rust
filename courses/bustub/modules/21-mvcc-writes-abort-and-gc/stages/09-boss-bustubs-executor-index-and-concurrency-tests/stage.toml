@@ -5,4 +5,5 @@ difficulty = "hard"
 tests = ["stages_4b::s4b_09"]
 learn = ["testing a transactional engine under real concurrency", "reading a failing multi-transaction scenario"]
 concepts = ["snapshot-isolation", "rolling-back-with-undo-logs"]
+concepts_optional = ["unique-indexes-and-tombstone-reuse", "serializable-validation-by-predicates"]
 retest = true

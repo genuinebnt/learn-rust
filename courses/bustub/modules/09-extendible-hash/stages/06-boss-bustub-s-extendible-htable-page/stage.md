@@ -41,5 +41,12 @@ directory_page->SetBucketPageId(0, bucket_page_id_1);   directory_page->VerifyIn
 | `GenericKey<8> index_key; index_key.SetFromInteger(i); RID rid; rid.Set(i, i);` | `key(i)` helper, `Rid::new(PageId(i), i)` |
 | `ParseCreateStatement("a bigint")` builds a schema for the comparator | `GenericComparator::<8>` (until module 3a introduces schemas) |
 
+## Experiment
+
+Optional. Predict first, then run it.
+
+1. **How deep can a directory go?** The directory page holds `max_depth u32 | global_depth u32 | local_depths [u8; N] | bucket_page_ids [i32; N]` in 8 192 bytes. For which `max_depth` would the arrays (`N = 2^max_depth`) stop fitting? ||`max_depth` 10 needs 8 + 1 024 + 4 096 = 5 128 bytes and fits; 11 needs 8 + 2 048 + 8 192 = 10 248 bytes and does not. BusTub stops at 9, which leaves room.||
+2. **What the top bits do.** For `header_max_depth = 2`, write down by hand which header slot hashes 0x0000_0000, 0x4000_0000, 0x8000_0000 and 0xC000_0000 go to, then check against `header_directory_page_sample_test`.
+
 ## Learn more
 - BusTub's [page test](https://github.com/cmu-db/bustub/blob/master/test/storage/extendible_htable_page_test.cpp) · [`#[should_panic]`](https://doc.rust-lang.org/book/ch11-01-writing-tests.html#checking-for-panics-with-should_panic)

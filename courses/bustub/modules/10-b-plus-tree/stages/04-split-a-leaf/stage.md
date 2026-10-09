@@ -46,11 +46,15 @@ The new child goes **to the right of the child that split**: its separator is bi
 
 ### The task
 
-In `src/storage/index/b_plus_tree.rs`, after a successful leaf insert, if `leaf.size() < leaf.max_size()` return `true`. Otherwise:
-1. allocate a new page, write-latch it, `init` it as a leaf with the same max size;
-2. the left leaf keeps `ceil(size / 2)` pairs; the rest move to the new leaf (`set_entry_at` into slots `0..`, then `set_size` on both);
-3. chain them: `new.next = old.next; old.next = Some(new_id)`;
-4. call `insert_into_parent(ctx, left_id, new.key_at(0), new_id)`.
+In `src/storage/index/b_plus_tree.rs`, after a successful leaf insert, if `leaf.size() < leaf.max_size()` return `true`.
+
+Otherwise the leaf is split. Afterwards two leaves hold the same pairs in the same order, the left with `ceil(size / 2)` of them and a new right leaf with the rest; the right leaf is chained as the left's `next` and takes over the left's old `next`; and the right leaf's first key is passed to `insert_into_parent` as the separator.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. allocate a new page, write-latch it, `init` it as a leaf with the same max size;
+> 2. the left leaf keeps `ceil(size / 2)` pairs; the rest move to the new leaf (`set_entry_at` into slots `0..`, then `set_size` on both);
+> 3. chain them: `new.next = old.next; old.next = Some(new_id)`;
+> 4. call `insert_into_parent(ctx, left_id, new.key_at(0), new_id)`.
 
 `insert_into_parent` pops the parent from `ctx.write_set`. **No parent** means the left page was the root: allocate a new internal page (`init` with `internal_max_size`), set slot 0 to `left` and slot 1 to `(key, right)`, size 2, and `ctx.set_root(new_root)`. **A parent with room** (`size < max_size`) takes `insert_child(key, right_id)` and the split is done.
 

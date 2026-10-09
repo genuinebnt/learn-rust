@@ -1,5 +1,12 @@
 The table holds the newest version of a tuple. Older versions exist only as **undo logs**^[An undo log is stored next to the table, not inside it, so the table page stays one tuple per slot and a reader that wants the newest version never touches the logs.]: each says how to turn a version into the previous one. This stage writes the function that does the turning: given the tuple in the table and a list of undo logs, produce the version they lead to^["The version they lead to" is the version a transaction with a given read timestamp would see; picking *which* logs to apply is the next stage, so here the logs are simply given.].
 
+> [!CHECK] The base tuple is (0, 1.0, NULL) and exists. Logs are applied front first. What does `reconstruct_tuple` return for `[delete, restore (1, 1.0, false)]`, and for `[restore (1, 1.0, false), delete]`? Why is the order the whole point?
+> ||The first: `Some((1, 1.0, false))` (deleted, then restored). The second: `None` (restored, then deleted again). The tuple exists or not according to the last log applied, which is why `deleted` is part of the loop's state.||
+>
+> - What does a deleting log do to `deleted`? What does a restoring log do?
+> - Where does the final answer come from: the first log or the last?
+> - Which logs are applied: the ones newer than the read timestamp, or all of them?
+
 ## The task
 
 In `src/execution/execution_common.rs`:

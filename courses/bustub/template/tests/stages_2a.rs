@@ -28,9 +28,9 @@ impl Lcg {
 fn s2a_01_integers_are_stored_little_endian() {
     let mut page = [0u8; 16];
     write_u32(&mut page, 0, 0x1234_5678);
-    assert_eq!(&page[..4], &[0x78, 0x56, 0x34, 0x12]);
+    assert_eq!(&page[..4], &[0x78, 0x56, 0x34, 0x12], "integers are stored little endian");
     write_u64(&mut page, 8, 0x0102_0304_0506_0708);
-    assert_eq!(&page[8..], &[8, 7, 6, 5, 4, 3, 2, 1]);
+    assert_eq!(&page[8..], &[8, 7, 6, 5, 4, 3, 2, 1], "integers are stored little endian");
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn s2a_01_values_read_back_at_any_offset_aligned_or_not() {
 fn s2a_01_a_write_touches_only_its_own_bytes() {
     let mut page = [0xAAu8; 12];
     write_u32(&mut page, 4, 0);
-    assert_eq!(page, [0xAA, 0xAA, 0xAA, 0xAA, 0, 0, 0, 0, 0xAA, 0xAA, 0xAA, 0xAA]);
+    assert_eq!(page, [0xAA, 0xAA, 0xAA, 0xAA, 0, 0, 0, 0, 0xAA, 0xAA, 0xAA, 0xAA], "a write touches only its own bytes");
 }
 
 #[test]
@@ -58,9 +58,9 @@ fn s2a_01_extremes() {
     let mut page = [0u8; 16];
     write_u32(&mut page, 0, u32::MAX);
     write_u64(&mut page, 4, u64::MAX);
-    assert_eq!((read_u32(&page, 0), read_u64(&page, 4)), (u32::MAX, u64::MAX));
+    assert_eq!((read_u32(&page, 0), read_u64(&page, 4)), (u32::MAX, u64::MAX), "extremes");
     write_u32(&mut page, 0, 0);
-    assert_eq!(read_u32(&page, 0), 0);
+    assert_eq!(read_u32(&page, 0), 0, "extremes");
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn s2a_01_writing_past_the_end_panics() {
 fn s2a_02_page_ids_round_trip() {
     let mut page = [0u8; 16];
     write_page_id(&mut page, 4, PageId(1234));
-    assert_eq!(read_page_id(&page, 4), PageId(1234));
+    assert_eq!(read_page_id(&page, 4), PageId(1234), "page ids round trip");
 }
 
 #[test]
@@ -91,33 +91,33 @@ fn s2a_02_the_invalid_id_is_minus_one_and_survives() {
     let mut page = [0u8; 8];
     write_page_id(&mut page, 0, PageId::INVALID);
     assert_eq!(&page[..4], &[0xFF, 0xFF, 0xFF, 0xFF], "-1 as a signed 32-bit integer");
-    assert_eq!(read_page_id(&page, 0), PageId::INVALID);
-    assert!(!read_page_id(&page, 0).is_valid());
+    assert_eq!(read_page_id(&page, 0), PageId::INVALID, "the invalid id is minus one and survives");
+    assert!(!read_page_id(&page, 0).is_valid(), "the invalid id is minus one and survives: expected `!read_page_id(&page, 0).is_valid()`");
 }
 
 #[test]
 fn s2a_02_none_is_stored_as_invalid() {
     let mut page = [0u8; 8];
     write_optional_page_id(&mut page, 0, None);
-    assert_eq!(read_page_id(&page, 0), PageId::INVALID);
-    assert_eq!(read_optional_page_id(&page, 0), None);
+    assert_eq!(read_page_id(&page, 0), PageId::INVALID, "none is stored as invalid");
+    assert_eq!(read_optional_page_id(&page, 0), None, "none is stored as invalid");
     write_optional_page_id(&mut page, 4, Some(PageId(7)));
-    assert_eq!(read_optional_page_id(&page, 4), Some(PageId(7)));
-    assert_eq!(read_page_id(&page, 4), PageId(7));
+    assert_eq!(read_optional_page_id(&page, 4), Some(PageId(7)), "none is stored as invalid");
+    assert_eq!(read_page_id(&page, 4), PageId(7), "none is stored as invalid");
 }
 
 #[test]
 fn s2a_02_page_zero_is_a_real_page_not_none() {
     let mut page = [0u8; 4];
     write_optional_page_id(&mut page, 0, Some(PageId(0)));
-    assert_eq!(read_optional_page_id(&page, 0), Some(PageId(0)));
+    assert_eq!(read_optional_page_id(&page, 0), Some(PageId(0)), "page zero is a real page not none");
 }
 
 #[test]
 fn s2a_02_a_zeroed_page_reads_as_page_zero() {
     // The trap of zero-filled pages: 0 is a valid id; only -1 means "no page". New pages must write INVALID explicitly.
     let page = [0u8; 4];
-    assert_eq!(read_optional_page_id(&page, 0), Some(PageId(0)));
+    assert_eq!(read_optional_page_id(&page, 0), Some(PageId(0)), "a zeroed page reads as page zero");
 }
 
 // ---- 2a-01 · Rid -------------------------------------------------------------------------------------------------------------------
@@ -125,28 +125,28 @@ fn s2a_02_a_zeroed_page_reads_as_page_zero() {
 #[test]
 fn s2a_03_a_rid_has_a_page_and_a_slot() {
     let rid = Rid::new(PageId(7), 3);
-    assert_eq!((rid.page_id(), rid.slot_num()), (PageId(7), 3));
+    assert_eq!((rid.page_id(), rid.slot_num()), (PageId(7), 3), "a rid has a page and a slot");
 }
 
 #[test]
 fn s2a_03_get_packs_the_page_in_the_high_bits() {
-    assert_eq!(Rid::new(PageId(1), 2).get(), (1i64 << 32) | 2);
-    assert_eq!(Rid::new(PageId(0), 5).get(), 5);
-    assert_eq!(Rid::new(PageId(3), 0).get(), 3 << 32);
+    assert_eq!(Rid::new(PageId(1), 2).get(), (1i64 << 32) | 2, "get packs the page in the high bits");
+    assert_eq!(Rid::new(PageId(0), 5).get(), 5, "get packs the page in the high bits");
+    assert_eq!(Rid::new(PageId(3), 0).get(), 3 << 32, "get packs the page in the high bits");
 }
 
 #[test]
 fn s2a_03_a_negative_page_id_keeps_its_sign() {
     let rid = Rid::new(PageId(-1), 0);
-    assert_eq!(rid.get(), -(1i64 << 32));
-    assert_eq!(Rid::from_i64(rid.get()), rid);
+    assert_eq!(rid.get(), -(1i64 << 32), "a negative page id keeps its sign");
+    assert_eq!(Rid::from_i64(rid.get()), rid, "a negative page id keeps its sign");
 }
 
 #[test]
 fn s2a_03_the_slot_never_leaks_into_the_page() {
     let rid = Rid::new(PageId(9), u32::MAX);
-    assert_eq!(Rid::from_i64(rid.get()), rid);
-    assert_eq!(rid.get() >> 32, 9);
+    assert_eq!(Rid::from_i64(rid.get()), rid, "the slot never leaks into the page");
+    assert_eq!(rid.get() >> 32, 9, "the slot never leaks into the page");
 }
 
 #[test]
@@ -154,15 +154,15 @@ fn s2a_03_a_hundred_round_trips() {
     let mut rng = Lcg(3);
     for _ in 0..100 {
         let rid = Rid::new(PageId(rng.next(1 << 30) as i32 - (1 << 29)), rng.next(1 << 31) as u32);
-        assert_eq!(Rid::from_i64(rid.get()), rid);
+        assert_eq!(Rid::from_i64(rid.get()), rid, "a hundred round trips");
     }
 }
 
 #[test]
 fn s2a_03_the_default_rid_is_invalid() {
     let rid = Rid::default();
-    assert_eq!(rid.page_id(), PageId::INVALID);
-    assert_eq!(rid.slot_num(), 0);
+    assert_eq!(rid.page_id(), PageId::INVALID, "the default rid is invalid");
+    assert_eq!(rid.slot_num(), 0, "the default rid is invalid");
 }
 
 // ---- 2a-01 · FixedSize for the basic types ----------------------------------------------------------------------------------------
@@ -170,12 +170,12 @@ fn s2a_03_the_default_rid_is_invalid() {
 fn round_trip<T: FixedSize + PartialEq + std::fmt::Debug>(value: T) {
     let mut buf = vec![0xEEu8; T::SIZE];
     value.encode(&mut buf);
-    assert_eq!(T::decode(&buf), value);
+    assert_eq!(T::decode(&buf), value, "in helper `round_trip`");
 }
 
 #[test]
 fn s2a_04_sizes() {
-    assert_eq!((i32::SIZE, u32::SIZE, i64::SIZE, PageId::SIZE, Rid::SIZE), (4, 4, 8, 4, 8));
+    assert_eq!((i32::SIZE, u32::SIZE, i64::SIZE, PageId::SIZE, Rid::SIZE), (4, 4, 8, 4, 8), "sizes");
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn s2a_04_integers_round_trip() {
 fn s2a_04_byte_order_is_little_endian() {
     let mut buf = [0u8; 4];
     0x0A0B0C0Du32.encode(&mut buf);
-    assert_eq!(buf, [0x0D, 0x0C, 0x0B, 0x0A]);
+    assert_eq!(buf, [0x0D, 0x0C, 0x0B, 0x0A], "byte order is little endian");
 }
 
 #[test]
@@ -209,7 +209,7 @@ fn s2a_04_a_page_id_is_laid_out_like_the_raw_integer() {
     let mut b = [0u8; 4];
     PageId(77).encode(&mut a);
     77i32.encode(&mut b);
-    assert_eq!(a, b);
+    assert_eq!(a, b, "a page id is laid out like the raw integer");
 }
 
 // ---- 2a-02 · GenericKey ------------------------------------------------------------------------------------------------------------
@@ -218,16 +218,16 @@ fn s2a_04_a_page_id_is_laid_out_like_the_raw_integer() {
 fn s2a_05_a_key_holds_an_integer() {
     let mut key = GenericKey::<8>::default();
     key.set_from_integer(42);
-    assert_eq!(key.get_as_integer(), 42);
+    assert_eq!(key.get_as_integer(), 42, "a key holds an integer");
     key.set_from_integer(-7);
-    assert_eq!(key.get_as_integer(), -7);
+    assert_eq!(key.get_as_integer(), -7, "a key holds an integer");
 }
 
 #[test]
 fn s2a_05_set_from_integer_clears_the_rest_of_the_key() {
     let mut key = GenericKey::<16> { data: [0xFF; 16] };
     key.set_from_integer(1);
-    assert_eq!(key.data, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(key.data, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "set from integer clears the rest of the key");
 }
 
 #[test]
@@ -236,10 +236,10 @@ fn s2a_05_a_key_encodes_as_its_bytes() {
     key.set_from_integer(0x0102030405060708);
     let mut buf = [0u8; 8];
     key.encode(&mut buf);
-    assert_eq!(buf, [8, 7, 6, 5, 4, 3, 2, 1]);
-    assert_eq!(GenericKey::<8>::decode(&buf), key);
-    assert_eq!(GenericKey::<8>::SIZE, 8);
-    assert_eq!(GenericKey::<64>::SIZE, 64);
+    assert_eq!(buf, [8, 7, 6, 5, 4, 3, 2, 1], "a key encodes as its bytes");
+    assert_eq!(GenericKey::<8>::decode(&buf), key, "a key encodes as its bytes");
+    assert_eq!(GenericKey::<8>::SIZE, 8, "a key encodes as its bytes");
+    assert_eq!(GenericKey::<64>::SIZE, 64, "a key encodes as its bytes");
 }
 
 #[test]
@@ -248,12 +248,12 @@ fn s2a_05_keys_of_other_sizes_work() {
     key.set_from_integer(i64::MAX);
     let mut buf = [0u8; 32];
     key.encode(&mut buf);
-    assert_eq!(GenericKey::<32>::decode(&buf).get_as_integer(), i64::MAX);
+    assert_eq!(GenericKey::<32>::decode(&buf).get_as_integer(), i64::MAX, "keys of other sizes work");
 }
 
 #[test]
 fn s2a_05_the_default_key_is_zero() {
-    assert_eq!(GenericKey::<8>::default().get_as_integer(), 0);
+    assert_eq!(GenericKey::<8>::default().get_as_integer(), 0, "the default key is zero");
 }
 
 // ---- 2a-02 · comparators --------------------------------------------------------------------------------------------------------------
@@ -261,10 +261,10 @@ fn s2a_05_the_default_key_is_zero() {
 #[test]
 fn s2a_06_ints_compare_numerically() {
     let cmp = IntComparator;
-    assert_eq!(cmp.compare(&1, &2), Ordering::Less);
-    assert_eq!(cmp.compare(&2, &2), Ordering::Equal);
-    assert_eq!(cmp.compare(&3, &-3), Ordering::Greater);
-    assert_eq!(cmp.compare(&i32::MIN, &i32::MAX), Ordering::Less);
+    assert_eq!(cmp.compare(&1, &2), Ordering::Less, "ints compare numerically");
+    assert_eq!(cmp.compare(&2, &2), Ordering::Equal, "ints compare numerically");
+    assert_eq!(cmp.compare(&3, &-3), Ordering::Greater, "ints compare numerically");
+    assert_eq!(cmp.compare(&i32::MIN, &i32::MAX), Ordering::Less, "ints compare numerically");
 }
 
 fn key(n: i64) -> GenericKey<8> {
@@ -276,19 +276,19 @@ fn key(n: i64) -> GenericKey<8> {
 #[test]
 fn s2a_06_generic_keys_compare_by_their_integer() {
     let cmp = GenericComparator::<8>;
-    assert_eq!(cmp.compare(&key(5), &key(9)), Ordering::Less);
-    assert_eq!(cmp.compare(&key(9), &key(9)), Ordering::Equal);
-    assert_eq!(cmp.compare(&key(10), &key(9)), Ordering::Greater);
+    assert_eq!(cmp.compare(&key(5), &key(9)), Ordering::Less, "generic keys compare by their integer");
+    assert_eq!(cmp.compare(&key(9), &key(9)), Ordering::Equal, "generic keys compare by their integer");
+    assert_eq!(cmp.compare(&key(10), &key(9)), Ordering::Greater, "generic keys compare by their integer");
 }
 
 #[test]
 fn s2a_06_negative_numbers_sort_before_positive_ones_unlike_their_bytes() {
     // As unsigned little-endian bytes -1 would sort after everything. The comparator must read signed integers.
     let cmp = GenericComparator::<8>;
-    assert_eq!(cmp.compare(&key(-1), &key(0)), Ordering::Less);
-    assert_eq!(cmp.compare(&key(-100), &key(-2)), Ordering::Less);
+    assert_eq!(cmp.compare(&key(-1), &key(0)), Ordering::Less, "negative numbers sort before positive ones unlike their bytes");
+    assert_eq!(cmp.compare(&key(-100), &key(-2)), Ordering::Less, "negative numbers sort before positive ones unlike their bytes");
     // And 256 > 1 although its first byte (little-endian) is 0 < 1.
-    assert_eq!(cmp.compare(&key(256), &key(1)), Ordering::Greater);
+    assert_eq!(cmp.compare(&key(256), &key(1)), Ordering::Greater, "negative numbers sort before positive ones unlike their bytes");
 }
 
 #[test]
@@ -300,16 +300,16 @@ fn s2a_06_a_comparator_can_drive_a_sort() {
         k
     }).collect();
     keys.sort_by(|a, b| cmp.compare(a, b));
-    assert_eq!(keys.iter().map(|k| k.get_as_integer()).collect::<Vec<_>>(), [-9, -3, 0, 5, 7, 12]);
+    assert_eq!(keys.iter().map(|k| k.get_as_integer()).collect::<Vec<_>>(), [-9, -3, 0, 5, 7, 12], "a comparator can drive a sort");
 }
 
 // ---- 2a-02 · pairs and array_size ------------------------------------------------------------------------------------------------------
 
 #[test]
 fn s2a_07_a_pair_is_the_sizes_added() {
-    assert_eq!(<(i32, i32)>::SIZE, 8);
-    assert_eq!(<(GenericKey<8>, Rid)>::SIZE, 16);
-    assert_eq!(<(GenericKey<64>, PageId)>::SIZE, 68);
+    assert_eq!(<(i32, i32)>::SIZE, 8, "a pair is the sizes added");
+    assert_eq!(<(GenericKey<8>, Rid)>::SIZE, 16, "a pair is the sizes added");
+    assert_eq!(<(GenericKey<64>, PageId)>::SIZE, 68, "a pair is the sizes added");
 }
 
 #[test]
@@ -317,8 +317,8 @@ fn s2a_07_a_pair_round_trips_and_lays_the_first_value_first() {
     let pair = (7i32, 9i32);
     let mut buf = [0u8; 8];
     pair.encode(&mut buf);
-    assert_eq!(buf, [7, 0, 0, 0, 9, 0, 0, 0]);
-    assert_eq!(<(i32, i32)>::decode(&buf), pair);
+    assert_eq!(buf, [7, 0, 0, 0, 9, 0, 0, 0], "a pair round trips and lays the first value first");
+    assert_eq!(<(i32, i32)>::decode(&buf), pair, "a pair round trips and lays the first value first");
     round_trip((key(5), Rid::new(PageId(2), 1)));
 }
 
@@ -329,18 +329,18 @@ fn s2a_07_nested_pairs_work() {
 
 #[test]
 fn s2a_07_array_size_is_what_fits_after_the_metadata() {
-    assert_eq!(array_size(8, 8), (8192 - 8) / 8);
-    assert_eq!(array_size(8, 16), 511);
-    assert_eq!(array_size(0, 4096), 2);
-    assert_eq!(array_size(8, 8192), 0);
+    assert_eq!(array_size(8, 8), (8192 - 8) / 8, "array size is what fits after the metadata");
+    assert_eq!(array_size(8, 16), 511, "array size is what fits after the metadata");
+    assert_eq!(array_size(0, 4096), 2, "array size is what fits after the metadata");
+    assert_eq!(array_size(8, 8192), 0, "array size is what fits after the metadata");
 }
 
 #[test]
 fn s2a_07_array_size_works_at_compile_time() {
     const N: usize = array_size(8, <(GenericKey<8>, Rid)>::SIZE);
-    assert_eq!(N, 511);
+    assert_eq!(N, 511, "array size works at compile time");
     let table = [0u8; array_size(8, 1024)];
-    assert_eq!(table.len(), 7);
+    assert_eq!(table.len(), 7, "array size works at compile time");
 }
 
 // ---- 2a-03 · PageArray: get and set ----------------------------------------------------------------------------------------------------
@@ -349,10 +349,10 @@ fn s2a_07_array_size_works_at_compile_time() {
 fn s2a_08_set_then_get() {
     let mut bytes = vec![0u8; 40];
     let mut array = PageArray::<_, i32>::new(&mut bytes[..]);
-    assert_eq!(array.capacity(), 10);
+    assert_eq!(array.capacity(), 10, "set then get");
     array.set(0, &11);
     array.set(9, &-99);
-    assert_eq!((array.get(0), array.get(9)), (11, -99));
+    assert_eq!((array.get(0), array.get(9)), (11, -99), "set then get");
 }
 
 #[test]
@@ -363,7 +363,7 @@ fn s2a_08_entries_do_not_overlap() {
         array.set(i, &(i as i32, -(i as i32)));
     }
     for i in 0..8 {
-        assert_eq!(array.get(i), (i as i32, -(i as i32)));
+        assert_eq!(array.get(i), (i as i32, -(i as i32)), "entries do not overlap");
     }
 }
 
@@ -379,14 +379,14 @@ fn s2a_08_a_read_only_view_over_shared_bytes() {
     let mut bytes = vec![0u8; 16];
     PageArray::<_, i32>::new(&mut bytes[..]).set(2, &123);
     let view = PageArray::<_, i32>::new(&bytes[..]);
-    assert_eq!(view.get(2), 123);
+    assert_eq!(view.get(2), 123, "a read only view over shared bytes");
 }
 
 #[test]
 fn s2a_08_it_works_on_an_owned_buffer_too() {
     let mut array = PageArray::<_, Rid>::new(vec![0u8; 80]);
     array.set(3, &Rid::new(PageId(5), 6));
-    assert_eq!(array.get(3), Rid::new(PageId(5), 6));
+    assert_eq!(array.get(3), Rid::new(PageId(5), 6), "it works on an owned buffer too");
 }
 
 #[test]
@@ -421,7 +421,7 @@ fn dump(array: &PageArray<Vec<u8>, i32>, len: usize) -> Vec<i32> {
 fn s2a_09_insert_in_the_middle_shifts_the_rest_right() {
     let mut a = load(&[1, 2, 4, 5], 8);
     a.insert_at(2, 4, &3);
-    assert_eq!(dump(&a, 5), [1, 2, 3, 4, 5]);
+    assert_eq!(dump(&a, 5), [1, 2, 3, 4, 5], "insert in the middle shifts the rest right");
 }
 
 #[test]
@@ -429,14 +429,14 @@ fn s2a_09_insert_at_the_front_and_at_the_end() {
     let mut a = load(&[2, 3], 8);
     a.insert_at(0, 2, &1);
     a.insert_at(3, 3, &4);
-    assert_eq!(dump(&a, 4), [1, 2, 3, 4]);
+    assert_eq!(dump(&a, 4), [1, 2, 3, 4], "insert at the front and at the end");
 }
 
 #[test]
 fn s2a_09_insert_into_an_empty_array() {
     let mut a = load(&[], 4);
     a.insert_at(0, 0, &9);
-    assert_eq!(dump(&a, 1), [9]);
+    assert_eq!(dump(&a, 1), [9], "insert into an empty array");
 }
 
 #[test]
@@ -444,14 +444,14 @@ fn s2a_09_overlapping_moves_do_not_smear() {
     // A forward copy loop would write entry 0 over entry 1 over entry 2 ...; copy_within is memmove.
     let mut a = load(&[10, 20, 30, 40, 50, 60], 8);
     a.insert_at(0, 6, &0);
-    assert_eq!(dump(&a, 7), [0, 10, 20, 30, 40, 50, 60]);
+    assert_eq!(dump(&a, 7), [0, 10, 20, 30, 40, 50, 60], "overlapping moves do not smear");
 }
 
 #[test]
 fn s2a_09_filling_the_array_exactly() {
     let mut a = load(&[1, 2, 3], 4);
     a.insert_at(1, 3, &9);
-    assert_eq!(dump(&a, 4), [1, 9, 2, 3]);
+    assert_eq!(dump(&a, 4), [1, 9, 2, 3], "filling the array exactly");
 }
 
 #[test]
@@ -487,16 +487,16 @@ fn s2a_09_a_model_with_random_inserts() {
 fn s2a_10_remove_from_the_middle_shifts_the_rest_left() {
     let mut a = load(&[1, 2, 3, 4, 5], 8);
     a.remove_at(2, 5);
-    assert_eq!(dump(&a, 4), [1, 2, 4, 5]);
+    assert_eq!(dump(&a, 4), [1, 2, 4, 5], "remove from the middle shifts the rest left");
 }
 
 #[test]
 fn s2a_10_remove_the_first_and_the_last() {
     let mut a = load(&[1, 2, 3, 4], 8);
     a.remove_at(0, 4);
-    assert_eq!(dump(&a, 3), [2, 3, 4]);
+    assert_eq!(dump(&a, 3), [2, 3, 4], "remove the first and the last");
     a.remove_at(2, 3);
-    assert_eq!(dump(&a, 2), [2, 3]);
+    assert_eq!(dump(&a, 2), [2, 3], "remove the first and the last");
 }
 
 #[test]
@@ -517,7 +517,7 @@ fn s2a_10_insert_and_remove_undo_each_other() {
     let mut a = load(&[1, 2, 3, 4], 8);
     a.insert_at(2, 4, &99);
     a.remove_at(2, 5);
-    assert_eq!(dump(&a, 4), [1, 2, 3, 4]);
+    assert_eq!(dump(&a, 4), [1, 2, 3, 4], "insert and remove undo each other");
 }
 
 #[test]
@@ -544,37 +544,37 @@ fn s2a_10_a_model_with_random_inserts_and_removes() {
 #[test]
 fn s2a_11_finds_an_existing_entry() {
     let a = load(&[10, 20, 30, 40], 8);
-    assert_eq!(a.lower_bound(4, |e| e.cmp(&30)), 2);
-    assert_eq!(a.lower_bound(4, |e| e.cmp(&10)), 0);
-    assert_eq!(a.lower_bound(4, |e| e.cmp(&40)), 3);
+    assert_eq!(a.lower_bound(4, |e| e.cmp(&30)), 2, "finds an existing entry");
+    assert_eq!(a.lower_bound(4, |e| e.cmp(&10)), 0, "finds an existing entry");
+    assert_eq!(a.lower_bound(4, |e| e.cmp(&40)), 3, "finds an existing entry");
 }
 
 #[test]
 fn s2a_11_for_a_missing_entry_it_is_where_it_would_go() {
     let a = load(&[10, 20, 30, 40], 8);
-    assert_eq!(a.lower_bound(4, |e| e.cmp(&25)), 2);
-    assert_eq!(a.lower_bound(4, |e| e.cmp(&5)), 0);
+    assert_eq!(a.lower_bound(4, |e| e.cmp(&25)), 2, "for a missing entry it is where it would go");
+    assert_eq!(a.lower_bound(4, |e| e.cmp(&5)), 0, "for a missing entry it is where it would go");
     assert_eq!(a.lower_bound(4, |e| e.cmp(&99)), 4, "len when every entry is smaller");
 }
 
 #[test]
 fn s2a_11_an_empty_range() {
     let a = load(&[], 4);
-    assert_eq!(a.lower_bound(0, |e| e.cmp(&1)), 0);
+    assert_eq!(a.lower_bound(0, |e| e.cmp(&1)), 0, "an empty range");
 }
 
 #[test]
 fn s2a_11_duplicates_give_the_first() {
     let a = load(&[1, 2, 2, 2, 3], 8);
-    assert_eq!(a.lower_bound(5, |e| e.cmp(&2)), 1);
+    assert_eq!(a.lower_bound(5, |e| e.cmp(&2)), 1, "duplicates give the first");
 }
 
 #[test]
 fn s2a_11_only_len_entries_are_looked_at() {
     // The bytes after len hold garbage (here: 0, smaller than everything): they must not be searched.
     let a = load(&[10, 20, 30], 8);
-    assert_eq!(a.lower_bound(3, |e| e.cmp(&25)), 2);
-    assert_eq!(a.lower_bound(3, |e| e.cmp(&1000)), 3);
+    assert_eq!(a.lower_bound(3, |e| e.cmp(&25)), 2, "only len entries are looked at");
+    assert_eq!(a.lower_bound(3, |e| e.cmp(&1000)), 3, "only len entries are looked at");
 }
 
 #[test]
@@ -585,9 +585,9 @@ fn s2a_11_it_takes_a_comparator_for_keyed_entries() {
         array.set(i, &(key(*n), Rid::new(PageId(*n as i32), 0)));
     }
     let target = key(8);
-    assert_eq!(array.lower_bound(5, |(k, _)| cmp.compare(k, &target)), 3);
+    assert_eq!(array.lower_bound(5, |(k, _)| cmp.compare(k, &target)), 3, "it takes a comparator for keyed entries");
     let target = key(-100);
-    assert_eq!(array.lower_bound(5, |(k, _)| cmp.compare(k, &target)), 0);
+    assert_eq!(array.lower_bound(5, |(k, _)| cmp.compare(k, &target)), 0, "it takes a comparator for keyed entries");
 }
 
 #[test]
@@ -617,32 +617,32 @@ fn s2a_11_it_probes_only_log_n_entries() {
 
 #[test]
 fn s2a_12_the_directory_page_layout() {
-    assert_eq!(DIRECTORY_MAX_DEPTH_OFFSET, 0);
-    assert_eq!(DIRECTORY_GLOBAL_DEPTH_OFFSET, 4);
-    assert_eq!(DIRECTORY_LOCAL_DEPTHS_OFFSET, 8);
-    assert_eq!(DIRECTORY_BUCKET_PAGE_IDS_OFFSET, 8 + 512);
-    assert_eq!(DIRECTORY_PAGE_SIZE, 8 + 512 + 2048);
+    assert_eq!(DIRECTORY_MAX_DEPTH_OFFSET, 0, "the directory page layout");
+    assert_eq!(DIRECTORY_GLOBAL_DEPTH_OFFSET, 4, "the directory page layout");
+    assert_eq!(DIRECTORY_LOCAL_DEPTHS_OFFSET, 8, "the directory page layout");
+    assert_eq!(DIRECTORY_BUCKET_PAGE_IDS_OFFSET, 8 + 512, "the directory page layout");
+    assert_eq!(DIRECTORY_PAGE_SIZE, 8 + 512 + 2048, "the directory page layout");
 }
 
 #[test]
 fn s2a_12_the_header_page_layout() {
-    assert_eq!(HEADER_DIRECTORY_PAGE_IDS_OFFSET, 0);
-    assert_eq!(HEADER_MAX_DEPTH_OFFSET, 2048);
-    assert_eq!(HEADER_PAGE_SIZE, 2052);
+    assert_eq!(HEADER_DIRECTORY_PAGE_IDS_OFFSET, 0, "the header page layout");
+    assert_eq!(HEADER_MAX_DEPTH_OFFSET, 2048, "the header page layout");
+    assert_eq!(HEADER_PAGE_SIZE, 2052, "the header page layout");
 }
 
 #[test]
 fn s2a_12_the_array_sizes_are_two_to_the_depth() {
-    assert_eq!(HTABLE_DIRECTORY_ARRAY_SIZE, 512);
-    assert_eq!(HTABLE_HEADER_ARRAY_SIZE, 512);
-    assert_eq!(HTABLE_BUCKET_PAGE_METADATA_SIZE, 8);
+    assert_eq!(HTABLE_DIRECTORY_ARRAY_SIZE, 512, "the array sizes are two to the depth");
+    assert_eq!(HTABLE_HEADER_ARRAY_SIZE, 512, "the array sizes are two to the depth");
+    assert_eq!(HTABLE_BUCKET_PAGE_METADATA_SIZE, 8, "the array sizes are two to the depth");
 }
 
 #[test]
 fn s2a_12_both_pages_fit_in_a_page_with_room_to_spare() {
-    assert!(DIRECTORY_PAGE_SIZE <= BUSTUB_PAGE_SIZE);
-    assert!(HEADER_PAGE_SIZE <= BUSTUB_PAGE_SIZE);
-    assert_eq!(BUSTUB_PAGE_SIZE - DIRECTORY_PAGE_SIZE, 5624);
+    assert!(DIRECTORY_PAGE_SIZE <= BUSTUB_PAGE_SIZE, "both pages fit in a page with room to spare: expected `DIRECTORY_PAGE_SIZE <= BUSTUB_PAGE_SIZE`");
+    assert!(HEADER_PAGE_SIZE <= BUSTUB_PAGE_SIZE, "both pages fit in a page with room to spare: expected `HEADER_PAGE_SIZE <= BUSTUB_PAGE_SIZE`");
+    assert_eq!(BUSTUB_PAGE_SIZE - DIRECTORY_PAGE_SIZE, 5624, "both pages fit in a page with room to spare");
 }
 
 #[test]
@@ -652,9 +652,9 @@ fn s2a_12_the_offsets_agree_with_the_toolkit() {
     write_u32(&mut page, DIRECTORY_GLOBAL_DEPTH_OFFSET, 3);
     page[DIRECTORY_LOCAL_DEPTHS_OFFSET + 5] = 2;
     write_page_id(&mut page, DIRECTORY_BUCKET_PAGE_IDS_OFFSET + 4 * 5, PageId(42));
-    assert_eq!(read_u32(&page, 4), 3);
-    assert_eq!(page[13], 2);
-    assert_eq!(read_page_id(&page, 520 + 20), PageId(42));
+    assert_eq!(read_u32(&page, 4), 3, "the offsets agree with the toolkit");
+    assert_eq!(page[13], 2, "the offsets agree with the toolkit");
+    assert_eq!(read_page_id(&page, 520 + 20), PageId(42), "the offsets agree with the toolkit");
 }
 
 // ---- 2a-05 · the toolkit on a real page ----------------------------------------------------------------------------------------------------
@@ -698,9 +698,9 @@ fn s2a_13_a_sorted_bucket_built_from_the_pieces_survives_the_buffer_pool() {
     let guard = bpm.read_page(page);
     let data = guard.get_data();
     let len = read_u32(data, 0) as usize;
-    assert_eq!(len, model.len());
+    assert_eq!(len, model.len(), "a sorted bucket built from the pieces survives the buffer pool");
     let array = PageArray::<_, Entry>::new(&data[HTABLE_BUCKET_PAGE_METADATA_SIZE..]);
     let got: Vec<i64> = (0..len).map(|i| array.get(i).0.get_as_integer()).collect();
-    assert_eq!(got, model);
-    assert_eq!(array.get(0).1, Rid::new(PageId(model[0] as i32), model[0] as u32));
+    assert_eq!(got, model, "a sorted bucket built from the pieces survives the buffer pool");
+    assert_eq!(array.get(0).1, Rid::new(PageId(model[0] as i32), model[0] as u32), "a sorted bucket built from the pieces survives the buffer pool");
 }

@@ -53,6 +53,13 @@ ASSERT_EQ(0, bpm->GetPinCount(pid0));  ASSERT_EQ(1, bpm->GetPinCount(pid1));
 | `EXPECT_STREQ(guard.GetData(), str.c_str())` | compare the bytes up to the first NUL |
 | `ASSERT_EQ(1, bpm->GetPinCount(pid0))` against an `optional<size_t>` | `assert_eq!(Some(1), bpm.get_pin_count(pid0))` |
 
+## Experiment
+
+Optional. Predict first, then run it.
+
+1. **Put the deadlock back.** Restore the stage 1f version of `flush_page` (the pool lock held while waiting for the frame latch) and run `deadlock_test` with a timeout. Does it hang every time, or only sometimes? Which of the other tests in this file still pass, and why can `contention_test` pass even with the bug?
+2. **Latch hold time.** Add a counter around the longest time any thread holds the pool lock in `contention_test` (4 threads, 100 000 write guards). Predict its order of magnitude, then measure.
+
 ## What you built
 
 **BusTub Project 1, complete:** a disk manager, a scheduler with a worker thread, four replacement policies, a buffer pool, and RAII page guards, with every part tested against BusTub's own tests. Everything above this line is a storage engine's foundation. Next: **Project 2, the indexes** (typed pages, extendible hashing, the B+ tree), which live entirely inside pages obtained from this pool.

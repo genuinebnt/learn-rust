@@ -17,6 +17,9 @@ else
     echo "== (verify skipped: SKIP_VERIFY is set)"
 fi
 
+echo "== every assertion in the stage tests names the behaviour it checks"
+python3 "$ROOT/tools/add_assert_messages.py" "$ROOT/courses/$COURSE/reference/tests" --check
+
 echo "== the whole solution passes every test in the repo (integration)"
 "$A" course build --full "$WORK/full" --course "$COURSE" $C
 (cd "$WORK/full" && cargo test 2>&1 | grep -E "^test result|FAILED|panicked" | sort | uniq -c)

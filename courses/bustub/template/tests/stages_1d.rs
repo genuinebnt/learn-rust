@@ -27,19 +27,19 @@ fn evictable(r: &mut LruKReplacer, frames: &[usize]) {
 #[test]
 fn s1d_01_a_new_node_has_no_history() {
     let node = LruKNode::new(f(1), 2);
-    assert_eq!(node.first_timestamp(), None);
-    assert_eq!(node.frame_id(), f(1));
-    assert!(!node.is_evictable());
+    assert_eq!(node.first_timestamp(), None, "a new node has no history");
+    assert_eq!(node.frame_id(), f(1), "a new node has no history");
+    assert!(!node.is_evictable(), "a new node has no history: expected `!node.is_evictable()`");
 }
 
 #[test]
 fn s1d_01_the_oldest_access_is_the_first() {
     let mut node = LruKNode::new(f(1), 3);
     node.record(10);
-    assert_eq!(node.first_timestamp(), Some(10));
+    assert_eq!(node.first_timestamp(), Some(10), "the oldest access is the first");
     node.record(11);
     node.record(12);
-    assert_eq!(node.first_timestamp(), Some(10));
+    assert_eq!(node.first_timestamp(), Some(10), "the oldest access is the first");
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn s1d_01_only_the_k_most_recent_accesses_are_kept() {
     }
     assert_eq!(node.first_timestamp(), Some(3), "after 1,2,3,4,5 with k = 3 the history is 3,4,5");
     node.record(6);
-    assert_eq!(node.first_timestamp(), Some(4));
+    assert_eq!(node.first_timestamp(), Some(4), "only the k most recent accesses are kept");
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn s1d_01_k_equal_to_one_keeps_only_the_latest() {
     let mut node = LruKNode::new(f(9), 1);
     node.record(5);
     node.record(8);
-    assert_eq!(node.first_timestamp(), Some(8));
+    assert_eq!(node.first_timestamp(), Some(8), "k equal to one keeps only the latest");
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn s1d_01_a_long_run_keeps_a_bounded_history() {
     for t in 0..10_000 {
         node.record(t);
     }
-    assert_eq!(node.first_timestamp(), Some(9_996));
+    assert_eq!(node.first_timestamp(), Some(9_996), "a long run keeps a bounded history");
 }
 
 // ---- 1d-01 · kth_timestamp ---------------------------------------------------------------------------------------------
@@ -75,10 +75,10 @@ fn s1d_01_a_long_run_keeps_a_bounded_history() {
 #[test]
 fn s1d_02_fewer_than_k_accesses_means_infinite_distance() {
     let mut node = LruKNode::new(f(1), 3);
-    assert_eq!(node.kth_timestamp(), None);
+    assert_eq!(node.kth_timestamp(), None, "fewer than k accesses means infinite distance");
     node.record(1);
     node.record(2);
-    assert_eq!(node.kth_timestamp(), None);
+    assert_eq!(node.kth_timestamp(), None, "fewer than k accesses means infinite distance");
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn s1d_02_with_k_accesses_it_is_the_oldest_of_them() {
     for t in [4, 7, 9] {
         node.record(t);
     }
-    assert_eq!(node.kth_timestamp(), Some(4));
+    assert_eq!(node.kth_timestamp(), Some(4), "with k accesses it is the oldest of them");
 }
 
 #[test]
@@ -95,33 +95,33 @@ fn s1d_02_it_moves_forward_as_old_accesses_fall_out() {
     let mut node = LruKNode::new(f(1), 2);
     node.record(1);
     node.record(5);
-    assert_eq!(node.kth_timestamp(), Some(1));
+    assert_eq!(node.kth_timestamp(), Some(1), "it moves forward as old accesses fall out");
     node.record(9);
-    assert_eq!(node.kth_timestamp(), Some(5));
+    assert_eq!(node.kth_timestamp(), Some(5), "it moves forward as old accesses fall out");
 }
 
 #[test]
 fn s1d_02_k_equal_to_one_is_the_latest_access() {
     let mut node = LruKNode::new(f(1), 1);
-    assert_eq!(node.kth_timestamp(), None);
+    assert_eq!(node.kth_timestamp(), None, "k equal to one is the latest access");
     node.record(3);
-    assert_eq!(node.kth_timestamp(), Some(3));
+    assert_eq!(node.kth_timestamp(), Some(3), "k equal to one is the latest access");
     node.record(8);
-    assert_eq!(node.kth_timestamp(), Some(8));
+    assert_eq!(node.kth_timestamp(), Some(8), "k equal to one is the latest access");
 }
 
 // ---- 1d-01 · new, record_access, size ----------------------------------------------------------------------------------
 
 #[test]
 fn s1d_03_a_new_replacer_has_nothing_to_evict() {
-    assert_eq!(LruKReplacer::new(7, 2).size(), 0);
+    assert_eq!(LruKReplacer::new(7, 2).size(), 0, "a new replacer has nothing to evict");
 }
 
 #[test]
 fn s1d_03_recorded_frames_start_out_not_evictable() {
     let mut r = LruKReplacer::new(7, 2);
     touch(&mut r, &[1, 2, 3, 1]);
-    assert_eq!(r.size(), 0);
+    assert_eq!(r.size(), 0, "recorded frames start out not evictable");
 }
 
 #[test]
@@ -158,7 +158,7 @@ fn s1d_04_size_counts_the_evictable_frames_only() {
     touch(&mut r, &[1, 2, 3, 4, 5, 6]);
     evictable(&mut r, &[1, 2, 3, 4, 5]);
     r.set_evictable(f(6), false);
-    assert_eq!(r.size(), 5);
+    assert_eq!(r.size(), 5, "size counts the evictable frames only");
 }
 
 #[test]
@@ -167,10 +167,10 @@ fn s1d_04_setting_the_same_value_twice_counts_once() {
     touch(&mut r, &[1]);
     r.set_evictable(f(1), true);
     r.set_evictable(f(1), true);
-    assert_eq!(r.size(), 1);
+    assert_eq!(r.size(), 1, "setting the same value twice counts once");
     r.set_evictable(f(1), false);
     r.set_evictable(f(1), false);
-    assert_eq!(r.size(), 0);
+    assert_eq!(r.size(), 0, "setting the same value twice counts once");
 }
 
 #[test]
@@ -179,11 +179,11 @@ fn s1d_04_toggling_goes_up_and_down() {
     touch(&mut r, &[1, 2]);
     r.set_evictable(f(1), true);
     r.set_evictable(f(2), true);
-    assert_eq!(r.size(), 2);
+    assert_eq!(r.size(), 2, "toggling goes up and down");
     r.set_evictable(f(1), false);
-    assert_eq!(r.size(), 1);
+    assert_eq!(r.size(), 1, "toggling goes up and down");
     r.set_evictable(f(1), true);
-    assert_eq!(r.size(), 2);
+    assert_eq!(r.size(), 2, "toggling goes up and down");
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn s1d_04_a_frame_that_was_never_recorded_is_ignored() {
     let mut r = LruKReplacer::new(7, 2);
     r.set_evictable(f(6), true);
     r.set_evictable(f(6), false);
-    assert_eq!(r.size(), 0);
+    assert_eq!(r.size(), 0, "a frame that was never recorded is ignored");
 }
 
 #[test]
@@ -200,7 +200,7 @@ fn s1d_04_further_accesses_keep_the_evictable_flag() {
     touch(&mut r, &[1]);
     r.set_evictable(f(1), true);
     touch(&mut r, &[1, 1]);
-    assert_eq!(r.size(), 1);
+    assert_eq!(r.size(), 1, "further accesses keep the evictable flag");
 }
 
 // ---- 1d-02 · evict: frames with fewer than k accesses --------------------------------------------------------------------
@@ -210,7 +210,7 @@ fn s1d_05_with_one_access_each_the_oldest_goes_first() {
     let mut r = LruKReplacer::new(10, 2);
     touch(&mut r, &[3, 1, 2]);
     evictable(&mut r, &[1, 2, 3]);
-    assert_eq!([r.evict(), r.evict(), r.evict(), r.evict()], [Some(f(3)), Some(f(1)), Some(f(2)), None]);
+    assert_eq!([r.evict(), r.evict(), r.evict(), r.evict()], [Some(f(3)), Some(f(1)), Some(f(2)), None], "with one access each the oldest goes first");
 }
 
 #[test]
@@ -218,10 +218,10 @@ fn s1d_05_not_evictable_frames_are_skipped() {
     let mut r = LruKReplacer::new(10, 2);
     touch(&mut r, &[1, 2, 3]);
     evictable(&mut r, &[2, 3]);
-    assert_eq!(r.evict(), Some(f(2)));
-    assert_eq!(r.evict(), Some(f(3)));
+    assert_eq!(r.evict(), Some(f(2)), "not evictable frames are skipped");
+    assert_eq!(r.evict(), Some(f(3)), "not evictable frames are skipped");
     assert_eq!(r.evict(), None, "frame 1 was never made evictable");
-    assert_eq!(r.size(), 0);
+    assert_eq!(r.size(), 0, "not evictable frames are skipped");
 }
 
 #[test]
@@ -229,12 +229,12 @@ fn s1d_05_evict_lowers_size_and_a_failed_evict_does_not() {
     let mut r = LruKReplacer::new(10, 2);
     touch(&mut r, &[1, 2]);
     evictable(&mut r, &[1, 2]);
-    assert_eq!(r.size(), 2);
+    assert_eq!(r.size(), 2, "evict lowers size and a failed evict does not");
     r.evict();
-    assert_eq!(r.size(), 1);
+    assert_eq!(r.size(), 1, "evict lowers size and a failed evict does not");
     let mut empty = LruKReplacer::new(3, 2);
-    assert_eq!(empty.evict(), None);
-    assert_eq!(empty.size(), 0);
+    assert_eq!(empty.evict(), None, "evict lowers size and a failed evict does not");
+    assert_eq!(empty.size(), 0, "evict lowers size and a failed evict does not");
 }
 
 #[test]
@@ -242,13 +242,13 @@ fn s1d_05_an_evicted_frame_starts_over() {
     let mut r = LruKReplacer::new(10, 2);
     touch(&mut r, &[1, 2]);
     evictable(&mut r, &[1, 2]);
-    assert_eq!(r.evict(), Some(f(1)));
+    assert_eq!(r.evict(), Some(f(1)), "an evicted frame starts over");
     touch(&mut r, &[1]); // frame 1 comes back: a NEW frame, not evictable until it is marked
-    assert_eq!(r.size(), 1);
+    assert_eq!(r.size(), 1, "an evicted frame starts over");
     r.set_evictable(f(1), true);
-    assert_eq!(r.size(), 2);
+    assert_eq!(r.size(), 2, "an evicted frame starts over");
     assert_eq!(r.evict(), Some(f(2)), "frame 1's old history is gone: its only access is now newer than frame 2's");
-    assert_eq!(r.evict(), Some(f(1)));
+    assert_eq!(r.evict(), Some(f(1)), "an evicted frame starts over");
 }
 
 #[test]
@@ -257,8 +257,8 @@ fn s1d_05_an_access_does_not_move_a_frame_that_stays_below_k() {
     let mut r = LruKReplacer::new(10, 3);
     touch(&mut r, &[1, 2, 2]);
     evictable(&mut r, &[1, 2]);
-    assert_eq!(r.evict(), Some(f(1)));
-    assert_eq!(r.evict(), Some(f(2)));
+    assert_eq!(r.evict(), Some(f(1)), "an access does not move a frame that stays below k");
+    assert_eq!(r.evict(), Some(f(2)), "an access does not move a frame that stays below k");
 }
 
 #[test]
@@ -276,8 +276,8 @@ fn s1d_06_frames_below_k_go_before_frames_with_k_accesses() {
     let mut r = LruKReplacer::new(10, 2);
     touch(&mut r, &[1, 1, 2]); // 1 has two accesses, 2 has one
     evictable(&mut r, &[1, 2]);
-    assert_eq!(r.evict(), Some(f(2)));
-    assert_eq!(r.evict(), Some(f(1)));
+    assert_eq!(r.evict(), Some(f(2)), "frames below k go before frames with k accesses");
+    assert_eq!(r.evict(), Some(f(1)), "frames below k go before frames with k accesses");
 }
 
 #[test]
@@ -287,7 +287,7 @@ fn s1d_06_among_full_histories_the_oldest_kth_access_goes_first() {
     touch(&mut r, &[1, 2, 1, 2, 2, 1]);
     evictable(&mut r, &[1, 2]);
     assert_eq!(r.evict(), Some(f(1)), "frame 1's 2nd most recent access (time 2) is older than frame 2's (time 3)");
-    assert_eq!(r.evict(), Some(f(2)));
+    assert_eq!(r.evict(), Some(f(2)), "among full histories the oldest kth access goes first");
 }
 
 #[test]
@@ -304,14 +304,14 @@ fn s1d_06_the_bustub_walkthrough() {
     let mut r = LruKReplacer::new(7, 2);
     touch(&mut r, &[1, 2, 3, 4, 5, 6]);
     evictable(&mut r, &[1, 2, 3, 4, 5]);
-    assert_eq!(r.size(), 5);
+    assert_eq!(r.size(), 5, "the bustub walkthrough");
     touch(&mut r, &[1]); // frame 1 now has two accesses
-    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(2)), Some(f(3)), Some(f(4))]);
-    assert_eq!(r.size(), 2);
+    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(2)), Some(f(3)), Some(f(4))], "the bustub walkthrough");
+    assert_eq!(r.size(), 2, "the bustub walkthrough");
     touch(&mut r, &[3, 4, 5, 4]);
     evictable(&mut r, &[3, 4]);
-    assert_eq!(r.size(), 4);
-    assert_eq!(r.evict(), Some(f(3)));
+    assert_eq!(r.size(), 4, "the bustub walkthrough");
+    assert_eq!(r.evict(), Some(f(3)), "the bustub walkthrough");
     r.set_evictable(f(6), true);
     assert_eq!(r.evict(), Some(f(6)), "frame 6 has one access: infinite distance");
 }
@@ -377,8 +377,8 @@ fn s1d_07_remove_drops_an_evictable_frame() {
     touch(&mut r, &[1, 2, 3]);
     evictable(&mut r, &[1, 2, 3]);
     r.remove(f(2));
-    assert_eq!(r.size(), 2);
-    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(1)), Some(f(3)), None]);
+    assert_eq!(r.size(), 2, "remove drops an evictable frame");
+    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(1)), Some(f(3)), None], "remove drops an evictable frame");
 }
 
 #[test]
@@ -388,7 +388,7 @@ fn s1d_07_removing_an_unknown_frame_does_nothing() {
     touch(&mut r, &[1]);
     r.set_evictable(f(1), true);
     r.remove(f(9));
-    assert_eq!(r.size(), 1);
+    assert_eq!(r.size(), 1, "removing an unknown frame does nothing");
 }
 
 #[test]
@@ -418,8 +418,8 @@ fn s1d_07_removing_every_frame_leaves_an_empty_replacer() {
     for n in 0..4 {
         r.remove(f(n));
     }
-    assert_eq!(r.size(), 0);
-    assert_eq!(r.evict(), None);
+    assert_eq!(r.size(), 0, "removing every frame leaves an empty replacer");
+    assert_eq!(r.evict(), None, "removing every frame leaves an empty replacer");
 }
 
 // ---- 1d-03 · evict in O(log n) -----------------------------------------------------------------------------------------
@@ -438,7 +438,7 @@ fn s1d_08_a_hundred_thousand_frames_evict_quickly_and_in_order() {
     for i in 0..n {
         assert_eq!(r.evict(), Some(f(i)), "frames have one access each: oldest first");
     }
-    assert_eq!(r.evict(), None);
+    assert_eq!(r.evict(), None, "a hundred thousand frames evict quickly and in order");
     assert!(start.elapsed() < Duration::from_secs(5), "took {:?}: evict must not scan every frame", start.elapsed());
 }
 
@@ -455,7 +455,7 @@ fn s1d_08_accesses_to_evictable_frames_reorder_them() {
         r.record_access(f(i)); // a second access for everyone: now they have finite distances, ordered by their first access
     }
     for i in 0..n {
-        assert_eq!(r.evict(), Some(f(i)));
+        assert_eq!(r.evict(), Some(f(i)), "accesses to evictable frames reorder them");
     }
     assert!(start.elapsed() < Duration::from_secs(5), "took {:?}", start.elapsed());
 }
@@ -474,7 +474,7 @@ fn s1d_08_marking_frames_not_evictable_and_back_keeps_the_order() {
         r.set_evictable(f(i), true);
     }
     for i in 0..100 {
-        assert_eq!(r.evict(), Some(f(i)));
+        assert_eq!(r.evict(), Some(f(i)), "marking frames not evictable and back keeps the order");
     }
 }
 
@@ -564,7 +564,7 @@ fn s1d_08_a_removed_frame_starts_over_at_the_back_of_the_order() {
     r.record_access(f(0)); // forgotten, then seen again: a brand-new single access, newer than 1, 2 and 3
     r.set_evictable(f(0), true);
     let order: Vec<usize> = std::iter::from_fn(|| r.evict().map(|x| x.0)).collect();
-    assert_eq!(order, vec![1, 2, 3, 0]);
+    assert_eq!(order, vec![1, 2, 3, 0], "a removed frame starts over at the back of the order");
 }
 
 #[test]
@@ -579,9 +579,9 @@ fn s1d_08_frames_with_k_accesses_are_ordered_by_their_kth_most_recent() {
     }
     r.record_access(f(0)); // t6: f0's last two are now {2, 6}: its 2nd most recent access moved from t0 to t2
     // 2nd most recent access times: f1 at t1, f0 at t2, f2 at t4: the largest backward distance goes first
-    assert_eq!(r.evict(), Some(f(1)));
-    assert_eq!(r.evict(), Some(f(0)));
-    assert_eq!(r.evict(), Some(f(2)));
+    assert_eq!(r.evict(), Some(f(1)), "frames with k accesses are ordered by their kth most recent");
+    assert_eq!(r.evict(), Some(f(0)), "frames with k accesses are ordered by their kth most recent");
+    assert_eq!(r.evict(), Some(f(2)), "frames with k accesses are ordered by their kth most recent");
 }
 
 // ---- 1d-04 · the module as a whole -------------------------------------------------------------------------------------

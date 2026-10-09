@@ -9,7 +9,7 @@
 
 import { rust } from "@codemirror/lang-rust";
 import { highlightTree, tagHighlighter, tags as t } from "@lezer/highlight";
-import { Lexer, Marked, type Tokens, type TokenizerAndRendererExtension } from "marked";
+import { Marked, type Tokens, type TokenizerAndRendererExtension } from "marked";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const span = (cls: string, text: string) => `<span class="${cls}">${esc(text)}</span>`;
@@ -247,9 +247,10 @@ function aside(title: string, body: string): string {
 }
 
 /** A question to try before looking: `> [!CHECK] The question`, then the answer in `||spoiler||` marks, then a list of nudges that open one at a time. */
+/** `question` is HTML (inline code and emphasis already rendered). */
 function check(question: string, answerHtml: string, nudges: string[]): string {
-    const ladder = nudges.length ? `<div class="k-lad" aria-hidden="true">${nudges.map(() => `<span class="k-st2"></span>`).join("")}<button class="k-cta k-xs k-sec k-nb" type="button" data-nudges="${esc(JSON.stringify(nudges))}" data-used="0" style="margin-left:6px">Need a nudge?</button></div><div class="k-nudge" role="status"></div>` : "";
-    return `<div class="k-rev2"><div class="k-q">${esc(question)}</div><div>${answerHtml}</div>${ladder}</div>`;
+    const ladder = nudges.length ? `<div class="k-lad">${nudges.map(() => `<span class="k-st2" aria-hidden="true"></span>`).join("")}<button class="k-cta k-xs k-sec k-nb" type="button" data-nudges="${esc(JSON.stringify(nudges))}" data-used="0" style="margin-left:6px">Need a nudge?</button></div><div class="k-nudge" role="status"></div>` : "";
+    return `<div class="k-rev2"><div class="k-q">${question}</div><div>${answerHtml}</div>${ladder}</div>`;
 }
 
 // ---------- sidenotes, spoilers ----------
@@ -317,14 +318,15 @@ const marked: Marked = new Marked({
             const alert = m ? ALERTS[(m[1] ?? "").toUpperCase()] : undefined;
             if (m && alert && first) {
                 const rest = (first as Tokens.Paragraph).text.slice(m[0].length).trim();
-                const para = (text: string) => ({ type: "paragraph", raw: text, text, tokens: Lexer.lexInline(text) }) as Tokens.Paragraph;
+                // inline text goes through this renderer's own extensions (spoilers, sidenotes), which the static `Lexer.lexInline` does not know
+                const para = (text: string) => ({ type: "html", raw: text, text: `<p>${marked.parseInline(text, { async: false })}</p>`, block: true, pre: false }) as unknown as Tokens.Paragraph;
                 if (alert[0] === "aside") return aside(m[2] ?? "", this.parser.parse((rest ? [para(rest)] : []).concat(tokens.slice(1) as Tokens.Paragraph[])));
                 if (alert[0] === "check") {
                     const list = tokens.slice(1).find((t) => t.type === "list") as Tokens.List | undefined;
                     const others = tokens.slice(1).filter((t) => t.type !== "list");
                     const nudges = (list?.items ?? []).map((it) => this.parser.parseInline(it.tokens.flatMap((t) => ("tokens" in t && t.tokens ? (t.tokens as Tokens.Generic[]) : [t as Tokens.Generic]))));
                     const answer = this.parser.parse((rest ? [para(rest)] : []).concat(others as Tokens.Paragraph[]));
-                    return check(m[2] ?? "", answer.replace(/^<p>/, "<p>Answer: "), nudges);
+                    return check(marked.parseInline(m[2] ?? "", { async: false }) as string, answer.replace(/^<p>/, "<p>Answer: "), nudges);
                 }
                 const body: string = (m[2] ? `<p><strong>${esc(m[2])}</strong></p>` : "") + this.parser.parse(rest ? [para(rest), ...tokens.slice(1)] : tokens.slice(1));
                 return callout(alert[0], alert[1], body);

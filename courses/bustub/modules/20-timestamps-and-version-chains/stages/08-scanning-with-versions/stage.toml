@@ -5,3 +5,4 @@ difficulty = "hard"
 tests = ["stages_4a::s4a_08"]
 learn = ["reading a snapshot through a version chain", "combining the pieces of the module into an executor", "reading a tuple and its link under one latch"]
 concepts = ["multi-version-concurrency-control", "the-iterator-model", "option-and-result-combinators", "allocation-and-cache-friendly-code"]
+concepts_optional = ["version-chains-and-undo-logs", "snapshot-isolation"]

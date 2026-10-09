@@ -7,9 +7,13 @@ A table on disk is, in BusTub, the simplest structure that could work: a **linke
 In `src/storage/table/table_heap.rs` (the struct is given: the pool, the first page id and a `Mutex<PageId>` holding the last page id):
 - `TableHeap::new(bpm)`: allocate the first page (`bpm.new_page()`), format it as a table page (`TablePage::init`) and remember it as both first and last page;
 - `insert_tuple(meta, tuple) -> Result<Rid>`:
-  1. take the heap's lock (inserts are one at a time: two inserters could both extend the table) and write-latch the **last** page;
-  2. while the tuple does not fit (`get_next_tuple_offset` is `None`): if the page holds **no tuples**, no page ever will, so return an error ("tuple is too large, cannot insert"); otherwise allocate a new page, link it from this one (`set_next_page_id`), format it, make it the last page, and continue with its guard;
-  3. insert into the page and return `Rid(page_id, slot)`.
+
+  `insert_tuple` appends to the last page, and two inserters must not both extend the table (take the heap's lock and write-latch the **last** page). A tuple that does not fit moves on to a freshly allocated, formatted page that is linked from the old one and becomes the last. A tuple that does not fit even in an **empty** page is an error ("tuple is too large, cannot insert"), since no page ever will. The result is `Rid(page_id, slot)`.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. take the heap's lock (inserts are one at a time: two inserters could both extend the table) and write-latch the **last** page;
+> 2. while the tuple does not fit (`get_next_tuple_offset` is `None`): if the page holds **no tuples**, no page ever will, so return an error ("tuple is too large, cannot insert"); otherwise allocate a new page, link it from this one (`set_next_page_id`), format it, make it the last page, and continue with its guard;
+> 3. insert into the page and return `Rid(page_id, slot)`.
 
 ## Tests
 

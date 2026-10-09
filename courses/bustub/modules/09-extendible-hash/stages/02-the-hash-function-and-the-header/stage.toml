@@ -5,3 +5,4 @@ difficulty = "easy"
 tests = ["stages_2b::s2b_02", "stages_2b::s2b_03", "stages_2b::s2b_04"]
 learn = ["a typed view over page bytes, read-only or read-write", "top bits for the header, low bits for the directory", "explicit empty slots (-1) in a page of ids"]
 concepts = ["bytes-endianness-and-views", "shifts-masks-and-bit-tricks", "hash-functions-and-murmur3", "extendible-hashing"]
+concepts_optional = ["repr-c-layouts-and-const-asserts"]

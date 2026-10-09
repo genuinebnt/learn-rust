@@ -1,5 +1,12 @@
 `WHERE price > 10 AND stock > 0`: `AND` and `OR` combine two answers that can each be true, false or **NULL**. SQL's truth tables treat NULL as *unknown*, and some combinations are known anyway: `FALSE AND anything` is FALSE, because no value of "anything" can make it true; `TRUE OR anything` is TRUE. Getting the NULL rows right is what separates a database from a boolean calculator.
 
+> [!CHECK] What do `NULL AND FALSE`, `NULL OR TRUE` and `NULL AND TRUE` evaluate to, and why can the first two be answered without knowing the NULL?
+> ||FALSE, TRUE and NULL. `AND` is false when either side is false, and `OR` is true when either side is true, whatever the unknown value turns out to be; `NULL AND TRUE` depends on the unknown, so it stays NULL.||
+>
+> - Replace NULL by true, then by false: does the answer change?
+> - Which results are the same for both replacements?
+> - Does your `evaluate` have to evaluate the right side when the left decides the answer?
+
 ## The task
 
 In `src/execution/expressions/logic_expression.rs` (`LogicType`, the constructor with its BOOLEAN check, `to_string` and the conversion to a BOOLEAN `Value` are given):

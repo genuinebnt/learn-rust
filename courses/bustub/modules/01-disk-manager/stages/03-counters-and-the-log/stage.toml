@@ -1,0 +1,8 @@
+id = "1a-03"
+title = "Counters and the log"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1a::s1a_03"]
+learn = ["atomic counters and why Relaxed is enough for them", "an append-only log read back by byte offset", "why an empty write is not a flush", "zero-filling a short read"]
+concepts = []
+concepts_optional = ["atomics-ordering-and-the-log", "durability-and-fsync", "rust-io-errors", "positional-io-and-short-reads", "ownership-of-files-and-raii"]

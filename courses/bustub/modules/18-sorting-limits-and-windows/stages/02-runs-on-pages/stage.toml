@@ -5,3 +5,4 @@ difficulty = "hard"
 tests = ["stages_3g::s3g_02"]
 learn = ["storing tuples on buffer-pool pages and reading them back", "a builder that flushes full pages", "an iterator over a paged sequence"]
 concepts = ["external-merge-sort", "bytes-endianness-and-views", "slotted-pages"]
+concepts_optional = ["sort-keys-and-null-ordering"]

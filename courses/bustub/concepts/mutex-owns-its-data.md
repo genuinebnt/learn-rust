@@ -173,9 +173,9 @@ fn try_lock_and_into_inner() {
 
 ### In the exercises
 
-- **1a-03 (write_page, read_page):** the file and the page table live in one `Mutex<DbIo>`. Use `lock().unwrap()` once at the top of each method, do "have I seen this page? if not, allocate a slot" inside that one guard (the second example above is exactly this shape), and let the guard drop at the end.
-- **1a-05 (counters and the log):** the log file sits in its own `Mutex<File>`; `write_log` takes the lock, appends, increments the flush counter. Counters themselves are atomics, not mutexes.
-- **1a-06:** `DiskIo: Send + Sync` is what lets an `Arc<dyn DiskIo>` carry these mutexes to other threads.
+- **1a-01:** every method takes `&self`, so whatever you keep that changes (the page table, the free space) must sit behind a lock. Putting the file and its bookkeeping in one `Mutex` makes "have I seen this page? then give it a place" one critical section, which is the simplest correct design.
+- **1a-03:** the log can have its own `Mutex<File>`; counters can be atomics or live under a lock.
+- **1a-04:** `DiskIo: Send + Sync` is what lets an `Arc<dyn DiskIo>` carry these locks to other threads.
 
 ### Where it is used
 

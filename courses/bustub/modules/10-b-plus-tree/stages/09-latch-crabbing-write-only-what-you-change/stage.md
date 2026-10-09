@@ -5,6 +5,13 @@ The tree you have is correct and takes an exclusive latch on the header and on e
 
 Correctness does not change: everything the tests of stages 2 to 8 check must still pass. What changes is how many pages are write-latched, and the tests count them.
 
+> [!CHECK] An insert descends from the root holding write latches. When may it release the latches of the pages above, and why is "safe" a different test for an insert than for a remove?
+> ||As soon as it holds a latch on a child that is safe: a change below cannot reach the pages above, so nothing above will be modified. For an insert, safe means the page has room (it will not split); for a remove, safe means it stays above its minimum size (it will not merge or borrow). The root has its own cases.||
+>
+> - What can change in a parent when its child splits? When its child merges?
+> - What happens to the pages above if the child cannot split?
+> - Why does it matter to release early?
+
 ## The task
 
 In `src/storage/index/b_plus_tree.rs`:

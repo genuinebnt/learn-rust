@@ -41,6 +41,13 @@ The test file's helpers `InsertHelper`, `InsertHelperSplit`, `DeleteHelper`, `De
 | `ASSERT_EQ` inside a thread: a failure there doesn't stop the test thread (gtest's assertions in non-main threads are not safe) | `assert!` in a spawned thread panics that thread; `scope` re-raises it on join |
 | data races detected only by ThreadSanitizer | none possible in safe Rust; logic races (lost updates) are what the tests find |
 
+## Experiment
+
+Optional. Predict first, then run it.
+
+1. **Scaling.** Insert 100 000 distinct keys from 1, 2, 4 and 8 threads and time each. Where does the speed-up stop, and which latch is the reason (look at what an insert write-latches, and for how long)?
+2. **Split storms.** Insert keys whose hashes share their low 8 bits. Predict how many splits it takes before a key finds room, and what the directory's global depth ends up as, then print both.
+
 ## What you built
 
 A three-level, page-backed, concurrent hash table, tested against BusTub's suite. Next: the **B+ tree**.

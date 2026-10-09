@@ -1,0 +1,8 @@
+id = "1a-01"
+title = "Pages that survive"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1a::s1a_01"]
+learn = ["pages named by id, stored wherever your design puts them", "positional file I/O with read_at and write_all_at", "interior mutability: changing state behind &self with a Mutex", "returning an io::Error instead of panicking"]
+concepts = []
+concepts_optional = ["positional-io-and-short-reads", "rust-io-errors", "mutex-owns-its-data", "ownership-of-files-and-raii", "integers-and-casts", "newtypes-and-type-driven-design", "designing-error-types", "collections-as-tables"]

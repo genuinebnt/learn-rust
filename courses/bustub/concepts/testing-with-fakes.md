@@ -148,7 +148,7 @@ fn a_hang_must_fail_not_freeze() {
 
 ### In the exercises
 
-- **1a-07:** the in-memory disks *are* the fakes the rest of the course tests with. Notice `get_num_writes` and `get_memory_usage`: they exist so a test can observe what happened (the first example).
+- **1a-04:** the in-memory disks *are* the fakes the rest of the course tests with. Notice `get_num_writes` and `get_memory_usage`: they exist so a test can observe what happened without reaching into the disk.
 - **1b, 1d, 1e, 1f:** the stage tests use `thread::scope`, fixed-seed model tests (the second example) and timeouts that fail with a message (the third). When your solution hangs, a test should say so rather than freeze.
 - **Your own tests:** the stage pages suggest tests to write yourself; copy the shape of these examples.
 

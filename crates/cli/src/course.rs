@@ -1534,8 +1534,8 @@ fn lint(course_id: &str, courses: &Path, all: bool) -> anyhow::Result<ExitCode> 
             if st.learn.len() < 2 {
                 problems.push(format!("{id}: `learn` needs at least 2 entries (what this stage teaches)"));
             }
-            if st.concepts.len() < 2 {
-                problems.push(format!("{id}: link at least 2 concept articles (`concepts = [...]`): it is a learning track, and a stage usually leans on two or three ideas"));
+            if st.concepts.len() + st.concepts_optional.len() < 2 {
+                problems.push(format!("{id}: link at least 2 concept articles (`concepts = [...]` for what the stage needs, `concepts_optional = [...]` for Rust and systems ideas the learner can pull in if they want): it is a learning track, and a stage usually leans on two or three ideas"));
             }
             if !st.sections.iter().any(|s| s.id == "performance") {
                 problems.push(format!("{id}: add a `## Performance` section"));

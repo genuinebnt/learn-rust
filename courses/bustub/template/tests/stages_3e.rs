@@ -80,7 +80,7 @@ fn run_batches(db: &BusTubInstance, plan: &PlanRef, batch_size: usize) -> (Vec<u
     let (mut tuples, mut rids) = (vec![], vec![]);
     let (mut sizes, mut values) = (vec![], vec![]);
     while exec.next(&mut tuples, &mut rids, batch_size).unwrap() {
-        assert_eq!(tuples.len(), rids.len());
+        assert_eq!(tuples.len(), rids.len(), "in helper `run_batches`");
         sizes.push(tuples.len());
         for t in &tuples {
             values.push(t.get_value(exec.output_schema(), 0));
@@ -94,7 +94,7 @@ fn execute(db: &BusTubInstance, plan: &PlanRef) -> Vec<Tuple> {
     let catalog = db.catalog.read().unwrap();
     let ctx = ExecutorContext::new(&catalog, db.buffer_pool_manager, false);
     let (ok, tuples) = ExecutionEngine::execute(plan, &ctx).unwrap();
-    assert!(ok);
+    assert!(ok, "in helper `execute`: expected `ok`");
     tuples
 }
 
@@ -105,7 +105,7 @@ fn s3e_01_an_empty_table_has_no_batches() {
     let db = new_db();
     let info = table_with_rows(&db, "t", &["a"], &[]);
     let (sizes, values) = run_batches(&db, &seq_scan_plan(&info, None), 20);
-    assert!(sizes.is_empty() && values.is_empty());
+    assert!(sizes.is_empty() && values.is_empty(), "an empty table has no batches: expected `sizes.is_empty() && values.is_empty()`");
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn s3e_01_every_row_comes_back_in_storage_order() {
     let db = new_db();
     let info = table_with_rows(&db, "t", &["a"], &rows_1_to(1000));
     let (_, values) = run_batches(&db, &seq_scan_plan(&info, None), 20);
-    assert_eq!(values.len(), 1000);
+    assert_eq!(values.len(), 1000, "every row comes back in storage order");
     assert!(values.iter().enumerate().all(|(i, v)| *v == int(i as i32 + 1)), "the order of insertion, across many pages");
 }
 
@@ -122,12 +122,12 @@ fn s3e_01_batches_have_at_most_batch_size_tuples_and_only_the_last_is_short() {
     let db = new_db();
     let info = table_with_rows(&db, "t", &["a"], &rows_1_to(50));
     let (sizes, _) = run_batches(&db, &seq_scan_plan(&info, None), 20);
-    assert_eq!(sizes, vec![20, 20, 10]);
+    assert_eq!(sizes, vec![20, 20, 10], "batches have at most batch size tuples and only the last is short");
     let (sizes, _) = run_batches(&db, &seq_scan_plan(&info, None), 7);
-    assert_eq!(sizes.iter().sum::<usize>(), 50);
-    assert!(sizes.iter().all(|s| *s <= 7) && sizes[..sizes.len() - 1].iter().all(|s| *s == 7));
+    assert_eq!(sizes.iter().sum::<usize>(), 50, "batches have at most batch size tuples and only the last is short");
+    assert!(sizes.iter().all(|s| *s <= 7) && sizes[..sizes.len() - 1].iter().all(|s| *s == 7), "batches have at most batch size tuples and only the last is short: expected `sizes.iter().all(|s| *s <= 7) && sizes[..sizes.len() - 1].iter().all(|s| *s == 7)`");
     let (sizes, _) = run_batches(&db, &seq_scan_plan(&info, None), 1000);
-    assert_eq!(sizes, vec![50]);
+    assert_eq!(sizes, vec![50], "batches have at most batch size tuples and only the last is short");
 }
 
 #[test]
@@ -139,11 +139,11 @@ fn s3e_01_the_rids_are_the_rids_of_the_rows() {
     let mut exec = create_executor(&ctx, &seq_scan_plan(&info, None)).unwrap();
     exec.init().unwrap();
     let (mut tuples, mut rids) = (vec![], vec![]);
-    assert!(exec.next(&mut tuples, &mut rids, 20).unwrap());
+    assert!(exec.next(&mut tuples, &mut rids, 20).unwrap(), "the rids are the rids of the rows: expected `exec.next(&mut tuples, &mut rids, 20).unwrap()`");
     for (t, rid) in tuples.iter().zip(&rids) {
-        assert_eq!(info.table.get_tuple(*rid).unwrap().1.get_value(&info.schema, 0), t.get_value(&info.schema, 0));
+        assert_eq!(info.table.get_tuple(*rid).unwrap().1.get_value(&info.schema, 0), t.get_value(&info.schema, 0), "the rids are the rids of the rows");
     }
-    assert_eq!(rids.iter().map(|r| r.slot_num()).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
+    assert_eq!(rids.iter().map(|r| r.slot_num()).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4], "the rids are the rids of the rows");
 }
 
 #[test]
@@ -156,7 +156,7 @@ fn s3e_01_deleted_rows_are_skipped() {
         }
     }
     let (_, values) = run_batches(&db, &seq_scan_plan(&info, None), 20);
-    assert_eq!(values, vec![int(2), int(4), int(6), int(8), int(10)]);
+    assert_eq!(values, vec![int(2), int(4), int(6), int(8), int(10)], "deleted rows are skipped");
 }
 
 #[test]
@@ -170,21 +170,21 @@ fn s3e_01_init_starts_over_and_rows_added_after_init_are_not_seen() {
     // a row stored after init is beyond the point where this scan stops (the Halloween problem)
     info.table.insert_tuple(&TupleMeta { ts: 0, is_deleted: false }, &Tuple::new(&[int(99)], &info.schema)).unwrap();
     let (mut tuples, mut rids) = (vec![], vec![]);
-    assert!(exec.next(&mut tuples, &mut rids, 20).unwrap());
-    assert_eq!(tuples.len(), 3);
-    assert!(!exec.next(&mut tuples, &mut rids, 20).unwrap());
+    assert!(exec.next(&mut tuples, &mut rids, 20).unwrap(), "init starts over and rows added after init are not seen: expected `exec.next(&mut tuples, &mut rids, 20).unwrap()`");
+    assert_eq!(tuples.len(), 3, "init starts over and rows added after init are not seen");
+    assert!(!exec.next(&mut tuples, &mut rids, 20).unwrap(), "init starts over and rows added after init are not seen: expected `!exec.next(&mut tuples, &mut rids, 20).unwrap()`");
     // a second init sees all four rows
     exec.init().unwrap();
-    assert!(exec.next(&mut tuples, &mut rids, 20).unwrap());
-    assert_eq!(tuples.len(), 4);
+    assert!(exec.next(&mut tuples, &mut rids, 20).unwrap(), "init starts over and rows added after init are not seen: expected `exec.next(&mut tuples, &mut rids, 20).unwrap()`");
+    assert_eq!(tuples.len(), 4, "init starts over and rows added after init are not seen");
 }
 
 #[test]
 fn s3e_01_sql_select_star() {
     let db = new_db();
     table_with_rows(&db, "t", &["a", "b"], &[vec![1, 10], vec![2, 20], vec![3, 30]]);
-    assert_eq!(sql(&db, "select * from t"), vec!["1 10", "2 20", "3 30"]);
-    assert_eq!(sql(&db, "select b, a + b from t"), vec!["10 11", "20 22", "30 33"]);
+    assert_eq!(sql(&db, "select * from t"), vec!["1 10", "2 20", "3 30"], "sql select star");
+    assert_eq!(sql(&db, "select b, a + b from t"), vec!["10 11", "20 22", "30 33"], "sql select star");
 }
 
 // ---- 3e-02 · sequential scan with a predicate ----------------------------------------------------------------------------------
@@ -194,9 +194,9 @@ fn s3e_02_only_rows_for_which_the_predicate_is_true_are_returned() {
     let db = new_db();
     let info = table_with_rows(&db, "t", &["a"], &rows_1_to(10));
     let (_, values) = run_batches(&db, &seq_scan_plan(&info, Some(cmp(0, ComparisonType::GreaterThan, 7))), 20);
-    assert_eq!(values, vec![int(8), int(9), int(10)]);
+    assert_eq!(values, vec![int(8), int(9), int(10)], "only rows for which the predicate is true are returned");
     let (_, none) = run_batches(&db, &seq_scan_plan(&info, Some(cmp(0, ComparisonType::LessThan, 0))), 20);
-    assert!(none.is_empty());
+    assert!(none.is_empty(), "only rows for which the predicate is true are returned: expected `none.is_empty()`");
 }
 
 #[test]
@@ -217,7 +217,7 @@ fn s3e_02_batches_are_filled_with_matching_rows_not_with_scanned_rows() {
     // every 10th row matches: 10 rows; with batch size 4: 4 + 4 + 2
     let plan = seq_scan_plan(&info, Some(cmp(0, ComparisonType::GreaterThanOrEqual, 91)));
     let (sizes, _) = run_batches(&db, &plan, 4);
-    assert_eq!(sizes, vec![4, 4, 2]);
+    assert_eq!(sizes, vec![4, 4, 2], "batches are filled with matching rows not with scanned rows");
 }
 
 #[test]
@@ -227,15 +227,15 @@ fn s3e_02_deleted_rows_that_match_are_still_skipped() {
     let victim = info.table.make_iterator().nth(4).unwrap().1.get_rid();
     info.table.update_tuple_meta(&TupleMeta { ts: 0, is_deleted: true }, victim).unwrap();
     let (_, values) = run_batches(&db, &seq_scan_plan(&info, Some(cmp(0, ComparisonType::GreaterThan, 3))), 20);
-    assert_eq!(values, vec![int(4), int(6)]);
+    assert_eq!(values, vec![int(4), int(6)], "deleted rows that match are still skipped");
 }
 
 #[test]
 fn s3e_02_the_optimizer_moves_a_where_into_the_scan() {
     let db = new_db();
     table_with_rows(&db, "t", &["a", "b"], &[vec![1, 10], vec![2, 20], vec![3, 30], vec![4, 40]]);
-    assert_eq!(sql(&db, "select * from t where a > 2"), vec!["3 30", "4 40"]);
-    assert_eq!(sql(&db, "select b from t where a >= 2 and b < 40"), vec!["20", "30"]);
+    assert_eq!(sql(&db, "select * from t where a > 2"), vec!["3 30", "4 40"], "the optimizer moves a where into the scan");
+    assert_eq!(sql(&db, "select b from t where a >= 2 and b < 40"), vec!["20", "30"], "the optimizer moves a where into the scan");
     let plan = sql(&db, "explain (o) select * from t where a > 2").join("\n");
     assert!(plan.contains("SeqScan { table=t, filter=(#0.0>2) }"), "{plan}");
 }
@@ -244,7 +244,7 @@ fn s3e_02_the_optimizer_moves_a_where_into_the_scan() {
 fn s3e_02_a_scan_in_a_scan_each_with_its_own_predicate() {
     let db = new_db();
     table_with_rows(&db, "t", &["a"], &rows_1_to(5));
-    assert_eq!(sql(&db, "select * from (select a from t where a > 1) where a < 5"), vec!["2", "3", "4"]);
+    assert_eq!(sql(&db, "select * from (select a from t where a > 1) where a < 5"), vec!["2", "3", "4"], "a scan in a scan each with its own predicate");
     assert!(sql_err(&db, "select * from (select a + 1 from t where a > 3) where a > 0"), "an unnamed column cannot be referred to");
 }
 
@@ -254,10 +254,10 @@ fn s3e_02_a_scan_in_a_scan_each_with_its_own_predicate() {
 fn s3e_03_insert_values_returns_how_many() {
     let db = new_db();
     sql(&db, "create table t(a int, b varchar(20))");
-    assert_eq!(sql(&db, "insert into t values (1, 'x'), (2, 'yy'), (3, 'zzz')"), vec!["3"]);
-    assert_eq!(sql(&db, "select * from t"), vec!["1 x", "2 yy", "3 zzz"]);
-    assert_eq!(sql(&db, "insert into t values (4, 'w')"), vec!["1"]);
-    assert_eq!(sql(&db, "select a from t").len(), 4);
+    assert_eq!(sql(&db, "insert into t values (1, 'x'), (2, 'yy'), (3, 'zzz')"), vec!["3"], "insert values returns how many");
+    assert_eq!(sql(&db, "select * from t"), vec!["1 x", "2 yy", "3 zzz"], "insert values returns how many");
+    assert_eq!(sql(&db, "insert into t values (4, 'w')"), vec!["1"], "insert values returns how many");
+    assert_eq!(sql(&db, "select a from t").len(), 4, "insert values returns how many");
 }
 
 #[test]
@@ -265,8 +265,8 @@ fn s3e_03_insert_select_copies_a_query() {
     let db = new_db();
     table_with_rows(&db, "src", &["a"], &rows_1_to(30));
     sql(&db, "create table dst(a int)");
-    assert_eq!(sql(&db, "insert into dst select * from src where a > 10"), vec!["20"]);
-    assert_eq!(sql(&db, "select * from dst").len(), 20);
+    assert_eq!(sql(&db, "insert into dst select * from src where a > 10"), vec!["20"], "insert select copies a query");
+    assert_eq!(sql(&db, "select * from dst").len(), 20, "insert select copies a query");
     assert_eq!(sql(&db, "insert into dst select * from src where a < 0"), vec!["0"], "inserting nothing still answers with a count");
 }
 
@@ -285,11 +285,11 @@ fn s3e_03_the_count_is_produced_once() {
     let mut exec = create_executor(&ctx, &insert).unwrap();
     exec.init().unwrap();
     let (mut tuples, mut rids) = (vec![], vec![]);
-    assert!(exec.next(&mut tuples, &mut rids, 20).unwrap());
-    assert_eq!(tuples.len(), 1);
-    assert_eq!(tuples[0].get_value(exec.output_schema(), 0), int(2));
+    assert!(exec.next(&mut tuples, &mut rids, 20).unwrap(), "the count is produced once: expected `exec.next(&mut tuples, &mut rids, 20).unwrap()`");
+    assert_eq!(tuples.len(), 1, "the count is produced once");
+    assert_eq!(tuples[0].get_value(exec.output_schema(), 0), int(2), "the count is produced once");
     assert!(!exec.next(&mut tuples, &mut rids, 20).unwrap(), "the second call has nothing more to say");
-    assert!(tuples.is_empty());
+    assert!(tuples.is_empty(), "the count is produced once: expected `tuples.is_empty()`");
     assert_eq!(info.table.make_iterator().count(), 2, "and nothing was inserted twice");
 }
 
@@ -298,11 +298,11 @@ fn s3e_03_more_rows_than_fit_in_a_page_or_a_batch() {
     let db = new_db();
     sql(&db, "create table t(a int, b varchar(100))");
     let values: Vec<String> = (0..2500).map(|i| format!("({i}, '{}')", "x".repeat(40))).collect();
-    assert_eq!(sql(&db, &format!("insert into t values {}", values.join(", "))), vec!["2500"]);
+    assert_eq!(sql(&db, &format!("insert into t values {}", values.join(", "))), vec!["2500"], "more rows than fit in a page or a batch");
     let rows = sql(&db, "select a from t");
-    assert_eq!(rows.len(), 2500);
-    assert_eq!(rows[0], "0");
-    assert_eq!(rows[2499], "2499");
+    assert_eq!(rows.len(), 2500, "more rows than fit in a page or a batch");
+    assert_eq!(rows[0], "0", "more rows than fit in a page or a batch");
+    assert_eq!(rows[2499], "2499", "more rows than fit in a page or a batch");
 }
 
 #[test]
@@ -310,7 +310,7 @@ fn s3e_03_a_second_init_inserts_again_and_the_tuples_are_stored_as_given() {
     let db = new_db();
     sql(&db, "create table t(a int, b varchar(20), c int)");
     sql(&db, "insert into t values (1, '🥰', 10), (2, '🥰🥰', 20)");
-    assert_eq!(sql(&db, "select * from t"), vec!["1 🥰 10", "2 🥰🥰 20"]);
+    assert_eq!(sql(&db, "select * from t"), vec!["1 🥰 10", "2 🥰🥰 20"], "a second init inserts again and the tuples are stored as given");
     sql(&db, "insert into t select * from t");
     assert_eq!(sql(&db, "select * from t").len(), 4, "a table can be inserted into from itself without looping");
 }
@@ -319,9 +319,9 @@ fn s3e_03_a_second_init_inserts_again_and_the_tuples_are_stored_as_given() {
 fn s3e_03_a_value_of_the_wrong_type_is_a_planning_error() {
     let db = new_db();
     sql(&db, "create table t(a int, b varchar(20))");
-    assert!(sql_err(&db, "insert into t values ('x', 1)"));
-    assert!(sql_err(&db, "insert into t values (1)"));
-    assert!(sql_err(&db, "insert into nosuchtable values (1)"));
+    assert!(sql_err(&db, "insert into t values ('x', 1)"), "a value of the wrong type is a planning error: expected `sql_err(&db, \"insert into t values ('x', 1)\")`");
+    assert!(sql_err(&db, "insert into t values (1)"), "a value of the wrong type is a planning error: expected `sql_err(&db, \"insert into t values (1)\")`");
+    assert!(sql_err(&db, "insert into nosuchtable values (1)"), "a value of the wrong type is a planning error: expected `sql_err(&db, \"insert into nosuchtable values (1)\")`");
 }
 
 // ---- 3e-04 · insert and indexes ------------------------------------------------------------------------------------------------
@@ -345,8 +345,8 @@ fn s3e_04_an_insert_adds_the_rows_to_the_indexes_of_the_table() {
         assert_eq!(rids.len(), 1, "key {a}");
         assert_eq!(table.table.get_tuple(rids[0]).unwrap().1.get_value(&table.schema, 1), int(b), "the index leads to the row");
     }
-    assert!(lookup(&index, &[4]).is_empty());
-    assert_eq!(index.index.scan_all().len(), 3);
+    assert!(lookup(&index, &[4]).is_empty(), "an insert adds the rows to the indexes of the table: expected `lookup(&index, &[4]).is_empty()`");
+    assert_eq!(index.index.scan_all().len(), 3, "an insert adds the rows to the indexes of the table");
 }
 
 #[test]
@@ -358,10 +358,10 @@ fn s3e_04_every_index_of_the_table_is_updated() {
     sql(&db, "create index iab on t(a, b)");
     sql(&db, "insert into t values (1, 2, 3), (4, 5, 6)");
     let catalog = db.catalog.read().unwrap();
-    assert_eq!(lookup(&catalog.get_index("ia", "t").unwrap(), &[4]).len(), 1);
-    assert_eq!(lookup(&catalog.get_index("ib", "t").unwrap(), &[2]).len(), 1);
-    assert_eq!(lookup(&catalog.get_index("iab", "t").unwrap(), &[1, 2]).len(), 1);
-    assert!(lookup(&catalog.get_index("iab", "t").unwrap(), &[2, 1]).is_empty());
+    assert_eq!(lookup(&catalog.get_index("ia", "t").unwrap(), &[4]).len(), 1, "every index of the table is updated");
+    assert_eq!(lookup(&catalog.get_index("ib", "t").unwrap(), &[2]).len(), 1, "every index of the table is updated");
+    assert_eq!(lookup(&catalog.get_index("iab", "t").unwrap(), &[1, 2]).len(), 1, "every index of the table is updated");
+    assert!(lookup(&catalog.get_index("iab", "t").unwrap(), &[2, 1]).is_empty(), "every index of the table is updated: expected `lookup(&catalog.get_index(\"iab\", \"t\").unwrap(), &[2, 1]).is_empty()`");
 }
 
 #[test]
@@ -371,8 +371,8 @@ fn s3e_04_the_primary_key_index_is_an_index_too() {
     sql(&db, "insert into t values (10, 1), (20, 2)");
     let catalog = db.catalog.read().unwrap();
     let pk = catalog.get_index("t_pk", "t").unwrap();
-    assert_eq!(lookup(&pk, &[20]).len(), 1);
-    assert_eq!(pk.index.scan_all().len(), 2);
+    assert_eq!(lookup(&pk, &[20]).len(), 1, "the primary key index is an index too");
+    assert_eq!(pk.index.scan_all().len(), 2, "the primary key index is an index too");
 }
 
 #[test]
@@ -386,7 +386,7 @@ fn s3e_04_a_key_that_is_already_in_the_index_keeps_the_first_row() {
     let catalog = db.catalog.read().unwrap();
     let table = catalog.get_table("t").unwrap();
     let rids = lookup(&catalog.get_index("ia", "t").unwrap(), &[1]);
-    assert_eq!(rids.len(), 1);
+    assert_eq!(rids.len(), 1, "a key that is already in the index keeps the first row");
     assert_eq!(table.table.get_tuple(rids[0]).unwrap().1.get_value(&table.schema, 1), int(100), "the index remembers the first");
 }
 
@@ -398,7 +398,7 @@ fn s3e_04_an_index_created_after_the_insert_has_the_rows_and_later_inserts_join_
     sql(&db, "create index ia on t(a)");
     sql(&db, "insert into t values (4), (5)");
     let catalog = db.catalog.read().unwrap();
-    assert_eq!(catalog.get_index("ia", "t").unwrap().index.scan_all().len(), 5);
+    assert_eq!(catalog.get_index("ia", "t").unwrap().index.scan_all().len(), 5, "an index created after the insert has the rows and later inserts join them");
 }
 
 #[test]
@@ -409,7 +409,7 @@ fn s3e_04_other_tables_indexes_are_left_alone() {
     sql(&db, "create index iu on u(a)");
     sql(&db, "insert into t values (1), (2)");
     let catalog = db.catalog.read().unwrap();
-    assert!(catalog.get_index("iu", "u").unwrap().index.scan_all().is_empty());
+    assert!(catalog.get_index("iu", "u").unwrap().index.scan_all().is_empty(), "other tables indexes are left alone: expected `catalog.get_index(\"iu\", \"u\").unwrap().index.scan_all().is_empty()`");
 }
 
 // ---- 3e-05 · delete ---------------------------------------------------------------------------------------------------------------
@@ -418,20 +418,20 @@ fn s3e_04_other_tables_indexes_are_left_alone() {
 fn s3e_05_delete_returns_how_many_rows_and_they_disappear() {
     let db = new_db();
     table_with_rows(&db, "t", &["a", "b"], &[vec![1, 10], vec![2, 20], vec![3, 30], vec![4, 40]]);
-    assert_eq!(sql(&db, "delete from t where a >= 3"), vec!["2"]);
-    assert_eq!(sql(&db, "select * from t"), vec!["1 10", "2 20"]);
-    assert_eq!(sql(&db, "delete from t"), vec!["2"]);
-    assert!(sql(&db, "select * from t").is_empty());
-    assert_eq!(sql(&db, "delete from t"), vec!["0"]);
+    assert_eq!(sql(&db, "delete from t where a >= 3"), vec!["2"], "delete returns how many rows and they disappear");
+    assert_eq!(sql(&db, "select * from t"), vec!["1 10", "2 20"], "delete returns how many rows and they disappear");
+    assert_eq!(sql(&db, "delete from t"), vec!["2"], "delete returns how many rows and they disappear");
+    assert!(sql(&db, "select * from t").is_empty(), "delete returns how many rows and they disappear: expected `sql(&db, \"select * from t\").is_empty()`");
+    assert_eq!(sql(&db, "delete from t"), vec!["0"], "delete returns how many rows and they disappear");
 }
 
 #[test]
 fn s3e_05_deleting_nothing_returns_zero_and_changes_nothing() {
     let db = new_db();
     table_with_rows(&db, "t", &["a"], &rows_1_to(5));
-    assert_eq!(sql(&db, "delete from t where a > 100"), vec!["0"]);
-    assert_eq!(sql(&db, "delete from t where a != a"), vec!["0"]);
-    assert_eq!(sql(&db, "select * from t").len(), 5);
+    assert_eq!(sql(&db, "delete from t where a > 100"), vec!["0"], "deleting nothing returns zero and changes nothing");
+    assert_eq!(sql(&db, "delete from t where a != a"), vec!["0"], "deleting nothing returns zero and changes nothing");
+    assert_eq!(sql(&db, "select * from t").len(), 5, "deleting nothing returns zero and changes nothing");
 }
 
 #[test]
@@ -441,7 +441,7 @@ fn s3e_05_a_deleted_tuple_is_marked_not_erased() {
     sql(&db, "delete from t where a = 2");
     let all: Vec<_> = info.table.make_iterator().collect();
     assert_eq!(all.len(), 3, "the slot is still there");
-    assert_eq!(all.iter().map(|(m, _)| m.is_deleted).collect::<Vec<_>>(), vec![false, true, false]);
+    assert_eq!(all.iter().map(|(m, _)| m.is_deleted).collect::<Vec<_>>(), vec![false, true, false], "a deleted tuple is marked not erased");
 }
 
 #[test]
@@ -451,19 +451,19 @@ fn s3e_05_delete_removes_the_index_entries() {
     sql(&db, "create index ia on t(a)");
     sql(&db, "create index ib on t(b)");
     sql(&db, "insert into t values (1, 10), (2, 20), (3, 30)");
-    assert_eq!(sql(&db, "delete from t where a = 2"), vec!["1"]);
+    assert_eq!(sql(&db, "delete from t where a = 2"), vec!["1"], "delete removes the index entries");
     let catalog = db.catalog.read().unwrap();
-    assert!(lookup(&catalog.get_index("ia", "t").unwrap(), &[2]).is_empty());
-    assert!(lookup(&catalog.get_index("ib", "t").unwrap(), &[20]).is_empty());
-    assert_eq!(lookup(&catalog.get_index("ia", "t").unwrap(), &[3]).len(), 1);
+    assert!(lookup(&catalog.get_index("ia", "t").unwrap(), &[2]).is_empty(), "delete removes the index entries: expected `lookup(&catalog.get_index(\"ia\", \"t\").unwrap(), &[2]).is_empty()`");
+    assert!(lookup(&catalog.get_index("ib", "t").unwrap(), &[20]).is_empty(), "delete removes the index entries: expected `lookup(&catalog.get_index(\"ib\", \"t\").unwrap(), &[20]).is_empty()`");
+    assert_eq!(lookup(&catalog.get_index("ia", "t").unwrap(), &[3]).len(), 1, "delete removes the index entries");
 }
 
 #[test]
 fn s3e_05_delete_everything_in_a_big_table() {
     let db = new_db();
     table_with_rows(&db, "t", &["a"], &rows_1_to(3000));
-    assert_eq!(sql(&db, "delete from t"), vec!["3000"]);
-    assert!(sql(&db, "select * from t").is_empty());
+    assert_eq!(sql(&db, "delete from t"), vec!["3000"], "delete everything in a big table");
+    assert!(sql(&db, "select * from t").is_empty(), "delete everything in a big table: expected `sql(&db, \"select * from t\").is_empty()`");
 }
 
 #[test]
@@ -474,12 +474,12 @@ fn s3e_05_a_key_can_be_inserted_again_after_it_was_deleted() {
     sql(&db, "insert into t values (7, 1)");
     sql(&db, "delete from t");
     sql(&db, "insert into t values (7, 2)");
-    assert_eq!(sql(&db, "select * from t"), vec!["7 2"]);
+    assert_eq!(sql(&db, "select * from t"), vec!["7 2"], "a key can be inserted again after it was deleted");
     let catalog = db.catalog.read().unwrap();
     let table = catalog.get_table("t").unwrap();
     let rids = lookup(&catalog.get_index("ia", "t").unwrap(), &[7]);
-    assert_eq!(rids.len(), 1);
-    assert_eq!(table.table.get_tuple(rids[0]).unwrap().1.get_value(&table.schema, 1), int(2));
+    assert_eq!(rids.len(), 1, "a key can be inserted again after it was deleted");
+    assert_eq!(table.table.get_tuple(rids[0]).unwrap().1.get_value(&table.schema, 1), int(2), "a key can be inserted again after it was deleted");
 }
 
 // ---- 3e-06 · update ---------------------------------------------------------------------------------------------------------------
@@ -489,31 +489,31 @@ fn s3e_06_update_returns_how_many_rows_and_changes_them() {
     let db = new_db();
     sql(&db, "create table t(a int, b varchar(20), c int)");
     sql(&db, "insert into t values (0, 'a', 10), (1, 'b', 11), (2, 'c', 12), (3, 'd', 13), (4, 'e', 14)");
-    assert_eq!(sql(&db, "update t set c = 445 where a >= 3"), vec!["2"]);
-    assert_eq!(sql(&db, "select * from t where a >= 3"), vec!["3 d 445", "4 e 445"]);
-    assert_eq!(sql(&db, "select * from t where a < 3").len(), 3);
-    assert_eq!(sql(&db, "update t set c = 1 where a >= 5"), vec!["0"]);
+    assert_eq!(sql(&db, "update t set c = 445 where a >= 3"), vec!["2"], "update returns how many rows and changes them");
+    assert_eq!(sql(&db, "select * from t where a >= 3"), vec!["3 d 445", "4 e 445"], "update returns how many rows and changes them");
+    assert_eq!(sql(&db, "select * from t where a < 3").len(), 3, "update returns how many rows and changes them");
+    assert_eq!(sql(&db, "update t set c = 1 where a >= 5"), vec!["0"], "update returns how many rows and changes them");
 }
 
 #[test]
 fn s3e_06_the_new_values_can_use_the_old_ones() {
     let db = new_db();
     table_with_rows(&db, "t", &["a", "b"], &[vec![1, 10], vec![2, 20], vec![3, 30]]);
-    assert_eq!(sql(&db, "update t set b = b + a"), vec!["3"]);
+    assert_eq!(sql(&db, "update t set b = b + a"), vec!["3"], "the new values can use the old ones");
     let mut rows = sql(&db, "select * from t");
     rows.sort();
-    assert_eq!(rows, vec!["1 11", "2 22", "3 33"]);
+    assert_eq!(rows, vec!["1 11", "2 22", "3 33"], "the new values can use the old ones");
     assert_eq!(sql(&db, "update t set a = b, b = a"), vec!["3"], "every expression sees the OLD row");
     let mut rows = sql(&db, "select * from t");
     rows.sort();
-    assert_eq!(rows, vec!["11 1", "22 2", "33 3"]);
+    assert_eq!(rows, vec!["11 1", "22 2", "33 3"], "the new values can use the old ones");
 }
 
 #[test]
 fn s3e_06_every_row_is_updated_exactly_once() {
     let db = new_db();
     table_with_rows(&db, "t", &["a"], &rows_1_to(3000));
-    assert_eq!(sql(&db, "update t set a = a + 1"), vec!["3000"]);
+    assert_eq!(sql(&db, "update t set a = a + 1"), vec!["3000"], "every row is updated exactly once");
     let mut rows: Vec<i32> = sql(&db, "select a from t").iter().map(|l| l.parse().unwrap()).collect();
     rows.sort();
     assert_eq!(rows, (2..=3001).collect::<Vec<_>>(), "no row was updated twice, though the new rows are stored at the end of the table");
@@ -524,10 +524,10 @@ fn s3e_06_a_string_can_change_length() {
     let db = new_db();
     sql(&db, "create table t(id int, s varchar(50))");
     sql(&db, "insert into t values (1, 'short'), (2, 'also short')");
-    assert_eq!(sql(&db, "update t set s = 'a much longer string than before' where id = 1"), vec!["1"]);
+    assert_eq!(sql(&db, "update t set s = 'a much longer string than before' where id = 1"), vec!["1"], "a string can change length");
     let mut rows = sql(&db, "select * from t");
     rows.sort();
-    assert_eq!(rows, vec!["1 a much longer string than before", "2 also short"]);
+    assert_eq!(rows, vec!["1 a much longer string than before", "2 also short"], "a string can change length");
 }
 
 #[test]
@@ -536,15 +536,15 @@ fn s3e_06_the_indexes_follow_an_update() {
     sql(&db, "create table t(a int, b int)");
     sql(&db, "create index ia on t(a)");
     sql(&db, "insert into t values (1, 10), (2, 20), (3, 30)");
-    assert_eq!(sql(&db, "update t set a = 8, b = -20 where a = 2"), vec!["1"]);
+    assert_eq!(sql(&db, "update t set a = 8, b = -20 where a = 2"), vec!["1"], "the indexes follow an update");
     let catalog = db.catalog.read().unwrap();
     let table = catalog.get_table("t").unwrap();
     let ia = catalog.get_index("ia", "t").unwrap();
     assert!(lookup(&ia, &[2]).is_empty(), "the old key is gone");
     let rids = lookup(&ia, &[8]);
     assert_eq!(rids.len(), 1, "the new key is there");
-    assert_eq!(table.table.get_tuple(rids[0]).unwrap().1.get_value(&table.schema, 1), int(-20));
-    assert_eq!(ia.index.scan_all().len(), 3);
+    assert_eq!(table.table.get_tuple(rids[0]).unwrap().1.get_value(&table.schema, 1), int(-20), "the indexes follow an update");
+    assert_eq!(ia.index.scan_all().len(), 3, "the indexes follow an update");
 }
 
 #[test]
@@ -557,7 +557,7 @@ fn s3e_06_updating_a_column_that_is_not_in_the_key_keeps_the_key() {
     let catalog = db.catalog.read().unwrap();
     let table = catalog.get_table("t").unwrap();
     let rids = lookup(&catalog.get_index("ia", "t").unwrap(), &[1]);
-    assert_eq!(rids.len(), 1);
+    assert_eq!(rids.len(), 1, "updating a column that is not in the key keeps the key");
     assert_eq!(table.table.get_tuple(rids[0]).unwrap().1.get_value(&table.schema, 1), int(99), "the index entry leads to the NEW tuple");
 }
 
@@ -593,8 +593,8 @@ fn s3e_07_rows_come_back_in_key_order_not_storage_order() {
     let info = db.catalog.read().unwrap().get_table_by_oid(table_oid).unwrap();
     let plan = index_scan_plan(&info, index_oid, None, vec![]);
     let (_, values) = run_batches(&db, &plan, 20);
-    assert_eq!(values, vec![int(1), int(2), int(3), int(4), int(5)]);
-    assert_eq!(first_column(&execute(&db, &plan), &info.schema), vec![1, 2, 3, 4, 5]);
+    assert_eq!(values, vec![int(1), int(2), int(3), int(4), int(5)], "rows come back in key order not storage order");
+    assert_eq!(first_column(&execute(&db, &plan), &info.schema), vec![1, 2, 3, 4, 5], "rows come back in key order not storage order");
 }
 
 #[test]
@@ -602,7 +602,7 @@ fn s3e_07_negative_keys_sort_as_numbers() {
     let (db, table_oid, index_oid) = db_with_index(&[vec![3, 0], vec![-7, 0], vec![0, 0], vec![-1, 0], vec![256, 0], vec![1, 0]]);
     let info = db.catalog.read().unwrap().get_table_by_oid(table_oid).unwrap();
     let rows = execute(&db, &index_scan_plan(&info, index_oid, None, vec![]));
-    assert_eq!(first_column(&rows, &info.schema), vec![-7, -1, 0, 1, 3, 256]);
+    assert_eq!(first_column(&rows, &info.schema), vec![-7, -1, 0, 1, 3, 256], "negative keys sort as numbers");
 }
 
 #[test]
@@ -611,16 +611,16 @@ fn s3e_07_batches_have_at_most_batch_size_tuples() {
     let (db, table_oid, index_oid) = db_with_index(&rows);
     let info = db.catalog.read().unwrap().get_table_by_oid(table_oid).unwrap();
     let (sizes, values) = run_batches(&db, &index_scan_plan(&info, index_oid, None, vec![]), 20);
-    assert_eq!(sizes, vec![20, 20, 5]);
-    assert_eq!(values[0], int(0));
-    assert_eq!(values[44], int(44));
+    assert_eq!(sizes, vec![20, 20, 5], "batches have at most batch size tuples");
+    assert_eq!(values[0], int(0), "batches have at most batch size tuples");
+    assert_eq!(values[44], int(44), "batches have at most batch size tuples");
 }
 
 #[test]
 fn s3e_07_an_empty_table_gives_nothing() {
     let (db, table_oid, index_oid) = db_with_index(&[]);
     let info = db.catalog.read().unwrap().get_table_by_oid(table_oid).unwrap();
-    assert!(execute(&db, &index_scan_plan(&info, index_oid, None, vec![])).is_empty());
+    assert!(execute(&db, &index_scan_plan(&info, index_oid, None, vec![])).is_empty(), "an empty table gives nothing: expected `execute(&db, &index_scan_plan(&info, index_oid, None, vec![])).is_empty()`");
 }
 
 #[test]
@@ -631,7 +631,7 @@ fn s3e_07_deleted_rows_do_not_come_back() {
     let victim = info.table.make_iterator().nth(1).unwrap().1.get_rid();
     info.table.update_tuple_meta(&TupleMeta { ts: 0, is_deleted: true }, victim).unwrap();
     let rows = execute(&db, &index_scan_plan(&info, index_oid, None, vec![]));
-    assert_eq!(first_column(&rows, &info.schema), vec![1, 3]);
+    assert_eq!(first_column(&rows, &info.schema), vec![1, 3], "deleted rows do not come back");
 }
 
 #[test]
@@ -640,7 +640,7 @@ fn s3e_07_order_by_on_an_indexed_column_becomes_an_index_scan() {
     sql(&db, "set force_optimizer_starter_rule=yes");
     let plan = sql(&db, "explain (o) select * from t order by a").join("\n");
     assert!(plan.contains("IndexScan"), "{plan}");
-    assert_eq!(sql(&db, "select * from t order by a"), vec!["1 10", "2 20", "3 30"]);
+    assert_eq!(sql(&db, "select * from t order by a"), vec!["1 10", "2 20", "3 30"], "order by on an indexed column becomes an index scan");
     let no_index = sql(&db, "explain (o) select * from t order by b").join("\n");
     assert!(!no_index.contains("IndexScan"), "no index on b: the sort stays a sort\n{no_index}");
     sql(&db, "insert into t values (0, 0)");
@@ -658,8 +658,8 @@ fn s3e_08_a_key_finds_its_row() {
     let (db, table_oid, index_oid) = db_with_index(&[vec![1, 10], vec![2, 20], vec![3, 30]]);
     let info = db.catalog.read().unwrap().get_table_by_oid(table_oid).unwrap();
     let rows = execute(&db, &index_scan_plan(&info, index_oid, None, vec![key(2)]));
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].get_value(&info.schema, 1), int(20));
+    assert_eq!(rows.len(), 1, "a key finds its row");
+    assert_eq!(rows[0].get_value(&info.schema, 1), int(20), "a key finds its row");
     assert!(execute(&db, &index_scan_plan(&info, index_oid, None, vec![key(9)])).is_empty(), "a missing key finds nothing");
 }
 
@@ -676,8 +676,8 @@ fn s3e_08_a_deleted_row_is_not_found() {
     let (db, table_oid, index_oid) = db_with_index(&[vec![1, 10], vec![2, 20]]);
     let info = db.catalog.read().unwrap().get_table_by_oid(table_oid).unwrap();
     sql(&db, "delete from t where a = 2");
-    assert!(execute(&db, &index_scan_plan(&info, index_oid, None, vec![key(2)])).is_empty());
-    assert_eq!(execute(&db, &index_scan_plan(&info, index_oid, None, vec![key(1)])).len(), 1);
+    assert!(execute(&db, &index_scan_plan(&info, index_oid, None, vec![key(2)])).is_empty(), "a deleted row is not found: expected `execute(&db, &index_scan_plan(&info, index_oid, None, vec![key(2)])).is_empty()`");
+    assert_eq!(execute(&db, &index_scan_plan(&info, index_oid, None, vec![key(1)])).len(), 1, "a deleted row is not found");
 }
 
 #[test]
@@ -697,8 +697,8 @@ fn s3e_08_a_lookup_sees_an_update_made_in_the_same_session() {
     let info = db.catalog.read().unwrap().get_table_by_oid(table_oid).unwrap();
     sql(&db, "update t set b = 21 where a = 2");
     let rows = execute(&db, &index_scan_plan(&info, index_oid, None, vec![key(2)]));
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].get_value(&info.schema, 1), int(21));
+    assert_eq!(rows.len(), 1, "a lookup sees an update made in the same session");
+    assert_eq!(rows[0].get_value(&info.schema, 1), int(21), "a lookup sees an update made in the same session");
 }
 
 #[test]
@@ -708,6 +708,6 @@ fn s3e_08_a_batch_of_lookups_larger_than_the_batch_size() {
     let info = db.catalog.read().unwrap().get_table_by_oid(table_oid).unwrap();
     let keys: Vec<ExprRef> = (0..50).map(|i| key(i * 2)).collect();
     let (sizes, values) = run_batches(&db, &index_scan_plan(&info, index_oid, None, keys), 20);
-    assert_eq!(sizes, vec![20, 20, 10]);
-    assert_eq!(values[49], int(98));
+    assert_eq!(sizes, vec![20, 20, 10], "a batch of lookups larger than the batch size");
+    assert_eq!(values[49], int(98), "a batch of lookups larger than the batch size");
 }

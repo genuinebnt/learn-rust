@@ -5,3 +5,4 @@ difficulty = "hard"
 tests = ["stages_3g::s3g_08"]
 learn = ["an aggregate that keeps its rows", "partitioning with the group key", "reusing the aggregation's combine step"]
 concepts = ["window-functions", "hash-aggregation", "hashing-values-and-keys"]
+concepts_optional = ["sort-keys-and-null-ordering"]

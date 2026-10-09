@@ -5,3 +5,4 @@ difficulty = "medium"
 tests = ["stages_3f::s3f_03"]
 learn = ["a pipeline breaker that builds a hash table in init", "one group per key, and one row for an empty input without GROUP BY", "SELECT DISTINCT as a group-by"]
 concepts = ["hash-aggregation", "the-iterator-model", "hashing-values-and-keys"]
+concepts_optional = ["join-algorithms"]

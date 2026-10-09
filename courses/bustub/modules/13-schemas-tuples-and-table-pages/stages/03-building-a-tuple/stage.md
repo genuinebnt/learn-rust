@@ -2,10 +2,13 @@ A **tuple** is a row as bytes. This stage writes the constructor: given the valu
 
 ## The task
 
-In `src/storage/table/tuple.rs` (the struct, `TupleMeta`, `empty`, `with_rid`, `from_bytes`, `get_rid`, `set_rid`, `data` and `get_length` are given) implement `Tuple::new(values: &[Value], schema: &Schema) -> Tuple`:
-1. check `values.len() == schema.column_count()` and that each value has its column's type (a panic otherwise: the planner casts values to the table's types before a tuple is built);
-2. the tuple's size is the schema's fixed part plus, for each `VARCHAR` column, the value's `storage_size()` (a NULL string takes its 4-byte marker);
-3. allocate that many zero bytes; for each column: an inlined value is `serialize_to`'d at the column's offset; a `VARCHAR` gets the current variable-part offset written (`u32`, little-endian) at the column's offset, then the value is serialised at that offset, which advances by its `storage_size()`.
+In `src/storage/table/tuple.rs` (the struct, `TupleMeta`, `empty`, `with_rid`, `from_bytes`, `get_rid`, `set_rid`, `data` and `get_length` are given) implement `Tuple::new(values: &[Value], schema: &Schema) -> Tuple`.
+A tuple's bytes are the schema's fixed part followed by a variable part. An inlined column's value is serialised at the column's offset. A `VARCHAR` column's fixed slot holds the `u32` (little-endian) offset where its value is serialised in the variable part, which grows in column order by each value's `storage_size()` (a NULL string takes its 4-byte marker). `new` panics if the number of values differs from the column count or a value's type differs from its column's (the planner casts values to the table's types before a tuple is built).
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. check `values.len() == schema.column_count()` and that each value has its column's type (a panic otherwise: the planner casts values to the table's types before a tuple is built);
+> 2. the tuple's size is the schema's fixed part plus, for each `VARCHAR` column, the value's `storage_size()` (a NULL string takes its 4-byte marker);
+> 3. allocate that many zero bytes; for each column: an inlined value is `serialize_to`'d at the column's offset; a `VARCHAR` gets the current variable-part offset written (`u32`, little-endian) at the column's offset, then the value is serialised at that offset, which advances by its `storage_size()`.
 
 The record id of a new tuple is `Rid::default()` (invalid): a tuple gets one when it is stored in a table.
 

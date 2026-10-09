@@ -1,7 +1,0 @@
-id = "1a-06"
-title = "A trait for disks: DiskIo"
-kind = "learn"
-difficulty = "medium"
-tests = ["stages_1a::s1a_16"]
-learn = ["traits and trait objects (dyn) instead of virtual methods", "Send + Sync as a promise", "why the disk is behind a pointer, not a type parameter"]
-concepts = ["trait-objects-and-the-disk-seam", "mutex-owns-its-data"]

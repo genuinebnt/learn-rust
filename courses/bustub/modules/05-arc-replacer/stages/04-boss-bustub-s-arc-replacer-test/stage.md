@@ -41,6 +41,13 @@ The performance test prints "This test will see how your RecordAccess performs w
 | `std::cout << ...` | `println!` (captured unless the test fails or you pass `-- --nocapture`) |
 | `256 << 10` | `256 << 10` (same shift; make sure the type is wide enough: `usize`) |
 
+## Experiment
+
+Optional. Predict first, then run it.
+
+1. **Make it O(n).** Replace the handle-based removal in one of ARC's lists with a linear search. Measure `record_access` per round at 1 000, 16 000 and 256 000 frames and sketch time against size. Where does the 3-second bar of the performance test fall on your curve?
+2. **Watch the target move.** Print `p` after every access in `sample_test`. Match each change to a ghost hit of the kind your code handles, and say which list the page came back from.
+
 ## What you built
 
 The replacer layer of the buffer pool: LRU, CLOCK, LRU-K and ARC, with the same shape of API and the same BusTub tests. Next: the **buffer pool manager**, which uses one of them.

@@ -131,9 +131,9 @@ fn a_failed_second_open_closes_the_first() {
 
 ### In the exercises
 
-- **1a-01 Part 3:** `DiskManager::new` is `open_db` with the course's names: log first with `append`, then the db file with `read`, `write`, `create` and **`truncate(false)`**, then `set_len(file_size_for(16))`. The "existing database keeps its bytes" test is the one that fails if you forget `truncate(false)`.
-- **1a-05:** `write_log` appends through the `Mutex<File>`; reopening must keep old records.
-- **1a-08 (boss):** `shut_down` calls `sync_all()` on both files: the one place the course makes data durable.
+- **1a-01:** `DiskManager::new` opens two files: the log for appending, the db file for reading and writing, creating either if missing but never truncating the db file.
+- **1a-03:** `write_log` appends; reopening must keep old records.
+- **1a-05 (boss):** `shut_down` calls `sync_all()` on both files: the one place the course makes data durable.
 
 ### Where it is used
 

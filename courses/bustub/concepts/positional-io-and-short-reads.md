@@ -218,10 +218,8 @@ fn a_page_never_written_reads_as_zeros() {
 
 ### In the exercises
 
-- **1a-02 Part 1 (`write_slot`):** `file.write_all_at(data, slot_offset(slot))`.
-- **1a-02 Part 2 (`read_full_at`):** the first example, nearly verbatim; the stage's tests probe a 10-byte file read at offsets 0, 8, 10 and 1000, plus a 3 MB read.
-- **1a-02 Part 3 (`read_slot`):** call `read_full_at`, then `buf[n..].fill(0)` (the second example).
-- **1a-05 Part 3:** `read_log` uses the same `read_full_at` and returns `false` at or past the end, `true` with a zero-padded tail otherwise.
+- **1a-01:** writing and reading a page at a position of the file with `write_all_at` and `read_at`, with no cursor to move; a read of space the file does not have must give zeros.
+- **1a-03:** `read_log` reads from an offset the same way; it returns `false` at or past the end and zero-pads a short read.
 
 ### Where it is used
 

@@ -36,14 +36,14 @@ fn test_trie() -> Trie {
 #[test]
 fn s0a_01_an_empty_trie_has_no_values() {
     let trie = t();
-    assert!(trie.get::<u32>("").is_none());
-    assert!(trie.get::<u32>("anything").is_none());
-    assert!(trie.root().is_none());
+    assert!(trie.get::<u32>("").is_none(), "an empty trie has no values: expected `trie.get::<u32>(\"\").is_none()`");
+    assert!(trie.get::<u32>("anything").is_none(), "an empty trie has no values: expected `trie.get::<u32>(\"anything\").is_none()`");
+    assert!(trie.root().is_none(), "an empty trie has no values: expected `trie.root().is_none()`");
 }
 
 #[test]
 fn s0a_01_get_finds_the_value_at_the_end_of_the_key() {
-    assert_eq!(test_trie().get::<u32>("test"), Some(&233));
+    assert_eq!(test_trie().get::<u32>("test"), Some(&233), "get finds the value at the end of the key");
 }
 
 #[test]
@@ -51,30 +51,30 @@ fn s0a_01_a_prefix_that_holds_no_value_is_not_found() {
     let trie = test_trie();
     assert!(trie.get::<u32>("te").is_none(), "te only leads to test");
     assert!(trie.get::<u32>("tests").is_none(), "the key is longer than any stored");
-    assert!(trie.get::<u32>("").is_none());
-    assert!(trie.get::<u32>("tx").is_none());
+    assert!(trie.get::<u32>("").is_none(), "a prefix that holds no value is not found: expected `trie.get::<u32>(\"\").is_none()`");
+    assert!(trie.get::<u32>("tx").is_none(), "a prefix that holds no value is not found: expected `trie.get::<u32>(\"tx\").is_none()`");
 }
 
 #[test]
 fn s0a_01_the_requested_type_must_match_the_stored_one() {
     let trie = test_trie();
-    assert!(trie.get::<String>("test").is_none());
-    assert!(trie.get::<u64>("test").is_none());
-    assert_eq!(trie.get::<u32>("test"), Some(&233));
+    assert!(trie.get::<String>("test").is_none(), "the requested type must match the stored one: expected `trie.get::<String>(\"test\").is_none()`");
+    assert!(trie.get::<u64>("test").is_none(), "the requested type must match the stored one: expected `trie.get::<u64>(\"test\").is_none()`");
+    assert_eq!(trie.get::<u32>("test"), Some(&233), "the requested type must match the stored one");
 }
 
 #[test]
 fn s0a_01_the_empty_key_lives_in_the_root() {
     let trie = Trie::from_root(Some(value_node(vec![('a', value_node(vec![], 1u32))], String::from("empty-key"))));
-    assert_eq!(trie.get::<String>(""), Some(&String::from("empty-key")));
-    assert_eq!(trie.get::<u32>("a"), Some(&1));
+    assert_eq!(trie.get::<String>(""), Some(&String::from("empty-key")), "the empty key lives in the root");
+    assert_eq!(trie.get::<u32>("a"), Some(&1), "the empty key lives in the root");
 }
 
 #[test]
 fn s0a_01_a_node_can_have_a_value_and_children_and_both_are_found() {
     let trie = Trie::from_root(Some(plain_node(vec![('a', value_node(vec![('b', value_node(vec![], 2u32))], 1u32))])));
-    assert_eq!(trie.get::<u32>("a"), Some(&1));
-    assert_eq!(trie.get::<u32>("ab"), Some(&2));
+    assert_eq!(trie.get::<u32>("a"), Some(&1), "a node can have a value and children and both are found");
+    assert_eq!(trie.get::<u32>("ab"), Some(&2), "a node can have a value and children and both are found");
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn s0a_01_get_shared_gives_an_owner_of_the_value() {
     let shared = trie.get_shared::<String>("k").unwrap();
     drop(trie);
     assert_eq!(*shared, "v", "the value outlives the trie it came from");
-    assert!(test_trie().get_shared::<String>("test").is_none());
+    assert!(test_trie().get_shared::<String>("test").is_none(), "get shared gives an owner of the value: expected `test_trie().get_shared::<String>(\"test\").is_none()`");
 }
 
 // ---- 0a-02: put -------------------------------------------------------------------------------------------------------------------------
@@ -93,30 +93,30 @@ fn s0a_02_put_builds_one_node_per_character() {
     let trie = t().put("test", 233u32);
     let mut node = trie.root().unwrap();
     for c in ['t', 'e', 's', 't'] {
-        assert_eq!(node.children.len(), 1);
-        assert!(!node.is_value_node());
+        assert_eq!(node.children.len(), 1, "put builds one node per character");
+        assert!(!node.is_value_node(), "put builds one node per character: expected `!node.is_value_node()`");
         node = node.children.get(&c).unwrap();
     }
-    assert!(node.children.is_empty());
-    assert!(node.is_value_node());
+    assert!(node.children.is_empty(), "put builds one node per character: expected `node.children.is_empty()`");
+    assert!(node.is_value_node(), "put builds one node per character: expected `node.is_value_node()`");
 }
 
 #[test]
 fn s0a_02_put_replaces_a_value_even_with_another_type() {
     let trie = t().put("test", 233u32).put("test", 23333333u32);
-    assert_eq!(trie.get::<u32>("test"), Some(&23333333));
+    assert_eq!(trie.get::<u32>("test"), Some(&23333333), "put replaces a value even with another type");
     let trie = trie.put("test", String::from("23333333"));
-    assert_eq!(trie.get::<String>("test"), Some(&String::from("23333333")));
-    assert!(trie.get::<u32>("test").is_none());
+    assert_eq!(trie.get::<String>("test"), Some(&String::from("23333333")), "put replaces a value even with another type");
+    assert!(trie.get::<u32>("test").is_none(), "put replaces a value even with another type: expected `trie.get::<u32>(\"test\").is_none()`");
 }
 
 #[test]
 fn s0a_02_keys_that_are_prefixes_of_each_other_share_a_path() {
     let trie = t().put("111", 111u32).put("11", 11u32).put("1111", 1111u32).put("11", 22u32);
-    assert_eq!(trie.get::<u32>("11"), Some(&22));
-    assert_eq!(trie.get::<u32>("111"), Some(&111));
-    assert_eq!(trie.get::<u32>("1111"), Some(&1111));
-    assert!(trie.get::<u32>("1").is_none());
+    assert_eq!(trie.get::<u32>("11"), Some(&22), "keys that are prefixes of each other share a path");
+    assert_eq!(trie.get::<u32>("111"), Some(&111), "keys that are prefixes of each other share a path");
+    assert_eq!(trie.get::<u32>("1111"), Some(&1111), "keys that are prefixes of each other share a path");
+    assert!(trie.get::<u32>("1").is_none(), "keys that are prefixes of each other share a path: expected `trie.get::<u32>(\"1\").is_none()`");
 }
 
 #[test]
@@ -124,11 +124,11 @@ fn s0a_02_putting_never_changes_the_old_trie() {
     let one = t().put("test", 2333u32);
     let two = one.put("te", 23u32);
     let three = two.put("tes", 233u32);
-    assert!(one.get::<u32>("te").is_none());
-    assert!(two.get::<u32>("tes").is_none());
-    assert_eq!(three.get::<u32>("te"), Some(&23));
-    assert_eq!(three.get::<u32>("tes"), Some(&233));
-    assert_eq!(three.get::<u32>("test"), Some(&2333));
+    assert!(one.get::<u32>("te").is_none(), "putting never changes the old trie: expected `one.get::<u32>(\"te\").is_none()`");
+    assert!(two.get::<u32>("tes").is_none(), "putting never changes the old trie: expected `two.get::<u32>(\"tes\").is_none()`");
+    assert_eq!(three.get::<u32>("te"), Some(&23), "putting never changes the old trie");
+    assert_eq!(three.get::<u32>("tes"), Some(&233), "putting never changes the old trie");
+    assert_eq!(three.get::<u32>("test"), Some(&2333), "putting never changes the old trie");
 }
 
 #[test]
@@ -137,12 +137,12 @@ fn s0a_02_overwriting_keeps_the_other_versions_values() {
     let a = base.put("te", String::from("23"));
     let b = base.put("tes", String::from("233"));
     let c = base.put("test", String::from("2333"));
-    assert_eq!(base.get::<u32>("te"), Some(&23));
-    assert_eq!(a.get::<String>("te").map(String::as_str), Some("23"));
-    assert_eq!(a.get::<u32>("tes"), Some(&233));
-    assert_eq!(b.get::<String>("tes").map(String::as_str), Some("233"));
-    assert_eq!(b.get::<u32>("test"), Some(&2333));
-    assert_eq!(c.get::<String>("test").map(String::as_str), Some("2333"));
+    assert_eq!(base.get::<u32>("te"), Some(&23), "overwriting keeps the other versions values");
+    assert_eq!(a.get::<String>("te").map(String::as_str), Some("23"), "overwriting keeps the other versions values");
+    assert_eq!(a.get::<u32>("tes"), Some(&233), "overwriting keeps the other versions values");
+    assert_eq!(b.get::<String>("tes").map(String::as_str), Some("233"), "overwriting keeps the other versions values");
+    assert_eq!(b.get::<u32>("test"), Some(&2333), "overwriting keeps the other versions values");
+    assert_eq!(c.get::<String>("test").map(String::as_str), Some("2333"), "overwriting keeps the other versions values");
 }
 
 #[test]
@@ -153,15 +153,15 @@ fn s0a_02_only_the_path_is_copied_everything_else_is_shared() {
     assert!(!Arc::ptr_eq(old_root, new_root), "the root is on the path");
     assert!(Arc::ptr_eq(&old_root.children[&'x'], &new_root.children[&'x']), "the x branch is shared");
     assert!(Arc::ptr_eq(&old_root.children[&'a'].children[&'c'], &new_root.children[&'a'].children[&'c']), "the sibling leaf is shared");
-    assert!(!Arc::ptr_eq(&old_root.children[&'a'], &new_root.children[&'a']));
+    assert!(!Arc::ptr_eq(&old_root.children[&'a'], &new_root.children[&'a']), "only the path is copied everything else is shared: expected `!Arc::ptr_eq(&old_root.children[&'a'], &new_root.children[&'a'])`");
 }
 
 #[test]
 fn s0a_02_values_are_not_copied_and_need_not_be_clonable() {
     struct NoClone(u32);
     let trie = t().put("tes", Box::new(NoClone(233))).put("te", Box::new(NoClone(23))).put("test", Box::new(NoClone(2333)));
-    assert_eq!(trie.get::<Box<NoClone>>("te").unwrap().0, 23);
-    assert_eq!(trie.get::<Box<NoClone>>("test").unwrap().0, 2333);
+    assert_eq!(trie.get::<Box<NoClone>>("te").unwrap().0, 23, "values are not copied and need not be clonable");
+    assert_eq!(trie.get::<Box<NoClone>>("test").unwrap().0, 2333, "values are not copied and need not be clonable");
     let before = trie.get::<Box<NoClone>>("test").unwrap() as *const _;
     let trie = trie.put("tes", Box::new(NoClone(0)));
     let after = trie.get::<Box<NoClone>>("test").unwrap() as *const _;
@@ -173,9 +173,9 @@ fn s0a_02_values_are_not_copied_and_need_not_be_clonable() {
 #[test]
 fn s0a_03_remove_deletes_only_the_given_key() {
     let trie = t().put("test", 2333u32).put("te", 23u32).put("tes", 233u32).remove("tes");
-    assert!(trie.get::<u32>("tes").is_none());
-    assert_eq!(trie.get::<u32>("te"), Some(&23));
-    assert_eq!(trie.get::<u32>("test"), Some(&2333));
+    assert!(trie.get::<u32>("tes").is_none(), "remove deletes only the given key: expected `trie.get::<u32>(\"tes\").is_none()`");
+    assert_eq!(trie.get::<u32>("te"), Some(&23), "remove deletes only the given key");
+    assert_eq!(trie.get::<u32>("test"), Some(&2333), "remove deletes only the given key");
 }
 
 #[test]
@@ -184,9 +184,9 @@ fn s0a_03_removing_everything_leaves_an_empty_trie_with_no_root() {
     for k in ["", "te", "tes", "test"] {
         trie = trie.remove(k);
     }
-    assert!(trie.root().is_none());
+    assert!(trie.root().is_none(), "removing everything leaves an empty trie with no root: expected `trie.root().is_none()`");
     for k in ["", "te", "tes", "test"] {
-        assert!(trie.get::<u32>(k).is_none());
+        assert!(trie.get::<u32>(k).is_none(), "removing everything leaves an empty trie with no root: expected `trie.get::<u32>(k).is_none()`");
     }
 }
 
@@ -195,15 +195,15 @@ fn s0a_03_nodes_with_no_value_and_no_children_are_pruned() {
     let trie = t().put("test", 2333u32).put("te", 23u32).put("tes", 233u32).remove("tes").remove("test");
     let te = &trie.root().unwrap().children[&'t'].children[&'e'];
     assert!(te.children.is_empty(), "s and t were pruned");
-    assert!(te.is_value_node());
+    assert!(te.is_value_node(), "nodes with no value and no children are pruned: expected `te.is_value_node()`");
 }
 
 #[test]
 fn s0a_03_a_node_that_still_leads_somewhere_stays() {
     let trie = t().put("test", 1u32).put("te", 2u32).remove("te");
-    assert!(trie.get::<u32>("te").is_none());
-    assert_eq!(trie.get::<u32>("test"), Some(&1));
-    assert!(!trie.root().unwrap().children[&'t'].children[&'e'].is_value_node());
+    assert!(trie.get::<u32>("te").is_none(), "a node that still leads somewhere stays: expected `trie.get::<u32>(\"te\").is_none()`");
+    assert_eq!(trie.get::<u32>("test"), Some(&1), "a node that still leads somewhere stays");
+    assert!(!trie.root().unwrap().children[&'t'].children[&'e'].is_value_node(), "a node that still leads somewhere stays: expected `!trie.root().unwrap().children[&'t'].children[&'e'].is_value_node()`");
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn s0a_03_removing_a_missing_key_changes_nothing() {
         let same = trie.remove(k);
         assert_eq!(same.get::<u32>("test"), Some(&1), "{k}");
     }
-    assert!(t().remove("x").root().is_none());
+    assert!(t().remove("x").root().is_none(), "removing a missing key changes nothing: expected `t().remove(\"x\").root().is_none()`");
 }
 
 #[test]
@@ -222,13 +222,13 @@ fn s0a_03_removing_never_changes_the_old_trie() {
     let trie4 = trie3.remove("te");
     let trie5 = trie3.remove("tes");
     let trie6 = trie3.remove("test");
-    assert_eq!(trie3.get::<u32>("te"), Some(&23));
-    assert!(trie4.get::<u32>("te").is_none());
-    assert_eq!(trie4.get::<u32>("tes"), Some(&233));
-    assert!(trie5.get::<u32>("tes").is_none());
-    assert_eq!(trie5.get::<u32>("test"), Some(&2333));
-    assert!(trie6.get::<u32>("test").is_none());
-    assert_eq!(trie6.get::<u32>("te"), Some(&23));
+    assert_eq!(trie3.get::<u32>("te"), Some(&23), "removing never changes the old trie");
+    assert!(trie4.get::<u32>("te").is_none(), "removing never changes the old trie: expected `trie4.get::<u32>(\"te\").is_none()`");
+    assert_eq!(trie4.get::<u32>("tes"), Some(&233), "removing never changes the old trie");
+    assert!(trie5.get::<u32>("tes").is_none(), "removing never changes the old trie: expected `trie5.get::<u32>(\"tes\").is_none()`");
+    assert_eq!(trie5.get::<u32>("test"), Some(&2333), "removing never changes the old trie");
+    assert!(trie6.get::<u32>("test").is_none(), "removing never changes the old trie: expected `trie6.get::<u32>(\"test\").is_none()`");
+    assert_eq!(trie6.get::<u32>("te"), Some(&23), "removing never changes the old trie");
 }
 
 // ---- 0a-04: the store ------------------------------------------------------------------------------------------------------------------
@@ -236,11 +236,11 @@ fn s0a_03_removing_never_changes_the_old_trie() {
 #[test]
 fn s0a_04_put_get_remove() {
     let store = TrieStore::new();
-    assert!(store.get::<u32>("233").is_none());
+    assert!(store.get::<u32>("233").is_none(), "put get remove: expected `store.get::<u32>(\"233\").is_none()`");
     store.put("233", 2333u32);
-    assert_eq!(*store.get::<u32>("233").unwrap(), 2333);
+    assert_eq!(*store.get::<u32>("233").unwrap(), 2333, "put get remove");
     store.remove("233");
-    assert!(store.get::<u32>("233").is_none());
+    assert!(store.get::<u32>("233").is_none(), "put get remove: expected `store.get::<u32>(\"233\").is_none()`");
 }
 
 #[test]
@@ -249,8 +249,8 @@ fn s0a_04_a_guard_stays_valid_after_the_key_is_removed() {
     store.put("233", String::from("2333"));
     let guard = store.get::<String>("233").unwrap();
     store.remove("233");
-    assert!(store.get::<String>("233").is_none());
-    assert_eq!(*guard, "2333");
+    assert!(store.get::<String>("233").is_none(), "a guard stays valid after the key is removed: expected `store.get::<String>(\"233\").is_none()`");
+    assert_eq!(*guard, "2333", "a guard stays valid after the key is removed");
 }
 
 #[test]
@@ -259,8 +259,8 @@ fn s0a_04_a_guard_sees_the_version_it_was_taken_from() {
     store.put("k", 1u32);
     let old = store.get::<u32>("k").unwrap();
     store.put("k", 2u32);
-    assert_eq!(*old, 1);
-    assert_eq!(*store.get::<u32>("k").unwrap(), 2);
+    assert_eq!(*old, 1, "a guard sees the version it was taken from");
+    assert_eq!(*store.get::<u32>("k").unwrap(), 2, "a guard sees the version it was taken from");
 }
 
 #[test]
@@ -269,9 +269,9 @@ fn s0a_04_values_need_not_be_clonable() {
     let store = TrieStore::new();
     store.put("tes", Box::new(NoClone(233)));
     store.put("te", Box::new(NoClone(23)));
-    assert_eq!(store.get::<Box<NoClone>>("te").unwrap().0, 23);
+    assert_eq!(store.get::<Box<NoClone>>("te").unwrap().0, 23, "values need not be clonable");
     store.remove("te");
-    assert!(store.get::<Box<NoClone>>("te").is_none());
+    assert!(store.get::<Box<NoClone>>("te").is_none(), "values need not be clonable: expected `store.get::<Box<NoClone>>(\"te\").is_none()`");
 }
 
 #[test]
@@ -317,7 +317,7 @@ fn s0a_04_four_writers_and_four_readers() {
     }
     for i in 0..per_thread * 4 {
         let guard = store.get::<String>(&key(i)).unwrap_or_else(|| panic!("key {i} was lost: two writers started from the same version"));
-        assert_eq!(*guard, format!("new-value-{i:08}"));
+        assert_eq!(*guard, format!("new-value-{i:08}"), "four writers and four readers");
     }
 }
 
@@ -338,7 +338,7 @@ fn s0a_04_readers_are_not_blocked_by_a_writer_building_a_big_trie() {
     // while the writer runs, readers keep finding what is already there
     while !writer.is_finished() {
         for i in (0..1000u32).step_by(97) {
-            assert_eq!(*store.get::<u32>(&format!("{i:04}")).unwrap(), i);
+            assert_eq!(*store.get::<u32>(&format!("{i:04}")).unwrap(), i, "readers are not blocked by a writer building a big trie");
         }
     }
     writer.join().unwrap();
@@ -363,13 +363,13 @@ fn s0a_05_mixed_test() {
     let fin = trie;
     for i in 0..23333u32 {
         let key = format!("{i:05}");
-        assert_eq!(full.get::<String>(&key), Some(&format!("value-{i:08}")));
+        assert_eq!(full.get::<String>(&key), Some(&format!("value-{i:08}")), "mixed test");
         let want = if i % 2 == 0 { format!("new-value-{i:08}") } else { format!("value-{i:08}") };
-        assert_eq!(overridden.get::<String>(&key), Some(&want));
+        assert_eq!(overridden.get::<String>(&key), Some(&want), "mixed test");
         if i % 3 == 0 {
-            assert!(fin.get::<String>(&key).is_none());
+            assert!(fin.get::<String>(&key).is_none(), "mixed test: expected `fin.get::<String>(&key).is_none()`");
         } else {
-            assert_eq!(fin.get::<String>(&key), Some(&want));
+            assert_eq!(fin.get::<String>(&key), Some(&want), "mixed test");
         }
     }
 }
@@ -380,15 +380,15 @@ fn s0a_05_copy_on_write_tests_with_the_empty_key() {
     let trie4 = trie3.put("te", String::from("23"));
     let trie5 = trie3.put("", String::from("233"));
     let trie6 = trie3.put("test", String::from("2333"));
-    assert_eq!(trie3.get::<u32>("te"), Some(&23));
-    assert_eq!(trie3.get::<u32>(""), Some(&233));
-    assert_eq!(trie3.get::<u32>("test"), Some(&2333));
-    assert_eq!(trie4.get::<String>("te").map(String::as_str), Some("23"));
-    assert_eq!(trie4.get::<u32>(""), Some(&233));
-    assert_eq!(trie5.get::<String>("").map(String::as_str), Some("233"));
-    assert_eq!(trie5.get::<u32>("test"), Some(&2333));
-    assert_eq!(trie6.get::<String>("test").map(String::as_str), Some("2333"));
-    assert_eq!(trie6.get::<u32>(""), Some(&233));
+    assert_eq!(trie3.get::<u32>("te"), Some(&23), "copy on write tests with the empty key");
+    assert_eq!(trie3.get::<u32>(""), Some(&233), "copy on write tests with the empty key");
+    assert_eq!(trie3.get::<u32>("test"), Some(&2333), "copy on write tests with the empty key");
+    assert_eq!(trie4.get::<String>("te").map(String::as_str), Some("23"), "copy on write tests with the empty key");
+    assert_eq!(trie4.get::<u32>(""), Some(&233), "copy on write tests with the empty key");
+    assert_eq!(trie5.get::<String>("").map(String::as_str), Some("233"), "copy on write tests with the empty key");
+    assert_eq!(trie5.get::<u32>("test"), Some(&2333), "copy on write tests with the empty key");
+    assert_eq!(trie6.get::<String>("test").map(String::as_str), Some("2333"), "copy on write tests with the empty key");
+    assert_eq!(trie6.get::<u32>(""), Some(&233), "copy on write tests with the empty key");
 }
 
 #[test]
@@ -407,11 +407,11 @@ fn s0a_05_trie_store_mixed_test() {
         let key = format!("{i:05}");
         let got = store.get::<String>(&key);
         if i % 3 == 0 {
-            assert!(got.is_none());
+            assert!(got.is_none(), "trie store mixed test: expected `got.is_none()`");
         } else if i % 2 == 0 {
-            assert_eq!(*got.unwrap(), format!("new-value-{i:08}"));
+            assert_eq!(*got.unwrap(), format!("new-value-{i:08}"), "trie store mixed test");
         } else {
-            assert_eq!(*got.unwrap(), format!("value-{i:08}"));
+            assert_eq!(*got.unwrap(), format!("value-{i:08}"), "trie store mixed test");
         }
     }
 }
@@ -422,9 +422,9 @@ fn s0a_05_pointer_stability_and_noncopyable_values() {
     let before = trie.get::<u32>("test").unwrap() as *const u32;
     let trie = trie.put("tes", 233u32).put("te", 23u32);
     let after = trie.get::<u32>("test").unwrap() as *const u32;
-    assert_eq!(before, after);
+    assert_eq!(before, after, "pointer stability and noncopyable values");
     let boxed = Trie::new().put("tes", Box::new(233u32)).put("te", Box::new(23u32)).put("test", Box::new(2333u32));
-    assert_eq!(**boxed.get::<Box<u32>>("te").unwrap(), 23);
+    assert_eq!(**boxed.get::<Box<u32>>("te").unwrap(), 23, "pointer stability and noncopyable values");
     let boxed = boxed.remove("te").remove("tes").remove("test");
-    assert!(boxed.get::<Box<u32>>("te").is_none());
+    assert!(boxed.get::<Box<u32>>("te").is_none(), "pointer stability and noncopyable values: expected `boxed.get::<Box<u32>>(\"te\").is_none()`");
 }

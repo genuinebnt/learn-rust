@@ -138,9 +138,9 @@ export function ConceptsTab({ course, page, queryKey }: { course: string; page: 
                             </span>
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <b style={{ fontSize: 17, letterSpacing: "-.01em" }}>{req.length === 0 ? "Nothing required to read" : done === req.length ? "Required reading done" : `Required reading: ${done} of ${req.length} done`}</b>
+                            <b style={{ fontSize: 17, letterSpacing: "-.01em" }}>{req.length === 0 ? "Rust and systems notes: all optional" : done === req.length ? "Required reading done" : `Required reading: ${done} of ${req.length} done`}</b>
                             <div style={{ color: "var(--dim)", fontSize: 13.5, marginTop: 2 }}>
-                                {req.length === 0 ? "These articles are further reading." : done === req.length ? "Nice. The optional articles go deeper when you want them." : `About ${left} minutes left. You can pass the stage without it; it saves you the hints.`}
+                                {req.length === 0 ? "Pull one in when you want it: an idea you have not met, a compiler error you do not understand, or a design question. The stage works without them." : done === req.length ? "Nice. The optional articles go deeper when you want them." : `About ${left} minutes left. You can pass the stage without it; it saves you the hints.`}
                             </div>
                         </div>
                         {page.concepts.some((k) => !k.required) && (

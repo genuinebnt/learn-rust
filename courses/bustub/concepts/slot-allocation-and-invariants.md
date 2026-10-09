@@ -256,8 +256,8 @@ fn concurrent_writers_with_one_lock_keep_the_invariant() {
 
 ### In the exercises
 
-- **1a-03 (`write_page` and `read_page`):** `write_page` is the lookup-then-allocate shape above (Part 2); `read_page` of an unknown page returns zeros without allocating (Part 3).
-- **1a-04 (grow the file and reuse slots):** `grow` doubles with the fallible step first (Part 1); `delete_page` pushes the slot onto the free list (Part 2).
+- **1a-01 (`write_page` and `read_page`):** the lookup-then-allocate shape above; a page never written reads as zeros without allocating.
+- **1a-02 (delete and reuse):** deleting frees the page's place, new pages use freed places before growing the file, and growth is by doubling: the file-size property checks the effect, not the method.
 - **Debugging tool:** paste `check()` into your `DiskManager` under `#[cfg(debug_assertions)]` and call it at the end of each method that changes the table, the free list or the counters.
 
 ### Where it is used

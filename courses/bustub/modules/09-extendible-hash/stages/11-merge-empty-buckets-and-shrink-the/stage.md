@@ -8,11 +8,14 @@ This is the hardest control flow in the module: a loop with several exit conditi
 
 ### The task
 
-In `remove` (and the helper `merge_empty_buckets`) in `src/container/disk/hash/disk_extendible_hash_table.rs`: after a removal leaves the bucket **empty**, release the bucket's latch and, holding the directory's write latch, repeat:
-1. if the bucket's local depth is 0, stop;
-2. find its **split image** slot; if the image's local depth differs, stop (the sibling has split further and can't absorb this bucket);
-3. if neither bucket is empty, stop. Otherwise keep the non-empty one (either, if both are empty): point **all** the slots of the other at the survivor, **decrease the local depth** of all the survivor's slots, and delete the dropped page from the pool (`bpm.delete_page`);
-4. continue with a slot that points at the survivor (it may be empty too, or its new split image may be).
+In `remove` (and the helper `merge_empty_buckets`) in `src/container/disk/hash/disk_extendible_hash_table.rs`: after a removal leaves the bucket **empty**, release the bucket's latch and, holding the directory's write latch, repeat.
+After `remove` leaves a bucket empty, it is merged into its split image whenever that is allowed, repeatedly. A merge is allowed when the bucket's local depth is above 0, its split image has the **same** local depth, and at least one of the two is empty. After a merge every slot of either bucket points at the survivor with its local depth lowered by one, the dropped page is deleted from the pool (only once nothing points at it), and `verify_integrity` holds. The directory's write latch is held throughout; the bucket's is released first. The check then repeats from a slot that points at the survivor (it may be empty too, or its new split image may be), and the directory finally shrinks as far as `can_shrink` allows.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. if the bucket's local depth is 0, stop;
+> 2. find its **split image** slot; if the image's local depth differs, stop (the sibling has split further and can't absorb this bucket);
+> 3. if neither bucket is empty, stop. Otherwise keep the non-empty one (either, if both are empty): point **all** the slots of the other at the survivor, **decrease the local depth** of all the survivor's slots, and delete the dropped page from the pool (`bpm.delete_page`);
+> 4. continue with a slot that points at the survivor (it may be empty too, or its new split image may be).
 
 ### Tests
 

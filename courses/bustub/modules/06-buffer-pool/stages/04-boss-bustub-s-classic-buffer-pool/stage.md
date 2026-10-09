@@ -48,6 +48,13 @@ std::strncpy(page0->GetData(), random_binary_data, BUSTUB_PAGE_SIZE);   // the o
 | `EXPECT_NE(nullptr, bpm->NewPage(&id))` | `assert!(bpm.fetch_page(..).is_some())` |
 | `delete bpm; delete disk_manager;` at the end | `Drop` |
 
+## Experiment
+
+Optional. Predict first, then run it.
+
+1. **Count the disk.** In `sample_test`, read the disk manager's counters (`num_writes`, and a read counter if you add one) before and after. Predict how many writes the test causes, then check. Which pages are written, and why those?
+2. **Swap the policy.** Run the same workload with your LRU replacer and with LRU-K (`k = 2`) behind the buffer pool. Which writes fewer pages? Build a workload that makes the other one win.
+
 ## What you built
 
 A buffer pool: pin counts, a page table, free frames, eviction through a replacer you wrote, write-back of dirty pages, flush and delete. It is the layer every later module sits on. Next: **page guards**, which make pinning and latching impossible to forget.

@@ -1,24 +1,35 @@
 ---
 title: Unique indexes under MVCC: tombstones and reusing a rid
-summary: Why an index entry cannot be removed when a tuple is deleted, how the index becomes the arbiter of a primary key, and how an insert of a key whose tuple is a tombstone reuses the rid instead of making a second tuple.
-minutes: 8
+summary: Why an index entry cannot be removed when a tuple is deleted, how the index becomes the arbiter of a primary key, and how inserting a key whose tuple is a tombstone reuses the rid instead of making a second tuple.
+minutes: 12
 ---
-A primary-key index maps each key to a rid. Under MVCC three facts make it awkward:
+A table `users` has a primary key `id`, and the primary-key index maps each id to the rid of its tuple. Three transactions touch the user with id 2. Transaction T1 deletes the row and commits at timestamp 6. Transaction T2 started at timestamp 4 and is still running: it asked for a snapshot of the world at 4, and at 4 user 2 existed. Transaction T3 starts at timestamp 9 and inserts a user with id 2 again, a different person with the same number.
 
-1. **A delete is not final.** Until every reader that can see the tuple is gone (and the delete is committed), the deleting transaction can abort, and older readers can still see the tuple. The tuple stays in the table as a *tombstone*, and so does its index entry.
-2. **Visibility is per reader.** The index says "key 5 is at rid 7". Whether a reader *sees* a tuple at rid 7 depends on its snapshot. The index lookup therefore returns a rid, and the reader reconstructs the version it may see (possibly none).
-3. **Two transactions may insert the same new key at once.** The index must decide which one wins.
+Everything about this module's rules follows from asking what each of the three must be able to do.
 
-## The rules
+## Why a delete cannot touch the index
 
-- **Never remove an entry on delete.** The tombstone keeps its entry; deleting is only `is_deleted = true` plus an undo log.
-- **Look the key up before inserting.**
-  - No entry: insert the tuple into the table (new rid, temporary timestamp), then insert the entry. If the entry insert fails, another transaction got the key first: bury the tuple you just made and fail (write-write conflict).
-  - Entry, and the tuple at its rid is **live** (not deleted): duplicate key: the inserting transaction is tainted and the statement fails.
-  - Entry, and the tuple is a **tombstone**: reuse the rid. Make the tombstone live again with the new values, as a normal in-place change: write-write conflict check, an undo log "the previous version was a deleted tuple" with the tombstone's timestamp, the head link moved onto it.
-- **Updating a key is a delete plus an insert**, not an in-place change of the key column: the old key's entry stays and points to a tombstone, the new key gets an entry (or reuses a tombstone). Do all deletes first, then all inserts, so that `SET k = k + 1` over keys 1..4 can reuse the tombstones it has just made (key 2 is the tombstone of the old row 1's neighbour, and so on).
+When T1 deleted the row, the obvious tidy-up was to remove the index entry for key 2: the key no longer exists, so why keep a path to it? But T2 must still read user 2. It looks up key 2 in the index, gets the rid, reads the tuple at that rid, and rebuilds the version it is allowed to see by following the undo logs, which is exactly what the previous article described. If the entry were gone, T2 would find nothing and would wrongly conclude that user 2 never existed.
 
-A lookup through the index never needs the key to be re-checked against the reconstructed tuple: a rid belongs to one key for its whole life.
+There is a second reason, which is that T1 might not have committed yet. Until it does, it can still abort, and aborting means restoring the tuple. An entry that was removed for a delete that never happened would have to be put back, and a concurrent insert could have taken its place in between.
+
+So the rule is simple and absolute: **a delete never removes an index entry.** Deleting a tuple sets `is_deleted = true` on the tuple's metadata and leaves an undo log, and that is all. The row is now a **tombstone**: still in the table, still reachable through the index, but invisible to any transaction whose snapshot is after the delete. A full system removes the entry much later, once no reader can possibly need it; this course never does.
+
+## The index decides; visibility is the reader's business
+
+Two different questions get mixed up here. "Does this key exist in the table?" and "Can *I* see a row with this key?" have different answers for different transactions, and the index can only answer a crude version of the first. The index says "key 2 is at rid 7". It says nothing about timestamps. A reader at timestamp 4 gets rid 7 and reconstructs a row. A reader at timestamp 7 gets rid 7, finds the tombstone, and sees no tuple. Both are right, and neither re-checks that the row's key equals the key it searched for: a rid belongs to one key for its entire life, so that check would never fail.
+
+That crude answer is still exactly what a unique constraint needs, because uniqueness is about the future as well as the present. The index is the one place where two transactions that both want key 2 meet.
+
+## Inserting a key: three cases
+
+Look the key up first, then decide.
+
+**No entry.** The key has never been used. Insert the tuple into the table first, with the transaction's temporary timestamp, because the index entry needs a rid to point to, and then insert the entry `key → rid`. There is a race here: two transactions can both find no entry and both insert a tuple. The entry insert is the arbiter: the first one succeeds, and the second one's `insert_entry` fails. That second transaction now owns a tuple that nobody will ever point to. It must **bury** it (mark it deleted so no scan returns it) and fail with a write-write conflict.
+
+**An entry, and the tuple at its rid is live.** The key is in use by a row that exists. This is a duplicate-key error. The transaction is tainted, and the statement fails. No tuple is created.
+
+**An entry, and the tuple at its rid is a tombstone.** This is T3's case. The key's row was deleted, so the key is free to use, but its index entry is still there and still points at rid 7. Making a second tuple for key 2 would give the key two rids, and the index can store only one. So T3 **reuses the rid**: it brings the tombstone back to life with its new values, and it does so as an ordinary in-place change. That means everything an update does: a write-write conflict check, an undo log that says "the previous version of this tuple was a deleted one, as of the tombstone's timestamp", and the chain's head link moved onto that log. The figure shows the result. The rid and the index entry never change; the chain says who sees what.
 
 ```svg
 caption: Key 2 across three transactions. The rid never changes; the chain says who sees what.
@@ -33,6 +44,18 @@ caption: Key 2 across three transactions. The rid never changes; the chain says 
 </svg>
 ```
 
+Read the figure with the three transactions in mind. A reader at timestamp 9 or later sees the new row, `(2, 7)`. A reader whose snapshot is at 6, 7 or 8 sees no tuple, because the delete had happened and the reinsert had not. A reader at 2 to 5 sees `(2, 5)`, the original row; that is T2. One entry in the index serves all of them.
+
+## Updating a key is a delete and an insert
+
+What if an `UPDATE` changes the key itself, as in `SET id = id + 1`? It cannot be an in-place change of one column, because the index is organised by that column. The old key's entry must stay, pointing at a tombstone for the benefit of older readers; the new key needs its own entry, or the tombstone of that key to reuse. So a key update is a delete of the old row followed by an insert of the new one.
+
+The order has a trap in it. Suppose the table holds keys 1, 2, 3 and 4 and the statement is `SET id = id + 1`. If you process row by row, delete 1 then insert 2, the insert finds an entry for key 2 whose tuple is still live (row 2 has not been deleted yet) and reports a duplicate, although the statement as a whole is perfectly valid. The fix is to do **all the deletes first and then all the inserts**: after the deletes, keys 1 to 4 are tombstones, the inserts of 2, 3 and 4 find tombstones and reuse them, and only key 5 needs a new tuple.
+
+## Where it goes wrong
+
+The failures here are quiet. Removing an entry on delete passes every single-transaction test and breaks the first reader that started before the delete. Creating a second tuple for a tombstoned key leaves the index pointing at the old rid, so a later lookup finds a stale tombstone. Burying the loser's tuple is easy to forget, and the leftover shows up as a phantom row in a full scan. Deciding on a duplicate from the index alone, without looking at whether the tuple at the rid is live, turns every re-insert after a delete into an error. And processing a key update row by row produces spurious duplicate errors that depend on the order of the rows, which is how they escape tests that use one row.
+
 ## C++ comparison
 
 | C / C++ | Rust |
@@ -42,6 +65,14 @@ caption: Key 2 across three transactions. The rid never changes; the chain says 
 | tombstone reuse via `UpdateTupleInPlace` with a check lambda | `modify_tuple` (the same write path as an update) |
 
 **Port rule:** a unique-index insert is "lookup, then decide among no entry / live / tombstone", and the decision is final only when the index insert succeeds.
+
+## Try it yourself
+
+1. Keys 5, 6 and 7 exist and are live. One transaction runs `SET id = id - 1` over all three. Write the sequence of deletes and inserts, say for each insert which of the three cases it hits, and say how many new tuples are created. What happens with the order "delete 5, insert 4, delete 6, insert 5, delete 7, insert 6"?
+2. T1 and T2 both insert key 9, which has no entry. Walk through every interleaving of "insert tuple" and "insert entry" for the two. In which does the loser end up with an orphaned tuple, and what must it do?
+3. A reader at timestamp 7 looks up key 2 in the figure and gets the tombstone. What does `reconstruct_tuple` return, and why does the reader not need the index to tell it that the tuple is gone?
+4. **Kata (a week from now).** In a blank file, write the `Table` with `insert`, `delete` and the three-way decision from the test below, and make the update-a-key test pass, without looking at it.
+5. **Experiment.** Insert 100 000 keys, delete half, then insert 50 000 new keys that were deleted earlier. Count tuples in the table before and after. Predict the numbers, then check that the table did not grow.
 
 ## In real code
 

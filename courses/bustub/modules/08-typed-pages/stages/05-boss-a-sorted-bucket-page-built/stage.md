@@ -39,6 +39,13 @@ bucket_page->Init(10);   bucket_page->Insert(index_key, rid, comparator);
 | the page class has `Init()`, because the constructor is deleted (the object is "placed" onto existing bytes) | the view is built from bytes each time; `init` writes the header fields |
 | `DISALLOW_COPY_AND_MOVE` so nobody copies a "page object" | there is no page object to copy: only bytes and short-lived views |
 
+## Experiment
+
+Optional. Predict first, then run it.
+
+1. **Linear versus binary.** Replace `lower_bound` with a linear scan and time the insert of 200 keys into one page, then compute the same for the largest page you can build. At what number of entries does binary search start to win on your machine? Does that number depend on the key size?
+2. **How full is a page?** With 8-byte keys, `Rid` values and an 8-byte header, how many entries does `capacity` report for a page of 8 192 bytes? Work it out on paper first.
+
 ## What you built
 
 A safe, typed view layer over raw pages: no `unsafe`, no `reinterpret_cast`, explicit byte order, checked layouts. Next: the **extendible hash table**.

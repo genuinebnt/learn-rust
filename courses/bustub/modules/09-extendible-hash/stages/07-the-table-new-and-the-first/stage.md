@@ -57,10 +57,13 @@ DiskExtendibleHashTable(const std::string &name, BufferPoolManager *bpm, const K
 
 ### The task
 
-In `insert` (and its helpers `insert_to_new_directory`, `insert_to_new_bucket`) in `src/container/disk/hash/disk_extendible_hash_table.rs`:
-1. hash the key; **write-latch the header**; find the header slot for the hash;
-2. if that slot has no directory (`INVALID`): allocate a page, make it a directory (`init(directory_max_depth)`), record its id in the header slot, compute the directory slot for the hash (`hash_to_bucket_index`), and **insert to a new bucket**: allocate a page, `init(bucket_max_size)`, point the directory slot at it with local depth 0, and insert the pair into it. Return that insert's result.
-3. otherwise, for now, `return false` (stage 17).
+In `insert` (and its helpers `insert_to_new_directory`, `insert_to_new_bucket`) in `src/container/disk/hash/disk_extendible_hash_table.rs`.
+When the key's header slot has no directory yet, `insert` creates one: afterwards the header slot names a new directory page (initialised with `directory_max_depth`) whose slot for this hash points at a new bucket of local depth 0 (initialised with `bucket_max_size`), the pair is in that bucket, and `insert` returns what inserting into that bucket returns. The header is write-latched throughout. A header slot that already has a directory is stage 17: for now, `return false`.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. hash the key; **write-latch the header**; find the header slot for the hash;
+> 2. if that slot has no directory (`INVALID`): allocate a page, make it a directory (`init(directory_max_depth)`), record its id in the header slot, compute the directory slot for the hash (`hash_to_bucket_index`), and **insert to a new bucket**: allocate a page, `init(bucket_max_size)`, point the directory slot at it with local depth 0, and insert the pair into it. Return that insert's result.
+> 3. otherwise, for now, `return false` (stage 17).
 
 ### Tests
 

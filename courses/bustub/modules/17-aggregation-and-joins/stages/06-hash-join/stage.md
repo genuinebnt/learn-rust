@@ -2,6 +2,13 @@ A nested loop join compares every left tuple with every right tuple. When the pr
 
 BusTub's `HashJoinPlanNode` carries the two lists of key expressions (`left_key_expressions`, `right_key_expressions`); the optimizer rule that turns an equality nested loop join into one is yours in module 3h. This stage writes the executor, tested with plans built by hand.
 
+> [!CHECK] Two rows have NULL in their join columns, and the join condition is `a.x = b.y`. What does the condition evaluate to? Does the hash join match them? What does an INNER join output for the left row, and what does a LEFT join?
+> ||The condition is NULL, not true, so they never match; the hash join must therefore never put a NULL key in the table or probe with one. An INNER join drops the left row; a LEFT join outputs it once with NULLs for the right columns.||
+>
+> - What does `join_key` return for a key that contains a NULL?
+> - What does a probe with no match do for each join type?
+> - Which rows of the right side can never be found?
+
 ## The task
 
 In `src/execution/executors/hash_join_executor.rs` (the struct, `new`, the `TupleStream`s, `unmatched_output` for stage 7 are given; the key type is stage 1's `AggregateKey`):

@@ -44,6 +44,13 @@ int value;  lru_replacer.Victim(&value);  EXPECT_EQ(1, value);
 | `int value; Victim(&value); EXPECT_EQ(1, value);` | `assert_eq!(Some(FrameId(1)), lru_replacer.victim());` |
 | `DISABLED_SampleTest` (students enable it) | enabled |
 
+## Experiment
+
+Optional. Predict first, then run it.
+
+1. **Find the difference.** The notes say the two policies disagree once frames are re-accessed unevenly. Write a randomised test that feeds the same random `unpin` / `pin` / `victim` sequence to both and prints the first sequence where they disagree. Before you run it: does such a sequence exist for the rules you implemented? Explain the smallest one you find.
+2. **What the reference bit buys.** Which of the two does more work per `unpin`, and which per `victim`? Count the steps in each (a counter in your code is enough) over 100 000 random operations.
+
 ## What you built
 
 A generational index list, an O(1) LRU replacer, and a CLOCK replacer. Next: **LRU-K**, the policy BusTub's buffer pool actually used for years, which fixes LRU's weakness against sequential scans.

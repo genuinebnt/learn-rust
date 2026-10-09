@@ -151,7 +151,7 @@ fn write_exists_only_on_an_open_file() {
 
 ### In the exercises
 
-- **1a-03:** `PageId` and slot numbers; the page table maps one to the other.
+- **1a-01:** `PageId` is a newtype over `i32`; wherever your design also stores a slot or offset, a second newtype keeps the two from being mixed up.
 - **2a:** `PageId`, `Rid` and typed page layouts.
 - **4a-01 / 4a-02:** `Timestamp` and `TxnId` are aliases; try mixing a read timestamp with an id in a test and see nothing stop you.
 - **0c-01:** capacity validated at construction.

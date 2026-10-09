@@ -5,3 +5,4 @@ difficulty = "hard"
 tests = ["stages_2d::s2d_02"]
 learn = ["deleting by marking, and paying for it later", "bringing a deleted key back with a new value", "a scan that steps over deleted pairs"]
 concepts = ["tombstones-and-lazy-deletion", "range-scans-and-the-leaf-chain", "optimistic-latching"]
+concepts_optional = ["const-generics-for-page-layouts"]

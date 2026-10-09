@@ -28,6 +28,13 @@ Make these pass:
 | `BPlusTree<GenericKey<8>, RID, GenericComparator<8>, 2> tree(...)` | `BPlusTree::<Key, Rid, Cmp, 2>::new(...)` (a const generic argument) |
 | `InsertTest1Call<3>()` (a function template called with a constant) | `fn insert_test_1_call<const T: usize>()` called as `insert_test_1_call::<3>()` |
 
+## Experiment
+
+Optional. Predict first, then run it.
+
+1. **What a tombstone saves.** Delete 10 000 keys from a tree of 100 000 with `TOMBS = 0`, then with `TOMBS = 3`. Flush the pool and compare the disk's `num_writes` for the two runs. Predict which is smaller and by roughly how much, then explain the difference page by page.
+2. **When it stops helping.** Make the workload alternate delete and re-insert of the same key. What happens to the tombstone buffer, and is `TOMBS = 3` still worth it?
+
 ## Learn more
 - [BusTub's tombstone test](https://github.com/cmu-db/bustub/blob/master/test/storage/b_plus_tree_tombstone_test.cpp)
 

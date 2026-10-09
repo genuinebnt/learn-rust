@@ -1,5 +1,12 @@
 `put` returns a **new trie** with a value under a key and leaves the old trie as it was. The new trie must not copy the whole old one: it creates new nodes only along the path from the root to the key and **shares** every other node with the old version.
 
+> [!CHECK] A trie holds the keys "ab" and "ac". You `put` the key "ad". Which nodes of the new trie are new copies, which are shared with the old trie, and what does the old trie still contain?
+> ||The root and the node for "a" are copies (the path to the change), plus a new node for "d". The nodes for "ab" and "ac" are shared with the old trie. The old trie is unchanged: it still has "ab" and "ac" and not "ad".||
+>
+> - Which nodes lie on the path from the root to the new key?
+> - What does cloning a node with `Arc` children copy?
+> - Why must the old root stay valid?
+
 ## The task
 
 In `src/primer/trie.rs`: `Trie::put::<T>(&self, key, value: T) -> Trie`. The recursive helper `put_at(node, key, value)` is part of the region: given the old node at this position (if any) and the rest of the key, it returns the new node:

@@ -104,11 +104,14 @@ Thread W holds the **write guard** on page P. Thread F calls `flush_page(P)`. Yo
 
 ### The task
 
-Rewrite `flush_page` in `src/buffer/buffer_pool_manager.rs` so that it never waits for a frame latch while holding the pool lock:
-1. under the lock: find the frame (return `false` if the page isn't resident), **pin** it (so it can't be evicted meanwhile), mark it not evictable, clear its dirty flag; **release the lock**;
-2. take the frame's **read latch** (this may wait, and that's fine now), copy the bytes, release the latch;
-3. write the copy with `write_page_data`;
-4. `unpin_page(page_id, false)`; return `true`.
+Rewrite `flush_page` in `src/buffer/buffer_pool_manager.rs` so that it never waits for a frame latch while holding the pool lock.
+Its behaviour stays what stage 1f gave: `false` for a page that is not in memory; otherwise the page's bytes reach the disk, the page ends clean, and its pin count is what it was. What changes is *when* the pool lock is held: it is released before anything that can wait for the page's latch, and the page cannot be evicted in the meantime.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. under the lock: find the frame (return `false` if the page isn't resident), **pin** it (so it can't be evicted meanwhile), mark it not evictable, clear its dirty flag; **release the lock**;
+> 2. take the frame's **read latch** (this may wait, and that's fine now), copy the bytes, release the latch;
+> 3. write the copy with `write_page_data`;
+> 4. `unpin_page(page_id, false)`; return `true`.
 
 ### Tests
 

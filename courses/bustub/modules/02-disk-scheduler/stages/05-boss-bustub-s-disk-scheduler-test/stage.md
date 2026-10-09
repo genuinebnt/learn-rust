@@ -51,6 +51,13 @@ disk_scheduler = nullptr;     // Call the DiskScheduler destructor to finish all
 | `ReaderWriterLatch mutex_` next to `int count_` | `ReaderWriterLatch<i32>` owning the count |
 | `memcmp(buf, data, sizeof(buf))` | `*buf == *data` (arrays compare by value) |
 
+## Experiment
+
+Optional. Predict first, write the prediction down, then run it.
+
+1. **A scheduler that forgets to wait.** Take the `join` out of `Drop for DiskScheduler`. Which of the two tests can still pass? Could either hang, or panic at the end of the process? What does that say about why the stop signal and the join are both needed?
+2. **A slow disk.** Make `execute` sleep 50 ms before each request and schedule 100 writes through the single worker. Predict the total time, then measure it. What would the sharded scheduler of stage 4 change, and for which page ids would it change nothing?
+
 ## What you built
 
 A blocking queue, a one-shot promise/future, a worker thread that runs disk requests in order and shuts down cleanly even if the disk panics, a reader-writer latch, and a sharded scheduler. Next module: **replacers**, the eviction policies (LRU, CLOCK, LRU-K, ARC) the buffer pool uses to choose which page to drop.

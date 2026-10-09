@@ -47,6 +47,14 @@ them. **Read this before changing anything under `courses/` or the Courses pages
    runs, and CI runs); (b) `### In the exercises`: which stage (by id and Part) uses which tool, and how; (c) `### Where it is used`: real
    systems and libraries, stated only when sure. Stage ids in (b) are checked against the course by hand: use the ids in `stage.toml`.
 
+11. **The learner thinks; the course removes friction, not thinking.** *"i should not feel this is useless and i just do bustub the original way … i learn a lot and build and experiment and use my brain a lot but also move away unnecessary friction"* (2026-10-09). Friction that teaches nothing goes (setup, plumbing, unclear tasks, slow or vague feedback, hunting for context). Design, debugging and experiments stay with the learner. In practice:
+    - **A task is a contract, not a recipe.** It states the observable behaviour, the invariants and the file. A step-by-step recipe, if it helps, goes in a collapsed `> [!ASIDE] The steps, if you would rather not work them out` (see 2c-04), never as numbered steps in the task. Hints say *why*, not the line of code.
+    - **Leave design open where the idea is the lesson.** "Given" scaffolding is for plumbing. A stage whose point is a data structure or an algorithm says "the fields are a suggestion; the tests use only the public methods" (see 1c-01).
+    - **Open check-yourself questions, never multiple choice.** `> [!CHECK]` asks the learner to predict, trace or explain before coding; the answer is hidden and three nudges open one by one. About one per stage where a concept needs it, always one that needs reasoning ("which slots does each new page get, and does the file grow?").
+    - **Experiments.** A stage that only runs BusTub's own test (`Nothing new to write`) ends with an optional `## Experiment`: predict, change one thing, measure or break it, and explain. The learner writes the prediction down first.
+    - **Tests explain themselves.** Every assertion in a stage test names the behaviour it checks (`tools/add_assert_messages.py`; `--check` lists bare ones): a failure says what broke, not just `assertion failed: ok`.
+    - **Concept links say how much.** `concepts` are what the stage needs; `concepts_optional` are further reading that names the stage. A concept that lists a stage under "In the exercises" is linked from that stage.
+
 ## How these are enforced
 
 - `anneal course lint` (content only, needs no reference): for every non-boss stage of a *published* module (`published_modules` in `course.toml`;

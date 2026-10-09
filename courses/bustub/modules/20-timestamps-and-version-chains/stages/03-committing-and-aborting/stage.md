@@ -4,12 +4,15 @@ Commit is where a transaction's writes become visible to everyone, **all at once
 
 In `src/concurrency/transaction_manager.rs`:
 
-`commit(txn)` (the checks are given: one commit at a time via `commit_mutex`, a tainted transaction returns `Ok(false)` and stays tainted, any other state but `Running` is an error). Write the region marked `4a-03`:
+`commit(txn)` (the checks are given: one commit at a time via `commit_mutex`, a tainted transaction returns `Ok(false)` and stays tainted, any other state but `Running` is an error). Write the region marked `4a-03`.
 
-1. `commit_ts = last_commit_ts + 1`.
-2. For every `(table oid, rids)` in `txn.write_sets()`: look the table up in the catalog and, with `table.table.with_page_mut(rid, ..)` (the page's write latch), set the tuple's metadata to `ts = commit_ts` and the **same** `is_deleted`.
-3. `txn.set_commit_ts(commit_ts)` and `txn.set_state(Committed)`.
-4. Under the watermark's lock, in this order: `update_commit_ts(commit_ts)`, store `last_commit_ts`, `remove_txn(txn.read_ts())`.
+A committed transaction gets `commit_ts = last_commit_ts + 1`. Every tuple in its write sets (under that page's write latch) is stamped with `ts = commit_ts` and the **same** `is_deleted` it had. The transaction then records its commit timestamp and becomes `Committed`. Last, under the watermark's lock and in this order: the watermark learns the commit timestamp, `last_commit_ts` is stored, and the transaction's read timestamp is removed from the watermark.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. `commit_ts = last_commit_ts + 1`.
+> 2. For every `(table oid, rids)` in `txn.write_sets()`: look the table up in the catalog and, with `table.table.with_page_mut(rid, ..)` (the page's write latch), set the tuple's metadata to `ts = commit_ts` and the **same** `is_deleted`.
+> 3. `txn.set_commit_ts(commit_ts)` and `txn.set_state(Committed)`.
+> 4. Under the watermark's lock, in this order: `update_commit_ts(commit_ts)`, store `last_commit_ts`, `remove_txn(txn.read_ts())`.
 
 `abort(txn)`: a `Running` or `Tainted` transaction becomes `Aborted` and its read timestamp is removed from the watermark. (Given: any other state is an error.)
 

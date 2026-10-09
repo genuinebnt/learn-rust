@@ -5,3 +5,4 @@ difficulty = "hard"
 tests = ["stages_2c::s2c_05"]
 learn = ["pushing a separator up (not copying it) when an internal page splits", "splits that cascade to the root", "testing a tree against a model and a structure checker"]
 concepts = ["splitting-and-promoting", "the-root-and-the-header-page", "model-based-testing"]
+concepts_optional = ["b-plus-tree-anatomy"]

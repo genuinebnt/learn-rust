@@ -2,6 +2,13 @@
 
 This stage implements the six comparisons on `Value`, returning `CmpBool::{True, False, Null}`, including the conversions that make `'32' = 32` true.
 
+> [!CHECK] What does `NULL = NULL` evaluate to in SQL, what does `WHERE x = NULL` return, and how do `GROUP BY` and `ORDER BY` treat two NULLs? Say how your `compare` result type has to represent this.
+> ||`NULL = NULL` is NULL (unknown), not true, so `WHERE x = NULL` returns no rows (that is what `IS NULL` is for). `GROUP BY` puts all NULLs in one group and `ORDER BY` treats them as equal, which is why a comparison needs a third answer beside true and false.||
+>
+> - What would `NOT (a = b)` return if `a = b` were just false?
+> - A row passes a filter only for which result?
+> - Which operations need "same" and which "equal"?
+
 ## The task
 
 In `src/types/value.rs` implement the comparison core `compare(&self, other) -> Result<Option<Ordering>>` and the public wrappers `compare_equals`, `compare_not_equals`, `compare_less_than`, `compare_less_than_equals`, `compare_greater_than`, `compare_greater_than_equals` (each `Result<CmpBool>`; the shared `cmp_with` is given) and `compare_exactly_equals(other) -> bool`:

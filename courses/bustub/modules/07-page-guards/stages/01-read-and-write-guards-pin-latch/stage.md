@@ -10,6 +10,13 @@ This stage builds `ReadPageGuard` and `WritePageGuard` on top of the pool you wr
 
 A `ReadPageGuard` holds three things: the pool (to unpin later), the page id, and the **read latch** of the page's frame (the `RwLockReadGuard` your pool's `frame_data` hands out). While it lives: the page is pinned, so it can't be evicted, and shared-latched, so nobody can write it, and any number of other readers may also hold it.
 
+> [!CHECK] A guard is dropped. In which order does it give back its latch and its pin, and what could go wrong with the other order? Think about who else can run in between.
+> ||Latch first, then pin. Dropping the pin makes the frame evictable. If that came first, the pool could evict the page and reuse the frame for another page while the guard still holds (and is about to release) a latch on it, so the latch would be released on a frame that now holds something else.||
+>
+> - What does unpinning tell the replacer?
+> - What can a thread do to a frame whose pin count is zero?
+> - A latch protects the bytes of one page: which page is in the frame after an eviction?
+
 ### The task
 
 `src/storage/page/page_guard.rs` has `ReadPageGuard<'a>` (it borrows the pool for `'a`) with its fields; `new` is given. In `src/buffer/buffer_pool_manager.rs` implement `checked_read_page(page_id) -> Option<ReadPageGuard<'_>>`: **pin** the page with `fetch_page` (`None` if every frame is pinned), **then** take the frame's read latch, **then** build the guard. In `src/storage/page/page_guard.rs` implement `get_data()`: the page's bytes behind the latch.

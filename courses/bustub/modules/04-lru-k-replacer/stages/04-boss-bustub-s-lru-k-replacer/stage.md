@@ -41,6 +41,13 @@ ASSERT_EQ(5, lru_replacer.Size());
 | comparing an `optional` with `ASSERT_EQ(2, opt)` (the comment in the C++ test explains how `nullopt` compares) | `assert_eq!(Some(f(2)), opt)` compares like with like |
 | `DISABLED_SampleTest` | enabled |
 
+## Experiment
+
+Optional. Predict first, then run it.
+
+1. **What `k` trades.** In the scan test of stage 9 (two hot pages used three times, then a scan of 20 cold pages in a 4-frame pool), change `k` from 2 to 1 and then to 3. Predict, for each, whether the hot pages survive. What does a bigger `k` cost, and what would a scan of 3 accesses per page do?
+2. **The scan, measured.** Count the frames the scan evicts that were hot, for `k = 1, 2, 3`. Then make the hot pages 5 instead of 2 in a 4-frame pool: what should happen, and why is that not the replacer's fault?
+
 ## What you built
 
 LRU-K with a bounded access history, an exact tie-break, `remove`, and an O(log n) eviction order. Next module: **ARC**, the adaptive replacement cache, which BusTub's current Project 1 uses instead of LRU-K.

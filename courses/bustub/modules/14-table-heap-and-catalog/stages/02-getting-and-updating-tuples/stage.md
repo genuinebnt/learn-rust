@@ -69,4 +69,4 @@ Read the old tuple through the same write guard you will write through; do not d
 
 ### `None` means yes
 
-`check.map_or(true, |c| c(&old_meta, &old_tuple, rid))`: no check, always update.
+A missing check closure means the update goes ahead; only when there is one does its answer decide. `Option` has combinators for exactly this shape, or you can write the `match`.

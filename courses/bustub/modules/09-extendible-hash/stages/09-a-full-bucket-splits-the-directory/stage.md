@@ -6,10 +6,13 @@ Everything earlier was preparation for this stage: bit arithmetic, directory gro
 
 ## The task
 
-In `insert` (and the helper `split_bucket`) in `src/container/disk/hash/disk_extendible_hash_table.rs`: when the key's bucket is **full** (and doesn't have the key):
-1. if the bucket's local depth equals the directory's global depth, the directory must grow: if it is already at its **max depth**, `return false` (the table is full here); otherwise `incr_global_depth`;
-2. **split**: allocate a new bucket page; the bucket's local depth becomes `d + 1` (set it for **every** directory slot that points at the old bucket); of those slots, the ones with bit `d` set now point at the **new** bucket; move the old bucket's entries whose hash has bit `d` set into the new bucket;
-3. try again from the top: the key may land in a bucket that is **still full** (all entries went to the same side), which splits again.
+In `insert` (and the helper `split_bucket`) in `src/container/disk/hash/disk_extendible_hash_table.rs`: when the key's bucket is **full** (and doesn't have the key).
+A full bucket that does not already hold the key is split until the key has room. When `insert` returns, `verify_integrity` holds. The directory has doubled only if the bucket's local depth equalled the global depth; if it is already at its **max depth**, `insert` returns `false` (the table is full here). Every directory slot that referenced the old bucket now has local depth `d + 1`; those whose hash has bit `d` set point at a new bucket, which holds exactly the old entries whose hash has bit `d` set. If the key's bucket is *still* full afterwards (all entries went to the same side), it splits again.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. if the bucket's local depth equals the directory's global depth, the directory must grow: if it is already at its **max depth**, `return false` (the table is full here); otherwise `incr_global_depth`;
+> 2. **split**: allocate a new bucket page; the bucket's local depth becomes `d + 1` (set it for **every** directory slot that points at the old bucket); of those slots, the ones with bit `d` set now point at the **new** bucket; move the old bucket's entries whose hash has bit `d` set into the new bucket;
+> 3. try again from the top: the key may land in a bucket that is **still full** (all entries went to the same side), which splits again.
 
 ## Tests
 

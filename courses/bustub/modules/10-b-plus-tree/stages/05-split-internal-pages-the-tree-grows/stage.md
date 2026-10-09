@@ -4,13 +4,23 @@ Internal splits differ from leaf splits in one way that is worth getting right, 
 
 **Where this fits.** With internal pages of 3 children, five keys already make a three-level tree. These small sizes are the point: they force every case in a few dozen inserts.
 
+> [!CHECK] An internal page has `max_size` 4 and is full: slot 0 has no key, then keys 10, 20, 30 with children c0..c3. The child `new` with key 25 must be inserted. After the split, which pairs does each page hold, and which key moves up to the parent? Does the right page still store that key?
+> ||Five pairs after the insert: (_, c0), (10, c1), (20, c2), (25, new), (30, c3). The left page keeps the first ceil(5 / 2) = 3; the right page gets (25, new) and (30, c3). The key 25 moves up as the separator. The right page's slot 0 still holds 25, but nothing reads the key of slot 0.||
+>
+> - Do the insert on a list first, then cut it.
+> - How many pairs stay on the left when there are `max_size + 1`?
+> - What does a child's slot 0 key mean in an internal page?
+
 ## The task
 
-Complete `insert_into_parent` in `src/storage/index/b_plus_tree.rs`. When the popped parent is **full** (`size == max_size`):
-1. collect its `(key, child)` pairs in a `Vec` and insert the new `(key, right_id)` at its sorted position (after slot 0, which has no key): `max_size + 1` pairs;
-2. the left page keeps the first `ceil((max_size + 1) / 2)`; write them back into the existing page and `set_size`;
-3. allocate a new internal page, `init` it, and write the rest into its slots `0..`; the key of its slot 0 is the one that **moves up**: it is the separator for the next level, and nothing in the new page reads it;
-4. repeat with `left_id = parent_id`, `key = the key that moved up`, `right_id = the new page's id` — the loop either finds a parent with room, or pops `None` and makes a new root.
+Complete `insert_into_parent` in `src/storage/index/b_plus_tree.rs`. When the popped parent is **full** (`size == max_size`).
+A full parent is split too. Its `max_size` pairs plus the new `(key, right_id)` (at its sorted place, after slot 0, which has no key) are divided: the old page keeps the first `ceil((max_size + 1) / 2)`, a new internal page gets the rest. The key of the new page's slot 0 is the one that **moves up**: it is the separator for the next level, and nothing in the new page reads it. The insert then continues one level up with `left_id = the old parent`, `key = the key that moved up` and `right_id = the new page`, until a parent has room or there is none and a new root is made.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. collect its `(key, child)` pairs in a `Vec` and insert the new `(key, right_id)` at its sorted position (after slot 0, which has no key): `max_size + 1` pairs;
+> 2. the left page keeps the first `ceil((max_size + 1) / 2)`; write them back into the existing page and `set_size`;
+> 3. allocate a new internal page, `init` it, and write the rest into its slots `0..`; the key of its slot 0 is the one that **moves up**: it is the separator for the next level, and nothing in the new page reads it;
+> 4. repeat with `left_id = parent_id`, `key = the key that moved up`, `right_id = the new page's id` — the loop either finds a parent with room, or pops `None` and makes a new root.
 
 ## Tests
 

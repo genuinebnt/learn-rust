@@ -5,3 +5,4 @@ difficulty = "medium"
 tests = ["stages_3g::s3g_05"]
 learn = ["merge passes until one run remains", "reading the output back a page at a time", "an executor that spills to disk"]
 concepts = ["external-merge-sort", "the-iterator-model", "buffer-pool-anatomy"]
+concepts_optional = ["sort-keys-and-null-ordering"]

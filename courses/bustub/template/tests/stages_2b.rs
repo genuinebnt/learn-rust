@@ -90,7 +90,7 @@ fn pattern(len: usize) -> Vec<u8> {
 
 #[test]
 fn s2b_01_the_empty_input_hashes_to_zero() {
-    assert_eq!(murmur_hash3_x64_128(b"", 0), [0, 0]);
+    assert_eq!(murmur_hash3_x64_128(b"", 0), [0, 0], "the empty input hashes to zero");
 }
 
 #[test]
@@ -116,11 +116,11 @@ fn s2b_01_the_seed_changes_the_hash() {
 
 #[test]
 fn s2b_01_known_strings() {
-    assert_eq!(murmur_hash3_x64_128(b"hello", 0), [0xcbd8a7b341bd9b02, 0x5b1e906a48ae1d19]);
-    assert_eq!(murmur_hash3_x64_128(b"a", 0)[0], 9607679276477937801);
-    assert_eq!(murmur_hash3_x64_128(b"The quick brown fox jumps over the lazy dog", 0), [16378391709484522348, 8809951995912426311]);
-    assert_eq!(murmur_hash3_x64_128(b"0123456789abcdef", 0), [5467490433528156583, 9782763267945859290]);
-    assert_eq!(murmur_hash3_x64_128(b"0123456789abcdefX", 0), [14838185036522510071, 10336343437188549415]);
+    assert_eq!(murmur_hash3_x64_128(b"hello", 0), [0xcbd8a7b341bd9b02, 0x5b1e906a48ae1d19], "known strings");
+    assert_eq!(murmur_hash3_x64_128(b"a", 0)[0], 9607679276477937801, "known strings");
+    assert_eq!(murmur_hash3_x64_128(b"The quick brown fox jumps over the lazy dog", 0), [16378391709484522348, 8809951995912426311], "known strings");
+    assert_eq!(murmur_hash3_x64_128(b"0123456789abcdef", 0), [5467490433528156583, 9782763267945859290], "known strings");
+    assert_eq!(murmur_hash3_x64_128(b"0123456789abcdefX", 0), [14838185036522510071, 10336343437188549415], "known strings");
 }
 
 // ---- 2b-02 · HashFunction -----------------------------------------------------------------------------------------------------
@@ -167,8 +167,8 @@ fn s2b_02_a_generic_key_is_hashed_by_its_eight_bytes() {
 #[test]
 fn s2b_02_only_the_first_half_of_the_128_bits_is_kept() {
     let hash = HashFunction::<i32>::new();
-    assert_eq!(hash.get_hash(&0), 14961230494313510588);
-    assert_eq!(hash.get_hash(&1), 9841952836289088254);
+    assert_eq!(hash.get_hash(&0), 14961230494313510588, "only the first half of the 128 bits is kept");
+    assert_eq!(hash.get_hash(&1), 9841952836289088254, "only the first half of the 128 bits is kept");
 }
 
 #[test]
@@ -188,8 +188,8 @@ fn s2b_03_init_sets_the_depth_and_empties_every_slot() {
     let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
     let mut header = Header::new(&mut page[..]);
     header.init(2);
-    assert_eq!(header.max_depth(), 2);
-    assert_eq!(header.max_size(), 4);
+    assert_eq!(header.max_depth(), 2, "init sets the depth and empties every slot");
+    assert_eq!(header.max_size(), 4, "init sets the depth and empties every slot");
     for i in 0..4 {
         assert_eq!(header.get_directory_page_id(i), PageId::INVALID, "a fresh slot is INVALID, not page 0");
     }
@@ -202,9 +202,9 @@ fn s2b_03_slots_hold_directory_page_ids() {
     header.init(3);
     header.set_directory_page_id(0, PageId(10));
     header.set_directory_page_id(7, PageId(77));
-    assert_eq!(header.get_directory_page_id(0), PageId(10));
-    assert_eq!(header.get_directory_page_id(7), PageId(77));
-    assert_eq!(header.get_directory_page_id(3), PageId::INVALID);
+    assert_eq!(header.get_directory_page_id(0), PageId(10), "slots hold directory page ids");
+    assert_eq!(header.get_directory_page_id(7), PageId(77), "slots hold directory page ids");
+    assert_eq!(header.get_directory_page_id(3), PageId::INVALID, "slots hold directory page ids");
 }
 
 #[test]
@@ -222,7 +222,7 @@ fn s2b_03_a_read_only_view_works() {
     let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
     Header::new(&mut page[..]).init(1);
     let view = Header::new(&page[..]);
-    assert_eq!(view.max_size(), 2);
+    assert_eq!(view.max_size(), 2, "a read only view works");
 }
 
 #[test]
@@ -251,7 +251,7 @@ fn s2b_04_the_top_bits_choose_the_directory() {
     header.init(2);
     let hashes = [32768u32, 1073774592, 2147516416, 3221258240];
     for (i, h) in hashes.iter().enumerate() {
-        assert_eq!(header.hash_to_directory_index(*h), i as u32);
+        assert_eq!(header.hash_to_directory_index(*h), i as u32, "the top bits choose the directory");
     }
 }
 
@@ -261,7 +261,7 @@ fn s2b_04_a_depth_of_zero_means_one_directory() {
     let mut header = Header::new(&mut page[..]);
     header.init(0);
     for h in [0u32, 1, 0x8000_0000, u32::MAX] {
-        assert_eq!(header.hash_to_directory_index(h), 0);
+        assert_eq!(header.hash_to_directory_index(h), 0, "a depth of zero means one directory");
     }
 }
 
@@ -270,9 +270,9 @@ fn s2b_04_depth_one_looks_at_the_top_bit_only() {
     let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
     let mut header = Header::new(&mut page[..]);
     header.init(1);
-    assert_eq!(header.hash_to_directory_index(0x7FFF_FFFF), 0);
-    assert_eq!(header.hash_to_directory_index(0x8000_0000), 1);
-    assert_eq!(header.hash_to_directory_index(u32::MAX), 1);
+    assert_eq!(header.hash_to_directory_index(0x7FFF_FFFF), 0, "depth one looks at the top bit only");
+    assert_eq!(header.hash_to_directory_index(0x8000_0000), 1, "depth one looks at the top bit only");
+    assert_eq!(header.hash_to_directory_index(u32::MAX), 1, "depth one looks at the top bit only");
 }
 
 #[test]
@@ -280,9 +280,9 @@ fn s2b_04_the_largest_depth() {
     let mut page = vec![0u8; BUSTUB_PAGE_SIZE];
     let mut header = Header::new(&mut page[..]);
     header.init(9);
-    assert_eq!(header.hash_to_directory_index(u32::MAX), 511);
-    assert_eq!(header.hash_to_directory_index(0), 0);
-    assert_eq!(header.hash_to_directory_index(0x0080_0000), 1);
+    assert_eq!(header.hash_to_directory_index(u32::MAX), 511, "the largest depth");
+    assert_eq!(header.hash_to_directory_index(0), 0, "the largest depth");
+    assert_eq!(header.hash_to_directory_index(0x0080_0000), 1, "the largest depth");
 }
 
 #[test]
@@ -291,7 +291,7 @@ fn s2b_04_the_low_bits_are_ignored() {
     let mut header = Header::new(&mut page[..]);
     header.init(3);
     for low in [0u32, 1, 0xFFFF, 0x1FFF_FFFF] {
-        assert_eq!(header.hash_to_directory_index(0xA000_0000 | low), 5);
+        assert_eq!(header.hash_to_directory_index(0xA000_0000 | low), 5, "the low bits are ignored");
     }
 }
 
@@ -307,9 +307,9 @@ fn directory(max_depth: u32) -> Vec<u8> {
 fn s2b_05_a_fresh_directory_has_one_unassigned_slot() {
     let mut page = directory(3);
     let dir = Directory::new(&mut page[..]);
-    assert_eq!((dir.get_max_depth(), dir.get_global_depth(), dir.size(), dir.max_size()), (3, 0, 1, 8));
-    assert_eq!(dir.get_bucket_page_id(0), PageId::INVALID);
-    assert_eq!(dir.get_local_depth(0), 0);
+    assert_eq!((dir.get_max_depth(), dir.get_global_depth(), dir.size(), dir.max_size()), (3, 0, 1, 8), "a fresh directory has one unassigned slot");
+    assert_eq!(dir.get_bucket_page_id(0), PageId::INVALID, "a fresh directory has one unassigned slot");
+    assert_eq!(dir.get_local_depth(0), 0, "a fresh directory has one unassigned slot");
 }
 
 #[test]
@@ -329,7 +329,7 @@ fn s2b_05_bucket_page_ids_are_stored_per_slot() {
     let mut dir = Directory::new(&mut page[..]);
     dir.set_bucket_page_id(0, PageId(3));
     dir.set_bucket_page_id(15, PageId(9));
-    assert_eq!((dir.get_bucket_page_id(0), dir.get_bucket_page_id(15), dir.get_bucket_page_id(1)), (PageId(3), PageId(9), PageId::INVALID));
+    assert_eq!((dir.get_bucket_page_id(0), dir.get_bucket_page_id(15), dir.get_bucket_page_id(1)), (PageId(3), PageId(9), PageId::INVALID), "bucket page ids are stored per slot");
 }
 
 #[test]
@@ -363,9 +363,9 @@ fn s2b_06_masks_have_as_many_ones_as_the_depth() {
     bustub::storage::page::page_bytes::write_u32(&mut page, 4, 3); // global depth 3
     page[8] = 2; // local depths start at byte 8; slot 0 gets depth 2
     let dir = Directory::new(&page[..]);
-    assert_eq!(dir.get_global_depth_mask(), 0b111);
-    assert_eq!(dir.get_local_depth_mask(0), 0b11);
-    assert_eq!(dir.get_local_depth_mask(1), 0);
+    assert_eq!(dir.get_global_depth_mask(), 0b111, "masks have as many ones as the depth");
+    assert_eq!(dir.get_local_depth_mask(0), 0b11, "masks have as many ones as the depth");
+    assert_eq!(dir.get_local_depth_mask(1), 0, "masks have as many ones as the depth");
 }
 
 #[test]
@@ -374,18 +374,18 @@ fn s2b_06_a_hash_maps_to_its_low_bits() {
     bustub::storage::page::page_bytes::write_u32(&mut page, 4, 2);
     let dir = Directory::new(&page[..]);
     for h in 0..100u32 {
-        assert_eq!(dir.hash_to_bucket_index(h), h % 4);
+        assert_eq!(dir.hash_to_bucket_index(h), h % 4, "a hash maps to its low bits");
     }
-    assert_eq!(dir.hash_to_bucket_index(0xFFFF_FFFF), 3);
+    assert_eq!(dir.hash_to_bucket_index(0xFFFF_FFFF), 3, "a hash maps to its low bits");
 }
 
 #[test]
 fn s2b_06_depth_zero_maps_everything_to_slot_zero() {
     let page = directory(5);
     let dir = Directory::new(&page[..]);
-    assert_eq!(dir.get_global_depth_mask(), 0);
+    assert_eq!(dir.get_global_depth_mask(), 0, "depth zero maps everything to slot zero");
     for h in [0u32, 1, 12345, u32::MAX] {
-        assert_eq!(dir.hash_to_bucket_index(h), 0);
+        assert_eq!(dir.hash_to_bucket_index(h), 0, "depth zero maps everything to slot zero");
     }
 }
 
@@ -398,18 +398,18 @@ fn s2b_06_the_split_image_flips_the_top_distinguished_bit() {
     }
     let dir = Directory::new(&page[..]);
     assert_eq!(dir.get_split_image_index(0), 1, "depth 1: flip bit 0");
-    assert_eq!(dir.get_split_image_index(1), 0);
+    assert_eq!(dir.get_split_image_index(1), 0, "the split image flips the top distinguished bit");
     assert_eq!(dir.get_split_image_index(2), 0, "depth 2: flip bit 1");
     assert_eq!(dir.get_split_image_index(5), 7, "5 = 101, depth 2: flip bit 1 -> 111");
     assert_eq!(dir.get_split_image_index(3), 7, "depth 3: flip bit 2 -> 111");
-    assert_eq!(dir.get_split_image_index(4), 0);
+    assert_eq!(dir.get_split_image_index(4), 0, "the split image flips the top distinguished bit");
 }
 
 #[test]
 fn s2b_06_a_bucket_of_depth_zero_is_its_own_split_image() {
     let page = directory(5);
     let dir = Directory::new(&page[..]);
-    assert_eq!(dir.get_split_image_index(0), 0);
+    assert_eq!(dir.get_split_image_index(0), 0, "a bucket of depth zero is its own split image");
 }
 
 // ---- 2b-03 · directory page: local depths ----------------------------------------------------------------------------------------------
@@ -420,7 +420,7 @@ fn s2b_07_local_depths_are_set_and_read() {
     let mut dir = Directory::new(&mut page[..]);
     dir.set_local_depth(3, 2);
     dir.set_local_depth(15, 4);
-    assert_eq!((dir.get_local_depth(3), dir.get_local_depth(15), dir.get_local_depth(4)), (2, 4, 0));
+    assert_eq!((dir.get_local_depth(3), dir.get_local_depth(15), dir.get_local_depth(4)), (2, 4, 0), "local depths are set and read");
 }
 
 #[test]
@@ -429,9 +429,9 @@ fn s2b_07_incr_and_decr_move_one_step() {
     let mut dir = Directory::new(&mut page[..]);
     dir.incr_local_depth(1);
     dir.incr_local_depth(1);
-    assert_eq!(dir.get_local_depth(1), 2);
+    assert_eq!(dir.get_local_depth(1), 2, "incr and decr move one step");
     dir.decr_local_depth(1);
-    assert_eq!(dir.get_local_depth(1), 1);
+    assert_eq!(dir.get_local_depth(1), 1, "incr and decr move one step");
     assert_eq!(dir.get_local_depth(0), 0, "other slots are untouched");
 }
 
@@ -466,9 +466,9 @@ fn s2b_08_growing_copies_the_lower_half_into_the_upper_half() {
     let mut dir = Directory::new(&mut page[..]);
     dir.set_bucket_page_id(0, PageId(7));
     dir.incr_global_depth();
-    assert_eq!((dir.get_global_depth(), dir.size()), (1, 2));
+    assert_eq!((dir.get_global_depth(), dir.size()), (1, 2), "growing copies the lower half into the upper half");
     assert_eq!(dir.get_bucket_page_id(1), PageId(7), "both slots point at the one bucket until it splits");
-    assert_eq!(dir.get_local_depth(1), 0);
+    assert_eq!(dir.get_local_depth(1), 0, "growing copies the lower half into the upper half");
 }
 
 #[test]
@@ -481,8 +481,8 @@ fn s2b_08_depths_are_copied_too() {
     dir.set_bucket_page_id(1, PageId(2));
     dir.set_local_depth(1, 1);
     dir.incr_global_depth();
-    assert_eq!((0..4).map(|i| dir.get_bucket_page_id(i).0).collect::<Vec<_>>(), [1, 2, 1, 2]);
-    assert_eq!((0..4).map(|i| dir.get_local_depth(i)).collect::<Vec<_>>(), [1, 1, 1, 1]);
+    assert_eq!((0..4).map(|i| dir.get_bucket_page_id(i).0).collect::<Vec<_>>(), [1, 2, 1, 2], "depths are copied too");
+    assert_eq!((0..4).map(|i| dir.get_local_depth(i)).collect::<Vec<_>>(), [1, 1, 1, 1], "depths are copied too");
 }
 
 #[test]
@@ -491,26 +491,26 @@ fn s2b_08_bustubs_directory_walkthrough() {
     let mut page = directory(3);
     let mut dir = Directory::new(&mut page[..]);
     dir.set_bucket_page_id(0, PageId(2));
-    assert_eq!(dir.size(), 1);
+    assert_eq!(dir.size(), 1, "bustubs directory walkthrough");
     dir.set_local_depth(0, 1);
     dir.incr_global_depth();
     dir.set_bucket_page_id(1, PageId(3));
     dir.set_local_depth(1, 1);
-    assert_eq!((dir.get_bucket_page_id(0), dir.get_bucket_page_id(1)), (PageId(2), PageId(3)));
+    assert_eq!((dir.get_bucket_page_id(0), dir.get_bucket_page_id(1)), (PageId(2), PageId(3)), "bustubs directory walkthrough");
     for i in 0..100 {
-        assert_eq!(dir.hash_to_bucket_index(i), i % 2);
+        assert_eq!(dir.hash_to_bucket_index(i), i % 2, "bustubs directory walkthrough");
     }
     dir.set_local_depth(0, 2);
     dir.incr_global_depth();
     dir.set_bucket_page_id(2, PageId(4));
-    assert_eq!(dir.size(), 4);
-    assert_eq!((0..4).map(|i| dir.get_bucket_page_id(i).0).collect::<Vec<_>>(), [2, 3, 4, 3]);
+    assert_eq!(dir.size(), 4, "bustubs directory walkthrough");
+    assert_eq!((0..4).map(|i| dir.get_bucket_page_id(i).0).collect::<Vec<_>>(), [2, 3, 4, 3], "bustubs directory walkthrough");
     dir.set_local_depth(0, 3);
     dir.incr_global_depth();
     dir.set_bucket_page_id(4, PageId(5));
-    assert_eq!((0..8).map(|i| dir.get_bucket_page_id(i).0).collect::<Vec<_>>(), [2, 3, 4, 3, 5, 3, 4, 3]);
+    assert_eq!((0..8).map(|i| dir.get_bucket_page_id(i).0).collect::<Vec<_>>(), [2, 3, 4, 3, 5, 3, 4, 3], "bustubs directory walkthrough");
     for i in 0..100 {
-        assert_eq!(dir.hash_to_bucket_index(i), i % 8);
+        assert_eq!(dir.hash_to_bucket_index(i), i % 8, "bustubs directory walkthrough");
     }
 }
 
@@ -531,8 +531,8 @@ fn s2b_08_growing_to_the_largest_size() {
     for _ in 0..9 {
         dir.incr_global_depth();
     }
-    assert_eq!(dir.size(), 512);
-    assert!((0..512).all(|i| dir.get_bucket_page_id(i) == PageId(1)));
+    assert_eq!(dir.size(), 512, "growing to the largest size");
+    assert!((0..512).all(|i| dir.get_bucket_page_id(i) == PageId(1)), "growing to the largest size: expected `(0..512).all(|i| dir.get_bucket_page_id(i) == PageId(1))`");
 }
 
 // ---- 2b-04 · directory page: shrinking -------------------------------------------------------------------------------------------------
@@ -544,7 +544,7 @@ fn s2b_09_a_directory_cannot_shrink_while_a_bucket_uses_every_bit() {
     dir.incr_global_depth();
     dir.incr_global_depth();
     dir.set_local_depth(0, 2);
-    assert!(!dir.can_shrink());
+    assert!(!dir.can_shrink(), "a directory cannot shrink while a bucket uses every bit: expected `!dir.can_shrink()`");
 }
 
 #[test]
@@ -557,15 +557,15 @@ fn s2b_09_it_can_when_every_local_depth_is_below_the_global_depth() {
     for i in 0..8 {
         dir.set_local_depth(i, 2);
     }
-    assert!(dir.can_shrink());
+    assert!(dir.can_shrink(), "it can when every local depth is below the global depth: expected `dir.can_shrink()`");
     dir.decr_global_depth();
-    assert_eq!((dir.get_global_depth(), dir.size()), (2, 4));
+    assert_eq!((dir.get_global_depth(), dir.size()), (2, 4), "it can when every local depth is below the global depth");
 }
 
 #[test]
 fn s2b_09_a_directory_of_depth_zero_cannot_shrink() {
     let page = directory(3);
-    assert!(!Directory::new(&page[..]).can_shrink());
+    assert!(!Directory::new(&page[..]).can_shrink(), "a directory of depth zero cannot shrink: expected `!Directory::new(&page[..]).can_shrink()`");
 }
 
 #[test]
@@ -579,7 +579,7 @@ fn s2b_09_one_slot_at_full_depth_blocks_the_shrink() {
         dir.set_local_depth(i, 2);
     }
     dir.set_local_depth(5, 3);
-    assert!(!dir.can_shrink());
+    assert!(!dir.can_shrink(), "one slot at full depth blocks the shrink: expected `!dir.can_shrink()`");
 }
 
 #[test]
@@ -686,9 +686,9 @@ fn new_bucket(max_size: u32) -> Vec<u8> {
 fn s2b_11_a_fresh_bucket_is_empty() {
     let mut page = new_bucket(10);
     let bucket = BucketPage::new(&mut page[..]);
-    assert_eq!((bucket.size(), bucket.max_size()), (0, 10));
-    assert!(bucket.is_empty());
-    assert!(!bucket.is_full());
+    assert_eq!((bucket.size(), bucket.max_size()), (0, 10), "a fresh bucket is empty");
+    assert!(bucket.is_empty(), "a fresh bucket is empty: expected `bucket.is_empty()`");
+    assert!(!bucket.is_full(), "a fresh bucket is empty: expected `!bucket.is_full()`");
 }
 
 #[test]
@@ -727,13 +727,13 @@ fn s2b_12_insert_then_lookup() {
     let mut bucket = BucketPage::new(&mut page[..]);
     let cmp = GenericComparator::<8>;
     for i in 0..5 {
-        assert!(bucket.insert(&key(i), &rid(i), &cmp));
+        assert!(bucket.insert(&key(i), &rid(i), &cmp), "insert then lookup: expected `bucket.insert(&key(i), &rid(i), &cmp)`");
     }
-    assert_eq!(bucket.size(), 5);
+    assert_eq!(bucket.size(), 5, "insert then lookup");
     for i in 0..5 {
-        assert_eq!(bucket.lookup(&key(i), &cmp), Some(rid(i)));
+        assert_eq!(bucket.lookup(&key(i), &cmp), Some(rid(i)), "insert then lookup");
     }
-    assert_eq!(bucket.lookup(&key(99), &cmp), None);
+    assert_eq!(bucket.lookup(&key(99), &cmp), None, "insert then lookup");
 }
 
 #[test]
@@ -743,8 +743,8 @@ fn s2b_12_the_entries_are_where_the_accessors_say() {
     let cmp = GenericComparator::<8>;
     bucket.insert(&key(7), &rid(70), &cmp);
     bucket.insert(&key(3), &rid(30), &cmp);
-    assert_eq!(bucket.entry_at(0), (key(7), rid(70)));
-    assert_eq!((bucket.key_at(1), bucket.value_at(1)), (key(3), rid(30)));
+    assert_eq!(bucket.entry_at(0), (key(7), rid(70)), "the entries are where the accessors say");
+    assert_eq!((bucket.key_at(1), bucket.value_at(1)), (key(3), rid(30)), "the entries are where the accessors say");
 }
 
 #[test]
@@ -753,11 +753,11 @@ fn s2b_12_a_full_bucket_refuses_more() {
     let mut bucket = BucketPage::new(&mut page[..]);
     let cmp = GenericComparator::<8>;
     for i in 0..10 {
-        assert!(bucket.insert(&key(i), &rid(i), &cmp));
+        assert!(bucket.insert(&key(i), &rid(i), &cmp), "a full bucket refuses more: expected `bucket.insert(&key(i), &rid(i), &cmp)`");
     }
-    assert!(bucket.is_full());
-    assert!(!bucket.insert(&key(11), &rid(11), &cmp));
-    assert_eq!(bucket.size(), 10);
+    assert!(bucket.is_full(), "a full bucket refuses more: expected `bucket.is_full()`");
+    assert!(!bucket.insert(&key(11), &rid(11), &cmp), "a full bucket refuses more: expected `!bucket.insert(&key(11), &rid(11), &cmp)`");
+    assert_eq!(bucket.size(), 10, "a full bucket refuses more");
 }
 
 #[test]
@@ -765,10 +765,10 @@ fn s2b_12_a_key_that_is_already_there_is_refused() {
     let mut page = new_bucket(10);
     let mut bucket = BucketPage::new(&mut page[..]);
     let cmp = GenericComparator::<8>;
-    assert!(bucket.insert(&key(1), &rid(1), &cmp));
-    assert!(!bucket.insert(&key(1), &rid(2), &cmp));
+    assert!(bucket.insert(&key(1), &rid(1), &cmp), "a key that is already there is refused: expected `bucket.insert(&key(1), &rid(1), &cmp)`");
+    assert!(!bucket.insert(&key(1), &rid(2), &cmp), "a key that is already there is refused: expected `!bucket.insert(&key(1), &rid(2), &cmp)`");
     assert_eq!(bucket.lookup(&key(1), &cmp), Some(rid(1)), "the old value stays");
-    assert_eq!(bucket.size(), 1);
+    assert_eq!(bucket.size(), 1, "a key that is already there is refused");
 }
 
 #[test]
@@ -782,9 +782,9 @@ fn s2b_12_keys_are_compared_by_the_comparator_not_by_bytes() {
     b.set_from_integer(5);
     b.data[12] = 9;
     let cmp = GenericComparator::<16>;
-    assert!(bucket.insert(&a, &1, &cmp));
+    assert!(bucket.insert(&a, &1, &cmp), "keys are compared by the comparator not by bytes: expected `bucket.insert(&a, &1, &cmp)`");
     assert!(!bucket.insert(&b, &2, &cmp), "equal under the comparator: a duplicate");
-    assert_eq!(bucket.lookup(&b, &cmp), Some(1));
+    assert_eq!(bucket.lookup(&b, &cmp), Some(1), "keys are compared by the comparator not by bytes");
 }
 
 #[test]
@@ -793,10 +793,10 @@ fn s2b_12_ints_work_too() {
     let mut bucket = Bucket::<&mut [u8], i32, i32>::new(&mut page[..]);
     bucket.init(1023);
     for i in 0..1023 {
-        assert!(bucket.insert(&i, &(i * 2), &IntComparator));
+        assert!(bucket.insert(&i, &(i * 2), &IntComparator), "ints work too: expected `bucket.insert(&i, &(i * 2), &IntComparator)`");
     }
-    assert!(bucket.is_full());
-    assert_eq!(bucket.lookup(&1000, &IntComparator), Some(2000));
+    assert!(bucket.is_full(), "ints work too: expected `bucket.is_full()`");
+    assert_eq!(bucket.lookup(&1000, &IntComparator), Some(2000), "ints work too");
 }
 
 // ---- 2b-05 · bucket page: remove -------------------------------------------------------------------------------------------------------------
@@ -805,7 +805,7 @@ fn filled(n: i64) -> Vec<u8> {
     let mut page = new_bucket(10);
     let mut bucket = BucketPage::new(&mut page[..]);
     for i in 0..n {
-        assert!(bucket.insert(&key(i), &rid(i), &GenericComparator::<8>));
+        assert!(bucket.insert(&key(i), &rid(i), &GenericComparator::<8>), "in helper `filled`: expected `bucket.insert(&key(i), &rid(i), &GenericComparator::<8>)`");
     }
     page
 }
@@ -815,10 +815,10 @@ fn s2b_13_remove_takes_a_pair_out() {
     let mut page = filled(5);
     let mut bucket = BucketPage::new(&mut page[..]);
     let cmp = GenericComparator::<8>;
-    assert!(bucket.remove(&key(2), &cmp));
-    assert_eq!(bucket.size(), 4);
-    assert_eq!(bucket.lookup(&key(2), &cmp), None);
-    assert_eq!(bucket.lookup(&key(3), &cmp), Some(rid(3)));
+    assert!(bucket.remove(&key(2), &cmp), "remove takes a pair out: expected `bucket.remove(&key(2), &cmp)`");
+    assert_eq!(bucket.size(), 4, "remove takes a pair out");
+    assert_eq!(bucket.lookup(&key(2), &cmp), None, "remove takes a pair out");
+    assert_eq!(bucket.lookup(&key(3), &cmp), Some(rid(3)), "remove takes a pair out");
 }
 
 #[test]
@@ -826,7 +826,7 @@ fn s2b_13_remove_keeps_the_order_of_the_rest() {
     let mut page = filled(5);
     let mut bucket = BucketPage::new(&mut page[..]);
     bucket.remove(&key(1), &GenericComparator::<8>);
-    assert_eq!((0..4).map(|i| bucket.key_at(i).get_as_integer()).collect::<Vec<_>>(), [0, 2, 3, 4]);
+    assert_eq!((0..4).map(|i| bucket.key_at(i).get_as_integer()).collect::<Vec<_>>(), [0, 2, 3, 4], "remove keeps the order of the rest");
 }
 
 #[test]
@@ -834,10 +834,10 @@ fn s2b_13_removing_a_missing_key_says_so() {
     let mut page = filled(3);
     let mut bucket = BucketPage::new(&mut page[..]);
     let cmp = GenericComparator::<8>;
-    assert!(!bucket.remove(&key(99), &cmp));
-    assert!(bucket.remove(&key(1), &cmp));
+    assert!(!bucket.remove(&key(99), &cmp), "removing a missing key says so: expected `!bucket.remove(&key(99), &cmp)`");
+    assert!(bucket.remove(&key(1), &cmp), "removing a missing key says so: expected `bucket.remove(&key(1), &cmp)`");
     assert!(!bucket.remove(&key(1), &cmp), "the second removal finds nothing");
-    assert_eq!(bucket.size(), 2);
+    assert_eq!(bucket.size(), 2, "removing a missing key says so");
 }
 
 #[test]
@@ -845,8 +845,8 @@ fn s2b_13_remove_at_by_slot() {
     let mut page = filled(4);
     let mut bucket = BucketPage::new(&mut page[..]);
     bucket.remove_at(0);
-    assert_eq!(bucket.key_at(0).get_as_integer(), 1);
-    assert_eq!(bucket.size(), 3);
+    assert_eq!(bucket.key_at(0).get_as_integer(), 1, "remove at by slot");
+    assert_eq!(bucket.size(), 3, "remove at by slot");
 }
 
 #[test]
@@ -855,13 +855,13 @@ fn s2b_13_a_bucket_can_be_emptied_and_refilled() {
     let mut bucket = BucketPage::new(&mut page[..]);
     let cmp = GenericComparator::<8>;
     for i in 0..10 {
-        assert!(bucket.remove(&key(i), &cmp));
+        assert!(bucket.remove(&key(i), &cmp), "a bucket can be emptied and refilled: expected `bucket.remove(&key(i), &cmp)`");
     }
-    assert!(bucket.is_empty());
+    assert!(bucket.is_empty(), "a bucket can be emptied and refilled: expected `bucket.is_empty()`");
     for i in 20..30 {
-        assert!(bucket.insert(&key(i), &rid(i), &cmp));
+        assert!(bucket.insert(&key(i), &rid(i), &cmp), "a bucket can be emptied and refilled: expected `bucket.insert(&key(i), &rid(i), &cmp)`");
     }
-    assert!(bucket.is_full());
+    assert!(bucket.is_full(), "a bucket can be emptied and refilled: expected `bucket.is_full()`");
 }
 
 #[test]
@@ -883,20 +883,20 @@ fn s2b_14_the_bucket_sample_end_to_end() {
     bucket.init(10);
     let cmp = GenericComparator::<8>;
     for i in 0..10 {
-        assert!(bucket.insert(&key(i), &rid(i), &cmp));
+        assert!(bucket.insert(&key(i), &rid(i), &cmp), "the bucket sample end to end: expected `bucket.insert(&key(i), &rid(i), &cmp)`");
     }
-    assert!(bucket.is_full());
-    assert!(!bucket.insert(&key(11), &rid(11), &cmp));
+    assert!(bucket.is_full(), "the bucket sample end to end: expected `bucket.is_full()`");
+    assert!(!bucket.insert(&key(11), &rid(11), &cmp), "the bucket sample end to end: expected `!bucket.insert(&key(11), &rid(11), &cmp)`");
     for i in 0..10 {
-        assert_eq!(bucket.lookup(&key(i), &cmp), Some(rid(i)));
+        assert_eq!(bucket.lookup(&key(i), &cmp), Some(rid(i)), "the bucket sample end to end");
     }
     for i in (1..10).step_by(2) {
-        assert!(bucket.remove(&key(i), &cmp));
+        assert!(bucket.remove(&key(i), &cmp), "the bucket sample end to end: expected `bucket.remove(&key(i), &cmp)`");
     }
     for i in 0..10 {
         assert_eq!(bucket.remove(&key(i), &cmp), i % 2 == 0, "key {i}");
     }
-    assert!(bucket.is_empty());
+    assert!(bucket.is_empty(), "the bucket sample end to end: expected `bucket.is_empty()`");
 }
 
 // ---- 2b-07 · the table: new, get_value on an empty table, verify_integrity -----------------------------------------------------------------
@@ -914,9 +914,9 @@ fn s2b_15_a_new_table_has_a_formatted_header() {
     let ht = int_table(&bpm, 2, 3, 4);
     let guard = bpm.read_page(ht.get_header_page_id());
     let header = Header::new(&guard[..]);
-    assert_eq!(header.max_depth(), 2);
+    assert_eq!(header.max_depth(), 2, "a new table has a formatted header");
     for i in 0..4 {
-        assert_eq!(header.get_directory_page_id(i), PageId::INVALID);
+        assert_eq!(header.get_directory_page_id(i), PageId::INVALID, "a new table has a formatted header");
     }
 }
 
@@ -925,7 +925,7 @@ fn s2b_15_an_empty_table_has_no_values() {
     let bpm = bpm(10);
     let ht = int_table(&bpm, 0, 3, 4);
     for k in 0..20 {
-        assert!(ht.get_value(&k).is_empty());
+        assert!(ht.get_value(&k).is_empty(), "an empty table has no values: expected `ht.get_value(&k).is_empty()`");
     }
 }
 
@@ -937,10 +937,10 @@ fn s2b_15_an_empty_table_verifies() {
 
 #[test]
 fn s2b_15_the_defaults_fill_a_page() {
-    assert_eq!(IntTable::default_bucket_max_size(), 1023);
-    assert_eq!(KeyTable::default_bucket_max_size(), 511);
-    assert_eq!(IntTable::default_header_max_depth(), 9);
-    assert_eq!(IntTable::default_directory_max_depth(), 9);
+    assert_eq!(IntTable::default_bucket_max_size(), 1023, "the defaults fill a page");
+    assert_eq!(KeyTable::default_bucket_max_size(), 511, "the defaults fill a page");
+    assert_eq!(IntTable::default_header_max_depth(), 9, "the defaults fill a page");
+    assert_eq!(IntTable::default_directory_max_depth(), 9, "the defaults fill a page");
 }
 
 #[test]
@@ -949,7 +949,7 @@ fn s2b_15_reading_an_empty_table_pins_nothing() {
     let ht = int_table(&bpm, 0, 3, 4);
     ht.get_value(&1);
     ht.verify_integrity();
-    assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0));
+    assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0), "reading an empty table pins nothing");
 }
 
 // ---- 2b-07 · insert: the first key creates a directory and a bucket -----------------------------------------------------------------------
@@ -974,18 +974,18 @@ fn page_ids(bpm: &BufferPoolManager, ht: &IntTable<'_>) -> Vec<(PageId, Vec<Page
 fn s2b_16_the_first_insert_makes_a_directory_and_a_bucket() {
     let bpm = bpm(10);
     let ht = int_table(&bpm, 0, 3, 4);
-    assert!(ht.insert(&5, &50));
+    assert!(ht.insert(&5, &50), "the first insert makes a directory and a bucket: expected `ht.insert(&5, &50)`");
     let ids = page_ids(&bpm, &ht);
-    assert_eq!(ids.len(), 1);
+    assert_eq!(ids.len(), 1, "the first insert makes a directory and a bucket");
     let (dir_id, buckets) = &ids[0];
-    assert_eq!(buckets.len(), 1);
+    assert_eq!(buckets.len(), 1, "the first insert makes a directory and a bucket");
     let dir_guard = bpm.read_page(*dir_id);
     let dir = Directory::new(&dir_guard[..]);
-    assert_eq!((dir.get_global_depth(), dir.get_local_depth(0), dir.get_max_depth()), (0, 0, 3));
+    assert_eq!((dir.get_global_depth(), dir.get_local_depth(0), dir.get_max_depth()), (0, 0, 3), "the first insert makes a directory and a bucket");
     let bucket_guard = bpm.read_page(buckets[0]);
     let bucket = Bucket::<_, i32, i32>::new(&bucket_guard[..]);
-    assert_eq!((bucket.size(), bucket.max_size()), (1, 4));
-    assert_eq!(bucket.entry_at(0), (5, 50));
+    assert_eq!((bucket.size(), bucket.max_size()), (1, 4), "the first insert makes a directory and a bucket");
+    assert_eq!(bucket.entry_at(0), (5, 50), "the first insert makes a directory and a bucket");
 }
 
 #[test]
@@ -999,20 +999,20 @@ fn s2b_16_keys_with_different_top_bits_get_different_directories() {
     let a = 0;
     let b = (1..200).find(|&k| header_idx(k) != header_idx(a)).expect("some key lands elsewhere");
     drop(header_guard);
-    assert!(ht.insert(&a, &1));
-    assert!(ht.insert(&b, &2));
-    assert_eq!(page_ids(&bpm, &ht).len(), 2);
+    assert!(ht.insert(&a, &1), "keys with different top bits get different directories: expected `ht.insert(&a, &1)`");
+    assert!(ht.insert(&b, &2), "keys with different top bits get different directories: expected `ht.insert(&b, &2)`");
+    assert_eq!(page_ids(&bpm, &ht).len(), 2, "keys with different top bits get different directories");
 }
 
 #[test]
 fn s2b_16_inserting_leaves_nothing_pinned() {
     let bpm = bpm(4);
     let ht = int_table(&bpm, 0, 3, 4);
-    assert!(ht.insert(&1, &1));
-    assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0));
+    assert!(ht.insert(&1, &1), "inserting leaves nothing pinned: expected `ht.insert(&1, &1)`");
+    assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0), "inserting leaves nothing pinned");
     for (dir_id, buckets) in page_ids(&bpm, &ht) {
-        assert_eq!(bpm.get_pin_count(dir_id), Some(0));
-        assert!(buckets.iter().all(|b| bpm.get_pin_count(*b) == Some(0)));
+        assert_eq!(bpm.get_pin_count(dir_id), Some(0), "inserting leaves nothing pinned");
+        assert!(buckets.iter().all(|b| bpm.get_pin_count(*b) == Some(0)), "inserting leaves nothing pinned: expected `buckets.iter().all(|b| bpm.get_pin_count(*b) == Some(0))`");
     }
 }
 
@@ -1031,11 +1031,11 @@ fn s2b_17_inserted_values_can_be_read_back() {
     let bpm = bpm(10);
     let ht = int_table(&bpm, 0, 3, 8);
     for i in 0..8 {
-        assert!(ht.insert(&i, &(i * 10)));
-        assert_eq!(ht.get_value(&i), vec![i * 10]);
+        assert!(ht.insert(&i, &(i * 10)), "inserted values can be read back: expected `ht.insert(&i, &(i * 10))`");
+        assert_eq!(ht.get_value(&i), vec![i * 10], "inserted values can be read back");
     }
     for i in 0..8 {
-        assert_eq!(ht.get_value(&i), vec![i * 10]);
+        assert_eq!(ht.get_value(&i), vec![i * 10], "inserted values can be read back");
     }
 }
 
@@ -1047,7 +1047,7 @@ fn s2b_17_missing_keys_have_no_value() {
         ht.insert(&i, &i);
     }
     for i in 5..10 {
-        assert!(ht.get_value(&i).is_empty());
+        assert!(ht.get_value(&i).is_empty(), "missing keys have no value: expected `ht.get_value(&i).is_empty()`");
     }
 }
 
@@ -1055,9 +1055,9 @@ fn s2b_17_missing_keys_have_no_value() {
 fn s2b_17_a_duplicate_key_is_refused() {
     let bpm = bpm(10);
     let ht = int_table(&bpm, 0, 3, 8);
-    assert!(ht.insert(&1, &10));
-    assert!(!ht.insert(&1, &20));
-    assert_eq!(ht.get_value(&1), vec![10]);
+    assert!(ht.insert(&1, &10), "a duplicate key is refused: expected `ht.insert(&1, &10)`");
+    assert!(!ht.insert(&1, &20), "a duplicate key is refused: expected `!ht.insert(&1, &20)`");
+    assert_eq!(ht.get_value(&1), vec![10], "a duplicate key is refused");
 }
 
 #[test]
@@ -1065,7 +1065,7 @@ fn s2b_17_several_directories_work_side_by_side() {
     let bpm = bpm(30);
     let ht = int_table(&bpm, 2, 3, 16);
     for i in 0..12 {
-        assert!(ht.insert(&i, &(i + 100)));
+        assert!(ht.insert(&i, &(i + 100)), "several directories work side by side: expected `ht.insert(&i, &(i + 100))`");
     }
     for i in 0..12 {
         assert_eq!(ht.get_value(&i), vec![i + 100], "key {i}");
@@ -1083,7 +1083,7 @@ fn s2b_17_lookups_leave_nothing_pinned_or_latched() {
         ht.get_value(&2);
     }
     ht.insert(&2, &2); // would hang on a stuck latch
-    assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0));
+    assert_eq!(bpm.get_pin_count(ht.get_header_page_id()), Some(0), "lookups leave nothing pinned or latched");
 }
 
 // ---- 2b-09 · splitting a full bucket, and growing the directory ---------------------------------------------------------------------------
@@ -1110,7 +1110,7 @@ fn s2b_18_eight_well_spread_keys_fit_a_ninth_does_not() {
     }
     for k in &keys {
         assert!(ht.insert(k, k), "key {k}");
-        assert_eq!(ht.get_value(k), vec![*k]);
+        assert_eq!(ht.get_value(k), vec![*k], "eight well spread keys fit a ninth does not");
     }
     ht.verify_integrity();
     let ninth = (0..).find(|k| !keys.contains(k)).unwrap();
@@ -1135,17 +1135,17 @@ fn s2b_18_a_split_distributes_the_entries_by_the_new_bit() {
     // find three keys that share their lowest hash bit, so the third forces a split of a depth-0 bucket
     let keys: Vec<i32> = (0..100).filter(|k| hash.get_hash(k) & 1 == 0).take(3).collect();
     for k in &keys {
-        assert!(ht.insert(k, k));
+        assert!(ht.insert(k, k), "a split distributes the entries by the new bit: expected `ht.insert(k, k)`");
     }
     let ids = page_ids(&bpm, &ht);
     let (dir_id, buckets) = &ids[0];
     let dir_guard = bpm.read_page(*dir_id);
     let dir = Directory::new(&dir_guard[..]);
     assert!(dir.get_global_depth() >= 1, "the directory grew");
-    assert!(buckets.len() >= 2);
+    assert!(buckets.len() >= 2, "a split distributes the entries by the new bit: expected `buckets.len() >= 2`");
     dir.verify_integrity();
     for k in &keys {
-        assert_eq!(ht.get_value(k), vec![*k]);
+        assert_eq!(ht.get_value(k), vec![*k], "a split distributes the entries by the new bit");
     }
 }
 
@@ -1160,7 +1160,7 @@ fn s2b_18_many_keys_survive_many_splits() {
     for i in 0..400 {
         assert_eq!(ht.get_value(&i), vec![i * 3], "key {i}");
     }
-    assert!(ht.get_value(&400).is_empty());
+    assert!(ht.get_value(&400).is_empty(), "many keys survive many splits: expected `ht.get_value(&400).is_empty()`");
 }
 
 #[test]
@@ -1173,14 +1173,14 @@ fn s2b_18_the_directory_stops_growing_at_its_max_depth() {
             inserted += 1;
         }
     }
-    assert!(inserted <= 16);
+    assert!(inserted <= 16, "the directory stops growing at its max depth: expected `inserted <= 16`");
     assert!(inserted >= 8, "a decent hash gets at least half the capacity: {inserted}");
     ht.verify_integrity();
     let guard = bpm.read_page(ht.get_header_page_id());
     let dir_id = Header::new(&guard[..]).get_directory_page_id(0);
     drop(guard);
     let dir_guard = bpm.read_page(dir_id);
-    assert_eq!(Directory::new(&dir_guard[..]).get_global_depth(), 3);
+    assert_eq!(Directory::new(&dir_guard[..]).get_global_depth(), 3, "the directory stops growing at its max depth");
 }
 
 #[test]
@@ -1210,8 +1210,8 @@ fn s2b_18_splitting_does_not_leak_pins() {
         ht.insert(&i, &i);
     }
     for (dir_id, buckets) in page_ids(&bpm, &ht) {
-        assert_eq!(bpm.get_pin_count(dir_id), Some(0));
-        assert!(buckets.iter().all(|b| bpm.get_pin_count(*b).unwrap_or(0) == 0));
+        assert_eq!(bpm.get_pin_count(dir_id), Some(0), "splitting does not leak pins");
+        assert!(buckets.iter().all(|b| bpm.get_pin_count(*b).unwrap_or(0) == 0), "splitting does not leak pins: expected `buckets.iter().all(|b| bpm.get_pin_count(*b).unwrap_or(0) == 0)`");
     }
 }
 
@@ -1224,9 +1224,9 @@ fn s2b_19_remove_takes_a_key_out() {
     for i in 0..5 {
         ht.insert(&i, &i);
     }
-    assert!(ht.remove(&2));
-    assert!(ht.get_value(&2).is_empty());
-    assert_eq!(ht.get_value(&3), vec![3]);
+    assert!(ht.remove(&2), "remove takes a key out: expected `ht.remove(&2)`");
+    assert!(ht.get_value(&2).is_empty(), "remove takes a key out: expected `ht.get_value(&2).is_empty()`");
+    assert_eq!(ht.get_value(&3), vec![3], "remove takes a key out");
 }
 
 #[test]
@@ -1235,8 +1235,8 @@ fn s2b_19_removing_a_missing_key_is_false() {
     let ht = int_table(&bpm, 0, 3, 8);
     assert!(!ht.remove(&1), "an empty table has nothing to remove");
     ht.insert(&1, &1);
-    assert!(!ht.remove(&2));
-    assert!(ht.remove(&1));
+    assert!(!ht.remove(&2), "removing a missing key is false: expected `!ht.remove(&2)`");
+    assert!(ht.remove(&1), "removing a missing key is false: expected `ht.remove(&1)`");
     assert!(!ht.remove(&1), "the second removal finds nothing");
 }
 
@@ -1246,8 +1246,8 @@ fn s2b_19_a_removed_key_can_be_inserted_again() {
     let ht = int_table(&bpm, 0, 3, 8);
     ht.insert(&1, &10);
     ht.remove(&1);
-    assert!(ht.insert(&1, &20));
-    assert_eq!(ht.get_value(&1), vec![20]);
+    assert!(ht.insert(&1, &20), "a removed key can be inserted again: expected `ht.insert(&1, &20)`");
+    assert_eq!(ht.get_value(&1), vec![20], "a removed key can be inserted again");
 }
 
 #[test]
@@ -1272,21 +1272,21 @@ fn s2b_19_bustubs_remove_test_1() {
     let ht = int_table(&bpm, 2, 3, 2);
     let n = 5;
     for i in 0..n {
-        assert!(ht.insert(&i, &i));
-        assert_eq!(ht.get_value(&i), vec![i]);
+        assert!(ht.insert(&i, &i), "bustubs remove test 1: expected `ht.insert(&i, &i)`");
+        assert_eq!(ht.get_value(&i), vec![i], "bustubs remove test 1");
     }
     ht.verify_integrity();
     for i in n..2 * n {
-        assert!(ht.get_value(&i).is_empty());
+        assert!(ht.get_value(&i).is_empty(), "bustubs remove test 1: expected `ht.get_value(&i).is_empty()`");
     }
     for i in 0..n {
-        assert!(ht.remove(&i));
-        assert!(ht.get_value(&i).is_empty());
+        assert!(ht.remove(&i), "bustubs remove test 1: expected `ht.remove(&i)`");
+        assert!(ht.get_value(&i).is_empty(), "bustubs remove test 1: expected `ht.get_value(&i).is_empty()`");
     }
     ht.verify_integrity();
     for i in n..2 * n {
-        assert!(!ht.remove(&i));
-        assert!(ht.get_value(&i).is_empty());
+        assert!(!ht.remove(&i), "bustubs remove test 1: expected `!ht.remove(&i)`");
+        assert!(ht.get_value(&i).is_empty(), "bustubs remove test 1: expected `ht.get_value(&i).is_empty()`");
     }
     ht.verify_integrity();
 }
@@ -1308,7 +1308,7 @@ fn s2b_20_emptying_a_bucket_merges_it_with_its_split_image() {
         ht.insert(&i, &i);
     }
     let before = bucket_count(&bpm, &ht);
-    assert!(before >= 4);
+    assert!(before >= 4, "emptying a bucket merges it with its split image: expected `before >= 4`");
     for i in 0..16 {
         ht.remove(&i);
     }
@@ -1343,7 +1343,7 @@ fn s2b_20_merging_keeps_every_remaining_key_findable() {
     }
     for i in 0..300 {
         if i % 3 != 0 {
-            assert!(ht.remove(&i));
+            assert!(ht.remove(&i), "merging keeps every remaining key findable: expected `ht.remove(&i)`");
         }
     }
     ht.verify_integrity();
@@ -1360,10 +1360,10 @@ fn s2b_20_a_table_emptied_completely_is_one_bucket_again() {
         ht.insert(&i, &i);
     }
     for i in 0..200 {
-        assert!(ht.remove(&i));
+        assert!(ht.remove(&i), "a table emptied completely is one bucket again: expected `ht.remove(&i)`");
     }
     ht.verify_integrity();
-    assert_eq!(bucket_count(&bpm, &ht), 1);
+    assert_eq!(bucket_count(&bpm, &ht), 1, "a table emptied completely is one bucket again");
 }
 
 #[test]
@@ -1375,7 +1375,7 @@ fn s2b_20_the_table_works_after_everything_was_removed() {
             assert!(ht.insert(&i, &(i + round)), "round {round} key {i}");
         }
         for i in 0..150 {
-            assert!(ht.remove(&i));
+            assert!(ht.remove(&i), "the table works after everything was removed: expected `ht.remove(&i)`");
         }
         ht.verify_integrity();
     }
@@ -1398,11 +1398,11 @@ fn s2b_21_a_table_that_was_emptied_shrinks_to_global_depth_zero() {
     for i in 0..200 {
         ht.insert(&i, &i);
     }
-    assert!(global_depth(&bpm, &ht) >= 3);
+    assert!(global_depth(&bpm, &ht) >= 3, "a table that was emptied shrinks to global depth zero: expected `global_depth(&bpm, &ht) >= 3`");
     for i in 0..200 {
         ht.remove(&i);
     }
-    assert_eq!(global_depth(&bpm, &ht), 0);
+    assert_eq!(global_depth(&bpm, &ht), 0, "a table that was emptied shrinks to global depth zero");
 }
 
 #[test]
@@ -1420,7 +1420,7 @@ fn s2b_21_the_directory_shrinks_as_buckets_merge_not_only_at_the_end() {
     assert!(after < full, "{after} should be below {full}");
     ht.verify_integrity();
     for i in 48..64 {
-        assert_eq!(ht.get_value(&i), vec![i]);
+        assert_eq!(ht.get_value(&i), vec![i], "the directory shrinks as buckets merge not only at the end");
     }
 }
 
@@ -1433,7 +1433,7 @@ fn s2b_21_a_directory_that_cannot_shrink_keeps_its_depth() {
     }
     let depth = global_depth(&bpm, &ht);
     ht.remove(&0);
-    assert!(global_depth(&bpm, &ht) <= depth);
+    assert!(global_depth(&bpm, &ht) <= depth, "a directory that cannot shrink keeps its depth: expected `global_depth(&bpm, &ht) <= depth`");
     ht.verify_integrity();
 }
 
@@ -1491,7 +1491,7 @@ fn s2b_22_two_threads_insert_the_same_keys() {
     for &k in &keys {
         let found = ht.get_value(&gk(k));
         assert_eq!(found.len(), 1, "key {k}");
-        assert_eq!(found[0].slot_num() as i64, k & 0xFFFF_FFFF);
+        assert_eq!(found[0].slot_num() as i64, k & 0xFFFF_FFFF, "two threads insert the same keys");
     }
 }
 
@@ -1581,7 +1581,7 @@ fn s2b_22_inserts_deletes_and_lookups_at_once() {
         }
     });
     for &k in &preserved {
-        assert_eq!(ht.get_value(&gk(k)).len(), 1);
+        assert_eq!(ht.get_value(&gk(k)).len(), 1, "inserts deletes and lookups at once");
     }
 }
 
@@ -1605,7 +1605,7 @@ fn s2b_22_a_heavy_concurrent_workload_keeps_the_table_consistent() {
                         }
                         _ => {
                             let v = ht.get_value(&k);
-                            assert!(v.is_empty() || v == vec![k]);
+                            assert!(v.is_empty() || v == vec![k], "a heavy concurrent workload keeps the table consistent: expected `v.is_empty() || v == vec![k]`");
                         }
                     }
                 }

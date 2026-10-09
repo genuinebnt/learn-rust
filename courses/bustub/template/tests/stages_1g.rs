@@ -49,10 +49,10 @@ fn s1g_01_a_read_guard_pins_the_page_and_shows_its_bytes() {
     let (bpm, _) = pool(3);
     let page = bpm.new_page();
     let guard = bpm.checked_read_page(page).expect("a free frame");
-    assert_eq!(guard.get_page_id(), page);
-    assert_eq!(bpm.get_pin_count(page), Some(1));
-    assert_eq!(guard.get_data().len(), PS);
-    assert!(guard.get_data().iter().all(|&b| b == 0));
+    assert_eq!(guard.get_page_id(), page, "a read guard pins the page and shows its bytes");
+    assert_eq!(bpm.get_pin_count(page), Some(1), "a read guard pins the page and shows its bytes");
+    assert_eq!(guard.get_data().len(), PS, "a read guard pins the page and shows its bytes");
+    assert!(guard.get_data().iter().all(|&b| b == 0), "a read guard pins the page and shows its bytes: expected `guard.get_data().iter().all(|&b| b == 0)`");
 }
 
 #[test]
@@ -63,8 +63,8 @@ fn s1g_01_the_guard_derefs_to_the_page() {
     bpm.frame_data(frame).write().unwrap()[..2].copy_from_slice(b"hi");
     bpm.unpin_page(page, true);
     let guard = bpm.checked_read_page(page).unwrap();
-    assert_eq!(&guard[..2], b"hi");
-    assert_eq!(&guard.get_data()[..2], b"hi");
+    assert_eq!(&guard[..2], b"hi", "the guard derefs to the page");
+    assert_eq!(&guard.get_data()[..2], b"hi", "the guard derefs to the page");
 }
 
 #[test]
@@ -74,8 +74,8 @@ fn s1g_01_many_readers_share_a_page() {
     let a = bpm.checked_read_page(page).unwrap();
     let b = bpm.checked_read_page(page).unwrap();
     let c = bpm.checked_read_page(page).unwrap();
-    assert_eq!(bpm.get_pin_count(page), Some(3));
-    assert_eq!((a.get_page_id(), b.get_page_id(), c.get_page_id()), (page, page, page));
+    assert_eq!(bpm.get_pin_count(page), Some(3), "many readers share a page");
+    assert_eq!((a.get_page_id(), b.get_page_id(), c.get_page_id()), (page, page, page), "many readers share a page");
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn s1g_01_no_guard_when_every_frame_is_pinned() {
     let (a, b, c) = (bpm.new_page(), bpm.new_page(), bpm.new_page());
     let _ga = bpm.checked_read_page(a).unwrap();
     let _gb = bpm.checked_read_page(b).unwrap();
-    assert!(bpm.checked_read_page(c).is_none());
+    assert!(bpm.checked_read_page(c).is_none(), "no guard when every frame is pinned: expected `bpm.checked_read_page(c).is_none()`");
 }
 
 // ---- 1g-01 · dropping a read guard -------------------------------------------------------------------------------------------
@@ -94,9 +94,9 @@ fn s1g_02_dropping_a_read_guard_unpins_the_page() {
     let (bpm, _) = pool(3);
     let page = bpm.new_page();
     let guard = bpm.checked_read_page(page).unwrap();
-    assert_eq!(bpm.get_pin_count(page), Some(1));
+    assert_eq!(bpm.get_pin_count(page), Some(1), "dropping a read guard unpins the page");
     drop(guard);
-    assert_eq!(bpm.get_pin_count(page), Some(0));
+    assert_eq!(bpm.get_pin_count(page), Some(0), "dropping a read guard unpins the page");
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn s1g_02_leaving_a_scope_drops_the_guard() {
     {
         let _guard = bpm.checked_read_page(page).expect("a frame");
     }
-    assert_eq!(bpm.get_pin_count(page), Some(0));
+    assert_eq!(bpm.get_pin_count(page), Some(0), "leaving a scope drops the guard");
 }
 
 #[test]
@@ -115,11 +115,11 @@ fn s1g_02_release_is_idempotent() {
     let page = bpm.new_page();
     let mut guard = bpm.checked_read_page(page).unwrap();
     guard.release();
-    assert_eq!(bpm.get_pin_count(page), Some(0));
+    assert_eq!(bpm.get_pin_count(page), Some(0), "release is idempotent");
     guard.release(); // "Another drop should have no effect."
-    assert_eq!(bpm.get_pin_count(page), Some(0));
+    assert_eq!(bpm.get_pin_count(page), Some(0), "release is idempotent");
     drop(guard); // and so does the destructor
-    assert_eq!(bpm.get_pin_count(page), Some(0));
+    assert_eq!(bpm.get_pin_count(page), Some(0), "release is idempotent");
 }
 
 #[test]
@@ -151,9 +151,9 @@ fn s1g_02_each_guard_releases_only_its_own_pin() {
     let a = bpm.checked_read_page(page).unwrap();
     let b = bpm.checked_read_page(page).unwrap();
     drop(a);
-    assert_eq!(bpm.get_pin_count(page), Some(1));
+    assert_eq!(bpm.get_pin_count(page), Some(1), "each guard releases only its own pin");
     drop(b);
-    assert_eq!(bpm.get_pin_count(page), Some(0));
+    assert_eq!(bpm.get_pin_count(page), Some(0), "each guard releases only its own pin");
 }
 
 // ---- 1g-01 · write guards ---------------------------------------------------------------------------------------------------
@@ -164,12 +164,12 @@ fn s1g_03_a_write_guard_changes_the_page_and_the_change_is_seen() {
     let page = bpm.new_page();
     {
         let mut guard = bpm.checked_write_page(page).unwrap();
-        assert_eq!(bpm.get_pin_count(page), Some(1));
+        assert_eq!(bpm.get_pin_count(page), Some(1), "a write guard changes the page and the change is seen");
         guard.get_data_mut()[..5].copy_from_slice(b"hello");
-        assert_eq!(&guard.get_data()[..5], b"hello");
+        assert_eq!(&guard.get_data()[..5], b"hello", "a write guard changes the page and the change is seen");
     }
-    assert_eq!(bpm.get_pin_count(page), Some(0));
-    assert_eq!(text(bpm.checked_read_page(page).unwrap().get_data(), 5), "hello");
+    assert_eq!(bpm.get_pin_count(page), Some(0), "a write guard changes the page and the change is seen");
+    assert_eq!(text(bpm.checked_read_page(page).unwrap().get_data(), 5), "hello", "a write guard changes the page and the change is seen");
 }
 
 #[test]
@@ -177,11 +177,11 @@ fn s1g_03_get_data_mut_marks_the_page_dirty_and_a_look_does_not() {
     let (bpm, _) = pool(3);
     let page = bpm.new_page();
     let mut guard = bpm.checked_write_page(page).unwrap();
-    assert!(!guard.is_dirty());
+    assert!(!guard.is_dirty(), "get data mut marks the page dirty and a look does not: expected `!guard.is_dirty()`");
     let _ = guard.get_data();
-    assert!(!guard.is_dirty());
+    assert!(!guard.is_dirty(), "get data mut marks the page dirty and a look does not: expected `!guard.is_dirty()`");
     guard.get_data_mut()[0] = 1;
-    assert!(guard.is_dirty());
+    assert!(guard.is_dirty(), "get data mut marks the page dirty and a look does not: expected `guard.is_dirty()`");
 }
 
 #[test]
@@ -190,8 +190,8 @@ fn s1g_03_dirt_reaches_the_pool_so_the_page_survives_eviction() {
     let (a, b) = (bpm.new_page(), bpm.new_page());
     bpm.checked_write_page(a).unwrap().get_data_mut()[..4].copy_from_slice(b"data");
     bpm.checked_write_page(b).unwrap(); // evicts a: written because the guard reported the dirt
-    assert_eq!(disk.writes.load(Ordering::SeqCst), 1);
-    assert_eq!(text(bpm.checked_read_page(a).unwrap().get_data(), 4), "data");
+    assert_eq!(disk.writes.load(Ordering::SeqCst), 1, "dirt reaches the pool so the page survives eviction");
+    assert_eq!(text(bpm.checked_read_page(a).unwrap().get_data(), 4), "data", "dirt reaches the pool so the page survives eviction");
 }
 
 #[test]
@@ -230,7 +230,7 @@ fn s1g_03_release_is_idempotent_for_writers_too() {
     let mut guard = bpm.checked_write_page(page).unwrap();
     guard.release();
     guard.release();
-    assert_eq!(bpm.get_pin_count(page), Some(0));
+    assert_eq!(bpm.get_pin_count(page), Some(0), "release is idempotent for writers too");
     assert!(bpm.checked_write_page(page).is_some(), "this will hang if the latch was not released");
 }
 
@@ -240,8 +240,8 @@ fn s1g_03_deref_mut_works_like_get_data_mut() {
     let page = bpm.new_page();
     let mut guard = bpm.checked_write_page(page).unwrap();
     guard[0] = 7;
-    assert!(guard.is_dirty());
-    assert_eq!(guard[0], 7);
+    assert!(guard.is_dirty(), "deref mut works like get data mut: expected `guard.is_dirty()`");
+    assert_eq!(guard[0], 7, "deref mut works like get data mut");
 }
 
 // ---- 1g-02 · read_page and write_page --------------------------------------------------------------------------------------------
@@ -252,7 +252,7 @@ fn s1g_04_they_return_a_guard_when_there_is_room() {
     let page = bpm.new_page();
     let _r = bpm.read_page(page);
     let _w = bpm.read_page(page);
-    assert_eq!(bpm.get_pin_count(page), Some(2));
+    assert_eq!(bpm.get_pin_count(page), Some(2), "they return a guard when there is room");
 }
 
 #[test]
@@ -281,13 +281,13 @@ fn s1g_05_a_write_guard_can_flush_its_page() {
     let page = bpm.new_page();
     let mut guard = bpm.write_page(page);
     guard.get_data_mut()[..5].copy_from_slice(b"flush");
-    assert!(guard.is_dirty());
+    assert!(guard.is_dirty(), "a write guard can flush its page: expected `guard.is_dirty()`");
     guard.flush();
     assert!(!guard.is_dirty(), "flushed: clean");
-    assert_eq!(disk.writes.load(Ordering::SeqCst), 1);
+    assert_eq!(disk.writes.load(Ordering::SeqCst), 1, "a write guard can flush its page");
     let mut buf = [0u8; PS];
     disk.read_page(page, &mut buf).unwrap();
-    assert_eq!(&buf[..5], b"flush");
+    assert_eq!(&buf[..5], b"flush", "a write guard can flush its page");
     assert_eq!(bpm.get_pin_count(page), Some(1), "the guard keeps its pin");
 }
 
@@ -297,7 +297,7 @@ fn s1g_05_flushing_a_clean_guard_still_writes() {
     let page = bpm.new_page();
     let mut guard = bpm.write_page(page);
     guard.flush();
-    assert_eq!(disk.writes.load(Ordering::SeqCst), 1);
+    assert_eq!(disk.writes.load(Ordering::SeqCst), 1, "flushing a clean guard still writes");
 }
 
 #[test]
@@ -309,7 +309,7 @@ fn s1g_05_a_read_guard_can_flush_too() {
     guard.flush();
     let mut buf = [0u8; PS];
     disk.read_page(page, &mut buf).unwrap();
-    assert_eq!(buf[0], 9);
+    assert_eq!(buf[0], 9, "a read guard can flush too");
 }
 
 #[test]
@@ -356,7 +356,7 @@ fn s1g_06_a_blocked_flush_does_not_block_the_rest_of_the_pool() {
         done_tx.send(flushed).unwrap();
     });
     let flushed = done_rx.recv_timeout(WAIT).expect("deadlock: flush_page waits for a latch while holding the pool's lock");
-    assert!(flushed);
+    assert!(flushed, "a blocked flush does not block the rest of the pool: expected `flushed`");
     worker.join().unwrap();
 }
 
@@ -368,10 +368,10 @@ fn s1g_06_flush_page_still_writes_the_latest_bytes() {
         let mut guard = bpm.write_page(page);
         guard.get_data_mut()[..3].copy_from_slice(b"abc");
     }
-    assert!(bpm.flush_page(page));
+    assert!(bpm.flush_page(page), "flush page still writes the latest bytes: expected `bpm.flush_page(page)`");
     let mut buf = [0u8; PS];
     disk.read_page(page, &mut buf).unwrap();
-    assert_eq!(&buf[..3], b"abc");
+    assert_eq!(&buf[..3], b"abc", "flush page still writes the latest bytes");
     assert_eq!(bpm.get_pin_count(page), Some(0), "flush_page leaves the pin count where it found it");
 }
 
@@ -380,7 +380,7 @@ fn s1g_06_a_flushed_page_is_not_left_pinned_so_it_can_be_evicted() {
     let (bpm, _) = pool(1);
     let (a, b) = (bpm.new_page(), bpm.new_page());
     bpm.write_page(a).get_data_mut()[0] = 1;
-    assert!(bpm.flush_page(a));
+    assert!(bpm.flush_page(a), "a flushed page is not left pinned so it can be evicted: expected `bpm.flush_page(a)`");
     assert!(bpm.checked_read_page(b).is_some(), "a is unpinned again: its frame can be reused");
 }
 
@@ -391,14 +391,14 @@ fn s1g_07_guards_moved_into_a_vec_keep_their_pages_pinned_until_dropped() {
     let (bpm, _) = pool(4);
     let pages: Vec<_> = (0..4).map(|_| bpm.new_page()).collect();
     let mut guards: Vec<_> = pages.iter().map(|&p| bpm.write_page(p)).collect();
-    assert!(pages.iter().all(|&p| bpm.get_pin_count(p) == Some(1)));
-    assert!(bpm.checked_read_page(bpm.new_page()).is_none());
+    assert!(pages.iter().all(|&p| bpm.get_pin_count(p) == Some(1)), "guards moved into a vec keep their pages pinned until dropped: expected `pages.iter().all(|&p| bpm.get_pin_count(p) == Some(1))`");
+    assert!(bpm.checked_read_page(bpm.new_page()).is_none(), "guards moved into a vec keep their pages pinned until dropped: expected `bpm.checked_read_page(bpm.new_page()).is_none()`");
     let first = guards.remove(0); // moved out of the Vec
     assert_eq!(bpm.get_pin_count(pages[0]), Some(1), "moving a guard doesn't release it");
     drop(first);
-    assert_eq!(bpm.get_pin_count(pages[0]), Some(0));
+    assert_eq!(bpm.get_pin_count(pages[0]), Some(0), "guards moved into a vec keep their pages pinned until dropped");
     guards.clear();
-    assert!(pages.iter().all(|&p| bpm.get_pin_count(p) == Some(0)));
+    assert!(pages.iter().all(|&p| bpm.get_pin_count(p) == Some(0)), "guards moved into a vec keep their pages pinned until dropped: expected `pages.iter().all(|&p| bpm.get_pin_count(p) == Some(0))`");
 }
 
 #[test]
@@ -407,11 +407,11 @@ fn s1g_07_assigning_a_guard_drops_the_one_it_replaces() {
     let (a, b) = (bpm.new_page(), bpm.new_page());
     let mut guard = bpm.read_page(a);
     let other = bpm.read_page(b);
-    assert_eq!((bpm.get_pin_count(a), bpm.get_pin_count(b)), (Some(1), Some(1)));
+    assert_eq!((bpm.get_pin_count(a), bpm.get_pin_count(b)), (Some(1), Some(1)), "assigning a guard drops the one it replaces");
     guard = other; // the old guard (page a) is dropped here
-    assert_eq!(bpm.get_pin_count(a), Some(0));
-    assert_eq!(bpm.get_pin_count(b), Some(1));
-    assert_eq!(guard.get_page_id(), b);
+    assert_eq!(bpm.get_pin_count(a), Some(0), "assigning a guard drops the one it replaces");
+    assert_eq!(bpm.get_pin_count(b), Some(1), "assigning a guard drops the one it replaces");
+    assert_eq!(guard.get_page_id(), b, "assigning a guard drops the one it replaces");
 }
 
 #[test]
@@ -432,5 +432,5 @@ fn s1g_07_many_threads_incrementing_one_page_lose_nothing() {
         .collect();
     handles.into_iter().for_each(|h| h.join().unwrap());
     let n = u32::from_le_bytes(bpm.read_page(page).get_data()[..4].try_into().unwrap());
-    assert_eq!(n, 2000);
+    assert_eq!(n, 2000, "many threads incrementing one page lose nothing");
 }

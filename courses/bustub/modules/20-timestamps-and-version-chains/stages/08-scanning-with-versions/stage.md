@@ -2,13 +2,17 @@ Everything so far was preparation: read timestamps, undo logs, `collect` and `re
 
 ## The task
 
-In `src/execution/executors/seq_scan_executor.rs`, `SeqScanExecutor::next` begins with a region marked `4a-08`, taken when `self.txn` is `Some((txn, txn_mgr))` (the statement runs inside a transaction: `BusTubInstance::execute_sql_txn`). Fill it in. For each tuple of the table iterator, until the batch is full or the table ends:
+In `src/execution/executors/seq_scan_executor.rs`, `SeqScanExecutor::next` begins with a region marked `4a-08`, taken when `self.txn` is `Some((txn, txn_mgr))` (the statement runs inside a transaction: `BusTubInstance::execute_sql_txn`). Fill it in.
 
-1. Take its rid and advance the iterator.
-2. Read the tuple, its metadata and its undo link **together** with `get_tuple_and_undo_link(txn_mgr, self.table_info, rid)` (given: one page read latch, so the tuple and its link belong to the same moment).
-3. `collect_undo_logs(...)` for the transaction; skip the tuple if it returns `None`.
-4. `reconstruct_tuple(&self.table_info.schema, ...)`; skip it if that returns `None` (a deleted version).
-5. Apply the plan's `filter_predicate` to the **reconstructed** tuple (`passes_filter`, from stage 3e-02), then set its rid and push it with its rid.
+
+For each tuple of the table iterator, until the batch is full or the table ends, the scan returns the version this transaction can see: the tuple, its metadata and its undo link read at one moment (`get_tuple_and_undo_link`: one page read latch), the logs `collect_undo_logs` says are needed, and the tuple rebuilt with `reconstruct_tuple`. A tuple with no visible version, and a version that is deleted, are skipped. The plan's `filter_predicate` is applied to the **reconstructed** tuple (`passes_filter`, from stage 3e-02), and what is returned carries its rid. The iterator advances even for a skipped tuple. `next` returns `true` when the batch is not empty. The non-transactional path below (module 3e) stays as it is for `execute_sql`.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. Take its rid and advance the iterator.
+> 2. Read the tuple, its metadata and its undo link **together** with `get_tuple_and_undo_link(txn_mgr, self.table_info, rid)` (given: one page read latch, so the tuple and its link belong to the same moment).
+> 3. `collect_undo_logs(...)` for the transaction; skip the tuple if it returns `None`.
+> 4. `reconstruct_tuple(&self.table_info.schema, ...)`; skip it if that returns `None` (a deleted version).
+> 5. Apply the plan's `filter_predicate` to the **reconstructed** tuple (`passes_filter`, from stage 3e-02), then set its rid and push it with its rid.
 
 Return `true` when the batch is not empty. The non-transactional path below (module 3e) stays as it is for `execute_sql`.
 

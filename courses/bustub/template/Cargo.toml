@@ -9,5 +9,9 @@ description = "BusTub (CMU 15-445) in Rust: built stage by stage with `anneal co
 
 [dependencies]
 
+[dev-dependencies]
+# Property tests: random operation sequences checked against a simple model, shrunk to the shortest failing one.
+proptest = { version = "1", default-features = false, features = ["std"] }
+
 [profile.test]
 opt-level = 1

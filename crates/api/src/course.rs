@@ -174,7 +174,7 @@ pub async fn concept(State(s): State<AppState>, Path((course, id)): Path<(String
     let k = c.concept(&id).ok_or_else(|| ApiError::NotFound(format!("concept {id}")))?;
     let used_in: Vec<Value> = c
         .stages()
-        .filter(|x| x.concepts.contains(&id))
+        .filter(|x| x.concepts.contains(&id) || x.concepts_optional.contains(&id))
         .map(|x| json!({ "id": x.id, "title": x.title, "rank": x.rank, "module": x.module }))
         .collect();
     let read = read_concepts(&s, &c.id).await?.contains(&k.id);

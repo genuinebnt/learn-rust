@@ -79,7 +79,8 @@ test("the to-do and passed filters split the stages", async ({ page }) => {
     await page.getByRole("button", { name: "passed", exact: true }).click();
     const done = await page.locator(rows).count().catch(() => 0);
     expect(todo).toBeGreaterThan(100);
-    expect(todo + done).toBe(163);
+    const total = (await (await page.request.get("/api/courses/bustub")).json()).total;
+    expect(todo + done).toBe(total);
 });
 
 test("/ focuses the find box, and Escape leaves it", async ({ page }) => {

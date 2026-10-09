@@ -140,3 +140,31 @@ test.describe("code blocks", () => {
         expect(await page.locator(".k-more").count()).toBe(0);
     });
 });
+
+test.describe("check yourself and the steps aside", () => {
+    test("a question hides its answer until you click it, and nudges come one at a time", async ({ page }) => {
+        await page.goto("/courses/bustub/1a-02");
+        const box = page.locator(".k-rev2").first();
+        await expect(box).toBeVisible();
+        const spoil = box.locator(".k-spoil");
+        await expect(spoil).toHaveAttribute("aria-pressed", "false");
+        await box.getByRole("button", { name: /Need a nudge/ }).click();
+        await expect(box.locator(".k-nudge")).toContainText("delete_page");
+        await expect(box.locator(".k-st2.k-on")).toHaveCount(1);
+        await box.getByRole("button", { name: /Another nudge/ }).click();
+        await expect(box.locator(".k-st2.k-on")).toHaveCount(2);
+        await spoil.click();
+        await expect(spoil).toHaveAttribute("aria-pressed", "true");
+        await expect(spoil).toContainText("the file does not grow");
+    });
+
+    test("a task's steps are in a closed aside, with the contract above them", async ({ page }) => {
+        await page.goto("/courses/bustub/2c-04");
+        const aside = page.locator(".k-asd", { hasText: "if you would rather not work them out" });
+        await expect(aside).toBeVisible();
+        await expect(aside).not.toHaveClass(/k-open/);
+        await expect(page.locator(".k-task", { hasText: "two leaves hold the same pairs" })).toBeVisible();
+        await aside.locator(".k-ah").click();
+        await expect(aside.locator("ol li")).toHaveCount(4);
+    });
+});

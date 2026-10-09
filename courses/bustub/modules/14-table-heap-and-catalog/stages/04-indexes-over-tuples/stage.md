@@ -72,4 +72,4 @@ The comparator reads a column at the *key schema's* offset, not the table's. Bui
 
 ### The tree's iterator yields `(key, rid)`
 
-`scan_all` is `tree.begin().map(|(_, rid)| rid).collect()`; `scan_from` is the same from `begin_at`.
+The scan keeps only the rid of each `(key, rid)` pair. `scan_from` differs from `scan_all` only in where the iterator starts.

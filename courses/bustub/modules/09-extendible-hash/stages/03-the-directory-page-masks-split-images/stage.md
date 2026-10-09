@@ -6,6 +6,13 @@ It is the first place the table's invariants appear in code: local depth never e
 
 **Where this fits.** The middle level. A directory has `2^global_depth` slots; slot `hash & mask` holds a bucket's page id, and each slot records the **local depth** of its bucket (how many hash bits that bucket actually distinguishes). Many slots can share a bucket: when a bucket has local depth `d` and the directory has global depth `g`, exactly `2^(g-d)` slots point at it.
 
+> [!CHECK] A directory has global depth 3. The bucket in slot 5 has local depth 2. Which slots point at the same bucket, and what is the slot of its split image? (Slots are chosen by the low bits of the hash.)
+> ||Slots 1 and 5: the ones whose low two bits are 01. The split image is slot 5 XOR (1 << (2 - 1)) = 7, a bucket that covers slots 3 and 7 (low bits 11).||
+>
+> - Write the slot numbers in binary. How many low bits does a local depth of 2 look at?
+> - A bucket's sibling differs from it in the highest bit it looks at: which one is that?
+> - How many slots point at a bucket of local depth d in a directory of global depth g?
+
 ### The task
 
 In `src/storage/page/extendible_htable_directory_page.rs` (`| max_depth u32 | global_depth u32 | local_depths [u8; 512] | bucket_page_ids [i32; 512] |`), implement:

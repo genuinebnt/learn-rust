@@ -1,0 +1,8 @@
+id = "1a-02"
+title = "Delete and reuse"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1a::s1a_02"]
+learn = ["freeing and reusing space: a free list as a stack", "growth by doubling is amortised O(1)", "stating an invariant and checking it in debug builds", "reasoning about what an I/O error leaves behind"]
+concepts = []
+concepts_optional = ["slot-allocation-and-invariants", "collections-as-tables", "integers-and-casts"]

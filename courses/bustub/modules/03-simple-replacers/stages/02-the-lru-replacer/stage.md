@@ -6,6 +6,13 @@ The exercise also asks for speed: a replacer built on a scan works and fails the
 
 **Where this fits.** Now the first replacer. A **replacer** tracks which buffer-pool frames may be evicted and chooses the victim. **LRU** evicts the frame that was *unpinned* longest ago.
 
+> [!CHECK] An LRU replacer (capacity 7) sees `unpin(1)`, `unpin(2)`, `unpin(3)`, `pin(2)`, `unpin(2)`, `unpin(1)`. What do the next two `victim()` calls return? Trace the list after every call.
+> ||1, then 3. After the three unpins the list is [1, 2, 3]; `pin(2)` removes it: [1, 3]; `unpin(2)` puts it at the back: [1, 3, 2]; `unpin(1)` finds 1 already there and leaves it in place.||
+>
+> - Does `unpin` of a frame that is already in the list move it?
+> - What does `pin` do to the list and to the map of handles?
+> - The oldest end is the front: which frame is there after each step?
+
 ### The task
 
 `Replacer` (given, `src/buffer/replacer.rs`) is the trait: `victim`, `pin`, `unpin`, `size`. `LruReplacer` (`src/buffer/lru_replacer.rs`) keeps an `IndexList<FrameId>` (oldest at the front) and a `HashMap<FrameId, Handle>` that says where each frame is. Implement:

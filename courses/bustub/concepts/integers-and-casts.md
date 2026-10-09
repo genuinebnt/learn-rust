@@ -120,8 +120,7 @@ fn overflow_on_purpose_and_by_mistake() {
 
 ### In the exercises
 
-- **1a-01 Part 1 and 2:** `slot_offset` and `file_size_for` return `u64` and widen with `as u64` before multiplying (the first example). A stage test checks slot 1 000 000.
-- **1a-04:** the file grows by doubling: `capacity * 2` can be written `checked_mul` if you want it to fail loudly; the tests expect `(next_power_of_two(max(n, 16)) + 1)` pages.
+- **1a-01 and 1a-02:** file offsets are `u64` and page positions are `usize`; widen with `as u64` *before* multiplying by the page size or a page id past four gigabytes overflows (the large-page-id test uses 1 000 000 and a billion). The file grows when space runs out; `checked_mul` is one way to make a doubling that cannot wrap fail loudly.
 - **2a-01 and 2a-02:** `u32::from_le_bytes`, `i32` page ids that are `-1` on disk, and `const fn array_size` with `usize` arithmetic.
 - **2b-01 (MurmurHash3):** every multiply and add on the state is `wrapping_mul` / `wrapping_add`, and `rotate_left` for rotations.
 

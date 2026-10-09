@@ -88,8 +88,8 @@ impl DiskIo for BadDisk {
 #[test]
 fn s1b_01_a_new_channel_is_empty() {
     let ch: Channel<u32> = Channel::new();
-    assert!(ch.is_empty());
-    assert_eq!(ch.len(), 0);
+    assert!(ch.is_empty(), "a new channel is empty: expected `ch.is_empty()`");
+    assert_eq!(ch.len(), 0, "a new channel is empty");
 }
 
 #[test]
@@ -98,8 +98,8 @@ fn s1b_01_put_adds_elements() {
     ch.put("a");
     ch.put("b");
     ch.put("c");
-    assert_eq!(ch.len(), 3);
-    assert!(!ch.is_empty());
+    assert_eq!(ch.len(), 3, "put adds elements");
+    assert!(!ch.is_empty(), "put adds elements: expected `!ch.is_empty()`");
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn s1b_01_put_takes_elements_that_cannot_be_cloned() {
     let ch = Channel::new();
     ch.put(Box::new(5));
     ch.put(Box::new(6));
-    assert_eq!(ch.len(), 2);
+    assert_eq!(ch.len(), 2, "put takes elements that cannot be cloned");
 }
 
 #[test]
@@ -120,7 +120,7 @@ fn s1b_01_put_never_blocks_and_works_from_many_threads() {
         })
         .collect();
     handles.into_iter().for_each(|h| h.join().unwrap());
-    assert_eq!(ch.len(), 100);
+    assert_eq!(ch.len(), 100, "put never blocks and works from many threads");
 }
 
 // ---- 1b-01 · Channel::get ----------------------------------------------------------------------------------------------
@@ -132,8 +132,8 @@ fn s1b_02_get_returns_elements_in_the_order_they_were_put() {
         ch.put(i);
     }
     let got: Vec<i32> = (0..5).map(|_| ch.get()).collect();
-    assert_eq!(got, [0, 1, 2, 3, 4]);
-    assert!(ch.is_empty());
+    assert_eq!(got, [0, 1, 2, 3, 4], "get returns elements in the order they were put");
+    assert!(ch.is_empty(), "get returns elements in the order they were put: expected `ch.is_empty()`");
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn s1b_02_get_waits_for_an_element() {
     thread::sleep(Duration::from_millis(100));
     assert!(rx.try_recv().is_err(), "get returned although nothing was put");
     ch.put("hello");
-    assert_eq!(rx.recv_timeout(WAIT).expect("get never woke up"), "hello");
+    assert_eq!(rx.recv_timeout(WAIT).expect("get never woke up"), "hello", "get waits for an element");
     getter.join().unwrap();
 }
 
@@ -168,7 +168,7 @@ fn s1b_02_each_element_goes_to_exactly_one_getter() {
     let mut got: Vec<i32> = rx.iter().collect();
     getters.into_iter().for_each(|g| g.join().unwrap());
     got.sort();
-    assert_eq!(got, (0..100).collect::<Vec<_>>());
+    assert_eq!(got, (0..100).collect::<Vec<_>>(), "each element goes to exactly one getter");
 }
 
 #[test]
@@ -182,7 +182,7 @@ fn s1b_02_producers_and_a_consumer_lose_nothing() {
         .collect();
     let sum: u64 = (0..4000).map(|_| ch.get()).sum();
     producers.into_iter().for_each(|p| p.join().unwrap());
-    assert_eq!(sum, 4 * 500_500);
+    assert_eq!(sum, 4 * 500_500, "producers and a consumer lose nothing");
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn s1b_03_consume_calls_f_on_each_element_in_order() {
     ch.put(None);
     let mut seen = Vec::new();
     consume(&ch, |x| seen.push(x));
-    assert_eq!(seen, [1, 2, 3]);
+    assert_eq!(seen, [1, 2, 3], "consume calls f on each element in order");
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn s1b_03_a_none_stops_it_and_what_follows_stays_in_the_channel() {
     ch.put(Some("b"));
     let mut seen = Vec::new();
     consume(&ch, |x| seen.push(x));
-    assert_eq!(seen, ["a"]);
+    assert_eq!(seen, ["a"], "a none stops it and what follows stays in the channel");
     assert_eq!(ch.len(), 1, "the element after the stop signal is not consumed");
 }
 
@@ -248,7 +248,7 @@ fn s1b_03_a_worker_thread_runs_until_stopped() {
     }
     ch.put(None);
     worker.join().unwrap();
-    assert_eq!(total.load(Ordering::SeqCst), 55);
+    assert_eq!(total.load(Ordering::SeqCst), 55, "a worker thread runs until stopped");
 }
 
 #[test]
@@ -264,7 +264,7 @@ fn s1b_03_f_may_keep_state_between_calls() {
         running += x;
         sums.push(running);
     });
-    assert_eq!(sums, [0, 1, 3, 6]);
+    assert_eq!(sums, [0, 1, 3, 6], "f may keep state between calls");
 }
 
 // ---- 1b-01 · Promise::set ----------------------------------------------------------------------------------------------
@@ -272,16 +272,16 @@ fn s1b_03_f_may_keep_state_between_calls() {
 #[test]
 fn s1b_04_a_future_is_not_ready_before_the_value_is_set() {
     let (p, f) = promise::<u32>();
-    assert!(!f.is_ready());
+    assert!(!f.is_ready(), "a future is not ready before the value is set: expected `!f.is_ready()`");
     p.set(1);
-    assert!(f.is_ready());
+    assert!(f.is_ready(), "a future is not ready before the value is set: expected `f.is_ready()`");
 }
 
 #[test]
 fn s1b_04_set_takes_values_that_cannot_be_cloned() {
     let (p, f) = promise();
     p.set(Box::new([1u8; 16]));
-    assert!(f.is_ready());
+    assert!(f.is_ready(), "set takes values that cannot be cloned: expected `f.is_ready()`");
 }
 
 #[test]
@@ -289,7 +289,7 @@ fn s1b_04_set_from_another_thread() {
     let (p, f) = promise();
     let setter = thread::spawn(move || p.set("done"));
     setter.join().unwrap();
-    assert!(f.is_ready());
+    assert!(f.is_ready(), "set from another thread: expected `f.is_ready()`");
 }
 
 #[test]
@@ -297,8 +297,8 @@ fn s1b_04_pairs_are_independent() {
     let (p1, f1) = promise::<i32>();
     let (_p2, f2) = promise::<i32>();
     p1.set(1);
-    assert!(f1.is_ready());
-    assert!(!f2.is_ready());
+    assert!(f1.is_ready(), "pairs are independent: expected `f1.is_ready()`");
+    assert!(!f2.is_ready(), "pairs are independent: expected `!f2.is_ready()`");
 }
 
 // ---- 1b-01 · Future::get -----------------------------------------------------------------------------------------------
@@ -307,14 +307,14 @@ fn s1b_04_pairs_are_independent() {
 fn s1b_05_get_returns_the_value() {
     let (p, f) = promise();
     p.set(42);
-    assert_eq!(wait(f), Ok(42));
+    assert_eq!(wait(f), Ok(42), "get returns the value");
 }
 
 #[test]
 fn s1b_05_get_returns_the_very_value_that_was_set() {
     let (p, f) = promise();
     p.set(String::from("not cloned, moved"));
-    assert_eq!(wait(f).unwrap(), "not cloned, moved");
+    assert_eq!(wait(f).unwrap(), "not cloned, moved", "get returns the very value that was set");
 }
 
 #[test]
@@ -325,7 +325,7 @@ fn s1b_05_get_waits_until_the_value_is_set() {
     thread::sleep(Duration::from_millis(100));
     assert!(rx.try_recv().is_err(), "get returned before anything was set");
     p.set(7);
-    assert_eq!(rx.recv_timeout(WAIT).expect("get never woke up"), Ok(7));
+    assert_eq!(rx.recv_timeout(WAIT).expect("get never woke up"), Ok(7), "get waits until the value is set");
     getter.join().unwrap();
 }
 
@@ -346,7 +346,7 @@ fn s1b_05_a_hundred_promises_through_a_channel() {
     let got: Vec<u32> = futures.into_iter().map(|f| wait(f).unwrap()).collect();
     ch.put(None);
     worker.join().unwrap();
-    assert_eq!(got, (0..100).map(|n| n * n).collect::<Vec<_>>());
+    assert_eq!(got, (0..100).map(|n| n * n).collect::<Vec<_>>(), "a hundred promises through a channel");
 }
 
 // ---- 1b-01 · broken promises -------------------------------------------------------------------------------------------
@@ -356,7 +356,7 @@ fn s1b_06_dropping_the_promise_breaks_the_future() {
     let (p, f) = promise::<u32>();
     drop(p);
     assert!(f.is_ready(), "a broken promise is 'ready': get won't wait");
-    assert_eq!(wait(f), Err(BrokenPromise));
+    assert_eq!(wait(f), Err(BrokenPromise), "dropping the promise breaks the future");
 }
 
 #[test]
@@ -366,7 +366,7 @@ fn s1b_06_a_waiting_getter_is_woken_by_the_drop() {
     let getter = thread::spawn(move || tx.send(wait(f)).unwrap());
     thread::sleep(Duration::from_millis(100));
     drop(p);
-    assert_eq!(rx.recv_timeout(WAIT).expect("get never woke up"), Err(BrokenPromise));
+    assert_eq!(rx.recv_timeout(WAIT).expect("get never woke up"), Err(BrokenPromise), "a waiting getter is woken by the drop");
     getter.join().unwrap();
 }
 
@@ -374,7 +374,7 @@ fn s1b_06_a_waiting_getter_is_woken_by_the_drop() {
 fn s1b_06_setting_then_dropping_is_not_a_break() {
     let (p, f) = promise();
     p.set(5);
-    assert_eq!(wait(f), Ok(5));
+    assert_eq!(wait(f), Ok(5), "setting then dropping is not a break");
 }
 
 #[test]
@@ -384,8 +384,8 @@ fn s1b_06_a_panicking_thread_breaks_the_promises_it_held() {
         let _p = p;
         panic!("worker died");
     });
-    assert!(t.join().is_err());
-    assert_eq!(wait(f), Err(BrokenPromise));
+    assert!(t.join().is_err(), "a panicking thread breaks the promises it held: expected `t.join().is_err()`");
+    assert_eq!(wait(f), Err(BrokenPromise), "a panicking thread breaks the promises it held");
 }
 
 #[test]
@@ -394,7 +394,7 @@ fn s1b_06_a_promise_inside_a_dropped_channel_breaks() {
     let (p, f) = promise::<u8>();
     ch.put(p);
     drop(ch);
-    assert_eq!(wait(f), Err(BrokenPromise));
+    assert_eq!(wait(f), Err(BrokenPromise), "a promise inside a dropped channel breaks");
 }
 
 // ---- 1b-02 · DiskRequest -----------------------------------------------------------------------------------------------
@@ -402,28 +402,28 @@ fn s1b_06_a_promise_inside_a_dropped_channel_breaks() {
 #[test]
 fn s1b_07_a_read_request_has_a_zeroed_buffer() {
     let (req, fut) = DiskRequest::read(PageId(3));
-    assert!(!req.is_write);
-    assert_eq!(req.page_id, PageId(3));
-    assert!(req.data.iter().all(|&b| b == 0));
-    assert_eq!(req.data.len(), PS);
-    assert!(!fut.is_ready());
+    assert!(!req.is_write, "a read request has a zeroed buffer: expected `!req.is_write`");
+    assert_eq!(req.page_id, PageId(3), "a read request has a zeroed buffer");
+    assert!(req.data.iter().all(|&b| b == 0), "a read request has a zeroed buffer: expected `req.data.iter().all(|&b| b == 0)`");
+    assert_eq!(req.data.len(), PS, "a read request has a zeroed buffer");
+    assert!(!fut.is_ready(), "a read request has a zeroed buffer: expected `!fut.is_ready()`");
 }
 
 #[test]
 fn s1b_07_a_write_request_carries_the_data() {
     let (req, fut) = DiskRequest::write(PageId(9), page_of(0xAB));
-    assert!(req.is_write);
-    assert_eq!(req.page_id, PageId(9));
-    assert!(req.data.iter().all(|&b| b == 0xAB));
-    assert!(!fut.is_ready());
+    assert!(req.is_write, "a write request carries the data: expected `req.is_write`");
+    assert_eq!(req.page_id, PageId(9), "a write request carries the data");
+    assert!(req.data.iter().all(|&b| b == 0xAB), "a write request carries the data: expected `req.data.iter().all(|&b| b == 0xAB)`");
+    assert!(!fut.is_ready(), "a write request carries the data: expected `!fut.is_ready()`");
 }
 
 #[test]
 fn s1b_07_the_future_belongs_to_the_requests_callback() {
     let (req, fut) = DiskRequest::read(PageId(0));
     req.callback.set(Ok(page_of(5)));
-    assert!(fut.is_ready());
-    assert!(wait(fut).unwrap().unwrap().iter().all(|&b| b == 5));
+    assert!(fut.is_ready(), "the future belongs to the requests callback: expected `fut.is_ready()`");
+    assert!(wait(fut).unwrap().unwrap().iter().all(|&b| b == 5), "the future belongs to the requests callback: expected `wait(fut).unwrap().unwrap().iter().all(|&b| b == 5)`");
 }
 
 #[test]
@@ -442,8 +442,8 @@ fn s1b_08_a_write_then_a_read_round_trip() {
     execute(&*disk, w);
     let (r, rf) = DiskRequest::read(PageId(2));
     execute(&*disk, r);
-    assert!(wait(wf).unwrap().is_ok_and_page(0x5A));
-    assert!(wait(rf).unwrap().is_ok_and_page(0x5A));
+    assert!(wait(wf).unwrap().is_ok_and_page(0x5A), "a write then a read round trip: expected `wait(wf).unwrap().is_ok_and_page(0x5A)`");
+    assert!(wait(rf).unwrap().is_ok_and_page(0x5A), "a write then a read round trip: expected `wait(rf).unwrap().is_ok_and_page(0x5A)`");
 }
 
 trait PageCheck {
@@ -461,7 +461,7 @@ fn s1b_08_a_write_gives_the_buffer_back() {
     let (w, f) = DiskRequest::write(PageId(0), page_of(3));
     execute(&*disk, w);
     let buf = wait(f).unwrap().unwrap();
-    assert!(buf.iter().all(|&b| b == 3));
+    assert!(buf.iter().all(|&b| b == 3), "a write gives the buffer back: expected `buf.iter().all(|&b| b == 3)`");
 }
 
 #[test]
@@ -469,7 +469,7 @@ fn s1b_08_reading_a_page_never_written_gives_zeros() {
     let disk = memory_disk();
     let (r, f) = DiskRequest::read(PageId(40));
     execute(&*disk, r);
-    assert!(wait(f).unwrap().unwrap().iter().all(|&b| b == 0));
+    assert!(wait(f).unwrap().unwrap().iter().all(|&b| b == 0), "reading a page never written gives zeros: expected `wait(f).unwrap().unwrap().iter().all(|&b| b == 0)`");
 }
 
 #[test]
@@ -491,14 +491,14 @@ fn s1b_08_an_io_error_comes_back_through_the_future() {
     let (w, f) = DiskRequest::write(PageId(1), page_of(1));
     execute(&BadDisk, w);
     let err = wait(f).unwrap().err().expect("the write should have failed");
-    assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
+    assert_eq!(err.kind(), io::ErrorKind::PermissionDenied, "an io error comes back through the future");
 }
 
 #[test]
 fn s1b_08_a_successful_read_from_a_disk_that_fills_the_buffer() {
     let (r, f) = DiskRequest::read(PageId(1));
     execute(&BadDisk, r);
-    assert!(wait(f).unwrap().unwrap().iter().all(|&b| b == 7));
+    assert!(wait(f).unwrap().unwrap().iter().all(|&b| b == 7), "a successful read from a disk that fills the buffer: expected `wait(f).unwrap().unwrap().iter().all(|&b| b == 7)`");
 }
 
 // ---- 1b-02 · DiskScheduler::new and schedule -----------------------------------------------------------------------------
@@ -510,7 +510,7 @@ fn s1b_09_a_scheduled_write_and_read() {
     let (r, rf) = DiskRequest::read(PageId(0));
     sched.schedule(vec![w]);
     sched.schedule(vec![r]);
-    assert!(wait(wf).unwrap().is_ok());
+    assert!(wait(wf).unwrap().is_ok(), "a scheduled write and read: expected `wait(wf).unwrap().is_ok()`");
     assert!(wait(rf).unwrap().unwrap().iter().all(|&b| b == 0x42), "the read, scheduled after the write, sees it");
 }
 
@@ -530,7 +530,7 @@ fn s1b_09_a_batch_runs_in_order() {
     futures.push(f);
     sched.schedule(batch);
     futures.into_iter().for_each(|f| drop(wait(f).unwrap().unwrap()));
-    assert_eq!(disk.ops(), ["W5", "W3", "W9", "W1", "R3"]);
+    assert_eq!(disk.ops(), ["W5", "W3", "W9", "W1", "R3"], "a batch runs in order");
 }
 
 #[test]
@@ -541,7 +541,7 @@ fn s1b_09_schedule_returns_before_the_requests_finish() {
     let start = Instant::now();
     sched.schedule(vec![r]);
     assert!(start.elapsed() < Duration::from_millis(80), "schedule must not wait for the I/O");
-    assert!(!f.is_ready());
+    assert!(!f.is_ready(), "schedule returns before the requests finish: expected `!f.is_ready()`");
     wait(f).unwrap().unwrap();
 }
 
@@ -560,7 +560,7 @@ fn s1b_09_many_threads_can_schedule() {
                     wait(wf).unwrap().unwrap();
                     let (r, rf) = DiskRequest::read(id);
                     sched.schedule(vec![r]);
-                    assert!(wait(rf).unwrap().unwrap().iter().all(|&b| b == id.0 as u8 + 1));
+                    assert!(wait(rf).unwrap().unwrap().iter().all(|&b| b == id.0 as u8 + 1), "many threads can schedule: expected `wait(rf).unwrap().unwrap().iter().all(|&b| b == id.0 as u8 + 1)`");
                 }
             })
         })
@@ -588,7 +588,7 @@ fn s1b_10_dropping_the_scheduler_finishes_the_scheduled_work_first() {
     }
     drop(sched);
     assert_eq!(disk.ops().len(), 20, "drop must wait until every scheduled request has run");
-    assert!(futures.into_iter().all(|f| f.is_ready()));
+    assert!(futures.into_iter().all(|f| f.is_ready()), "dropping the scheduler finishes the scheduled work first: expected `futures.into_iter().all(|f| f.is_ready())`");
 }
 
 #[test]
@@ -614,7 +614,7 @@ fn s1b_10_many_schedulers_can_come_and_go() {
         sched.schedule(vec![w]);
         wait(f).unwrap().unwrap();
     }
-    assert_eq!(Arc::strong_count(&disk), 1);
+    assert_eq!(Arc::strong_count(&disk), 1, "many schedulers can come and go");
 }
 
 // ---- 1b-03 · a panicking disk does not kill the worker ---------------------------------------------------------------------
@@ -633,7 +633,7 @@ fn s1b_11_the_worker_keeps_going_after_a_panic() {
     let (bad, bad_f) = DiskRequest::read(PageId(13));
     let (good, good_f) = DiskRequest::read(PageId(1));
     sched.schedule(vec![bad, good]);
-    assert!(wait(bad_f).unwrap().is_err());
+    assert!(wait(bad_f).unwrap().is_err(), "the worker keeps going after a panic: expected `wait(bad_f).unwrap().is_err()`");
     assert!(wait(good_f).unwrap().unwrap().iter().all(|&b| b == 7), "the request after the panic still ran");
 }
 
@@ -643,7 +643,7 @@ fn s1b_11_panics_are_caught_every_time() {
     for _ in 0..5 {
         let (bad, f) = DiskRequest::read(PageId(13));
         sched.schedule(vec![bad]);
-        assert!(wait(f).unwrap().is_err());
+        assert!(wait(f).unwrap().is_err(), "panics are caught every time: expected `wait(f).unwrap().is_err()`");
     }
 }
 
@@ -652,7 +652,7 @@ fn s1b_11_requests_that_dont_panic_are_unchanged() {
     let disk = memory_disk();
     let (w, f) = DiskRequest::write(PageId(0), page_of(4));
     execute(&*disk, w);
-    assert!(wait(f).unwrap().is_ok_and_page(4));
+    assert!(wait(f).unwrap().is_ok_and_page(4), "requests that dont panic are unchanged: expected `wait(f).unwrap().is_ok_and_page(4)`");
 }
 
 // ---- 1b-03 · create_promise and deallocate_page ----------------------------------------------------------------------------
@@ -661,9 +661,9 @@ fn s1b_11_requests_that_dont_panic_are_unchanged() {
 fn s1b_12_create_promise_gives_a_working_pair() {
     let sched = DiskScheduler::new(memory_disk());
     let (p, f) = sched.create_promise();
-    assert!(!f.is_ready());
+    assert!(!f.is_ready(), "create promise gives a working pair: expected `!f.is_ready()`");
     p.set(Ok(page_of(1)));
-    assert!(wait(f).unwrap().unwrap().iter().all(|&b| b == 1));
+    assert!(wait(f).unwrap().unwrap().iter().all(|&b| b == 1), "create promise gives a working pair: expected `wait(f).unwrap().unwrap().iter().all(|&b| b == 1)`");
 }
 
 #[test]
@@ -672,7 +672,7 @@ fn s1b_12_deallocate_page_reaches_the_disk() {
     let sched = DiskScheduler::new(disk.clone());
     sched.deallocate_page(PageId(6));
     sched.deallocate_page(PageId(2));
-    assert_eq!(disk.ops(), ["D6", "D2"]);
+    assert_eq!(disk.ops(), ["D6", "D2"], "deallocate page reaches the disk");
 }
 
 #[test]
@@ -681,7 +681,7 @@ fn s1b_12_a_request_can_be_built_by_hand_with_a_created_promise() {
     let (callback, future) = sched.create_promise();
     let req = DiskRequest { is_write: true, data: page_of(9), page_id: PageId(1), callback };
     sched.schedule(vec![req]);
-    assert!(wait(future).unwrap().is_ok());
+    assert!(wait(future).unwrap().is_ok(), "a request can be built by hand with a created promise: expected `wait(future).unwrap().is_ok()`");
 }
 
 // ---- 1b-03 · ReaderWriterLatch ---------------------------------------------------------------------------------------------
@@ -690,7 +690,7 @@ fn s1b_12_a_request_can_be_built_by_hand_with_a_created_promise() {
 fn s1b_13_the_latch_guards_its_value() {
     let latch = ReaderWriterLatch::new(5);
     *latch.write() += 1;
-    assert_eq!(*latch.read(), 6);
+    assert_eq!(*latch.read(), 6, "the latch guards its value");
 }
 
 #[test]
@@ -709,7 +709,7 @@ fn s1b_13_readers_share_the_latch() {
         })
         .collect();
     for h in handles {
-        assert_eq!(h.join().unwrap(), 0);
+        assert_eq!(h.join().unwrap(), 0, "readers share the latch");
     }
 }
 
@@ -729,7 +729,7 @@ fn s1b_13_writers_exclude_each_other() {
         })
         .collect();
     handles.into_iter().for_each(|h| h.join().unwrap());
-    assert_eq!(*latch.read(), 8000);
+    assert_eq!(*latch.read(), 8000, "writers exclude each other");
 }
 
 #[test]
@@ -749,7 +749,7 @@ fn s1b_13_a_writer_waits_for_the_readers() {
     drop(reader);
     rx.recv_timeout(WAIT).expect("the writer never got in");
     writer.join().unwrap();
-    assert_eq!(*latch.read(), 1);
+    assert_eq!(*latch.read(), 1, "a writer waits for the readers");
 }
 
 #[test]
@@ -763,7 +763,7 @@ fn s1b_13_a_panic_while_latched_does_not_lock_everyone_out() {
     .join();
     assert_eq!(*latch.read(), 1, "BusTub's latch has no notion of poisoning, and neither does this one");
     *latch.write() = 2;
-    assert_eq!(*latch.read(), 2);
+    assert_eq!(*latch.read(), 2, "a panic while latched does not lock everyone out");
 }
 
 // ---- 1b-04 · ShardedDiskScheduler -----------------------------------------------------------------------------------------
@@ -827,7 +827,7 @@ fn s1b_14_dropping_finishes_everything_scheduled() {
         sched.schedule(vec![w]);
     }
     drop(sched);
-    assert_eq!(disk.ops().len(), 40);
+    assert_eq!(disk.ops().len(), 40, "dropping finishes everything scheduled");
     assert_eq!(Arc::strong_count(&disk), 1, "all four workers have ended");
 }
 
@@ -869,7 +869,7 @@ fn s1b_15_eight_threads_hammer_one_scheduler() {
         .collect();
     handles.into_iter().for_each(|h| h.join().unwrap());
     drop(Arc::try_unwrap(sched).ok().expect("all threads are done"));
-    assert_eq!(Arc::strong_count(&disk), 1);
+    assert_eq!(Arc::strong_count(&disk), 1, "eight threads hammer one scheduler");
 }
 
 #[test]

@@ -6,6 +6,13 @@ The search is five lines with four classic mistakes; the layout is declarations 
 
 **Where this fits.** Sorted entries can be searched in `O(log n)` page reads... or rather, entry reads. Both the hash bucket (no: unsorted) and the B+ tree page need it.
 
+> [!CHECK] `lower_bound` returns the first entry that is **not less** than the target, not "the entry equal to the target". Name three jobs this one answer does for a sorted page, and say what it returns for a target larger than everything in the page.
+> ||Lookup (check whether the entry at that index is equal), insert (the index where the new entry goes to keep the page sorted) and the start of a range scan (the first key at or above the low bound). For a target larger than everything it returns `len`: the position one past the last entry.||
+>
+> - What would `insert_at` need if the key were absent?
+> - What does a range scan from key 40 need to find first?
+> - What index is "after the last entry"?
+
 ### The task
 
 Implement `lower_bound(len, cmp)` in `src/storage/page/page_array.rs`: among the sorted entries `0..len`, the index of the **first entry that is not `Less`** than the target. `cmp` compares an entry with the target (`FnMut(&T) -> Ordering`). If every entry is less, the answer is `len`.

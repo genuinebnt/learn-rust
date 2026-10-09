@@ -6,6 +6,13 @@ The exercise is mostly about *waiting correctly*: a getter must sleep without bu
 
 **Where this fits.** The disk scheduler lives on a queue: callers put requests in, a worker takes them out. BusTub's `Channel<T>` is that queue. This module builds it by hand, then a one-shot promise/future, then the scheduler on top.
 
+> [!CHECK] Three threads call `get` on an empty channel and sleep. Another thread then calls `put` twice. Which threads wake, what does each receive, and what happens to the third? Say what `put` must wake, and what `get` must do after waking.
+> ||Two threads wake, one element each (the front first, then the next), and which two is not specified. The third keeps sleeping. `put` wakes one waiter per element, and a woken `get` must check the queue again before it takes anything.||
+>
+> - Does `put` need to wake everybody, or one thread per element?
+> - A thread can wake and find the queue empty (another thread was quicker). What must `get` do then?
+> - Where in your code is the queue's lock held while a thread sleeps?
+
 ### The task
 
 `Channel<T>` (given, in `src/common/channel.rs`) is a `Mutex<VecDeque<T>>` plus a `Condvar`. Implement `put(&self, element)`: push the element at the **back** of the queue and wake **one** thread that may be waiting for an element. It never blocks.

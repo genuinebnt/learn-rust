@@ -5,3 +5,4 @@ difficulty = "medium"
 tests = ["stages_3f::s3f_02"]
 learn = ["folding one row into a running aggregate", "NULL inputs and the 'nothing seen yet' value", "checked sums that report overflow"]
 concepts = ["hash-aggregation", "overflow-and-checked-arithmetic", "errors-as-values-with-result"]
+concepts_optional = ["hashing-values-and-keys"]

@@ -6,6 +6,13 @@ The ordering matters more here than anywhere so far: write back *before* the fra
 
 **Where this fits.** Without this a database loses data every time memory fills up.
 
+> [!CHECK] A pool has two frames. Pages 1 and 2 are fetched and stay pinned, and a third fetch is made: what is returned? Then page 1 is unpinned with `is_dirty = true` and page 3 is fetched. Say what is written to disk, when, and what happens to page 1's bytes.
+> ||The first fetch of page 3 fails (`None`): no free frame and nothing evictable. After the unpin, page 1's frame is the victim. Because it is dirty it is written to disk **before** the frame is reused, then page 3 is read in. A later fetch of page 1 reads those bytes back from disk.||
+>
+> - What does the replacer know about a pinned frame?
+> - What would be lost if the victim's frame were overwritten before its write was scheduled?
+> - Does a clean victim need a write?
+
 ### The task
 
 In `src/buffer/buffer_pool_manager.rs`:

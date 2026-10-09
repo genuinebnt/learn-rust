@@ -2,6 +2,13 @@ A sequential scan visits every tuple of a table: slot after slot, page after pag
 
 Consider `UPDATE t SET salary = salary * 2` implemented as "for each row: delete it and insert the updated row". The insert appends to the table; the scan, still running, finds the new row at the end and doubles it again, and again, forever. This is the **Halloween problem** (found, the story goes, on 31 October 1976, in IBM's System R). The fix BusTub uses: an iterator **records where the table ended when it started and stops there**.
 
+> [!CHECK] An `UPDATE` appends the new version of each row at the end of the table (delete, then insert). A scan feeds it and simply walks to the end of the table. What happens to a row whose new value still passes the filter, and what does stopping at the table's end *when the scan began* change?
+> ||The new version is found again at the end of the table, updated again, appended again, and so on: rows are updated more than once, or forever. Stopping at the rid that was last when the scan began means rows added during the scan are never visited.||
+>
+> - Where does the new version of the row end up?
+> - Does the scan know the new version is not an original row?
+> - What number could you remember when the scan starts?
+
 ## The task
 
 In `src/storage/table/table_iterator.rs` and `table_heap.rs`:

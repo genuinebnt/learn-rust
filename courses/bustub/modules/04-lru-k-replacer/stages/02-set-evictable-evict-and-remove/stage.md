@@ -6,6 +6,13 @@ This version is O(n) per eviction on purpose. It is the **specification**; the n
 
 **Where this fits.** A frame in use (pinned) must not be evicted. The buffer pool tells the replacer with `set_evictable(frame, false/true)`.
 
+> [!CHECK] LRU-K with k = 2, all three frames evictable at time 6. Frame A was accessed at times 1 and 5, frame B at time 2 only, frame C at times 3 and 4. In what order are they evicted, and why?
+> ||B, then A, then C. B has fewer than k accesses, so its backward k-distance is infinite and it goes first. For A and C the k-th most recent access is at time 1 and time 3: A's distance (5) is larger than C's (3), so A goes before C.||
+>
+> - Which frames have an infinite distance? Does the order among them matter here?
+> - For a frame with k accesses, which timestamp defines the distance?
+> - A larger distance means the frame is a better victim: compare A and C.
+
 ### The task
 
 Implement `set_evictable(frame, evictable)` in `src/buffer/lru_k_replacer.rs`: change the frame's flag and keep `curr_size` (the number of evictable frames) correct. A frame the replacer has never seen is ignored. Setting a flag to the value it already has changes nothing (and must not skew the count).

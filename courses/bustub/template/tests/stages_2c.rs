@@ -108,17 +108,17 @@ fn shuffled(n: i64, seed: u64) -> Vec<i64> {
 fn s2c_01_the_page_type_round_trips_and_a_zero_page_has_none() {
     let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
     assert_eq!(Page::new(&bytes[..]).page_type(), IndexPageType::Invalid, "a fresh zero page is neither a leaf nor an internal page");
-    assert!(!Page::new(&bytes[..]).is_leaf_page());
+    assert!(!Page::new(&bytes[..]).is_leaf_page(), "the page type round trips and a zero page has none: expected `!Page::new(&bytes[..]).is_leaf_page()`");
     Page::new(&mut bytes[..]).set_page_type(IndexPageType::Leaf);
-    assert_eq!(Page::new(&bytes[..]).page_type(), IndexPageType::Leaf);
-    assert!(Page::new(&bytes[..]).is_leaf_page());
+    assert_eq!(Page::new(&bytes[..]).page_type(), IndexPageType::Leaf, "the page type round trips and a zero page has none");
+    assert!(Page::new(&bytes[..]).is_leaf_page(), "the page type round trips and a zero page has none: expected `Page::new(&bytes[..]).is_leaf_page()`");
     Page::new(&mut bytes[..]).set_page_type(IndexPageType::Internal);
-    assert_eq!(Page::new(&bytes[..]).page_type(), IndexPageType::Internal);
-    assert!(!Page::new(&bytes[..]).is_leaf_page());
+    assert_eq!(Page::new(&bytes[..]).page_type(), IndexPageType::Internal, "the page type round trips and a zero page has none");
+    assert!(!Page::new(&bytes[..]).is_leaf_page(), "the page type round trips and a zero page has none: expected `!Page::new(&bytes[..]).is_leaf_page()`");
     // the stored numbers are part of the file format
-    assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 2);
+    assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 2, "the page type round trips and a zero page has none");
     Page::new(&mut bytes[..]).set_page_type(IndexPageType::Leaf);
-    assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 1);
+    assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 1, "the page type round trips and a zero page has none");
 }
 
 #[test]
@@ -127,16 +127,16 @@ fn s2c_01_size_max_size_and_change_size_by() {
     let mut page = Page::new(&mut bytes[..]);
     page.set_size(5);
     page.set_max_size(9);
-    assert_eq!((page.size(), page.max_size()), (5, 9));
+    assert_eq!((page.size(), page.max_size()), (5, 9), "size max size and change size by");
     page.change_size_by(3);
-    assert_eq!(page.size(), 8);
+    assert_eq!(page.size(), 8, "size max size and change size by");
     page.change_size_by(-8);
-    assert_eq!(page.size(), 0);
+    assert_eq!(page.size(), 0, "size max size and change size by");
     page.change_size_by(1);
     assert_eq!((page.size(), page.max_size()), (1, 9), "the size and the max size are different fields");
     // the fields are at bytes 4 and 8, little-endian
-    assert_eq!(&bytes[4..8], &[1, 0, 0, 0]);
-    assert_eq!(&bytes[8..12], &[9, 0, 0, 0]);
+    assert_eq!(&bytes[4..8], &[1, 0, 0, 0], "size max size and change size by");
+    assert_eq!(&bytes[8..12], &[9, 0, 0, 0], "size max size and change size by");
 }
 
 #[test]
@@ -170,25 +170,25 @@ fn s2c_01_an_internal_page_stores_keys_and_children_side_by_side() {
     let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
     let mut node = Internal::<_, Key>::new(&mut bytes[..]);
     node.init(5);
-    assert_eq!((node.size(), node.max_size()), (0, 5));
-    assert!(Page::new(&bytes[..]).page_type() == IndexPageType::Internal);
+    assert_eq!((node.size(), node.max_size()), (0, 5), "an internal page stores keys and children side by side");
+    assert!(Page::new(&bytes[..]).page_type() == IndexPageType::Internal, "an internal page stores keys and children side by side: expected `Page::new(&bytes[..]).page_type() == IndexPageType::Internal`");
     let mut node = Internal::<_, Key>::new(&mut bytes[..]);
     node.set_entry_at(0, &index_key(0), PageId(10));
     node.set_entry_at(1, &index_key(20), PageId(11));
     node.set_entry_at(2, &index_key(40), PageId(12));
     node.set_size(3);
-    assert_eq!(node.size(), 3);
-    assert_eq!(node.key_at(1).get_as_integer(), 20);
-    assert_eq!(node.value_at(2), PageId(12));
-    assert_eq!(node.entry_at(0).1, PageId(10));
+    assert_eq!(node.size(), 3, "an internal page stores keys and children side by side");
+    assert_eq!(node.key_at(1).get_as_integer(), 20, "an internal page stores keys and children side by side");
+    assert_eq!(node.value_at(2), PageId(12), "an internal page stores keys and children side by side");
+    assert_eq!(node.entry_at(0).1, PageId(10), "an internal page stores keys and children side by side");
     node.set_key_at(2, &index_key(41));
     assert_eq!((node.key_at(2).get_as_integer(), node.value_at(2)), (41, PageId(12)), "set_key_at keeps the child");
     node.set_value_at(2, PageId(99));
     assert_eq!((node.key_at(2).get_as_integer(), node.value_at(2)), (41, PageId(99)), "set_value_at keeps the key");
-    assert_eq!(node.value_index(PageId(11)), Some(1));
-    assert_eq!(node.value_index(PageId(99)), Some(2));
+    assert_eq!(node.value_index(PageId(11)), Some(1), "an internal page stores keys and children side by side");
+    assert_eq!(node.value_index(PageId(99)), Some(2), "an internal page stores keys and children side by side");
     assert_eq!(node.value_index(PageId(12)), None, "overwritten children are gone");
-    assert_eq!(node.value_index(PageId(500)), None);
+    assert_eq!(node.value_index(PageId(500)), None, "an internal page stores keys and children side by side");
 }
 
 #[test]
@@ -208,20 +208,20 @@ fn s2c_01_a_leaf_page_stores_pairs_and_the_next_leaf() {
     let mut leaf = Leaf::<_, Key, Rid>::new(&mut bytes[..]);
     leaf.init(4);
     assert_eq!((leaf.size(), leaf.max_size(), leaf.next_page_id()), (0, 4, None), "a fresh leaf has no next leaf (not leaf 0)");
-    assert!(Page::new(&bytes[..]).is_leaf_page());
+    assert!(Page::new(&bytes[..]).is_leaf_page(), "a leaf page stores pairs and the next leaf: expected `Page::new(&bytes[..]).is_leaf_page()`");
     let mut leaf = Leaf::<_, Key, Rid>::new(&mut bytes[..]);
     leaf.set_entry_at(0, &index_key(7), &rid_of(7));
     leaf.set_entry_at(1, &index_key(9), &rid_of(9));
     leaf.set_size(2);
-    assert_eq!(leaf.key_at(1).get_as_integer(), 9);
-    assert_eq!(leaf.value_at(0), rid_of(7));
-    assert_eq!(leaf.entry_at(1), (index_key(9), rid_of(9)));
+    assert_eq!(leaf.key_at(1).get_as_integer(), 9, "a leaf page stores pairs and the next leaf");
+    assert_eq!(leaf.value_at(0), rid_of(7), "a leaf page stores pairs and the next leaf");
+    assert_eq!(leaf.entry_at(1), (index_key(9), rid_of(9)), "a leaf page stores pairs and the next leaf");
     leaf.set_next_page_id(Some(PageId(0)));
     assert_eq!(leaf.next_page_id(), Some(PageId(0)), "page 0 is a real page");
     leaf.set_next_page_id(None);
-    assert_eq!(leaf.next_page_id(), None);
+    assert_eq!(leaf.next_page_id(), None, "a leaf page stores pairs and the next leaf");
     leaf.set_next_page_id(Some(PageId(41)));
-    assert_eq!(leaf.next_page_id(), Some(PageId(41)));
+    assert_eq!(leaf.next_page_id(), Some(PageId(41)), "a leaf page stores pairs and the next leaf");
     assert_eq!((leaf.size(), leaf.key_at(0).get_as_integer()), (2, 7), "the next pointer does not overlap the entries");
 }
 
@@ -230,11 +230,11 @@ fn s2c_01_the_header_page_names_the_root() {
     let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
     assert_eq!(Header::new(&bytes[..]).root_page_id(), PageId(0), "a zero page says the root is page 0: that is why init exists");
     Header::new(&mut bytes[..]).init();
-    assert_eq!(Header::new(&bytes[..]).root_page_id(), PageId::INVALID);
+    assert_eq!(Header::new(&bytes[..]).root_page_id(), PageId::INVALID, "the header page names the root");
     Header::new(&mut bytes[..]).set_root_page_id(PageId(17));
-    assert_eq!(Header::new(&bytes[..]).root_page_id(), PageId(17));
+    assert_eq!(Header::new(&bytes[..]).root_page_id(), PageId(17), "the header page names the root");
     Header::new(&mut bytes[..]).init();
-    assert_eq!(Header::new(&bytes[..]).root_page_id(), PageId::INVALID);
+    assert_eq!(Header::new(&bytes[..]).root_page_id(), PageId::INVALID, "the header page names the root");
 }
 
 #[test]
@@ -262,10 +262,10 @@ fn s2c_02_a_new_tree_is_empty() {
     let header = bpm.new_page();
     // a fresh page is zeros, which would read as "the root is page 0"; the tree must format it
     let tree = bustub::storage::index::b_plus_tree::BPlusTree::<Key, Rid, _>::new("t", header, &bpm, GenericComparator::<8>, 3, 4);
-    assert!(tree.is_empty());
-    assert_eq!(tree.get_root_page_id(), PageId::INVALID);
-    assert!(tree.get_value(&index_key(1)).is_empty());
-    assert_eq!(tree.index_name(), "t");
+    assert!(tree.is_empty(), "a new tree is empty: expected `tree.is_empty()`");
+    assert_eq!(tree.get_root_page_id(), PageId::INVALID, "a new tree is empty");
+    assert!(tree.get_value(&index_key(1)).is_empty(), "a new tree is empty: expected `tree.get_value(&index_key(1)).is_empty()`");
+    assert_eq!(tree.index_name(), "t", "a new tree is empty");
     assert_no_pins(&bpm);
 }
 
@@ -305,8 +305,8 @@ fn s2c_02_child_for_with_two_children_and_with_many() {
     node.set_entry_at(1, &index_key(5), PageId(2));
     node.set_size(2);
     let node = Internal::<_, Key>::new(&bytes[..]);
-    assert_eq!(node.child_for(&index_key(4), &cmp), PageId(1));
-    assert_eq!(node.child_for(&index_key(5), &cmp), PageId(2));
+    assert_eq!(node.child_for(&index_key(4), &cmp), PageId(1), "child for with two children and with many");
+    assert_eq!(node.child_for(&index_key(5), &cmp), PageId(2), "child for with two children and with many");
     // a big page: child i covers [10 i, 10 i + 10)
     let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
     let mut node = Internal::<_, Key>::new(&mut bytes[..]);
@@ -337,9 +337,9 @@ fn s2c_02_a_leaf_finds_a_key_with_a_binary_search() {
     for (key, slot) in bounds {
         assert_eq!(leaf.lower_bound(&index_key(key), &cmp), slot, "lower_bound({key})");
     }
-    assert_eq!(leaf.lookup(&index_key(30), &cmp), Some(rid_of(30)));
-    assert_eq!(leaf.lookup(&index_key(10), &cmp), Some(rid_of(10)));
-    assert_eq!(leaf.lookup(&index_key(40), &cmp), Some(rid_of(40)));
+    assert_eq!(leaf.lookup(&index_key(30), &cmp), Some(rid_of(30)), "a leaf finds a key with a binary search");
+    assert_eq!(leaf.lookup(&index_key(10), &cmp), Some(rid_of(10)), "a leaf finds a key with a binary search");
+    assert_eq!(leaf.lookup(&index_key(40), &cmp), Some(rid_of(40)), "a leaf finds a key with a binary search");
     for missing in [0, 5, 15, 25, 35, 45] {
         assert_eq!(leaf.lookup(&index_key(missing), &cmp), None, "key {missing}");
     }
@@ -347,7 +347,7 @@ fn s2c_02_a_leaf_finds_a_key_with_a_binary_search() {
     let mut empty = [0u8; BUSTUB_PAGE_SIZE];
     Leaf::<_, Key, Rid>::new(&mut empty[..]).init(4);
     let empty = Leaf::<_, Key, Rid>::new(&empty[..]);
-    assert_eq!((empty.lower_bound(&index_key(1), &cmp), empty.lookup(&index_key(1), &cmp)), (0, None));
+    assert_eq!((empty.lower_bound(&index_key(1), &cmp), empty.lookup(&index_key(1), &cmp)), (0, None), "a leaf finds a key with a binary search");
 }
 
 #[test]
@@ -356,8 +356,8 @@ fn s2c_02_get_value_in_a_tree_that_is_a_single_leaf() {
     let (tree, header) = hand_tree(&bpm, 8, 4);
     let root = leaf_page(&bpm, 8, &[3, 6, 9], None);
     set_root(&bpm, header, root);
-    assert!(!tree.is_empty());
-    assert_eq!(tree.get_root_page_id(), root);
+    assert!(!tree.is_empty(), "get value in a tree that is a single leaf: expected `!tree.is_empty()`");
+    assert_eq!(tree.get_root_page_id(), root, "get value in a tree that is a single leaf");
     for k in [3, 6, 9] {
         assert_eq!(get(&tree, k), vec![rid_of(k)], "key {k}");
     }
@@ -385,7 +385,7 @@ fn s2c_02_get_value_walks_down_a_three_level_tree() {
     for k in [-1, 0, 9, 100] {
         assert!(get(&tree, k).is_empty(), "key {k}");
     }
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{5 {3 [1,2] [3,4]} {7 [5,6] [7,8]}}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{5 {3 [1,2] [3,4]} {7 [5,6] [7,8]}}", "get value walks down a three level tree");
 }
 
 #[test]
@@ -405,7 +405,7 @@ fn s2c_02_get_value_leaves_nothing_latched_or_pinned() {
     drop(guards);
     // and a read of the tree works with a pool that has only the three tree pages plus one spare
     let tiny = bpm.get_pin_count(root);
-    assert!(matches!(tiny, None | Some(0)));
+    assert!(matches!(tiny, None | Some(0)), "get value leaves nothing latched or pinned: expected `matches!(tiny, None | Some(0))`");
 }
 
 #[test]
@@ -449,7 +449,7 @@ fn s2c_03_a_leaf_insert_keeps_the_keys_sorted() {
         assert!(leaf.insert(&index_key(k), &rid_of(k), &cmp), "insert {k}");
     }
     let keys: Vec<i64> = (0..leaf.size()).map(|i| leaf.key_at(i).get_as_integer()).collect();
-    assert_eq!(keys, vec![10, 20, 30, 50, 60, 80, 90]);
+    assert_eq!(keys, vec![10, 20, 30, 50, 60, 80, 90], "a leaf insert keeps the keys sorted");
     let values: Vec<Rid> = (0..leaf.size()).map(|i| leaf.value_at(i)).collect();
     assert_eq!(values, rids_of(&keys), "each value stays with its key when later keys are inserted before it");
 }
@@ -460,11 +460,11 @@ fn s2c_03_a_leaf_refuses_a_duplicate_key_and_stays_as_it_was() {
     Leaf::<_, Key, Rid>::new(&mut bytes[..]).init(10);
     let cmp = GenericComparator::<8>;
     let mut leaf = Leaf::<_, Key, Rid>::new(&mut bytes[..]);
-    assert!(leaf.insert(&index_key(5), &rid_of(5), &cmp));
-    assert!(leaf.insert(&index_key(7), &rid_of(7), &cmp));
-    assert!(!leaf.insert(&index_key(5), &rid_of(99), &cmp));
-    assert!(!leaf.insert(&index_key(7), &rid_of(98), &cmp));
-    assert_eq!(leaf.size(), 2);
+    assert!(leaf.insert(&index_key(5), &rid_of(5), &cmp), "a leaf refuses a duplicate key and stays as it was: expected `leaf.insert(&index_key(5), &rid_of(5), &cmp)`");
+    assert!(leaf.insert(&index_key(7), &rid_of(7), &cmp), "a leaf refuses a duplicate key and stays as it was: expected `leaf.insert(&index_key(7), &rid_of(7), &cmp)`");
+    assert!(!leaf.insert(&index_key(5), &rid_of(99), &cmp), "a leaf refuses a duplicate key and stays as it was: expected `!leaf.insert(&index_key(5), &rid_of(99), &cmp)`");
+    assert!(!leaf.insert(&index_key(7), &rid_of(98), &cmp), "a leaf refuses a duplicate key and stays as it was: expected `!leaf.insert(&index_key(7), &rid_of(98), &cmp)`");
+    assert_eq!(leaf.size(), 2, "a leaf refuses a duplicate key and stays as it was");
     assert_eq!((leaf.value_at(0), leaf.value_at(1)), (rid_of(5), rid_of(7)), "the original values are kept");
 }
 
@@ -472,16 +472,16 @@ fn s2c_03_a_leaf_refuses_a_duplicate_key_and_stays_as_it_was() {
 fn s2c_03_the_first_insert_makes_a_root_leaf() {
     let bpm = bpm(10);
     let tree = new_tree(&bpm, 4, 4);
-    assert!(tree.is_empty());
-    assert!(insert(&tree, 42));
-    assert!(!tree.is_empty());
+    assert!(tree.is_empty(), "the first insert makes a root leaf: expected `tree.is_empty()`");
+    assert!(insert(&tree, 42), "the first insert makes a root leaf: expected `insert(&tree, 42)`");
+    assert!(!tree.is_empty(), "the first insert makes a root leaf: expected `!tree.is_empty()`");
     let root = tree.get_root_page_id();
-    assert!(root.is_valid());
+    assert!(root.is_valid(), "the first insert makes a root leaf: expected `root.is_valid()`");
     let guard = bpm.read_page(root);
-    assert!(Page::new(&guard[..]).is_leaf_page());
+    assert!(Page::new(&guard[..]).is_leaf_page(), "the first insert makes a root leaf: expected `Page::new(&guard[..]).is_leaf_page()`");
     let leaf = Leaf::<_, Key, Rid>::new(&guard[..]);
-    assert_eq!((leaf.size(), leaf.max_size(), leaf.next_page_id()), (1, 4, None));
-    assert_eq!(leaf.entry_at(0), (index_key(42), rid_of(42)));
+    assert_eq!((leaf.size(), leaf.max_size(), leaf.next_page_id()), (1, 4, None), "the first insert makes a root leaf");
+    assert_eq!(leaf.entry_at(0), (index_key(42), rid_of(42)), "the first insert makes a root leaf");
     drop(guard);
     assert_no_pins(&bpm);
 }
@@ -492,11 +492,11 @@ fn s2c_03_inserts_that_fit_stay_in_the_root_leaf_in_any_order() {
     let tree = new_tree(&bpm, 10, 4);
     let keys = shuffled(9, 3);
     insert_all(&tree, keys.iter().copied());
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "[1,2,3,4,5,6,7,8,9]");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "[1,2,3,4,5,6,7,8,9]", "inserts that fit stay in the root leaf in any order");
     for k in 1..=9 {
-        assert_eq!(get(&tree, k), vec![rid_of(k)]);
+        assert_eq!(get(&tree, k), vec![rid_of(k)], "inserts that fit stay in the root leaf in any order");
     }
-    assert!(get(&tree, 10).is_empty());
+    assert!(get(&tree, 10).is_empty(), "inserts that fit stay in the root leaf in any order: expected `get(&tree, 10).is_empty()`");
     assert_no_pins(&bpm);
 }
 
@@ -506,10 +506,10 @@ fn s2c_03_a_duplicate_key_is_refused_and_changes_nothing() {
     let tree = new_tree(&bpm, 10, 4);
     insert_all(&tree, [3, 1, 2]);
     let root = tree.get_root_page_id();
-    assert!(!tree.insert(&index_key(2), &rid_of(200)));
-    assert!(!tree.insert(&index_key(1), &rid_of(100)));
-    assert_eq!(tree.get_root_page_id(), root);
-    assert_eq!(shape(&bpm, root), "[1,2,3]");
+    assert!(!tree.insert(&index_key(2), &rid_of(200)), "a duplicate key is refused and changes nothing: expected `!tree.insert(&index_key(2), &rid_of(200))`");
+    assert!(!tree.insert(&index_key(1), &rid_of(100)), "a duplicate key is refused and changes nothing: expected `!tree.insert(&index_key(1), &rid_of(100))`");
+    assert_eq!(tree.get_root_page_id(), root, "a duplicate key is refused and changes nothing");
+    assert_eq!(shape(&bpm, root), "[1,2,3]", "a duplicate key is refused and changes nothing");
     assert_eq!(get(&tree, 2), vec![rid_of(2)], "the first value for a key is the one that stays");
     assert_no_pins(&bpm);
 }
@@ -519,7 +519,7 @@ fn s2c_03_negative_and_extreme_keys_sort_as_integers() {
     let bpm = bpm(10);
     let tree = new_tree(&bpm, 10, 4);
     insert_all(&tree, [0, -1, i64::MAX, i64::MIN, 5, -100]);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), format!("[{},-100,-1,0,5,{}]", i64::MIN, i64::MAX));
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), format!("[{},-100,-1,0,5,{}]", i64::MIN, i64::MAX), "negative and extreme keys sort as integers");
 }
 
 #[test]
@@ -527,8 +527,8 @@ fn s2c_03_insert_and_get_value_cooperate_and_leave_no_latches_behind() {
     let bpm = bpm(4);
     let tree = new_tree(&bpm, 50, 4);
     for k in shuffled(40, 9) {
-        assert!(insert(&tree, k));
-        assert_eq!(get(&tree, k), vec![rid_of(k)]);
+        assert!(insert(&tree, k), "insert and get value cooperate and leave no latches behind: expected `insert(&tree, k)`");
+        assert_eq!(get(&tree, k), vec![rid_of(k)], "insert and get value cooperate and leave no latches behind");
     }
     assert_no_pins(&bpm);
     // with every guard released, a write latch on the root is available at once
@@ -549,10 +549,10 @@ fn s2c_04_an_internal_page_inserts_a_separator_in_key_order() {
     node.insert_child(&index_key(40), PageId(4), &cmp); // at the end
     node.insert_child(&index_key(10), PageId(3), &cmp); // in the middle: later pairs shift right
     node.insert_child(&index_key(30), PageId(5), &cmp);
-    assert_eq!(node.size(), 5);
+    assert_eq!(node.size(), 5, "an internal page inserts a separator in key order");
     let keys: Vec<i64> = (1..5).map(|i| node.key_at(i).get_as_integer()).collect();
     let kids: Vec<i32> = (0..5).map(|i| node.value_at(i).0).collect();
-    assert_eq!(keys, vec![10, 20, 30, 40]);
+    assert_eq!(keys, vec![10, 20, 30, 40], "an internal page inserts a separator in key order");
     assert_eq!(kids, vec![1, 3, 2, 5, 4], "each child moves with its key");
 }
 
@@ -575,21 +575,21 @@ fn s2c_04_a_leaf_that_reaches_max_size_splits_and_the_tree_gets_a_root() {
     let tree = new_tree(&bpm, 3, 20);
     insert_all(&tree, [1, 2]);
     let leaf_root = tree.get_root_page_id();
-    assert_eq!(shape(&bpm, leaf_root), "[1,2]");
+    assert_eq!(shape(&bpm, leaf_root), "[1,2]", "a leaf that reaches max size splits and the tree gets a root");
     insert_all(&tree, [3]); // 3 pairs = max_size: split
     let root = tree.get_root_page_id();
     assert_ne!(root, leaf_root, "the root is a new internal page now");
-    assert_eq!(shape(&bpm, root), "{3 [1,2] [3]}");
+    assert_eq!(shape(&bpm, root), "{3 [1,2] [3]}", "a leaf that reaches max size splits and the tree gets a root");
     let guard = bpm.read_page(root);
     let node = Internal::<_, Key>::new(&guard[..]);
-    assert!(!Page::new(&guard[..]).is_leaf_page());
-    assert_eq!((node.size(), node.max_size()), (2, 20));
+    assert!(!Page::new(&guard[..]).is_leaf_page(), "a leaf that reaches max size splits and the tree gets a root: expected `!Page::new(&guard[..]).is_leaf_page()`");
+    assert_eq!((node.size(), node.max_size()), (2, 20), "a leaf that reaches max size splits and the tree gets a root");
     assert_eq!(node.value_at(0), leaf_root, "the old leaf stays the left child");
     // the leaf chain
     let left = Leaf::<_, Key, Rid>::new(&bpm.read_page(node.value_at(0))[..]).next_page_id();
-    assert_eq!(left, Some(node.value_at(1)));
+    assert_eq!(left, Some(node.value_at(1)), "a leaf that reaches max size splits and the tree gets a root");
     let right = Leaf::<_, Key, Rid>::new(&bpm.read_page(node.value_at(1))[..]).next_page_id();
-    assert_eq!(right, None);
+    assert_eq!(right, None, "a leaf that reaches max size splits and the tree gets a root");
     drop(guard);
     assert_no_pins(&bpm);
 }
@@ -609,9 +609,9 @@ fn s2c_04_ascending_inserts_leave_the_leaves_half_full_and_chained() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 3, 100);
     insert_all(&tree, 1..=9);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3,5,7,9 [1,2] [3,4] [5,6] [7,8] [9]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3,5,7,9 [1,2] [3,4] [5,6] [7,8] [9]}", "ascending inserts leave the leaves half full and chained");
     assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), (1..=9).collect::<Vec<_>>(), "following next_page_id from the leftmost leaf visits every key in order");
-    assert_eq!(check_structure(&bpm, tree.get_root_page_id()), Ok(Shape { height: 2, leaves: 5, internals: 1, keys: 9 }));
+    assert_eq!(check_structure(&bpm, tree.get_root_page_id()), Ok(Shape { height: 2, leaves: 5, internals: 1, keys: 9 }), "ascending inserts leave the leaves half full and chained");
 }
 
 /// All keys by walking the leaf chain with the test utilities (so it does not depend on the iterator stage).
@@ -631,9 +631,9 @@ fn s2c_04_descending_inserts_split_at_the_front() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 3, 100);
     insert_all(&tree, (1..=9).rev());
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3,4,5,6,7,8,9 [1,2] [3] [4] [5] [6] [7] [8] [9]}");
-    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), (1..=9).collect::<Vec<_>>());
-    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok());
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3,4,5,6,7,8,9 [1,2] [3] [4] [5] [6] [7] [8] [9]}", "descending inserts split at the front");
+    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), (1..=9).collect::<Vec<_>>(), "descending inserts split at the front");
+    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok(), "descending inserts split at the front: expected `check_structure(&bpm, tree.get_root_page_id()).is_ok()`");
 }
 
 #[test]
@@ -643,7 +643,7 @@ fn s2c_04_random_inserts_are_all_found_and_the_leaves_stay_valid() {
         let tree = new_tree(&bpm, leaf_max, 300);
         let keys = shuffled(120, seed);
         for (i, &k) in keys.iter().enumerate() {
-            assert!(insert(&tree, k));
+            assert!(insert(&tree, k), "random inserts are all found and the leaves stay valid: expected `insert(&tree, k)`");
             if i % 10 == 0 {
                 check_structure(&bpm, tree.get_root_page_id()).unwrap_or_else(|e| panic!("leaf_max {leaf_max} after {i} inserts: {e}"));
             }
@@ -651,7 +651,7 @@ fn s2c_04_random_inserts_are_all_found_and_the_leaves_stay_valid() {
         for k in 1..=120 {
             assert_eq!(get(&tree, k), vec![rid_of(k)], "leaf_max {leaf_max}, key {k}");
         }
-        assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), (1..=120).collect::<Vec<_>>());
+        assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), (1..=120).collect::<Vec<_>>(), "random inserts are all found and the leaves stay valid");
         assert_no_pins(&bpm);
     }
 }
@@ -663,10 +663,10 @@ fn s2c_04_a_duplicate_after_splits_is_refused_and_values_stay_with_their_keys() 
     insert_all(&tree, shuffled(30, 5));
     let before = shape(&bpm, tree.get_root_page_id());
     for k in [1, 15, 30] {
-        assert!(!tree.insert(&index_key(k), &rid_of(999)));
+        assert!(!tree.insert(&index_key(k), &rid_of(999)), "a duplicate after splits is refused and values stay with their keys: expected `!tree.insert(&index_key(k), &rid_of(999))`");
     }
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), before);
-    assert_eq!(get(&tree, 15), vec![rid_of(15)]);
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), before, "a duplicate after splits is refused and values stay with their keys");
+    assert_eq!(get(&tree, 15), vec![rid_of(15)], "a duplicate after splits is refused and values stay with their keys");
 }
 
 // ---- 2c-05 · Internal splits ----------------------------------------------------------------------------------------------------
@@ -676,12 +676,12 @@ fn s2c_05_the_tree_grows_taller_when_a_parent_overflows() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 2, 3);
     insert_all(&tree, 1..=3);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{2,3 [1] [2] [3]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{2,3 [1] [2] [3]}", "the tree grows taller when a parent overflows");
     insert_all(&tree, [4]); // the root would need a 4th child: it splits, and the first key of the right half moves up
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3 {2 [1] [2]} {4 [3] [4]}}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3 {2 [1] [2]} {4 [3] [4]}}", "the tree grows taller when a parent overflows");
     insert_all(&tree, [5]);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3 {2 [1] [2]} {4,5 [3] [4] [5]}}");
-    assert_eq!(check_structure(&bpm, tree.get_root_page_id()), Ok(Shape { height: 3, leaves: 5, internals: 3, keys: 5 }));
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3 {2 [1] [2]} {4,5 [3] [4] [5]}}", "the tree grows taller when a parent overflows");
+    assert_eq!(check_structure(&bpm, tree.get_root_page_id()), Ok(Shape { height: 3, leaves: 5, internals: 3, keys: 5 }), "the tree grows taller when a parent overflows");
 }
 
 #[test]
@@ -689,8 +689,8 @@ fn s2c_05_nine_keys_make_a_three_level_tree_of_a_known_shape() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 2, 3);
     insert_all(&tree, 1..=9);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{5 {3 {2 [1] [2]} {4 [3] [4]}} {7 {6 [5] [6]} {8,9 [7] [8] [9]}}}");
-    assert!(is_tree_valid(tree.get_root_page_id(), &bpm));
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{5 {3 {2 [1] [2]} {4 [3] [4]}} {7 {6 [5] [6]} {8,9 [7] [8] [9]}}}", "nine keys make a three level tree of a known shape");
+    assert!(is_tree_valid(tree.get_root_page_id(), &bpm), "nine keys make a three level tree of a known shape: expected `is_tree_valid(tree.get_root_page_id(), &bpm)`");
 }
 
 #[test]
@@ -702,9 +702,9 @@ fn s2c_05_insert_test_1_from_bustub_keys_one_to_five() {
     }
     for key in [1, 2, 3, 4, 5] {
         let rids = tree.get_value(&index_key(key));
-        assert_eq!(rids.len(), 1);
-        assert_eq!(rids[0].page_id().0, 0);
-        assert_eq!(rids[0].slot_num() as i64, key & 0xFFFF_FFFF);
+        assert_eq!(rids.len(), 1, "insert test 1 from bustub keys one to five");
+        assert_eq!(rids[0].page_id().0, 0, "insert test 1 from bustub keys one to five");
+        assert_eq!(rids[0].slot_num() as i64, key & 0xFFFF_FFFF, "insert test 1 from bustub keys one to five");
     }
     assert_no_pins(&bpm);
 }
@@ -719,7 +719,7 @@ fn s2c_05_the_height_grows_by_at_most_one_level_per_insert() {
         let shape = check_structure(&bpm, tree.get_root_page_id()).unwrap_or_else(|e| panic!("after inserting {k}: {e}"));
         assert!(shape.height == height || shape.height == height + 1, "height jumped from {height} to {} at key {k}", shape.height);
         height = shape.height;
-        assert_eq!(shape.keys as i64, k);
+        assert_eq!(shape.keys as i64, k, "the height grows by at most one level per insert");
     }
     assert!(height >= 6, "100 keys in pages of 1-2 pairs and 2-3 children need several levels, got {height}");
 }
@@ -738,7 +738,7 @@ fn s2c_05_every_node_size_and_order_stays_valid() {
                 _ => {}
             }
             for (i, &k) in keys.iter().enumerate() {
-                assert!(insert(&tree, k));
+                assert!(insert(&tree, k), "every node size and order stays valid: expected `insert(&tree, k)`");
                 if i % 7 == 0 || i == keys.len() - 1 {
                     check_structure(&bpm, tree.get_root_page_id()).unwrap_or_else(|e| panic!("({leaf_max},{internal_max}) order {order} after {i} inserts: {e}\n{}", shape(&bpm, tree.get_root_page_id())));
                 }
@@ -746,7 +746,7 @@ fn s2c_05_every_node_size_and_order_stays_valid() {
             for k in 1..=150 {
                 assert_eq!(get(&tree, k), vec![rid_of(k)], "({leaf_max},{internal_max}) order {order}");
             }
-            assert!(is_tree_valid(tree.get_root_page_id(), &bpm));
+            assert!(is_tree_valid(tree.get_root_page_id(), &bpm), "every node size and order stays valid: expected `is_tree_valid(tree.get_root_page_id(), &bpm)`");
             assert_no_pins(&bpm);
         }
     }
@@ -760,9 +760,9 @@ fn s2c_05_basic_scale_in_a_small_pool() {
     let keys = shuffled(2000, 11);
     insert_all(&tree, keys.iter().copied());
     for &k in &keys {
-        assert_eq!(get(&tree, k), vec![rid_of(k)]);
+        assert_eq!(get(&tree, k), vec![rid_of(k)], "basic scale in a small pool");
     }
-    assert_eq!(check_structure(&bpm, tree.get_root_page_id()).unwrap().keys, 2000);
+    assert_eq!(check_structure(&bpm, tree.get_root_page_id()).unwrap().keys, 2000, "basic scale in a small pool");
     assert_no_pins(&bpm);
 }
 
@@ -785,10 +785,10 @@ fn s2c_06_an_empty_tree_begins_at_its_end() {
     let bpm = bpm(10);
     let tree = new_tree(&bpm, 3, 4);
     let mut it = tree.begin();
-    assert!(it.is_end());
-    assert!(it == tree.end());
-    assert_eq!(it.next(), None);
-    assert!(tree.begin_at(&index_key(5)).is_end());
+    assert!(it.is_end(), "an empty tree begins at its end: expected `it.is_end()`");
+    assert!(it == tree.end(), "an empty tree begins at its end: expected `it == tree.end()`");
+    assert_eq!(it.next(), None, "an empty tree begins at its end");
+    assert!(tree.begin_at(&index_key(5)).is_end(), "an empty tree begins at its end: expected `tree.begin_at(&index_key(5)).is_end()`");
 }
 
 #[test]
@@ -797,9 +797,9 @@ fn s2c_06_begin_visits_every_pair_in_key_order() {
     let tree = new_tree(&bpm, 3, 4);
     insert_all(&tree, shuffled(200, 21));
     let pairs: Vec<(i64, Rid)> = tree.begin().map(|(k, v)| (k.get_as_integer(), v)).collect();
-    assert_eq!(pairs.len(), 200);
+    assert_eq!(pairs.len(), 200, "begin visits every pair in key order");
     for (i, (k, v)) in pairs.iter().enumerate() {
-        assert_eq!(*k, i as i64 + 1);
+        assert_eq!(*k, i as i64 + 1, "begin visits every pair in key order");
         assert_eq!(*v, rid_of(*k), "the value belongs to its key");
     }
 }
@@ -810,16 +810,16 @@ fn s2c_06_begin_at_starts_at_the_first_key_that_is_not_less() {
     let tree = new_tree(&bpm, 3, 4);
     insert_all(&tree, (1..=60).map(|k| k * 10)); // 10, 20, ..., 600
     let first = |key: i64| tree.begin_at(&index_key(key)).next().map(|(k, _)| k.get_as_integer());
-    assert_eq!(first(10), Some(10));
-    assert_eq!(first(300), Some(300));
+    assert_eq!(first(10), Some(10), "begin at starts at the first key that is not less");
+    assert_eq!(first(300), Some(300), "begin at starts at the first key that is not less");
     assert_eq!(first(301), Some(310), "a missing key starts at the next one");
-    assert_eq!(first(1), Some(10));
-    assert_eq!(first(-1000), Some(10));
-    assert_eq!(first(600), Some(600));
+    assert_eq!(first(1), Some(10), "begin at starts at the first key that is not less");
+    assert_eq!(first(-1000), Some(10), "begin at starts at the first key that is not less");
+    assert_eq!(first(600), Some(600), "begin at starts at the first key that is not less");
     assert_eq!(first(601), None, "past the last key is the end");
-    assert!(tree.begin_at(&index_key(601)).is_end());
+    assert!(tree.begin_at(&index_key(601)).is_end(), "begin at starts at the first key that is not less: expected `tree.begin_at(&index_key(601)).is_end()`");
     let rest: Vec<i64> = tree.begin_at(&index_key(555)).map(|(k, _)| k.get_as_integer()).collect();
-    assert_eq!(rest, vec![560, 570, 580, 590, 600]);
+    assert_eq!(rest, vec![560, 570, 580, 590, 600], "begin at starts at the first key that is not less");
 }
 
 #[test]
@@ -839,17 +839,17 @@ fn s2c_06_iterators_compare_by_position() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 3, 4);
     insert_all(&tree, 1..=20);
-    assert!(tree.begin() == tree.begin());
-    assert!(tree.begin() != tree.end());
-    assert!(tree.begin_at(&index_key(1)) == tree.begin());
+    assert!(tree.begin() == tree.begin(), "iterators compare by position: expected `tree.begin() == tree.begin()`");
+    assert!(tree.begin() != tree.end(), "iterators compare by position: expected `tree.begin() != tree.end()`");
+    assert!(tree.begin_at(&index_key(1)) == tree.begin(), "iterators compare by position: expected `tree.begin_at(&index_key(1)) == tree.begin()`");
     let mut a = tree.begin_at(&index_key(7));
     a.next();
-    assert!(a == tree.begin_at(&index_key(8)));
+    assert!(a == tree.begin_at(&index_key(8)), "iterators compare by position: expected `a == tree.begin_at(&index_key(8))`");
     let mut all = tree.begin();
     while all.next().is_some() {}
-    assert!(all.is_end());
-    assert!(all == tree.end());
-    assert!(tree.begin_at(&index_key(21)) == tree.end());
+    assert!(all.is_end(), "iterators compare by position: expected `all.is_end()`");
+    assert!(all == tree.end(), "iterators compare by position: expected `all == tree.end()`");
+    assert!(tree.begin_at(&index_key(21)) == tree.end(), "iterators compare by position: expected `tree.begin_at(&index_key(21)) == tree.end()`");
 }
 
 #[test]
@@ -863,9 +863,9 @@ fn s2c_06_nothing_stays_latched_while_an_iterator_is_alive() {
         assert_no_pins(&bpm);
     }
     // writers are not blocked by the iterator, and the iterator carries on afterwards
-    assert!(insert(&tree, 100));
+    assert!(insert(&tree, 100), "nothing stays latched while an iterator is alive: expected `insert(&tree, 100)`");
     drop(bpm.write_page(tree.get_root_page_id()));
-    assert!(it.next().is_some());
+    assert!(it.next().is_some(), "nothing stays latched while an iterator is alive: expected `it.next().is_some()`");
 }
 
 #[test]
@@ -879,12 +879,12 @@ fn s2c_06_a_scan_agrees_with_a_btreemap_on_random_keys() {
         if insert(&tree, k) {
             model.insert(k, rid_of(k));
         } else {
-            assert!(model.contains_key(&k));
+            assert!(model.contains_key(&k), "a scan agrees with a btreemap on random keys: expected `model.contains_key(&k)`");
         }
     }
     let got: Vec<(i64, Rid)> = tree.begin().map(|(k, v)| (k.get_as_integer(), v)).collect();
     let want: Vec<(i64, Rid)> = model.iter().map(|(&k, &v)| (k, v)).collect();
-    assert_eq!(got, want);
+    assert_eq!(got, want, "a scan agrees with a btreemap on random keys");
     for probe in [0, 1, 499, 500, 998, 999, 1000] {
         let got: Vec<i64> = tree.begin_at(&index_key(probe)).map(|(k, _)| k.get_as_integer()).collect();
         let want: Vec<i64> = model.range(probe..).map(|(&k, _)| k).collect();
@@ -903,17 +903,17 @@ fn s2c_07_a_leaf_removes_a_key_and_keeps_the_rest_in_order() {
     for k in [1, 2, 3, 4, 5] {
         leaf.insert(&index_key(k), &rid_of(k), &cmp);
     }
-    assert!(leaf.remove(&index_key(3), &cmp)); // the middle
-    assert!(leaf.remove(&index_key(1), &cmp)); // the first
-    assert!(leaf.remove(&index_key(5), &cmp)); // the last
+    assert!(leaf.remove(&index_key(3), &cmp), "a leaf removes a key and keeps the rest in order: expected `leaf.remove(&index_key(3), &cmp)`"); // the middle
+    assert!(leaf.remove(&index_key(1), &cmp), "a leaf removes a key and keeps the rest in order: expected `leaf.remove(&index_key(1), &cmp)`"); // the first
+    assert!(leaf.remove(&index_key(5), &cmp), "a leaf removes a key and keeps the rest in order: expected `leaf.remove(&index_key(5), &cmp)`"); // the last
     assert!(!leaf.remove(&index_key(5), &cmp), "already gone");
     assert!(!leaf.remove(&index_key(9), &cmp), "never there");
-    assert_eq!(leaf.size(), 2);
-    assert_eq!((leaf.entry_at(0), leaf.entry_at(1)), ((index_key(2), rid_of(2)), (index_key(4), rid_of(4))));
+    assert_eq!(leaf.size(), 2, "a leaf removes a key and keeps the rest in order");
+    assert_eq!((leaf.entry_at(0), leaf.entry_at(1)), ((index_key(2), rid_of(2)), (index_key(4), rid_of(4))), "a leaf removes a key and keeps the rest in order");
     leaf.remove_at(0);
-    assert_eq!((leaf.size(), leaf.key_at(0).get_as_integer()), (1, 4));
+    assert_eq!((leaf.size(), leaf.key_at(0).get_as_integer()), (1, 4), "a leaf removes a key and keeps the rest in order");
     leaf.insert_at_front(&index_key(1), &rid_of(1));
-    assert_eq!((leaf.size(), leaf.key_at(0).get_as_integer(), leaf.key_at(1).get_as_integer()), (2, 1, 4));
+    assert_eq!((leaf.size(), leaf.key_at(0).get_as_integer(), leaf.key_at(1).get_as_integer()), (2, 1, 4), "a leaf removes a key and keeps the rest in order");
 }
 
 #[test]
@@ -926,13 +926,13 @@ fn s2c_07_an_internal_page_removes_and_inserts_at_the_front() {
     }
     node.set_size(4);
     node.remove_at(2);
-    assert_eq!(node.size(), 3);
-    assert_eq!((node.key_at(2).get_as_integer(), node.value_at(2)), (30, PageId(103)));
+    assert_eq!(node.size(), 3, "an internal page removes and inserts at the front");
+    assert_eq!((node.key_at(2).get_as_integer(), node.value_at(2)), (30, PageId(103)), "an internal page removes and inserts at the front");
     node.remove_at(0);
     assert_eq!((node.size(), node.value_at(0), node.value_at(1)), (2, PageId(101), PageId(103)), "removing slot 0 shifts the others down");
     node.insert_at_front(&index_key(5), PageId(99));
-    assert_eq!((node.size(), node.value_at(0), node.value_at(1), node.value_at(2)), (3, PageId(99), PageId(101), PageId(103)));
-    assert_eq!(node.key_at(2).get_as_integer(), 30);
+    assert_eq!((node.size(), node.value_at(0), node.value_at(1), node.value_at(2)), (3, PageId(99), PageId(101), PageId(103)), "an internal page removes and inserts at the front");
+    assert_eq!(node.key_at(2).get_as_integer(), 30, "an internal page removes and inserts at the front");
 }
 
 #[test]
@@ -944,11 +944,11 @@ fn s2c_07_removing_a_missing_key_changes_nothing() {
     for k in [0, 13, 100, -5] {
         remove(&tree, k);
     }
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), before);
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), before, "removing a missing key changes nothing");
     // and on an empty tree
     let empty = new_tree(&bpm, 4, 5);
     remove(&empty, 1);
-    assert!(empty.is_empty());
+    assert!(empty.is_empty(), "removing a missing key changes nothing: expected `empty.is_empty()`");
     assert_no_pins(&bpm);
 }
 
@@ -957,13 +957,13 @@ fn s2c_07_a_leaf_that_stays_big_enough_just_loses_the_pair() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 5, 10);
     insert_all(&tree, 1..=7);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [1,2,3] [4,5,6,7]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [1,2,3] [4,5,6,7]}", "a leaf that stays big enough just loses the pair");
     remove(&tree, 6);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [1,2,3] [4,5,7]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [1,2,3] [4,5,7]}", "a leaf that stays big enough just loses the pair");
     remove(&tree, 4); // the first key of a leaf goes: the parent's key (4) is only a bound, it may stay
-    assert_eq!(get(&tree, 4), vec![]);
-    assert_eq!(get(&tree, 5), vec![rid_of(5)]);
-    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok());
+    assert_eq!(get(&tree, 4), vec![], "a leaf that stays big enough just loses the pair");
+    assert_eq!(get(&tree, 5), vec![rid_of(5)], "a leaf that stays big enough just loses the pair");
+    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok(), "a leaf that stays big enough just loses the pair: expected `check_structure(&bpm, tree.get_root_page_id()).is_ok()`");
 }
 
 #[test]
@@ -973,16 +973,16 @@ fn s2c_07_removing_the_last_pair_of_a_root_leaf_empties_the_tree() {
     insert_all(&tree, [1, 2]);
     let root = tree.get_root_page_id();
     remove(&tree, 1);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "[2]");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "[2]", "removing the last pair of a root leaf empties the tree");
     remove(&tree, 2);
-    assert!(tree.is_empty());
-    assert_eq!(tree.get_root_page_id(), PageId::INVALID);
+    assert!(tree.is_empty(), "removing the last pair of a root leaf empties the tree: expected `tree.is_empty()`");
+    assert_eq!(tree.get_root_page_id(), PageId::INVALID, "removing the last pair of a root leaf empties the tree");
     assert_eq!(bpm.get_pin_count(root), None, "the root leaf's page was deleted from the pool");
-    assert!(get(&tree, 2).is_empty());
-    assert!(tree.begin().is_end());
+    assert!(get(&tree, 2).is_empty(), "removing the last pair of a root leaf empties the tree: expected `get(&tree, 2).is_empty()`");
+    assert!(tree.begin().is_end(), "removing the last pair of a root leaf empties the tree: expected `tree.begin().is_end()`");
     // the tree can be used again
-    assert!(insert(&tree, 7));
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "[7]");
+    assert!(insert(&tree, 7), "removing the last pair of a root leaf empties the tree: expected `insert(&tree, 7)`");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "[7]", "removing the last pair of a root leaf empties the tree");
     assert_no_pins(&bpm);
 }
 
@@ -993,11 +993,11 @@ fn s2c_07_a_short_leaf_borrows_from_its_left_sibling() {
     insert_all(&tree, 1..=7);
     remove(&tree, 6);
     remove(&tree, 7);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [1,2,3] [4,5]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [1,2,3] [4,5]}", "a short leaf borrows from its left sibling");
     remove(&tree, 5); // [4] is below min_size 2; the left sibling [1,2,3] has one to spare
     assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3 [1,2] [3,4]}", "the left leaf's last pair moves over and the separator becomes its key");
-    assert_eq!(get(&tree, 3), vec![rid_of(3)]);
-    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok());
+    assert_eq!(get(&tree, 3), vec![rid_of(3)], "a short leaf borrows from its left sibling");
+    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok(), "a short leaf borrows from its left sibling: expected `check_structure(&bpm, tree.get_root_page_id()).is_ok()`");
 }
 
 #[test]
@@ -1005,12 +1005,12 @@ fn s2c_07_the_leftmost_leaf_borrows_from_its_right_sibling() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 5, 10);
     insert_all(&tree, 1..=6);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [1,2,3] [4,5,6]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [1,2,3] [4,5,6]}", "the leftmost leaf borrows from its right sibling");
     remove(&tree, 1);
     remove(&tree, 2); // [3] is below min_size 2 and has no left sibling; the right one [4,5,6] has one to spare
     assert_eq!(shape(&bpm, tree.get_root_page_id()), "{5 [3,4] [5,6]}", "the right leaf's first pair moves over and the separator becomes its new first key");
-    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), vec![3, 4, 5, 6]);
-    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok());
+    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), vec![3, 4, 5, 6], "the leftmost leaf borrows from its right sibling");
+    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok(), "the leftmost leaf borrows from its right sibling: expected `check_structure(&bpm, tree.get_root_page_id()).is_ok()`");
 }
 
 #[test]
@@ -1018,16 +1018,16 @@ fn s2c_07_borrowing_keeps_the_chain_and_the_values_intact() {
     let bpm = bpm(40);
     let tree = new_tree(&bpm, 6, 10);
     insert_all(&tree, 1..=14);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4,7,10 [1,2,3] [4,5,6] [7,8,9] [10,11,12,13,14]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4,7,10 [1,2,3] [4,5,6] [7,8,9] [10,11,12,13,14]}", "borrowing keeps the chain and the values intact");
     remove(&tree, 7); // [8,9] is below min_size 3; its left sibling has none to spare, its right sibling has two
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4,7,11 [1,2,3] [4,5,6] [8,9,10] [11,12,13,14]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4,7,11 [1,2,3] [4,5,6] [8,9,10] [11,12,13,14]}", "borrowing keeps the chain and the values intact");
     remove(&tree, 14); // the last leaf stays at 3 pairs: no borrowing needed
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4,7,11 [1,2,3] [4,5,6] [8,9,10] [11,12,13]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4,7,11 [1,2,3] [4,5,6] [8,9,10] [11,12,13]}", "borrowing keeps the chain and the values intact");
     check_structure(&bpm, tree.get_root_page_id()).unwrap();
     for k in (1..=13).filter(|&k| k != 7) {
-        assert_eq!(get(&tree, k), vec![rid_of(k)]);
+        assert_eq!(get(&tree, k), vec![rid_of(k)], "borrowing keeps the chain and the values intact");
     }
-    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), vec![1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13]);
+    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), vec![1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13], "borrowing keeps the chain and the values intact");
     assert_no_pins(&bpm);
 }
 
@@ -1039,11 +1039,11 @@ fn s2c_08_a_leaf_merges_into_its_left_sibling_and_the_root_collapses() {
     let tree = new_tree(&bpm, 4, 10);
     insert_all(&tree, 1..=4);
     let old_root = tree.get_root_page_id();
-    assert_eq!(shape(&bpm, old_root), "{3 [1,2] [3,4]}");
+    assert_eq!(shape(&bpm, old_root), "{3 [1,2] [3,4]}", "a leaf merges into its left sibling and the root collapses");
     let right = Internal::<_, Key>::new(&bpm.read_page(old_root)[..]).value_at(1);
     remove(&tree, 4); // [3] is short, the left sibling [1,2] has nothing to spare: merge
     assert_eq!(shape(&bpm, tree.get_root_page_id()), "[1,2,3]", "the root had one child left, so that child is the root");
-    assert_ne!(tree.get_root_page_id(), old_root);
+    assert_ne!(tree.get_root_page_id(), old_root, "a leaf merges into its left sibling and the root collapses");
     assert_eq!(bpm.get_pin_count(old_root), None, "the old root page is deleted");
     assert_eq!(bpm.get_pin_count(right), None, "so is the page that was merged away");
     assert_no_pins(&bpm);
@@ -1055,9 +1055,9 @@ fn s2c_08_the_leftmost_leaf_merges_with_its_right_sibling() {
     let tree = new_tree(&bpm, 4, 10);
     insert_all(&tree, 1..=4);
     remove(&tree, 1); // [2] is short and has no left sibling; the right sibling [3,4] has nothing to spare
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "[2,3,4]");
-    assert_eq!(get(&tree, 1), vec![]);
-    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), vec![2, 3, 4]);
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "[2,3,4]", "the leftmost leaf merges with its right sibling");
+    assert_eq!(get(&tree, 1), vec![], "the leftmost leaf merges with its right sibling");
+    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), vec![2, 3, 4], "the leftmost leaf merges with its right sibling");
 }
 
 #[test]
@@ -1065,12 +1065,12 @@ fn s2c_08_a_merge_in_the_middle_keeps_the_leaf_chain() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 4, 10);
     insert_all(&tree, 1..=12);
-    assert_eq!(check_structure(&bpm, tree.get_root_page_id()).unwrap().leaves, 6);
+    assert_eq!(check_structure(&bpm, tree.get_root_page_id()).unwrap().leaves, 6, "a merge in the middle keeps the leaf chain");
     for k in [6, 5, 9, 10] {
         remove(&tree, k);
         check_structure(&bpm, tree.get_root_page_id()).unwrap_or_else(|e| panic!("after removing {k}: {e}\n{}", shape(&bpm, tree.get_root_page_id())));
     }
-    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), vec![1, 2, 3, 4, 7, 8, 11, 12]);
+    assert_eq!(keys_by_scan_without_iterator(&bpm, &tree), vec![1, 2, 3, 4, 7, 8, 11, 12], "a merge in the middle keeps the leaf chain");
     assert_no_pins(&bpm);
 }
 
@@ -1079,17 +1079,17 @@ fn s2c_08_an_internal_page_that_loses_a_child_borrows_or_merges() {
     let bpm = bpm(40);
     let tree = new_tree(&bpm, 3, 3);
     insert_all(&tree, 1..=12);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{5,9 {3 [1,2] [3,4]} {7 [5,6] [7,8]} {11 [9,10] [11,12]}}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{5,9 {3 [1,2] [3,4]} {7 [5,6] [7,8]} {11 [9,10] [11,12]}}", "an internal page that loses a child borrows or merges");
     remove(&tree, 1);
     remove(&tree, 2);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{5,9 {4 [3] [4]} {7 [5,6] [7,8]} {11 [9,10] [11,12]}}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{5,9 {4 [3] [4]} {7 [5,6] [7,8]} {11 [9,10] [11,12]}}", "an internal page that loses a child borrows or merges");
     remove(&tree, 3); // [4] merges away ... and its parent has one child left: it merges with a sibling
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{9 {5,7 [4] [5,6] [7,8]} {11 [9,10] [11,12]}}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{9 {5,7 [4] [5,6] [7,8]} {11 [9,10] [11,12]}}", "an internal page that loses a child borrows or merges");
     remove(&tree, 4);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{9 {6,7 [5] [6] [7,8]} {11 [9,10] [11,12]}}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{9 {6,7 [5] [6] [7,8]} {11 [9,10] [11,12]}}", "an internal page that loses a child borrows or merges");
     remove(&tree, 5);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{9 {7 [6] [7,8]} {11 [9,10] [11,12]}}");
-    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok());
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{9 {7 [6] [7,8]} {11 [9,10] [11,12]}}", "an internal page that loses a child borrows or merges");
+    assert!(check_structure(&bpm, tree.get_root_page_id()).is_ok(), "an internal page that loses a child borrows or merges: expected `check_structure(&bpm, tree.get_root_page_id()).is_ok()`");
 }
 
 #[test]
@@ -1098,15 +1098,15 @@ fn s2c_08_removing_everything_shrinks_the_tree_a_level_at_a_time() {
     let tree = new_tree(&bpm, 2, 3);
     insert_all(&tree, 1..=9);
     let mut height = check_structure(&bpm, tree.get_root_page_id()).unwrap().height;
-    assert_eq!(height, 4);
+    assert_eq!(height, 4, "removing everything shrinks the tree a level at a time");
     for k in (1..=9).rev() {
         remove(&tree, k);
         let h = check_structure(&bpm, tree.get_root_page_id()).unwrap_or_else(|e| panic!("after removing {k}: {e}")).height;
         assert!(h <= height && height - h <= 1, "height went from {height} to {h}");
         height = h;
     }
-    assert_eq!(height, 0);
-    assert!(tree.is_empty());
+    assert_eq!(height, 0, "removing everything shrinks the tree a level at a time");
+    assert!(tree.is_empty(), "removing everything shrinks the tree a level at a time: expected `tree.is_empty()`");
 }
 
 #[test]
@@ -1118,7 +1118,7 @@ fn s2c_08_a_deleted_tree_gives_all_its_pages_back() {
     for &k in &keys {
         remove(&tree, k);
     }
-    assert!(tree.is_empty());
+    assert!(tree.is_empty(), "a deleted tree gives all its pages back: expected `tree.is_empty()`");
     let next = bpm.new_page();
     // page 0 is the header; every other page the tree used was deleted from the pool
     for id in 1..next.0 {
@@ -1137,9 +1137,9 @@ fn s2c_08_delete_test_no_iterator_from_bustub() {
         remove(&tree, k);
     }
     let left: Vec<i64> = keys.into_iter().filter(|k| !get(&tree, *k).is_empty()).collect();
-    assert_eq!(left, vec![2]);
+    assert_eq!(left, vec![2], "delete test no iterator from bustub");
     remove(&tree, 2);
-    assert_eq!(tree.get_root_page_id(), PageId::INVALID);
+    assert_eq!(tree.get_root_page_id(), PageId::INVALID, "delete test no iterator from bustub");
 }
 
 #[test]
@@ -1161,7 +1161,7 @@ fn s2c_08_random_inserts_and_removes_agree_with_a_btreemap() {
                 check_structure(&bpm, tree.get_root_page_id()).unwrap_or_else(|e| panic!("({leaf_max},{internal_max}) seed {seed} step {step}: {e}\n{}", shape(&bpm, tree.get_root_page_id())));
             }
             let want: Vec<i64> = model.keys().copied().collect();
-            assert_eq!(keys_by_scan_without_iterator(&bpm, &tree).into_iter().filter(|_| !tree.is_empty()).collect::<Vec<_>>(), want);
+            assert_eq!(keys_by_scan_without_iterator(&bpm, &tree).into_iter().filter(|_| !tree.is_empty()).collect::<Vec<_>>(), want, "random inserts and removes agree with a btreemap");
             assert_no_pins(&bpm);
         }
     }
@@ -1177,20 +1177,20 @@ fn s2c_08_sequential_edge_mix_from_bustub() {
         for key in [1, 5, 15, 20, 25, 2, -1, -2, 6, 14, 4] {
             insert(&tree, key);
             inserted.push(key);
-            assert!(tree_values_match(&tree, &inserted, &deleted));
+            assert!(tree_values_match(&tree, &inserted, &deleted), "sequential edge mix from bustub: expected `tree_values_match(&tree, &inserted, &deleted)`");
         }
         remove(&tree, 1);
         deleted.push(1);
         inserted.retain(|&k| k != 1);
-        assert!(tree_values_match(&tree, &inserted, &deleted));
+        assert!(tree_values_match(&tree, &inserted, &deleted), "sequential edge mix from bustub: expected `tree_values_match(&tree, &inserted, &deleted)`");
         insert(&tree, 3);
         inserted.push(3);
-        assert!(tree_values_match(&tree, &inserted, &deleted));
+        assert!(tree_values_match(&tree, &inserted, &deleted), "sequential edge mix from bustub: expected `tree_values_match(&tree, &inserted, &deleted)`");
         for key in [4, 14, 6, 2, 15, -2, -1, 3, 5, 25, 20] {
             remove(&tree, key);
             deleted.push(key);
             inserted.retain(|&k| k != key);
-            assert!(tree_values_match(&tree, &inserted, &deleted));
+            assert!(tree_values_match(&tree, &inserted, &deleted), "sequential edge mix from bustub: expected `tree_values_match(&tree, &inserted, &deleted)`");
         }
     }
 }
@@ -1202,12 +1202,12 @@ fn s2c_09_an_insert_into_a_leaf_with_room_write_latches_only_the_leaf() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 4, 3);
     insert_all(&tree, [0, 2, 4, 6, 8]);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [0,2] [4,6,8]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [0,2] [4,6,8]}", "an insert into a leaf with room write latches only the leaf");
     let (reads, writes) = (tree.bpm.get_reads(), tree.bpm.get_writes());
-    assert!(insert(&tree, 1)); // [0,2] has room for it without reaching max_size
+    assert!(insert(&tree, 1), "an insert into a leaf with room write latches only the leaf: expected `insert(&tree, 1)`"); // [0,2] has room for it without reaching max_size
     assert!(tree.bpm.get_reads() - reads > 0, "the path down to the leaf is read-latched");
     assert_eq!(tree.bpm.get_writes() - writes, 1, "only the leaf is write-latched");
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [0,1,2] [4,6,8]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{4 [0,1,2] [4,6,8]}", "an insert into a leaf with room write latches only the leaf");
 }
 
 #[test]
@@ -1227,9 +1227,9 @@ fn s2c_09_a_remove_that_leaves_the_leaf_half_full_write_latches_only_the_leaf() 
     assert!(to_delete < 26, "some leaf has a pair to spare");
     let (reads, writes) = (tree.bpm.get_reads(), tree.bpm.get_writes());
     remove(&tree, to_delete);
-    assert!(tree.bpm.get_reads() - reads > 0);
-    assert_eq!(tree.bpm.get_writes() - writes, 1);
-    assert!(get(&tree, to_delete).is_empty());
+    assert!(tree.bpm.get_reads() - reads > 0, "a remove that leaves the leaf half full write latches only the leaf: expected `tree.bpm.get_reads() - reads > 0`");
+    assert_eq!(tree.bpm.get_writes() - writes, 1, "a remove that leaves the leaf half full write latches only the leaf");
+    assert!(get(&tree, to_delete).is_empty(), "a remove that leaves the leaf half full write latches only the leaf: expected `get(&tree, to_delete).is_empty()`");
 }
 
 #[test]
@@ -1238,9 +1238,9 @@ fn s2c_09_an_insert_that_splits_a_leaf_still_works_and_latches_more_than_the_lea
     let tree = new_tree(&bpm, 4, 10);
     insert_all(&tree, 1..=3);
     let writes = tree.bpm.get_writes();
-    assert!(insert(&tree, 4)); // the root leaf reaches max_size: it splits
+    assert!(insert(&tree, 4), "an insert that splits a leaf still works and latches more than the leaf: expected `insert(&tree, 4)`"); // the root leaf reaches max_size: it splits
     assert!(tree.bpm.get_writes() - writes > 1, "a split latches the leaf, the new page and the parent (or the header)");
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3 [1,2] [3,4]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3 [1,2] [3,4]}", "an insert that splits a leaf still works and latches more than the leaf");
 }
 
 #[test]
@@ -1260,7 +1260,7 @@ fn s2c_09_an_insert_that_fits_does_not_wait_for_a_reader_on_the_root() {
         drop(reader);
         assert!(finished, "an insert into a leaf with room blocked on a read latch held on the root: it should only read-latch the path");
     });
-    assert_eq!(get(&tree, 1), vec![rid_of(1)]);
+    assert_eq!(get(&tree, 1), vec![rid_of(1)], "an insert that fits does not wait for a reader on the root");
 }
 
 #[test]
@@ -1268,7 +1268,7 @@ fn s2c_09_a_remove_that_fits_does_not_wait_for_a_reader_on_the_root() {
     let bpm = bpm(30);
     let tree = new_tree(&bpm, 4, 4);
     insert_all(&tree, 1..=5);
-    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3 [1,2] [3,4,5]}");
+    assert_eq!(shape(&bpm, tree.get_root_page_id()), "{3 [1,2] [3,4,5]}", "a remove that fits does not wait for a reader on the root");
     let root_page = tree.get_root_page_id();
     let reader = bpm.read_page(root_page);
     let (tx, rx) = mpsc::channel();
@@ -1281,7 +1281,7 @@ fn s2c_09_a_remove_that_fits_does_not_wait_for_a_reader_on_the_root() {
         drop(reader);
         assert!(finished, "a remove from a leaf that stays at least half full blocked on a read latch held on the root");
     });
-    assert!(get(&tree, 4).is_empty());
+    assert!(get(&tree, 4).is_empty(), "a remove that fits does not wait for a reader on the root: expected `get(&tree, 4).is_empty()`");
 }
 
 fn run_with_watchdog(seconds: u64, work: impl FnOnce() + Send + 'static) {
@@ -1309,14 +1309,14 @@ fn s2c_09_concurrent_inserts_of_disjoint_keys_are_all_kept() {
                         let mut keys: Vec<i64> = (0..150).map(|i| i * 8 + t).collect();
                         Lcg(t as u64 + 100 * iteration).shuffle(&mut keys);
                         for k in keys {
-                            assert!(insert(tree, k));
+                            assert!(insert(tree, k), "concurrent inserts of disjoint keys are all kept: expected `insert(tree, k)`");
                         }
                     });
                 }
             });
             let shape = check_structure(&bpm, tree.get_root_page_id()).unwrap_or_else(|e| panic!("iteration {iteration}: {e}"));
-            assert_eq!(shape.keys, 1200);
-            assert_eq!(tree.begin().map(|(k, _)| k.get_as_integer()).collect::<Vec<_>>(), (0..1200).collect::<Vec<_>>());
+            assert_eq!(shape.keys, 1200, "concurrent inserts of disjoint keys are all kept");
+            assert_eq!(tree.begin().map(|(k, _)| k.get_as_integer()).collect::<Vec<_>>(), (0..1200).collect::<Vec<_>>(), "concurrent inserts of disjoint keys are all kept");
             assert_no_pins(&bpm);
         }
     });
@@ -1375,7 +1375,7 @@ fn s2c_09_readers_always_find_the_keys_that_writers_never_touch() {
                 }
             });
             check_structure(&bpm, tree.get_root_page_id()).unwrap();
-            assert_eq!(tree.begin().filter(|(k, _)| k.get_as_integer() % 10 == 0).count(), preserved.len());
+            assert_eq!(tree.begin().filter(|(k, _)| k.get_as_integer() % 10 == 0).count(), preserved.len(), "readers always find the keys that writers never touch");
             assert_no_pins(&bpm);
         }
     });

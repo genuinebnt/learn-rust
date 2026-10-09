@@ -15,35 +15,35 @@ fn cms<K: std::hash::Hash>(width: u32, depth: u32) -> CountMinSketch<K> {
 #[test]
 fn s0d_01_a_zero_dimension_is_an_error() {
     for i in [10u32, 20, 30, 40] {
-        assert!(CountMinSketch::<i32>::new(0, i).is_err());
-        assert!(CountMinSketch::<i32>::new(i * 5, 0).is_err());
+        assert!(CountMinSketch::<i32>::new(0, i).is_err(), "a zero dimension is an error: expected `CountMinSketch::<i32>::new(0, i).is_err()`");
+        assert!(CountMinSketch::<i32>::new(i * 5, 0).is_err(), "a zero dimension is an error: expected `CountMinSketch::<i32>::new(i * 5, 0).is_err()`");
     }
-    assert!(CountMinSketch::<i32>::new(1, 1).is_ok());
+    assert!(CountMinSketch::<i32>::new(1, 1).is_ok(), "a zero dimension is an error: expected `CountMinSketch::<i32>::new(1, 1).is_ok()`");
 }
 
 #[test]
 fn s0d_01_counts_of_strings() {
     let s: CountMinSketch<String> = cms(200, 12);
     let key = |x: &str| x.to_string();
-    assert_eq!(s.count(&key("test")), 0);
+    assert_eq!(s.count(&key("test")), 0, "counts of strings");
     s.insert(&key("Welcome to CMU DB (15-445/645)"));
-    assert_eq!(s.count(&key("Welcome to CMU DB (15-445/645)")), 1);
+    assert_eq!(s.count(&key("Welcome to CMU DB (15-445/645)")), 1, "counts of strings");
     let names = ["DJ-Cache", "Sirui", "Andy", "Melody", "William", "Saransh", "Song", "Ruiqi", "David"];
     for i in 0..10u32 {
         for n in names {
             s.insert(&key(n));
         }
         for n in names {
-            assert_eq!(s.count(&key(n)), i + 1);
+            assert_eq!(s.count(&key(n)), i + 1, "counts of strings");
         }
     }
-    assert_eq!(s.count(&key("NonExistent")), 0);
+    assert_eq!(s.count(&key("NonExistent")), 0, "counts of strings");
 }
 
 #[test]
 fn s0d_01_counts_of_integers_including_negative_ones() {
     let s: CountMinSketch<i64> = cms(500, 20);
-    assert_eq!(s.count(&0), 0);
+    assert_eq!(s.count(&0), 0, "counts of integers including negative ones");
     s.insert(&0);
     for i in 0..30u32 {
         for j in 0..4u32 {
@@ -51,7 +51,7 @@ fn s0d_01_counts_of_integers_including_negative_ones() {
                 s.insert(&k);
             }
             for k in [10i64, 122, 200, 911, 15445] {
-                assert_eq!(s.count(&k), i * 4 + j + 1);
+                assert_eq!(s.count(&k), i * 4 + j + 1, "counts of integers including negative ones");
             }
         }
         for j in 0..5u32 {
@@ -59,11 +59,11 @@ fn s0d_01_counts_of_integers_including_negative_ones() {
                 s.insert(&k);
             }
             for k in [-1i64, -2, -3, -15445] {
-                assert_eq!(s.count(&k), i * 5 + j + 1);
+                assert_eq!(s.count(&k), i * 5 + j + 1, "counts of integers including negative ones");
             }
         }
     }
-    assert_eq!((s.count(&0), s.count(&10), s.count(&-1), s.count(&999999)), (1, 120, 150, 0));
+    assert_eq!((s.count(&0), s.count(&10), s.count(&-1), s.count(&999999)), (1, 120, 150, 0), "counts of integers including negative ones");
 }
 
 #[test]
@@ -71,11 +71,11 @@ fn s0d_01_width_one_makes_every_item_collide_and_the_minimum_is_the_total() {
     let s: CountMinSketch<i64> = cms(1, 20);
     s.insert(&1);
     s.insert(&2);
-    assert_eq!((s.count(&1), s.count(&2)), (2, 2));
+    assert_eq!((s.count(&1), s.count(&2)), (2, 2), "width one makes every item collide and the minimum is the total");
     s.insert(&3);
     s.insert(&4);
     for k in 1..=4 {
-        assert_eq!(s.count(&k), 4);
+        assert_eq!(s.count(&k), 4, "width one makes every item collide and the minimum is the total");
     }
     let one: CountMinSketch<i64> = cms(1, 1);
     for k in 0..5 {
@@ -90,16 +90,16 @@ fn s0d_01_the_estimate_is_never_below_the_truth_with_one_row() {
     s.insert(&15445);
     s.insert(&(15445 + 4));
     s.insert(&15445);
-    assert!(s.count(&15445) >= 2);
-    assert!(s.count(&(15445 + 4)) >= 1);
+    assert!(s.count(&15445) >= 2, "the estimate is never below the truth with one row: expected `s.count(&15445) >= 2`");
+    assert!(s.count(&(15445 + 4)) >= 1, "the estimate is never below the truth with one row: expected `s.count(&(15445 + 4)) >= 1`");
 }
 
 #[test]
 fn s0d_01_each_row_hashes_differently_but_always_the_same_way() {
     let s: CountMinSketch<i64> = cms(1000, 8);
     let columns: Vec<usize> = (0..8).map(|row| s.column(row, &12345)).collect();
-    assert_eq!(columns, (0..8).map(|row| s.column(row, &12345)).collect::<Vec<_>>());
-    assert!(columns.iter().all(|c| *c < 1000));
+    assert_eq!(columns, (0..8).map(|row| s.column(row, &12345)).collect::<Vec<_>>(), "each row hashes differently but always the same way");
+    assert!(columns.iter().all(|c| *c < 1000), "each row hashes differently but always the same way: expected `columns.iter().all(|c| *c < 1000)`");
     let distinct: std::collections::BTreeSet<_> = columns.iter().collect();
     assert!(distinct.len() >= 5, "rows should not all pick the same column: {columns:?}");
 }
@@ -114,11 +114,11 @@ fn s0d_02_clear_resets_every_count() {
             s.insert(&item);
         }
     }
-    assert_eq!((s.count(&1), s.count(&2), s.count(&3)), (15, 10, 8));
+    assert_eq!((s.count(&1), s.count(&2), s.count(&3)), (15, 10, 8), "clear resets every count");
     s.clear();
-    assert_eq!((s.count(&1), s.count(&2), s.count(&3), s.count(&999)), (0, 0, 0, 0));
+    assert_eq!((s.count(&1), s.count(&2), s.count(&3), s.count(&999)), (0, 0, 0, 0), "clear resets every count");
     s.insert(&1);
-    assert_eq!(s.count(&1), 1);
+    assert_eq!(s.count(&1), 1, "clear resets every count");
 }
 
 #[test]
@@ -152,11 +152,11 @@ fn s0d_02_merge_with_collisions_and_with_incompatible_sketches() {
         b.insert(&k);
     }
     a.merge(&b).unwrap();
-    assert_eq!((a.count(&1), a.count(&996)), (5, 5));
+    assert_eq!((a.count(&1), a.count(&996)), (5, 5), "merge with collisions and with incompatible sketches");
     let other: CountMinSketch<i32> = cms(2, 20);
-    assert!(a.merge(&other).is_err());
+    assert!(a.merge(&other).is_err(), "merge with collisions and with incompatible sketches: expected `a.merge(&other).is_err()`");
     let other: CountMinSketch<i32> = cms(1, 19);
-    assert!(a.merge(&other).is_err());
+    assert!(a.merge(&other).is_err(), "merge with collisions and with incompatible sketches: expected `a.merge(&other).is_err()`");
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn s0d_02_top_k_orders_the_candidates_by_estimated_count() {
         }
         let candidates: Vec<String> = ["rare", "frequent", "medium"].iter().map(|s| s.to_string()).collect();
         let top = s.top_k(3, &candidates);
-        assert_eq!(top, vec![("frequent".to_string(), iter + 4), ("medium".to_string(), iter + 2), ("rare".to_string(), iter)]);
+        assert_eq!(top, vec![("frequent".to_string(), iter + 4), ("medium".to_string(), iter + 2), ("rare".to_string(), iter)], "top k orders the candidates by estimated count");
     }
 }
 
@@ -183,9 +183,9 @@ fn s0d_02_top_k_keeps_at_most_k_and_at_most_the_candidates() {
         }
     }
     let top: Vec<i32> = s.top_k(3, &[1, 2, 3, 4]).into_iter().map(|p| p.0).collect();
-    assert_eq!(top, vec![4, 2, 3]);
-    assert_eq!(s.top_k(10, &[1, 2]).len(), 2);
-    assert!(s.top_k(0, &[1, 2]).is_empty());
+    assert_eq!(top, vec![4, 2, 3], "top k keeps at most k and at most the candidates");
+    assert_eq!(s.top_k(10, &[1, 2]).len(), 2, "top k keeps at most k and at most the candidates");
+    assert!(s.top_k(0, &[1, 2]).is_empty(), "top k keeps at most k and at most the candidates: expected `s.top_k(0, &[1, 2]).is_empty()`");
     assert_eq!(s.top_k(2, &[7, 8]).iter().map(|p| p.1).collect::<Vec<_>>(), vec![0, 0], "unseen candidates count 0 and keep their order");
 }
 
@@ -202,7 +202,7 @@ fn s0d_02_top_k_tracks_a_sketch_that_keeps_counting() {
             }
         }
         let got: Vec<i32> = s.top_k(3, &[1, 2, 3, 4]).into_iter().map(|p| p.0).collect();
-        assert_eq!(got, want);
+        assert_eq!(got, want, "top k tracks a sketch that keeps counting");
     }
 }
 
@@ -211,21 +211,21 @@ fn s0d_02_top_k_tracks_a_sketch_that_keeps_counting() {
 #[test]
 fn s0d_03_the_register_is_the_top_bits_of_the_hash() {
     let h: HyperLogLog<i64> = HyperLogLog::new(3);
-    assert_eq!(h.register_index(0), 0);
-    assert_eq!(h.register_index(u64::MAX), 7);
-    assert_eq!(h.register_index(0b101 << 61), 5);
-    assert_eq!(h.register_index(0b101 << 61 | 12345), 5);
+    assert_eq!(h.register_index(0), 0, "the register is the top bits of the hash");
+    assert_eq!(h.register_index(u64::MAX), 7, "the register is the top bits of the hash");
+    assert_eq!(h.register_index(0b101 << 61), 5, "the register is the top bits of the hash");
+    assert_eq!(h.register_index(0b101 << 61 | 12345), 5, "the register is the top bits of the hash");
     let one: HyperLogLog<i64> = HyperLogLog::new(0);
-    assert_eq!(one.register_index(u64::MAX), 0);
+    assert_eq!(one.register_index(u64::MAX), 0, "the register is the top bits of the hash");
 }
 
 #[test]
 fn s0d_03_the_run_length_is_the_position_of_the_leftmost_one_after_the_register_bits() {
     let h: HyperLogLog<i64> = HyperLogLog::new(3);
     // 3 register bits, then 61 bits
-    assert_eq!(h.position_of_leftmost_one(0b000_1 << 60), 1);
-    assert_eq!(h.position_of_leftmost_one(0b111_01 << 59), 2);
-    assert_eq!(h.position_of_leftmost_one(0b010_0001 << 57), 4);
+    assert_eq!(h.position_of_leftmost_one(0b000_1 << 60), 1, "the run length is the position of the leftmost one after the register bits");
+    assert_eq!(h.position_of_leftmost_one(0b111_01 << 59), 2, "the run length is the position of the leftmost one after the register bits");
+    assert_eq!(h.position_of_leftmost_one(0b010_0001 << 57), 4, "the run length is the position of the leftmost one after the register bits");
     assert_eq!(h.position_of_leftmost_one(0b101 << 61), 62, "all zeros after the register bits: 64 - 3 + 1");
     assert_eq!(h.position_of_leftmost_one(1), 61, "the last bit");
 }
@@ -233,19 +233,19 @@ fn s0d_03_the_run_length_is_the_position_of_the_leftmost_one_after_the_register_
 #[test]
 fn s0d_03_with_no_register_bits_all_64_bits_count() {
     let h: HyperLogLog<i64> = HyperLogLog::new(0);
-    assert_eq!(h.position_of_leftmost_one(1 << 63), 1);
-    assert_eq!(h.position_of_leftmost_one(1), 64);
-    assert_eq!(h.position_of_leftmost_one(0), 65);
+    assert_eq!(h.position_of_leftmost_one(1 << 63), 1, "with no register bits all 64 bits count");
+    assert_eq!(h.position_of_leftmost_one(1), 64, "with no register bits all 64 bits count");
+    assert_eq!(h.position_of_leftmost_one(0), 65, "with no register bits all 64 bits count");
 }
 
 #[test]
 fn s0d_03_adding_a_value_raises_exactly_one_register_to_its_rank() {
     let h: HyperLogLog<i64> = HyperLogLog::new(4);
-    assert!(h.registers().iter().all(|r| *r == 0));
+    assert!(h.registers().iter().all(|r| *r == 0), "adding a value raises exactly one register to its rank: expected `h.registers().iter().all(|r| *r == 0)`");
     h.add_elem(&42);
     let regs = h.registers();
-    assert_eq!(regs.iter().filter(|r| **r > 0).count(), 1);
-    assert!(*regs.iter().max().unwrap() >= 1);
+    assert_eq!(regs.iter().filter(|r| **r > 0).count(), 1, "adding a value raises exactly one register to its rank");
+    assert!(*regs.iter().max().unwrap() >= 1, "adding a value raises exactly one register to its rank: expected `*regs.iter().max().unwrap() >= 1`");
 }
 
 #[test]
@@ -256,7 +256,7 @@ fn s0d_03_adding_the_same_value_twice_changes_nothing() {
     for _ in 0..100 {
         h.add_elem(&42);
     }
-    assert_eq!(h.registers(), once);
+    assert_eq!(h.registers(), once, "adding the same value twice changes nothing");
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn s0d_03_a_register_only_ever_grows() {
     for i in 0..500 {
         h.add_elem(&i);
         let after = h.registers();
-        assert!(before.iter().zip(&after).all(|(b, a)| a >= b));
+        assert!(before.iter().zip(&after).all(|(b, a)| a >= b), "a register only ever grows: expected `before.iter().zip(&after).all(|(b, a)| a >= b)`");
         before = after;
     }
     assert!(before.iter().all(|r| *r > 0), "500 values reach all 4 registers");
@@ -276,7 +276,7 @@ fn s0d_03_a_register_only_ever_grows() {
 fn s0d_03_a_negative_size_has_no_registers_and_ignores_everything() {
     let none: HyperLogLog<i64> = HyperLogLog::new(-2);
     none.add_elem(&1);
-    assert!(none.registers().is_empty());
+    assert!(none.registers().is_empty(), "a negative size has no registers and ignores everything: expected `none.registers().is_empty()`");
 }
 
 #[test]
@@ -302,7 +302,7 @@ fn s0d_04_an_empty_sketch_estimates_the_formula_on_all_zero_registers() {
     assert_eq!(h.cardinality(), 0, "nothing computed yet");
     h.compute_cardinality();
     // CONSTANT * m^2 / m = 0.79402 * 8
-    assert_eq!(h.cardinality(), 6);
+    assert_eq!(h.cardinality(), 6, "an empty sketch estimates the formula on all zero registers");
 }
 
 #[test]
@@ -313,7 +313,7 @@ fn s0d_04_zero_register_bits_is_one_register() {
     h.add_elem(&1);
     h.compute_cardinality();
     let one = h.cardinality();
-    assert!(one >= 1);
+    assert!(one >= 1, "zero register bits is one register: expected `one >= 1`");
     h.add_elem(&-1);
     h.compute_cardinality();
     assert!(h.cardinality() >= one, "a second value can only raise the single register");
@@ -323,7 +323,7 @@ fn s0d_04_zero_register_bits_is_one_register() {
 fn s0d_04_a_negative_size_has_cardinality_zero() {
     let h: HyperLogLog<i64> = HyperLogLog::new(-2);
     h.compute_cardinality();
-    assert_eq!(h.cardinality(), 0);
+    assert_eq!(h.cardinality(), 0, "a negative size has cardinality zero");
 }
 
 #[test]
@@ -356,10 +356,10 @@ fn s0d_04_strings_and_a_small_set_give_a_plausible_estimate() {
 fn s0d_05_a_run_of_18_trailing_zeros_is_split_into_dense_and_overflow_bits() {
     // BusTub's PrestoCase1: two register bits would be 1; 262144 = 2^18 has top bit 0 (register 0) and 18 trailing zeros
     let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(1);
-    assert_eq!(h.cardinality(), 0);
+    assert_eq!(h.cardinality(), 0, "a run of 18 trailing zeros is split into dense and overflow bits");
     h.add_elem(&262144);
     h.compute_cardinality();
-    assert_eq!(h.cardinality(), 3);
+    assert_eq!(h.cardinality(), 3, "a run of 18 trailing zeros is split into dense and overflow bits");
     assert_eq!(h.dense_bucket()[0], 2, "18 = 0b1_0010: the low four bits");
     assert_eq!(h.overflow_bucket_of(0), 1, "and the bit above them");
 }
@@ -370,9 +370,9 @@ fn s0d_05_zero_has_all_the_remaining_bits_as_trailing_zeros() {
     h.add_elem(&262144);
     h.add_elem(&0);
     h.compute_cardinality();
-    assert_eq!(h.cardinality(), 3);
+    assert_eq!(h.cardinality(), 3, "zero has all the remaining bits as trailing zeros");
     assert_eq!(h.dense_bucket()[0], 15, "63 = 0b11_1111");
-    assert_eq!(h.overflow_bucket_of(0), 3);
+    assert_eq!(h.overflow_bucket_of(0), 3, "zero has all the remaining bits as trailing zeros");
 }
 
 #[test]
@@ -382,30 +382,30 @@ fn s0d_05_a_second_register_and_the_estimate_for_long_runs() {
     h.add_elem(&0);
     h.add_elem(&-9151314442816847872); // top bit 1 (register 1), then bit 56
     h.compute_cardinality();
-    assert_eq!(h.cardinality(), 227086569448168320);
+    assert_eq!(h.cardinality(), 227086569448168320, "a second register and the estimate for long runs");
     assert_eq!(h.dense_bucket()[1], 8, "56 = 0b11_1000");
-    assert_eq!(h.overflow_bucket_of(0), 3);
+    assert_eq!(h.overflow_bucket_of(0), 3, "a second register and the estimate for long runs");
     h.add_elem(&-1);
     h.compute_cardinality();
     assert_eq!(h.cardinality(), 227086569448168320, "a value with no trailing zeros changes nothing");
     h.add_elem(&i64::MIN);
     h.compute_cardinality();
-    assert_eq!(h.cardinality(), 14647083729406857216);
-    assert_eq!(h.dense_bucket()[1], 15);
+    assert_eq!(h.cardinality(), 14647083729406857216, "a second register and the estimate for long runs");
+    assert_eq!(h.dense_bucket()[1], 15, "a second register and the estimate for long runs");
 }
 
 #[test]
 fn s0d_05_one_register_uses_all_64_bits() {
     let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(0);
     h.add_elem(&65536);
-    assert_eq!(h.dense_bucket()[0], 0);
-    assert_eq!(h.overflow_bucket_of(0), 1);
+    assert_eq!(h.dense_bucket()[0], 0, "one register uses all 64 bits");
+    assert_eq!(h.overflow_bucket_of(0), 1, "one register uses all 64 bits");
     h.add_elem(&i64::MIN);
     h.compute_cardinality();
-    assert_eq!((h.dense_bucket()[0], h.overflow_bucket_of(0)), (15, 3));
+    assert_eq!((h.dense_bucket()[0], h.overflow_bucket_of(0)), (15, 3), "one register uses all 64 bits");
     h.add_elem(&0);
     h.compute_cardinality();
-    assert_eq!(h.cardinality(), 14647083729406857216);
+    assert_eq!(h.cardinality(), 14647083729406857216, "one register uses all 64 bits");
     assert_eq!((h.dense_bucket()[0], h.overflow_bucket_of(0)), (0, 4), "64 = 0b100_0000: dense 0, overflow 4");
 }
 
@@ -435,9 +435,9 @@ fn s0d_05_threads_adding_in_any_order_leave_the_same_registers_as_one_thread() {
     for v in &values {
         one.add_elem(v);
     }
-    assert_eq!(h.dense_bucket(), one.dense_bucket());
+    assert_eq!(h.dense_bucket(), one.dense_bucket(), "threads adding in any order leave the same registers as one thread");
     for i in 0..4 {
-        assert_eq!(h.overflow_bucket_of(i), one.overflow_bucket_of(i));
+        assert_eq!(h.overflow_bucket_of(i), one.overflow_bucket_of(i), "threads adding in any order leave the same registers as one thread");
     }
 }
 
@@ -445,7 +445,7 @@ fn s0d_05_threads_adding_in_any_order_leave_the_same_registers_as_one_thread() {
 fn s0d_05_negative_size_and_strings() {
     let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(-2);
     h.compute_cardinality();
-    assert_eq!(h.cardinality(), 0);
+    assert_eq!(h.cardinality(), 0, "negative size and strings");
     let s: HyperLogLogPresto<String> = HyperLogLogPresto::new(8);
     for i in 0..2000 {
         s.add_elem(&format!("user-{i}"));
@@ -462,15 +462,15 @@ fn s0d_05_negative_size_and_strings() {
 fn s0d_06_add_and_remove_on_one_replica() {
     let mut s: ORSet<i32> = ORSet::new();
     for i in 0..10 {
-        assert!(!s.contains(&i));
+        assert!(!s.contains(&i), "add and remove on one replica: expected `!s.contains(&i)`");
     }
     for i in 0..10 {
         s.add(&i, i as i64);
-        assert!(s.contains(&i));
+        assert!(s.contains(&i), "add and remove on one replica: expected `s.contains(&i)`");
     }
     for i in 0..10 {
         s.remove(&i);
-        assert!(!s.contains(&i));
+        assert!(!s.contains(&i), "add and remove on one replica: expected `!s.contains(&i)`");
     }
 }
 
@@ -506,7 +506,7 @@ fn s0d_06_other_elements_are_not_affected() {
     s.add(&1, 0);
     s.add(&2, 1);
     s.remove(&1);
-    assert!(!s.contains(&1) && s.contains(&2));
+    assert!(!s.contains(&1) && s.contains(&2), "other elements are not affected: expected `!s.contains(&1) && s.contains(&2)`");
 }
 
 // ---- 0d-07: merging, and a network of replicas ---------------------------------------------------------------------------------------------
@@ -518,12 +518,12 @@ fn s0d_07_merge_brings_in_adds_and_removes() {
     b.add(&2, 1);
     b.remove(&2);
     a.merge(&b);
-    assert!(a.contains(&1) && !a.contains(&2));
-    assert!(!b.contains(&1));
+    assert!(a.contains(&1) && !a.contains(&2), "merge brings in adds and removes: expected `a.contains(&1) && !a.contains(&2)`");
+    assert!(!b.contains(&1), "merge brings in adds and removes: expected `!b.contains(&1)`");
     b.merge(&a);
-    assert!(b.contains(&1));
+    assert!(b.contains(&1), "merge brings in adds and removes: expected `b.contains(&1)`");
     b.add(&2, 2);
-    assert!(b.contains(&2));
+    assert!(b.contains(&2), "merge brings in adds and removes: expected `b.contains(&2)`");
 }
 
 #[test]
@@ -536,7 +536,7 @@ fn s0d_07_add_wins_over_a_concurrent_remove() {
     let (copy_a, copy_b) = (a.clone(), b.clone());
     a.merge(&copy_b);
     b.merge(&copy_a);
-    assert!(a.contains(&c) && b.contains(&c));
+    assert!(a.contains(&c) && b.contains(&c), "add wins over a concurrent remove: expected `a.contains(&c) && b.contains(&c)`");
 }
 
 #[test]
@@ -551,11 +551,11 @@ fn s0d_07_merging_twice_changes_nothing() {
     a.merge(&copy_b);
     b.merge(&copy_a);
     for set in [&a, &b] {
-        assert!(set.contains(&s("15-410")) && set.contains(&s("15-721")));
+        assert!(set.contains(&s("15-410")) && set.contains(&s("15-721")), "merging twice changes nothing: expected `set.contains(&s(\"15-410\")) && set.contains(&s(\"15-721\"))`");
     }
     a.merge(&copy_b);
     b.merge(&copy_a);
-    assert_eq!(a.to_string(), b.to_string());
+    assert_eq!(a.to_string(), b.to_string(), "merging twice changes nothing");
 }
 
 #[test]
@@ -568,9 +568,9 @@ fn s0d_07_elements_lists_each_element_once_and_to_string_sorts_them() {
     s.remove(&2);
     let mut e = s.elements();
     e.sort();
-    assert_eq!(e, vec![1, 3]);
-    assert_eq!(s.to_string(), "{1, 3}");
-    assert_eq!(ORSet::<i32>::new().to_string(), "{}");
+    assert_eq!(e, vec![1, 3], "elements lists each element once and to string sorts them");
+    assert_eq!(s.to_string(), "{1, 3}", "elements lists each element once and to string sorts them");
+    assert_eq!(ORSet::<i32>::new().to_string(), "{}", "elements lists each element once and to string sorts them");
 }
 
 #[test]
@@ -593,7 +593,7 @@ fn s0d_07_merge_order_does_not_matter() {
     let mut right = replicas[2].clone();
     right.merge(&replicas[1]);
     right.merge(&replicas[0]);
-    assert_eq!(left.to_string(), right.to_string());
+    assert_eq!(left.to_string(), right.to_string(), "merge order does not matter");
 }
 
 // ---- 0d-08: BusTub's driver tests -------------------------------------------------------------------------------------------------------
@@ -603,17 +603,17 @@ fn s0d_08_add_remove_and_sync_across_three_nodes() {
     let mut d: ORSetDriver<i32> = ORSetDriver::new(3);
     for i in 0..10usize {
         d.add(i % 3, &(i as i32));
-        assert!(d.contains(i % 3, &(i as i32)));
-        assert!(!d.contains((i + 1) % 3, &(i as i32)) && !d.contains((i + 2) % 3, &(i as i32)));
+        assert!(d.contains(i % 3, &(i as i32)), "add remove and sync across three nodes: expected `d.contains(i % 3, &(i as i32))`");
+        assert!(!d.contains((i + 1) % 3, &(i as i32)) && !d.contains((i + 2) % 3, &(i as i32)), "add remove and sync across three nodes: expected `!d.contains((i + 1) % 3, &(i as i32)) && !d.contains((i + 2) % 3, &(i as i32))`");
         d.sync();
-        assert!((0..3).all(|n| d.contains(n, &(i as i32))));
+        assert!((0..3).all(|n| d.contains(n, &(i as i32))), "add remove and sync across three nodes: expected `(0..3).all(|n| d.contains(n, &(i as i32)))`");
     }
     for i in 0..10usize {
         d.remove(i % 3, &(i as i32));
-        assert!(!d.contains(i % 3, &(i as i32)));
-        assert!(d.contains((i + 1) % 3, &(i as i32)) && d.contains((i + 2) % 3, &(i as i32)));
+        assert!(!d.contains(i % 3, &(i as i32)), "add remove and sync across three nodes: expected `!d.contains(i % 3, &(i as i32))`");
+        assert!(d.contains((i + 1) % 3, &(i as i32)) && d.contains((i + 2) % 3, &(i as i32)), "add remove and sync across three nodes: expected `d.contains((i + 1) % 3, &(i as i32)) && d.contains((i + 2) % 3, &(i as i32))`");
         d.sync();
-        assert!((0..3).all(|n| !d.contains(n, &(i as i32))));
+        assert!((0..3).all(|n| !d.contains(n, &(i as i32))), "add remove and sync across three nodes: expected `(0..3).all(|n| !d.contains(n, &(i as i32)))`");
     }
 }
 
@@ -624,8 +624,8 @@ fn s0d_08_merge_test_two_nodes_agree_after_sync() {
     d.add(1, &1);
     d.remove(0, &1);
     d.sync();
-    assert!(d.contains(0, &1));
-    assert_eq!(d.contains(0, &1), d.contains(1, &1));
+    assert!(d.contains(0, &1), "merge test two nodes agree after sync: expected `d.contains(0, &1)`");
+    assert_eq!(d.contains(0, &1), d.contains(1, &1), "merge test two nodes agree after sync");
     d.add(1, &2);
     d.sync();
     d.remove(0, &2);
@@ -633,8 +633,8 @@ fn s0d_08_merge_test_two_nodes_agree_after_sync() {
     d.sync();
     d.remove(1, &1);
     d.sync();
-    assert_eq!(d.contains(0, &1), d.contains(1, &1));
-    assert_eq!(d.contains(0, &2), d.contains(1, &2));
+    assert_eq!(d.contains(0, &1), d.contains(1, &1), "merge test two nodes agree after sync");
+    assert_eq!(d.contains(0, &2), d.contains(1, &2), "merge test two nodes agree after sync");
 }
 
 #[test]
@@ -645,19 +645,19 @@ fn s0d_08_removing_everything_and_adding_it_back() {
     }
     d.sync();
     for i in 0..10usize {
-        assert!((0..3).all(|n| d.contains(n, &(i as i32))));
+        assert!((0..3).all(|n| d.contains(n, &(i as i32))), "removing everything and adding it back: expected `(0..3).all(|n| d.contains(n, &(i as i32)))`");
         d.remove(i % 3, &(i as i32));
     }
     d.sync();
     for i in 0..10 {
-        assert!((0..3).all(|n| !d.contains(n, &i)));
+        assert!((0..3).all(|n| !d.contains(n, &i)), "removing everything and adding it back: expected `(0..3).all(|n| !d.contains(n, &i))`");
     }
     for i in 0..10usize {
         d.add(i % 3, &(i as i32));
     }
     d.sync();
     for i in 0..10 {
-        assert!((0..3).all(|n| d.contains(n, &i)));
+        assert!((0..3).all(|n| d.contains(n, &i)), "removing everything and adding it back: expected `(0..3).all(|n| d.contains(n, &i))`");
     }
 }
 
@@ -671,7 +671,7 @@ fn s0d_08_adds_win_a_lot() {
     }
     for i in 0..10usize {
         d.remove(i % 3, &(i as i32));
-        assert!(!d.contains(i % 3, &(i as i32)));
+        assert!(!d.contains(i % 3, &(i as i32)), "adds win a lot: expected `!d.contains(i % 3, &(i as i32))`");
     }
     d.sync();
     for i in 0..10 {
@@ -693,10 +693,10 @@ fn s0d_08_a_lost_network_still_converges_later() {
     d.load(0);
     d.load(1);
     for i in 0..10 {
-        assert!(d.contains(0, &i) && d.contains(1, &i) && d.contains(2, &i));
+        assert!(d.contains(0, &i) && d.contains(1, &i) && d.contains(2, &i), "a lost network still converges later: expected `d.contains(0, &i) && d.contains(1, &i) && d.contains(2, &i)`");
     }
     for i in 10..20 {
-        assert!(!d.contains(0, &i) && !d.contains(1, &i) && d.contains(2, &i));
+        assert!(!d.contains(0, &i) && !d.contains(1, &i) && d.contains(2, &i), "a lost network still converges later: expected `!d.contains(0, &i) && !d.contains(1, &i) && d.contains(2, &i)`");
         d.remove(0, &i);
     }
     for i in 10..20 {

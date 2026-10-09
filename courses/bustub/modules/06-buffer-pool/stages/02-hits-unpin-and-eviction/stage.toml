@@ -5,3 +5,4 @@ difficulty = "medium"
 tests = ["stages_1f::s1f_04", "stages_1f::s1f_05", "stages_1f::s1f_06"]
 learn = ["pin counts as a promise not to evict", "the dirty flag as an OR, not an assignment", "asking the replacer for a victim"]
 concepts = ["pin-counts-and-dirty-pages", "buffer-pool-anatomy", "replacement-policies", "adaptive-replacement-cache"]
+concepts_optional = ["eviction-and-write-back-ordering", "lru-k-and-scan-resistance"]

@@ -1,5 +1,12 @@
 With `extract_equi_join_keys` you can write the **rule**: find nested loop joins whose condition is equi-join keys and replace them with hash joins. The planner builds `a, b where a.x = b.y` as a cross join under a filter; the given rule `merge filter into NLJ` puts the filter into the join as its predicate; your rule then turns that join into a `HashJoin`. This is the optimization that makes joins of big tables feasible.
 
+> [!CHECK] The optimizer may turn a nested loop join into a hash join. Which predicates qualify, and why does `a.x = b.y OR a.z = b.w` not? What about `a.x < b.y`?
+> ||Only a conjunction of equalities, each between a column of the left input and a column of the right input: those give the join keys to hash. With `OR`, a row can match through different columns, so there is no single key to hash; `<` has no hash key either, since equal values land in the same bucket and less-than values do not.||
+>
+> - What does a hash table answer, and what question must the join ask it?
+> - What do you hash for a row of the right side?
+> - What would you do with an equality that mentions columns of only one side?
+
 ## The task
 
 In `src/optimizer/optimizer.rs`, `optimize_nlj_as_hash_join(&self, plan: &PlanRef) -> PlanRef`:

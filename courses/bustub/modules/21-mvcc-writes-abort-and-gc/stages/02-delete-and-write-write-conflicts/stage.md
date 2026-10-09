@@ -1,18 +1,28 @@
 A delete in a transaction does not remove anything. It marks the tuple deleted **in place**, stamps it with the transaction's temporary timestamp, and leaves an undo log with the whole tuple so that readers with older snapshots still see it. Before it does any of that it must make sure nobody else wrote the tuple first: two writers of one tuple is a **write-write conflict**, and snapshot isolation resolves it by making the second writer fail.
 
+> [!CHECK] Transaction A reads at timestamp 5 and later tries to update a tuple. Is that a write-write conflict if another transaction B committed an update to it at timestamp 7? And if B has updated it but not committed yet? And if A updated it itself earlier?
+> ||Conflict in both of the first two cases: 7 is greater than A's read timestamp, and an uncommitted write carries B's temporary timestamp (a huge number), also greater. Not a conflict in the third: the tuple's timestamp is A's own temporary timestamp.||
+>
+> - Compare the tuple's timestamp with the read timestamp and with your own temporary one.
+> - Why is an uncommitted timestamp always larger than any read timestamp?
+> - Why is the check repeated under the page latch?
+
 ## The task
 
 In `src/execution/execution_common.rs`:
 
 `is_write_write_conflict(meta, txn) -> bool`: true if the tuple's timestamp is not the transaction's own temporary timestamp and is greater than its read timestamp (either another transaction's uncommitted write, or a commit after this transaction began).
 
-`modify_tuple(txn, txn_mgr, table, rid, target)`, the region marked `4b-02` (`target` is the new tuple, or `None` to delete; stage 3 uses the other half). It reads the tuple, its metadata and its undo link together (given, above the region), then:
+`modify_tuple(txn, txn_mgr, table, rid, target)`, the region marked `4b-02` (`target` is the new tuple, or `None` to delete; stage 3 uses the other half). It reads the tuple, its metadata and its undo link together (given, above the region), then.
 
-1. On a conflict return `Err(write_write_conflict(txn))` (given: it taints the transaction and builds the error).
-2. The version being replaced is `base = None` if the tuple is already deleted, else the tuple.
-3. If the tuple was **not** written by this transaction: this is the first change. Add `generate_new_undo_log(schema, base, target, meta.ts, previous head)` to the transaction (`txn.append_undo_log`) and use the returned link as the tuple's new link. If it **was** (`meta.ts == txn.temp_ts()`), keep the link; when the transaction already has a log for the tuple (stage 3) `update_own_undo_log` widens it.
-4. Write the tuple with `update_tuple_and_undo_link`: metadata `ts = temp_ts`, `is_deleted = target.is_none()`, the new bytes (a delete keeps the old bytes), the new link, and a check closure that repeats the conflict test under the page latch.
-5. If that returned `false`, fail with a conflict. Otherwise add the rid to the write set.
+`modify_tuple` makes the change visible to this transaction only, and leaves a way back. A write-write conflict (checked on the tuple as read, and again under the page latch when it is written) returns `Err(write_write_conflict(txn))`, which taints the transaction. The first change by this transaction to the tuple records an undo log (`generate_new_undo_log`, whose `prev_version` is the tuple's previous head) and makes it the tuple's new link; a later change keeps the link, and `update_own_undo_log` widens the log (stage 3). The tuple is written with `ts = temp_ts`, `is_deleted = target.is_none()` (a delete keeps the old bytes) and the new link, and its rid joins the write set.
+
+> [!ASIDE] The steps, if you would rather not work them out
+> 1. On a conflict return `Err(write_write_conflict(txn))` (given: it taints the transaction and builds the error).
+> 2. The version being replaced is `base = None` if the tuple is already deleted, else the tuple.
+> 3. If the tuple was **not** written by this transaction: this is the first change. Add `generate_new_undo_log(schema, base, target, meta.ts, previous head)` to the transaction (`txn.append_undo_log`) and use the returned link as the tuple's new link. If it **was** (`meta.ts == txn.temp_ts()`), keep the link; when the transaction already has a log for the tuple (stage 3) `update_own_undo_log` widens it.
+> 4. Write the tuple with `update_tuple_and_undo_link`: metadata `ts = temp_ts`, `is_deleted = target.is_none()`, the new bytes (a delete keeps the old bytes), the new link, and a check closure that repeats the conflict test under the page latch.
+> 5. If that returned `false`, fail with a conflict. Otherwise add the rid to the write set.
 
 In `src/execution/executors/delete_executor.rs`, the region marked `4b-02`: when `self.txn` is `Some`, call `modify_tuple(.., None)` for every rid the child produces and answer the count. Index entries are **not** removed.
 

@@ -5,3 +5,4 @@ difficulty = "medium"
 tests = ["stages_1b::s1b_01", "stages_1b::s1b_02", "stages_1b::s1b_03", "stages_1b::s1b_04", "stages_1b::s1b_05", "stages_1b::s1b_06"]
 learn = ["blocking queues from a Mutex and a Condvar", "waiting on a predicate, never an if", "a one-shot promise/future and its four states"]
 concepts = ["condvars-and-blocking-queues", "promises-and-futures", "moving-data-across-threads", "lock-poisoning-and-the-unwrap-policy", "async-versus-threads"]
+concepts_optional = ["worker-threads-and-the-stop-signal"]

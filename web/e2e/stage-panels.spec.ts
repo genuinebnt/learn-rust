@@ -85,7 +85,7 @@ test("a module row opens and closes its stages", async ({ page }) => {
     await expect(row).toHaveAttribute("aria-expanded", "false");
     await row.click();
     await expect(row).toHaveAttribute("aria-expanded", "true");
-    await expect(page.locator(".k-tlist .k-tl", { hasText: "Open the database file" })).toBeVisible();
+    await expect(page.locator(".k-tlist .k-tl", { hasText: "Pages that survive" })).toBeVisible();
 });
 
 test("the page panel lists the concepts and links to them", async ({ page }) => {

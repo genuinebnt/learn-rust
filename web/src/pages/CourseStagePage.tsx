@@ -21,7 +21,7 @@ type Tab = "instructions" | "hints" | "solution" | "concepts" | "run";
 const TAB_IDS: Tab[] = ["instructions", "hints", "solution", "concepts", "run"];
 
 /** Sections that go beyond what passing the stage needs; they can be hidden. */
-const OPTIONAL_SECTIONS = new Set(["performance", "learn-more"]);
+const OPTIONAL_SECTIONS = new Set(["performance", "learn-more", "experiment", "other-designs"]);
 
 /** Splits markdown at its `### ` headings (not inside code fences): [title | null, body]. */
 function blocks(text: string): [string | null, string][] {
@@ -471,7 +471,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                         <section className="k-pane k-on" key={tab} id={`pane-${tab}`} role="tabpanel">
                             {tab === "instructions" && (
                                 <>
-                                    {p.concepts.length > 0 && (
+                                    {reqConcepts.length > 0 && (
                                         <a
                                             className="k-read-first"
                                             href="#concepts"
@@ -482,10 +482,10 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                         >
                                             <b>READ FIRST</b>
                                             <span>
-                                                {p.concepts[0]?.title}
-                                                {p.concepts.length > 1 && <> · and {p.concepts.length - 1} more</>}
+                                                {reqConcepts[0]?.title}
+                                                {reqConcepts.length > 1 && <> · and {reqConcepts.length - 1} more</>}
                                             </span>
-                                            <em>~{p.concepts.reduce((n, k) => n + k.minutes, 0)} min</em>
+                                            <em>~{reqConcepts.reduce((n, k) => n + k.minutes, 0)} min</em>
                                         </a>
                                     )}
                                     {p.stage.intro && <Prose text={p.stage.intro} />}
@@ -699,20 +699,21 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                     </div>
                                 </div>
                             )}
-                            {reqConcepts.length > 0 && (
+                            {p.concepts.length > 0 && (
                                 <div className="k-rcard">
                                     <h6>
-                                        CONCEPTS <span className="k-pin k-req">{reqDone} / {reqConcepts.length}</span>
+                                        {reqConcepts.length > 0 ? "CONCEPTS" : "RUST & SYSTEMS NOTES"}{" "}
+                                        <span className={`k-pin${reqConcepts.length > 0 ? " k-req" : ""}`}>{reqConcepts.length > 0 ? `${reqDone} / ${reqConcepts.length}` : "OPTIONAL"}</span>
                                     </h6>
                                     <div id="pconc">
-                                        {reqConcepts.map((k, i) => (
+                                        {p.concepts.map((k, i) => (
                                             <Link key={k.id} className={`k-cc2${k.read ? "" : " k-todo"}`} to="/courses/$course/concept/$id" params={{ course, id: k.id }}>
                                                 <span className="k-ci">{k.read ? "✓" : i + 1}</span>
                                                 <div>
                                                     <b>{k.title}</b>
                                                     <small>{k.minutes} min read</small>
                                                 </div>
-                                                <span className="k-st4">{k.read ? "READ" : "TO READ"}</span>
+                                                <span className="k-st4">{k.read ? "READ" : k.required ? "TO READ" : "OPTIONAL"}</span>
                                             </Link>
                                         ))}
                                     </div>

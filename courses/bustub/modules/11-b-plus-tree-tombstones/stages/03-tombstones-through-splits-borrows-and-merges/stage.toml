@@ -5,3 +5,4 @@ difficulty = "hard"
 tests = ["stages_2d::s2d_03"]
 learn = ["moving tombstones with their pairs when a leaf splits", "purging a short leaf before it borrows or merges", "testing a lazy structure against a plain model"]
 concepts = ["tombstones-and-lazy-deletion", "underflow-borrow-and-merge", "model-based-testing", "property-testing-and-fuzzing"]
+concepts_optional = ["const-generics-for-page-layouts"]

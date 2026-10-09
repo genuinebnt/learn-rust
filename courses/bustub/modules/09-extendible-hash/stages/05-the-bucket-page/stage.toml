@@ -5,3 +5,4 @@ difficulty = "medium"
 tests = ["stages_2b::s2b_11", "stages_2b::s2b_12", "stages_2b::s2b_13"]
 learn = ["composing PageArray, a comparator and a page header", "keeping a sorted array and a stored length in step", "reject-duplicate and full-page semantics"]
 concepts = ["slices-copy-within-and-binary-search", "traits-with-associated-consts", "bytes-endianness-and-views", "checking-invariants"]
+concepts_optional = ["extendible-hashing"]

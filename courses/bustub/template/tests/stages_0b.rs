@@ -11,10 +11,10 @@ fn list() -> SkipList<i32> {
 
 /// BusTub's `InstrumentedSkipList::CheckIntegrity`: the keys and heights are as expected and every level links exactly the nodes tall enough.
 fn check_integrity(list: &SkipList<i32>, keys: &[i32], heights: &[usize]) {
-    assert_eq!(list.size(), keys.len());
+    assert_eq!(list.size(), keys.len(), "in helper `check_integrity`");
     let nodes = list.nodes();
-    assert_eq!(nodes.iter().map(|n| n.0).collect::<Vec<_>>(), keys);
-    assert_eq!(nodes.iter().map(|n| n.1).collect::<Vec<_>>(), heights);
+    assert_eq!(nodes.iter().map(|n| n.0).collect::<Vec<_>>(), keys, "in helper `check_integrity`");
+    assert_eq!(nodes.iter().map(|n| n.1).collect::<Vec<_>>(), heights, "in helper `check_integrity`");
     for level in 0..*heights.iter().max().unwrap_or(&1) {
         let expected: Vec<i32> = keys.iter().zip(heights).filter(|(_, h)| **h > level).map(|(k, _)| *k).collect();
         assert_eq!(list.level(level), expected, "level {level}");
@@ -26,34 +26,34 @@ fn check_integrity(list: &SkipList<i32>, keys: &[i32], heights: &[usize]) {
 #[test]
 fn s0b_01_a_new_list_is_empty() {
     let l = list();
-    assert_eq!(l.size(), 0);
-    assert!(l.is_empty());
-    assert!(!l.contains(&1));
+    assert_eq!(l.size(), 0, "a new list is empty");
+    assert!(l.is_empty(), "a new list is empty: expected `l.is_empty()`");
+    assert!(!l.contains(&1), "a new list is empty: expected `!l.contains(&1)`");
 }
 
 #[test]
 fn s0b_01_insert_adds_and_contains_finds() {
     let l = list();
-    assert!(l.insert(&1));
-    assert_eq!(l.size(), 1);
-    assert!(l.insert(&2));
-    assert_eq!(l.size(), 2);
-    assert!(l.contains(&1) && l.contains(&2));
-    assert!(!l.contains(&3));
-    assert!(!l.is_empty());
+    assert!(l.insert(&1), "insert adds and contains finds: expected `l.insert(&1)`");
+    assert_eq!(l.size(), 1, "insert adds and contains finds");
+    assert!(l.insert(&2), "insert adds and contains finds: expected `l.insert(&2)`");
+    assert_eq!(l.size(), 2, "insert adds and contains finds");
+    assert!(l.contains(&1) && l.contains(&2), "insert adds and contains finds: expected `l.contains(&1) && l.contains(&2)`");
+    assert!(!l.contains(&3), "insert adds and contains finds: expected `!l.contains(&3)`");
+    assert!(!l.is_empty(), "insert adds and contains finds: expected `!l.is_empty()`");
 }
 
 #[test]
 fn s0b_01_a_duplicate_is_refused_and_changes_nothing() {
     let l = list();
     for i in 0..10 {
-        assert!(l.insert(&i));
+        assert!(l.insert(&i), "a duplicate is refused and changes nothing: expected `l.insert(&i)`");
     }
     for i in 0..10 {
-        assert!(!l.insert(&i));
+        assert!(!l.insert(&i), "a duplicate is refused and changes nothing: expected `!l.insert(&i)`");
     }
-    assert_eq!(l.size(), 10);
-    assert_eq!(l.nodes().len(), 10);
+    assert_eq!(l.size(), 10, "a duplicate is refused and changes nothing");
+    assert_eq!(l.nodes().len(), 10, "a duplicate is refused and changes nothing");
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn s0b_01_the_list_stays_sorted_whatever_the_insertion_order() {
     for k in [12, 16, 2, 6, 15, 8, 13, 1, 11, 14, 0, 4, 19, 10, 9, 5, 7, 3, 17, 18] {
         l.insert(&k);
     }
-    assert_eq!(l.nodes().iter().map(|n| n.0).collect::<Vec<_>>(), (0..20).collect::<Vec<_>>());
+    assert_eq!(l.nodes().iter().map(|n| n.0).collect::<Vec<_>>(), (0..20).collect::<Vec<_>>(), "the list stays sorted whatever the insertion order");
 }
 
 #[test]
@@ -71,8 +71,8 @@ fn s0b_01_a_comparison_function_decides_the_order() {
     for k in [3, 1, 2] {
         l.insert(&k);
     }
-    assert_eq!(l.nodes().iter().map(|n| n.0).collect::<Vec<_>>(), vec![3, 2, 1]);
-    assert!(l.contains(&2));
+    assert_eq!(l.nodes().iter().map(|n| n.0).collect::<Vec<_>>(), vec![3, 2, 1], "a comparison function decides the order");
+    assert!(l.contains(&2), "a comparison function decides the order: expected `l.contains(&2)`");
 }
 
 #[test]
@@ -93,8 +93,8 @@ fn s0b_01_strings_work_too() {
     for w in ["pear", "apple", "fig"] {
         l.insert(&w.to_string());
     }
-    assert!(l.contains(&"fig".to_string()));
-    assert_eq!(l.nodes().iter().map(|n| n.0.clone()).collect::<Vec<_>>(), vec!["apple", "fig", "pear"]);
+    assert!(l.contains(&"fig".to_string()), "strings work too: expected `l.contains(&\"fig\".to_string())`");
+    assert_eq!(l.nodes().iter().map(|n| n.0.clone()).collect::<Vec<_>>(), vec!["apple", "fig", "pear"], "strings work too");
 }
 
 // ---- 0b-02: erase and clear ---------------------------------------------------------------------------------------------------------------
@@ -103,15 +103,15 @@ fn s0b_01_strings_work_too() {
 fn s0b_02_erase_removes_the_key() {
     let l = list();
     for i in 0..5 {
-        assert!(l.insert(&i));
+        assert!(l.insert(&i), "erase removes the key: expected `l.insert(&i)`");
     }
     for i in 0..5 {
-        assert!(l.contains(&i));
-        assert!(l.erase(&i));
-        assert!(!l.contains(&i));
-        assert_eq!(l.size(), 5 - i as usize - 1);
+        assert!(l.contains(&i), "erase removes the key: expected `l.contains(&i)`");
+        assert!(l.erase(&i), "erase removes the key: expected `l.erase(&i)`");
+        assert!(!l.contains(&i), "erase removes the key: expected `!l.contains(&i)`");
+        assert_eq!(l.size(), 5 - i as usize - 1, "erase removes the key");
     }
-    assert!(l.is_empty());
+    assert!(l.is_empty(), "erase removes the key: expected `l.is_empty()`");
 }
 
 #[test]
@@ -120,9 +120,9 @@ fn s0b_02_erasing_a_missing_key_changes_nothing() {
     for i in 0..5 {
         l.insert(&i);
     }
-    assert!(!l.erase(&10));
-    assert!(!l.erase(&-1));
-    assert_eq!(l.size(), 5);
+    assert!(!l.erase(&10), "erasing a missing key changes nothing: expected `!l.erase(&10)`");
+    assert!(!l.erase(&-1), "erasing a missing key changes nothing: expected `!l.erase(&-1)`");
+    assert_eq!(l.size(), 5, "erasing a missing key changes nothing");
 }
 
 #[test]
@@ -132,10 +132,10 @@ fn s0b_02_every_level_forgets_the_erased_node() {
         l.insert(&i);
     }
     for i in (0..200).step_by(3) {
-        assert!(l.erase(&i));
+        assert!(l.erase(&i), "every level forgets the erased node: expected `l.erase(&i)`");
     }
     let expected: Vec<i32> = (0..200).filter(|i| i % 3 != 0).collect();
-    assert_eq!(l.nodes().iter().map(|n| n.0).collect::<Vec<_>>(), expected);
+    assert_eq!(l.nodes().iter().map(|n| n.0).collect::<Vec<_>>(), expected, "every level forgets the erased node");
     for level in 1..14 {
         let keys = l.level(level);
         assert!(keys.windows(2).all(|w| w[0] < w[1]), "level {level} is sorted");
@@ -151,9 +151,9 @@ fn s0b_02_erased_slots_are_reused_and_the_list_still_works() {
             assert!(l.insert(&i), "round {round}");
         }
         for i in 0..100 {
-            assert!(l.erase(&i));
+            assert!(l.erase(&i), "erased slots are reused and the list still works: expected `l.erase(&i)`");
         }
-        assert!(l.is_empty());
+        assert!(l.is_empty(), "erased slots are reused and the list still works: expected `l.is_empty()`");
     }
 }
 
@@ -164,13 +164,13 @@ fn s0b_02_clear_empties_the_list_and_it_can_be_filled_again() {
         l.insert(&i);
     }
     l.clear();
-    assert_eq!(l.size(), 0);
-    assert!(l.is_empty());
+    assert_eq!(l.size(), 0, "clear empties the list and it can be filled again");
+    assert!(l.is_empty(), "clear empties the list and it can be filled again: expected `l.is_empty()`");
     for i in 0..30 {
-        assert!(!l.contains(&i));
+        assert!(!l.contains(&i), "clear empties the list and it can be filled again: expected `!l.contains(&i)`");
     }
-    assert!(l.insert(&5));
-    assert_eq!(l.nodes().len(), 1);
+    assert!(l.insert(&5), "clear empties the list and it can be filled again: expected `l.insert(&5)`");
+    assert_eq!(l.nodes().len(), 1, "clear empties the list and it can be filled again");
 }
 
 #[test]
@@ -180,14 +180,14 @@ fn s0b_02_erasing_the_tallest_node_lowers_the_height_of_the_list() {
         l.insert(&i);
     }
     let tallest = l.nodes().iter().map(|n| n.1).max().unwrap();
-    assert!(tallest > 2);
+    assert!(tallest > 2, "erasing the tallest node lowers the height of the list: expected `tallest > 2`");
     for (k, _) in l.nodes() {
         l.erase(&k);
     }
     // a list that was once tall and is now empty searches on one level again: it still works
     l.insert(&1);
-    assert!(l.contains(&1));
-    assert!(l.level(1).is_empty() || l.level(1) == vec![1]);
+    assert!(l.contains(&1), "erasing the tallest node lowers the height of the list: expected `l.contains(&1)`");
+    assert!(l.level(1).is_empty() || l.level(1) == vec![1], "erasing the tallest node lowers the height of the list: expected `l.level(1).is_empty() || l.level(1) == vec![1]`");
 }
 
 // ---- 0b-03: BusTub's tests --------------------------------------------------------------------------------------------------------------------
@@ -196,26 +196,26 @@ fn s0b_02_erasing_the_tallest_node_lowers_the_height_of_the_list() {
 fn s0b_03_insert_contains_clear() {
     let l = list();
     for i in 0..10 {
-        assert!(l.insert(&i));
+        assert!(l.insert(&i), "insert contains clear: expected `l.insert(&i)`");
     }
     for i in 0..10 {
-        assert!(l.contains(&i));
+        assert!(l.contains(&i), "insert contains clear: expected `l.contains(&i)`");
     }
     for i in 10..20 {
-        assert!(!l.contains(&i));
+        assert!(!l.contains(&i), "insert contains clear: expected `!l.contains(&i)`");
     }
     for i in 0..10 {
-        assert!(!l.insert(&i));
+        assert!(!l.insert(&i), "insert contains clear: expected `!l.insert(&i)`");
     }
-    assert_eq!(l.size(), 10);
+    assert_eq!(l.size(), 10, "insert contains clear");
     for i in 10..20 {
-        assert!(l.insert(&i));
+        assert!(l.insert(&i), "insert contains clear: expected `l.insert(&i)`");
     }
-    assert_eq!(l.size(), 20);
+    assert_eq!(l.size(), 20, "insert contains clear");
     l.clear();
-    assert!(l.is_empty());
+    assert!(l.is_empty(), "insert contains clear: expected `l.is_empty()`");
     for i in 0..30 {
-        assert!(!l.contains(&i));
+        assert!(!l.contains(&i), "insert contains clear: expected `!l.contains(&i)`");
     }
 }
 
@@ -236,9 +236,9 @@ fn s0b_03_concurrent_insert() {
         })
         .collect();
     handles.into_iter().for_each(|h| h.join().unwrap());
-    assert_eq!(ok.load(Ordering::SeqCst), 1000);
-    assert!((0..1000).all(|i| l.contains(&i)));
-    assert_eq!(l.nodes().iter().map(|n| n.0).collect::<Vec<_>>(), (0..1000).collect::<Vec<_>>());
+    assert_eq!(ok.load(Ordering::SeqCst), 1000, "concurrent insert");
+    assert!((0..1000).all(|i| l.contains(&i)), "concurrent insert: expected `(0..1000).all(|i| l.contains(&i))`");
+    assert_eq!(l.nodes().iter().map(|n| n.0).collect::<Vec<_>>(), (0..1000).collect::<Vec<_>>(), "concurrent insert");
 }
 
 #[test]
@@ -261,8 +261,8 @@ fn s0b_03_concurrent_erase() {
         })
         .collect();
     handles.into_iter().for_each(|h| h.join().unwrap());
-    assert_eq!(ok.load(Ordering::SeqCst), 100);
-    assert!(l.is_empty());
+    assert_eq!(ok.load(Ordering::SeqCst), 100, "concurrent erase");
+    assert!(l.is_empty(), "concurrent erase: expected `l.is_empty()`");
 }
 
 #[test]
@@ -291,9 +291,9 @@ fn s0b_03_concurrent_insert_and_erase() {
         })
         .collect();
     handles.into_iter().for_each(|h| h.join().unwrap());
-    assert_eq!((ins.load(Ordering::SeqCst), era.load(Ordering::SeqCst)), (100, 100));
-    assert!((100..200).all(|i| l.contains(&i)));
-    assert!((0..100).all(|i| !l.contains(&i)));
+    assert_eq!((ins.load(Ordering::SeqCst), era.load(Ordering::SeqCst)), (100, 100), "concurrent insert and erase");
+    assert!((100..200).all(|i| l.contains(&i)), "concurrent insert and erase: expected `(100..200).all(|i| l.contains(&i))`");
+    assert!((0..100).all(|i| !l.contains(&i)), "concurrent insert and erase: expected `(0..100).all(|i| !l.contains(&i))`");
 }
 
 #[test]
@@ -310,7 +310,7 @@ fn s0b_03_readers_share_the_list() {
         })
         .collect();
     for h in handles {
-        assert_eq!(h.join().unwrap(), 80_000);
+        assert_eq!(h.join().unwrap(), 80_000, "readers share the list");
     }
 }
 

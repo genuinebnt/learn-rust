@@ -1,0 +1,66 @@
+code = "3g"
+title = "Sorting, limits and window functions"
+summary = "ORDER BY for data bigger than memory (sorted runs on buffer-pool pages merged in passes), LIMIT, ORDER BY ... LIMIT with a bounded heap, and window functions (partitions, running aggregates with peers, rank). BusTub Project 3, task 3."
+lectures = ["sorting", "queryexecution2"]
+bustub = ["src/include/execution/executors/external_merge_sort_executor.h", "src/include/execution/executors/limit_executor.h", "src/include/execution/executors/topn_executor.h", "src/include/execution/executors/window_function_executor.h", "src/execution/execution_common.cpp", "src/include/execution/plans/sort_plan.h", "src/include/execution/plans/window_plan.h", "test/sql/p3.16-sort-limit.slt", "test/sql/p3.18-integration-1.slt", "test/sql/p3.19-integration-2.slt", "test/sql/p3.20-window-function.slt"]
+files = [
+    "tests/sql/p3.16-sort-limit.slt",
+    "tests/sql/p3.18-integration-1.slt",
+    "tests/sql/p3.19-integration-2.slt",
+    "tests/sql/p3.20-window-function.slt",
+]
+
+[[resources]]
+kind = "docs"
+title = "std::collections::BinaryHeap"
+url = "https://doc.rust-lang.org/std/collections/struct.BinaryHeap.html"
+
+[[resources]]
+kind = "docs"
+title = "slice::sort_by (a stable sort)"
+url = "https://doc.rust-lang.org/std/primitive.slice.html#method.sort_by"
+
+[[resources]]
+kind = "docs"
+title = "std::cmp::Ordering"
+url = "https://doc.rust-lang.org/std/cmp/enum.Ordering.html"
+
+[[resources]]
+kind = "docs"
+title = "std::cmp::Reverse"
+url = "https://doc.rust-lang.org/std/cmp/struct.Reverse.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: window functions (tutorial)"
+url = "https://www.postgresql.org/docs/current/tutorial-window.html"
+
+[[resources]]
+kind = "docs"
+title = "SQLite: window functions"
+url = "https://www.sqlite.org/windowfunctions.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: sorting rows (ORDER BY)"
+url = "https://www.postgresql.org/docs/current/queries-order.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: LIMIT and OFFSET"
+url = "https://www.postgresql.org/docs/current/queries-limit.html"
+
+[[resources]]
+kind = "blog"
+title = "External sorting (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/External_sorting"
+
+[[resources]]
+kind = "code"
+title = "BusTub's external merge sort executor"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/execution/executors/external_merge_sort_executor.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub's execution_common.cpp (sort keys)"
+url = "https://github.com/cmu-db/bustub/blob/master/src/execution/execution_common.cpp"

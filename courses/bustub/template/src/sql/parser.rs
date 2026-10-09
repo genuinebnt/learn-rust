@@ -423,6 +423,10 @@ impl Parser {
             if !self.eat_symbol(",") {
                 break;
             }
+            // DuckDB's parser (which BusTub uses) allows a trailing comma: `select a, b, from t`
+            if self.at_word("from") || self.at_symbol(")") || self.at_symbol(";") || self.peek().is_none() {
+                break;
+            }
         }
         let from = if self.eat_word("from") { self.from_list()? } else { vec![] };
         let filter = if self.eat_word("where") { Some(self.expr()?) } else { None };

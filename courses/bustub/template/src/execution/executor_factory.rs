@@ -9,7 +9,11 @@ use super::executors::hash_join_executor::HashJoinExecutor;
 use super::executors::init_check_executor::InitCheckExecutor;
 use super::executors::nested_index_join_executor::NestedIndexJoinExecutor;
 use super::executors::nested_loop_join_executor::NestedLoopJoinExecutor;
+use super::executors::external_merge_sort_executor::ExternalMergeSortExecutor;
 use super::executors::filter_executor::FilterExecutor;
+use super::executors::limit_executor::LimitExecutor;
+use super::executors::topn_executor::{TopNCheckExecutor, TopNExecutor};
+use super::executors::window_function_executor::WindowFunctionExecutor;
 use super::executors::index_scan_executor::IndexScanExecutor;
 use super::executors::insert_executor::InsertExecutor;
 use super::executors::mock_scan_executor::MockScanExecutor;
@@ -65,6 +69,27 @@ pub fn create_executor<'e>(ctx: &'e ExecutorContext<'e>, plan: &PlanRef) -> Resu
         PlanType::NestedIndexJoin => {
             let child = create_executor(ctx, &plan.children[0])?;
             Ok(Box::new(NestedIndexJoinExecutor::new(ctx, plan.clone(), child)?))
+        }
+        PlanType::Sort => {
+            let child = create_executor(ctx, &plan.children[0])?;
+            Ok(Box::new(ExternalMergeSortExecutor::<2>::new(ctx, plan.clone(), child)))
+        }
+        PlanType::Limit => {
+            let child = create_executor(ctx, &plan.children[0])?;
+            Ok(Box::new(LimitExecutor::new(plan.clone(), child)))
+        }
+        PlanType::TopN => {
+            let mut child = create_executor(ctx, &plan.children[0])?;
+            let num_in_heap = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            if ctx.check_options().check_options_set.contains(&CheckOption::EnableTopnCheck) {
+                // the check asserts that the heap never holds more than N tuples
+                child = Box::new(TopNCheckExecutor::new(plan.clone(), child, num_in_heap.clone()));
+            }
+            Ok(Box::new(TopNExecutor::new(plan.clone(), child, num_in_heap)))
+        }
+        PlanType::Window => {
+            let child = create_executor(ctx, &plan.children[0])?;
+            Ok(Box::new(WindowFunctionExecutor::new(plan.clone(), child)))
         }
         PlanType::Delete => {
             let child = create_executor(ctx, &plan.children[0])?;

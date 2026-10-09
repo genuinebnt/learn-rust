@@ -1,0 +1,7 @@
+id = "3g-03"
+title = "Pass 0: initial runs"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3g::s3g_03"]
+learn = ["cutting a stream into page-sized sorted runs", "sorting with a precomputed key", "stability inside a run"]
+concepts = ["external-merge-sort", "sort-keys-and-null-ordering"]

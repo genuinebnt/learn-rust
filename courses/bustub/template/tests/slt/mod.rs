@@ -117,9 +117,12 @@ fn contains_after(keyword: &str, haystack: &str, needle: &str) -> bool {
 }
 
 /// The `+ensure:...` checks: look at the optimized plan. Returns an error message if one fails.
-fn process_extra_options(sql: &str, db: &BusTubInstance, options: &[String], check_options: &mut CheckOptions) -> Result<(), String> {
+fn process_extra_options(sql: &str, db: &BusTubInstance, options: &[String], check_options: &mut CheckOptions, skip: &[&str]) -> Result<(), String> {
     for opt in options {
         if let Some(what) = opt.strip_prefix("ensure:") {
+            if skip.contains(&what) {
+                continue;
+            }
             let mut plan = String::new();
             db.execute_sql(&format!("explain (o) {sql}"), &mut SimpleStreamWriter::new(&mut plan, true, "\t"), None).map_err(|e| e.to_string())?;
             let count = |s: &str| plan.matches(s).count();
@@ -196,13 +199,19 @@ pub fn new_instance(bpm_size: usize) -> BusTubInstance {
 
 /// Runs one script against `db`. `Err(message)` names the first record that failed.
 pub fn run_script(db: &BusTubInstance, name: &str, script: &str) -> Result<(), String> {
+    run_script_skipping(db, name, script, &[])
+}
+
+/// Like `run_script`, but the `+ensure:<kind>` checks named in `skip` are not made (BusTub's own comments say "you could disable this ensure if you
+/// haven't implemented it yet"; the optimizer rule behind `hash_join` is written in a later module).
+pub fn run_script_skipping(db: &BusTubInstance, name: &str, script: &str, skip: &[&str]) -> Result<(), String> {
     for record in parse(script) {
         match record {
             Record::Halt => return Ok(()),
             Record::Sleep(s) => std::thread::sleep(std::time::Duration::from_secs(s)),
             Record::Statement { line, is_error, sql, extra_options } => {
                 let mut check_options = CheckOptions::default();
-                process_extra_options(&sql, db, &extra_options, &mut check_options).map_err(|e| format!("{name}:{line}: {e}\n{sql}"))?;
+                process_extra_options(&sql, db, &extra_options, &mut check_options, skip).map_err(|e| format!("{name}:{line}: {e}\n{sql}"))?;
                 let mut out = String::new();
                 let result = db.execute_sql(&sql, &mut SimpleStreamWriter::new(&mut out, true, "\t"), Some(&check_options));
                 match (result, is_error) {
@@ -213,7 +222,7 @@ pub fn run_script(db: &BusTubInstance, name: &str, script: &str) -> Result<(), S
             }
             Record::Query { line, rowsort, sql, expected, extra_options } => {
                 let mut check_options = CheckOptions::default();
-                process_extra_options(&sql, db, &extra_options, &mut check_options).map_err(|e| format!("{name}:{line}: {e}\n{sql}"))?;
+                process_extra_options(&sql, db, &extra_options, &mut check_options, skip).map_err(|e| format!("{name}:{line}: {e}\n{sql}"))?;
                 let mut out = String::new();
                 db.execute_sql(&sql, &mut SimpleStreamWriter::new(&mut out, true, " "), Some(&check_options))
                     .map_err(|e| format!("{name}:{line}: unexpected error: {e}\n{sql}"))?;
@@ -238,10 +247,15 @@ pub fn run_script(db: &BusTubInstance, name: &str, script: &str) -> Result<(), S
 
 /// Runs the file `tests/sql/<file>` against a fresh database with a buffer pool of `bpm_size` frames. Panics with the failure.
 pub fn run_slt(file: &str, bpm_size: usize) {
+    run_slt_skipping(file, bpm_size, &[]);
+}
+
+/// `run_slt` without the `+ensure:` checks named in `skip`.
+pub fn run_slt_skipping(file: &str, bpm_size: usize, skip: &[&str]) {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/sql").join(file);
     let script = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
     let db = new_instance(bpm_size);
-    if let Err(msg) = run_script(&db, file, &script) {
+    if let Err(msg) = run_script_skipping(&db, file, &script, skip) {
         panic!("{msg}");
     }
 }

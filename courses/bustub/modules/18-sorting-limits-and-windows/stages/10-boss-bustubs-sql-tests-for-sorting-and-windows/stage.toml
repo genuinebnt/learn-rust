@@ -1,0 +1,8 @@
+id = "3g-10"
+title = "Boss: BusTub's SQL tests for sorting and windows"
+kind = "boss"
+difficulty = "hard"
+tests = ["sql_sort_and_window_test"]
+learn = ["running BusTub's p3 sort, integration and window files", "spotting which operator a diff points at"]
+concepts = ["the-sql-pipeline", "model-based-testing"]
+retest = true

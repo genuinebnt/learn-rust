@@ -1,0 +1,7 @@
+id = "3g-01"
+title = "Sort keys and the comparator"
+kind = "learn"
+difficulty = "medium"
+tests = ["stages_3g::s3g_01"]
+learn = ["one comparison function from ORDER BY items", "NULL ordering and NULLS FIRST/LAST", "Ordering combinators and stable sorting"]
+concepts = ["sort-keys-and-null-ordering", "sql-types-and-three-valued-logic", "expression-trees"]

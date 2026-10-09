@@ -581,6 +581,10 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .fsum{margin-top:12px;padding-top:12px;border-top:1px solid var(--line2);display:flex;justify-content:space-between;gap:10px;font:500 10.5px var(--mono);white-space:nowrap}
 .fsum span{color:var(--dim)}.fsum b{color:var(--fg)}
 .fset .rng{margin-top:12px}
+
+/* clean hand-off between the scrolling cards and the timer */
+.tscroll{padding-bottom:30px;-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 30px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 30px),transparent)}
+.toc .rcard.focus{margin-top:6px;box-shadow:none;border-color:var(--line)}
 </style>
 </head>
 <body>
@@ -1110,7 +1114,7 @@ drawRuns();
   sl('#fr1','#fv1','f',v=>v+' min');sl('#fr2','#fv2','b',v=>v+' min');sl('#fr3','#fv3','t',v=>v+' min');
   $('#fspd').onclick=function(){this.classList.toggle('on');st.speed=this.classList.contains('on')?60:1};
   draw();
-  if(location.hash==='#static-focus'){st.left=st.total-9*60+0;st.run=false;draw();show(2)}
+  if(location.hash==='#static-focus2'){show(2);setTimeout(()=>{$('.tscroll').scrollTop=9999},60)}if(location.hash==='#static-focus'){st.left=st.total-9*60+0;st.run=false;draw();show(2)}
 })();
 addEventListener('resize',()=>{thumb(flt);slide()});
 addEventListener('load',()=>{if(!reduce&&!location.hash.startsWith('#static')){document.body.classList.add('motion')}else{$('#mot').classList.remove('on');$('#mot').textContent='MOTION OFF';document.body.classList.add('motion-off')}thumb(flt);slide();fills();count();if(location.hash==='#stage'||location.hash==='#static-stage')show(2);if(location.hash==='#kit'||location.hash==='#static-kit')show(3);if(location.hash==='#static-win'){show(2);openOv('ovWin')}if(location.hash==='#static-concepts'||location.hash==='#static-run'){show(2);const t=location.hash.endsWith('concepts')?'p4':'p5';$$('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));$$('.pane').forEach(x=>x.classList.toggle('on',x.id===t));if(t==='p4')$('.ccard').classList.add('open');else{$('#cmp').click()}setTimeout(slide,50)}kitFill()});

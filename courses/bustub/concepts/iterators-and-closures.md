@@ -95,7 +95,7 @@ fn retain_and_a_stable_sort_by_keep_ties_in_order() {
 - **3e-01:** scans and filters are the iterator model in SQL form; the Rust iterator is the same idea in the language.
 - **3g:** `sort_by` and the comparator; stable ties.
 - **4b-05:** `retain` on the transaction map.
-- **0d-02:** `top_k` sorts candidates with a stable `sort_by`.
+- **0d-01:** `top_k` sorts candidates with a stable `sort_by`.
 
 ### Where it is used
 

@@ -114,7 +114,7 @@ fn separate_padded_counters_count_independently() {
 ### In the exercises
 
 - **0d-01:** the sketch's atomic counters (`fetch_add`), and where padding would matter.
-- **0d-03:** the register "keep the maximum" update that the lock-free `raise` above implements without a lock.
+- **0d-02:** the register "keep the maximum" update that the lock-free `raise` above implements without a lock.
 - **4a-02:** `last_commit_ts` is an atomic read under the watermark lock.
 
 ### Where it is used

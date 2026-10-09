@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 use std::collections::BTreeMap;
 
+use proptest::prelude::*;
+
 use bustub::primer::trie::{Trie, TrieNode};
 use bustub::primer::trie_store::TrieStore;
 
@@ -168,10 +170,10 @@ fn s0a_02_values_are_not_copied_and_need_not_be_clonable() {
     assert_eq!(before, after, "the value of an untouched key keeps its address");
 }
 
-// ---- 0a-03: remove ----------------------------------------------------------------------------------------------------------------------
+// ---- 0a-02: remove ----------------------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s0a_03_remove_deletes_only_the_given_key() {
+fn s0a_02_remove_deletes_only_the_given_key() {
     let trie = t().put("test", 2333u32).put("te", 23u32).put("tes", 233u32).remove("tes");
     assert!(trie.get::<u32>("tes").is_none(), "remove deletes only the given key: expected `trie.get::<u32>(\"tes\").is_none()`");
     assert_eq!(trie.get::<u32>("te"), Some(&23), "remove deletes only the given key");
@@ -179,7 +181,7 @@ fn s0a_03_remove_deletes_only_the_given_key() {
 }
 
 #[test]
-fn s0a_03_removing_everything_leaves_an_empty_trie_with_no_root() {
+fn s0a_02_removing_everything_leaves_an_empty_trie_with_no_root() {
     let mut trie = t().put("test", 2333u32).put("te", 23u32).put("tes", 233u32).put("", 123u32);
     for k in ["", "te", "tes", "test"] {
         trie = trie.remove(k);
@@ -191,7 +193,7 @@ fn s0a_03_removing_everything_leaves_an_empty_trie_with_no_root() {
 }
 
 #[test]
-fn s0a_03_nodes_with_no_value_and_no_children_are_pruned() {
+fn s0a_02_nodes_with_no_value_and_no_children_are_pruned() {
     let trie = t().put("test", 2333u32).put("te", 23u32).put("tes", 233u32).remove("tes").remove("test");
     let te = &trie.root().unwrap().children[&'t'].children[&'e'];
     assert!(te.children.is_empty(), "s and t were pruned");
@@ -199,7 +201,7 @@ fn s0a_03_nodes_with_no_value_and_no_children_are_pruned() {
 }
 
 #[test]
-fn s0a_03_a_node_that_still_leads_somewhere_stays() {
+fn s0a_02_a_node_that_still_leads_somewhere_stays() {
     let trie = t().put("test", 1u32).put("te", 2u32).remove("te");
     assert!(trie.get::<u32>("te").is_none(), "a node that still leads somewhere stays: expected `trie.get::<u32>(\"te\").is_none()`");
     assert_eq!(trie.get::<u32>("test"), Some(&1), "a node that still leads somewhere stays");
@@ -207,7 +209,7 @@ fn s0a_03_a_node_that_still_leads_somewhere_stays() {
 }
 
 #[test]
-fn s0a_03_removing_a_missing_key_changes_nothing() {
+fn s0a_02_removing_a_missing_key_changes_nothing() {
     let trie = t().put("test", 1u32);
     for k in ["tes", "tests", "x", ""] {
         let same = trie.remove(k);
@@ -217,7 +219,7 @@ fn s0a_03_removing_a_missing_key_changes_nothing() {
 }
 
 #[test]
-fn s0a_03_removing_never_changes_the_old_trie() {
+fn s0a_02_removing_never_changes_the_old_trie() {
     let trie3 = t().put("test", 2333u32).put("te", 23u32).put("tes", 233u32);
     let trie4 = trie3.remove("te");
     let trie5 = trie3.remove("tes");
@@ -231,10 +233,10 @@ fn s0a_03_removing_never_changes_the_old_trie() {
     assert_eq!(trie6.get::<u32>("te"), Some(&23), "removing never changes the old trie");
 }
 
-// ---- 0a-04: the store ------------------------------------------------------------------------------------------------------------------
+// ---- 0a-03: the store ------------------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s0a_04_put_get_remove() {
+fn s0a_03_put_get_remove() {
     let store = TrieStore::new();
     assert!(store.get::<u32>("233").is_none(), "put get remove: expected `store.get::<u32>(\"233\").is_none()`");
     store.put("233", 2333u32);
@@ -244,7 +246,7 @@ fn s0a_04_put_get_remove() {
 }
 
 #[test]
-fn s0a_04_a_guard_stays_valid_after_the_key_is_removed() {
+fn s0a_03_a_guard_stays_valid_after_the_key_is_removed() {
     let store = TrieStore::new();
     store.put("233", String::from("2333"));
     let guard = store.get::<String>("233").unwrap();
@@ -254,7 +256,7 @@ fn s0a_04_a_guard_stays_valid_after_the_key_is_removed() {
 }
 
 #[test]
-fn s0a_04_a_guard_sees_the_version_it_was_taken_from() {
+fn s0a_03_a_guard_sees_the_version_it_was_taken_from() {
     let store = TrieStore::new();
     store.put("k", 1u32);
     let old = store.get::<u32>("k").unwrap();
@@ -264,7 +266,7 @@ fn s0a_04_a_guard_sees_the_version_it_was_taken_from() {
 }
 
 #[test]
-fn s0a_04_values_need_not_be_clonable() {
+fn s0a_03_values_need_not_be_clonable() {
     struct NoClone(u32);
     let store = TrieStore::new();
     store.put("tes", Box::new(NoClone(233)));
@@ -275,7 +277,7 @@ fn s0a_04_values_need_not_be_clonable() {
 }
 
 #[test]
-fn s0a_04_four_writers_and_four_readers() {
+fn s0a_03_four_writers_and_four_readers() {
     let store = Arc::new(TrieStore::new());
     let per_thread = 2_000u32;
     let key = |n: u32| format!("{n:05}");
@@ -322,7 +324,7 @@ fn s0a_04_four_writers_and_four_readers() {
 }
 
 #[test]
-fn s0a_04_readers_are_not_blocked_by_a_writer_building_a_big_trie() {
+fn s0a_03_readers_are_not_blocked_by_a_writer_building_a_big_trie() {
     let store = Arc::new(TrieStore::new());
     for i in 0..1000u32 {
         store.put(&format!("{i:04}"), i);
@@ -344,10 +346,10 @@ fn s0a_04_readers_are_not_blocked_by_a_writer_building_a_big_trie() {
     writer.join().unwrap();
 }
 
-// ---- 0a-05: BusTub's trie tests ---------------------------------------------------------------------------------------------------------
+// ---- 0a-04: BusTub's trie tests ---------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s0a_05_mixed_test() {
+fn s0a_04_mixed_test() {
     let mut trie = Trie::new();
     for i in 0..23333u32 {
         trie = trie.put(&format!("{i:05}"), format!("value-{i:08}"));
@@ -375,7 +377,7 @@ fn s0a_05_mixed_test() {
 }
 
 #[test]
-fn s0a_05_copy_on_write_tests_with_the_empty_key() {
+fn s0a_04_copy_on_write_tests_with_the_empty_key() {
     let trie3 = Trie::new().put("test", 2333u32).put("te", 23u32).put("", 233u32);
     let trie4 = trie3.put("te", String::from("23"));
     let trie5 = trie3.put("", String::from("233"));
@@ -392,7 +394,7 @@ fn s0a_05_copy_on_write_tests_with_the_empty_key() {
 }
 
 #[test]
-fn s0a_05_trie_store_mixed_test() {
+fn s0a_04_trie_store_mixed_test() {
     let store = TrieStore::new();
     for i in 0..23333u32 {
         store.put(&format!("{i:05}"), format!("value-{i:08}"));
@@ -417,7 +419,7 @@ fn s0a_05_trie_store_mixed_test() {
 }
 
 #[test]
-fn s0a_05_pointer_stability_and_noncopyable_values() {
+fn s0a_04_pointer_stability_and_noncopyable_values() {
     let trie = Trie::new().put("test", 2333u32);
     let before = trie.get::<u32>("test").unwrap() as *const u32;
     let trie = trie.put("tes", 233u32).put("te", 23u32);
@@ -427,4 +429,167 @@ fn s0a_05_pointer_stability_and_noncopyable_values() {
     assert_eq!(**boxed.get::<Box<u32>>("te").unwrap(), 23, "pointer stability and noncopyable values");
     let boxed = boxed.remove("te").remove("tes").remove("test");
     assert!(boxed.get::<Box<u32>>("te").is_none(), "pointer stability and noncopyable values: expected `boxed.get::<Box<u32>>(\"te\").is_none()`");
+}
+
+// ---- properties: the trie against a map, with every old version kept -----------------------------------------------------------------
+
+fn pconfig() -> ProptestConfig {
+    ProptestConfig { cases: 64, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
+}
+
+/// Keys over a two-letter alphabet, so that many keys are prefixes of others.
+fn key_strategy() -> impl Strategy<Value = String> {
+    prop::collection::vec(prop::sample::select(vec!['a', 'b']), 0..5).prop_map(|cs| cs.into_iter().collect())
+}
+
+/// All 31 keys of length 0 to 4 over {a, b}: the universe the properties look at.
+fn universe() -> Vec<String> {
+    let mut all = vec![String::new()];
+    let mut layer = vec![String::new()];
+    for _ in 0..4 {
+        layer = layer.iter().flat_map(|k| ['a', 'b'].map(|c| format!("{k}{c}"))).collect();
+        all.extend(layer.clone());
+    }
+    all
+}
+
+/// A mutable node used only to build a trie by hand from a map (stage 1 has no `put` yet).
+#[derive(Default)]
+struct Draft {
+    children: BTreeMap<char, Draft>,
+    value: Option<u32>,
+}
+
+impl Draft {
+    fn freeze(self) -> Arc<TrieNode> {
+        Arc::new(TrieNode { children: self.children.into_iter().map(|(c, d)| (c, d.freeze())).collect(), value: self.value.map(|v| Arc::new(v) as _) })
+    }
+}
+
+fn built_by_hand(model: &BTreeMap<String, u32>) -> Trie {
+    if model.is_empty() {
+        return Trie::new();
+    }
+    let mut root = Draft::default();
+    for (k, v) in model {
+        let mut n = &mut root;
+        for c in k.chars() {
+            n = n.children.entry(c).or_default();
+        }
+        n.value = Some(*v);
+    }
+    Trie::from_root(Some(root.freeze()))
+}
+
+fn same_as_model(trie: &Trie, model: &BTreeMap<String, u32>) -> Result<(), TestCaseError> {
+    for k in universe() {
+        prop_assert_eq!(trie.get::<u32>(&k).copied(), model.get(&k).copied(), "key {:?}", k);
+        prop_assert!(trie.get::<String>(&k).is_none(), "wrong type for {:?} must be None", k);
+        prop_assert_eq!(trie.get_shared::<u32>(&k).map(|a| *a), model.get(&k).copied());
+    }
+    Ok(())
+}
+
+/// Every node has a value or a child (a trie leaves no empty branches behind), and the trie has a root exactly when it holds a key.
+fn pruned(node: &TrieNode) -> bool {
+    (node.is_value_node() || !node.children.is_empty()) && node.children.values().all(|c| pruned(c))
+}
+
+proptest! {
+    #![proptest_config(pconfig())]
+
+    /// A trie built by hand from any set of keys answers `get` for every key of the universe as the map does: present keys with their
+    /// value, everything else (prefixes, extensions, other types) with nothing.
+    #[test]
+    fn s0a_01_get_agrees_with_a_map_for_every_key(entries in prop::collection::vec((key_strategy(), any::<u32>()), 0..12)) {
+        let model: BTreeMap<String, u32> = entries.into_iter().collect();
+        same_as_model(&built_by_hand(&model), &model)?;
+    }
+
+    /// Random puts and removes, keeping **every version**: at each step the new version equals the map, **every older version still
+    /// equals the map it was**, the new version shares with the old one every node off the path of the key, and no empty branch is left.
+    #[test]
+    fn s0a_02_every_version_stays_what_it_was_and_shares_all_it_can(ops in prop::collection::vec((any::<bool>(), key_strategy(), any::<u32>()), 1..40)) {
+        let mut versions: Vec<(Trie, BTreeMap<String, u32>)> = vec![(Trie::new(), BTreeMap::new())];
+        for (put, key, value) in ops {
+            let (old, mut model) = versions.last().unwrap().clone();
+            let new = if put { model.insert(key.clone(), value); old.put(&key, value) } else { model.remove(&key); old.remove(&key) };
+            same_as_model(&new, &model)?;
+            prop_assert_eq!(new.root().is_some(), !model.is_empty(), "a trie has a root exactly when it holds a key");
+            if let Some(root) = new.root() {
+                prop_assert!(pruned(root), "an empty branch was left behind after {:?} {:?}", put, key);
+            }
+            // sharing: along the key's path nodes are new; every child hanging off the path is the same node as before
+            let (mut a, mut b) = (old.root().cloned(), new.root().cloned());
+            for c in key.chars() {
+                let (Some(x), Some(y)) = (a.clone(), b.clone()) else { break };
+                for (k, child) in &y.children {
+                    if *k != c {
+                        let before = x.children.get(k);
+                        prop_assert!(before.is_some_and(|o| Arc::ptr_eq(o, child)), "child {:?} off the path of {:?} was copied", k, key);
+                    }
+                }
+                a = x.children.get(&c).cloned();
+                b = y.children.get(&c).cloned();
+            }
+            versions.push((new, model));
+        }
+        for (i, (trie, model)) in versions.iter().enumerate() {
+            same_as_model(trie, model).map_err(|e| TestCaseError::fail(format!("version {i} changed afterwards: {e}")))?;
+        }
+    }
+
+    /// The store, used from one thread, is the map; a guard taken before later writes still holds the value it was taken with.
+    #[test]
+    fn s0a_03_the_store_behaves_like_a_map_and_guards_keep_their_values(ops in prop::collection::vec((0u8..3, key_strategy(), any::<u32>()), 1..40)) {
+        let store = TrieStore::new();
+        let mut model: BTreeMap<String, u32> = BTreeMap::new();
+        let mut guards = vec![];
+        for (op, key, value) in ops {
+            match op {
+                0 => { store.put(&key, value); model.insert(key, value); }
+                1 => { store.remove(&key); model.remove(&key); }
+                _ => if let Some(g) = store.get::<u32>(&key) { guards.push((*g, g)); },
+            }
+            for k in universe() {
+                prop_assert_eq!(store.get::<u32>(&k).map(|g| *g), model.get(&k).copied());
+            }
+        }
+        for (seen, guard) in guards {
+            prop_assert_eq!(*guard, seen, "a guard must keep the value it found");
+        }
+    }
+}
+
+#[test]
+fn s0a_04_a_reader_never_sees_a_value_go_backwards_while_a_writer_counts_up() {
+    let store = Arc::new(TrieStore::new());
+    store.put("counter", 0u64);
+    store.put("other", 7u32);
+    let done = Arc::new(AtomicBool::new(false));
+    let readers: Vec<_> = (0..3)
+        .map(|_| {
+            let (store, done) = (store.clone(), done.clone());
+            std::thread::spawn(move || {
+                let mut last = 0u64;
+                let mut reads = 0u64;
+                while !done.load(Ordering::SeqCst) || reads < 100 {
+                    let v = *store.get::<u64>("counter").expect("the counter is always there");
+                    assert!(v >= last, "the counter went from {last} back to {v}");
+                    assert_eq!(*store.get::<u32>("other").unwrap(), 7, "an unrelated key never changes");
+                    last = v;
+                    reads += 1;
+                }
+                last
+            })
+        })
+        .collect();
+    for n in 1..=3000u64 {
+        store.put("counter", n);
+    }
+    done.store(true, Ordering::SeqCst);
+    for r in readers {
+        assert!(r.join().unwrap() <= 3000);
+    }
+    assert_eq!(*store.get::<u64>("counter").unwrap(), 3000);
 }

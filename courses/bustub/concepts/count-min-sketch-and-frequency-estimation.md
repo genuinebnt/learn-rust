@@ -152,7 +152,7 @@ fn top_k_ranks_the_candidates_it_is_given() {
 ### In the exercises
 
 - **0d-01:** `CountMinSketch::new`, `insert`, `count`.
-- **0d-02:** `clear`, `merge`, `top_k`.
+- **0d-01:** `clear`, `merge`, `top_k`.
 
 ### Where it is used
 

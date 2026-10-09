@@ -3,7 +3,10 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use std::collections::BTreeSet;
+
 use bustub::primer::skiplist::SkipList;
+use proptest::prelude::*;
 
 fn list() -> SkipList<i32> {
     SkipList::new()
@@ -67,7 +70,7 @@ fn s0b_01_the_list_stays_sorted_whatever_the_insertion_order() {
 
 #[test]
 fn s0b_01_a_comparison_function_decides_the_order() {
-    let l: SkipList<i32> = SkipList::with_compare(|a, b| a > b);
+    let l: SkipList<i32> = SkipList::with_compare(|a: &i32, b: &i32| a > b);
     for k in [3, 1, 2] {
         l.insert(&k);
     }
@@ -322,4 +325,109 @@ fn s0b_03_a_big_list_is_dropped_without_overflowing_the_stack() {
         l.insert(&i);
     }
     drop(l);
+}
+
+// ---- properties: the skip list against a set --------------------------------------------------------------------------------------
+
+fn pconfig() -> ProptestConfig {
+    ProptestConfig { cases: 64, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
+}
+
+/// What every skip list must look like, whatever was done to it: the keys in order, size right, every height between 1 and 14, level 0
+/// holds all keys, each higher level is a sorted **sub-list** of the one below (exactly the nodes tall enough), and the top level in use is
+/// the height of the tallest node.
+fn well_formed(list: &SkipList<i32>, model: &BTreeSet<i32>) -> Result<(), TestCaseError> {
+    let nodes = list.nodes();
+    prop_assert_eq!(nodes.iter().map(|n| n.0).collect::<Vec<_>>(), model.iter().copied().collect::<Vec<_>>(), "the keys in order");
+    prop_assert_eq!(list.size(), model.len());
+    prop_assert_eq!(list.is_empty(), model.is_empty());
+    prop_assert!(nodes.iter().all(|(_, h)| (1..=14).contains(h)), "heights are between 1 and MAX_HEIGHT");
+    let tallest = nodes.iter().map(|n| n.1).max().unwrap_or(0);
+    for level in 0..tallest {
+        let expected: Vec<i32> = nodes.iter().filter(|(_, h)| *h > level).map(|(k, _)| *k).collect();
+        prop_assert_eq!(list.level(level), expected, "level {} links exactly the nodes tall enough", level);
+    }
+    prop_assert!(list.level(tallest).is_empty(), "nothing is linked above the tallest node");
+    Ok(())
+}
+
+#[derive(Clone, Debug)]
+enum SetOp {
+    Insert(i32),
+    Erase(i32),
+    Contains(i32),
+    Clear,
+}
+
+proptest! {
+    #![proptest_config(pconfig())]
+
+    /// Any sequence of inserts, erases, lookups and clears: the list answers as a `BTreeSet` does and is well formed after every step.
+    #[test]
+    fn s0b_02_the_list_behaves_like_a_sorted_set(ops in prop::collection::vec(prop_oneof![
+        6 => (-30..30i32).prop_map(SetOp::Insert),
+        4 => (-30..30i32).prop_map(SetOp::Erase),
+        3 => (-30..30i32).prop_map(SetOp::Contains),
+        1 => Just(SetOp::Clear),
+    ], 1..120)) {
+        let l = list();
+        let mut model = BTreeSet::new();
+        for op in ops {
+            match op {
+                SetOp::Insert(k) => prop_assert_eq!(l.insert(&k), model.insert(k)),
+                SetOp::Erase(k) => prop_assert_eq!(l.erase(&k), model.remove(&k)),
+                SetOp::Contains(k) => prop_assert_eq!(l.contains(&k), model.contains(&k)),
+                SetOp::Clear => { l.clear(); model.clear(); }
+            }
+            well_formed(&l, &model)?;
+        }
+    }
+
+    /// A list ordered by a different comparison (reverse order, or by absolute value with equal absolute values being the same key)
+    /// keeps its keys in that order and treats keys that neither precede the other as equal.
+    #[test]
+    fn s0b_01_a_comparison_function_decides_what_is_in_order_and_what_is_equal(keys in prop::collection::vec(-20..20i32, 0..40)) {
+        let by_abs: SkipList<i32> = SkipList::with_compare(|a: &i32, b: &i32| a.abs() < b.abs());
+        let mut seen: BTreeSet<i32> = BTreeSet::new();
+        for k in &keys {
+            let fresh = seen.insert(k.abs());
+            prop_assert_eq!(by_abs.insert(k), fresh, "{} and {} are the same key", k, -k);
+        }
+        let order: Vec<i32> = by_abs.nodes().iter().map(|n| n.0.abs()).collect();
+        prop_assert_eq!(order, seen.iter().copied().collect::<Vec<_>>());
+        for k in -20..20i32 {
+            prop_assert_eq!(by_abs.contains(&k), seen.contains(&k.abs()));
+        }
+        let reverse: SkipList<i32> = SkipList::with_compare(|a: &i32, b: &i32| a > b);
+        for k in &keys { reverse.insert(k); }
+        let mut want: Vec<i32> = keys.iter().copied().collect::<BTreeSet<_>>().into_iter().collect();
+        want.reverse();
+        prop_assert_eq!(reverse.nodes().iter().map(|n| n.0).collect::<Vec<_>>(), want);
+    }
+}
+
+#[test]
+fn s0b_03_threads_inserting_and_erasing_overlapping_keys_leave_a_well_formed_list() {
+    let l = Arc::new(list());
+    let workers: Vec<_> = (0..4)
+        .map(|t| {
+            let l = l.clone();
+            std::thread::spawn(move || {
+                for i in 0..500 {
+                    let k = (i * 7 + t * 13) % 300;
+                    if (i + t) % 3 == 0 { l.erase(&k); } else { l.insert(&k); }
+                    assert!(l.size() <= 300);
+                }
+            })
+        })
+        .collect();
+    for w in workers {
+        w.join().unwrap();
+    }
+    let keys: Vec<i32> = l.nodes().iter().map(|n| n.0).collect();
+    assert!(keys.windows(2).all(|w| w[0] < w[1]), "the keys are strictly increasing");
+    assert_eq!(keys.len(), l.size());
+    for k in &keys {
+        assert!(l.contains(k));
+    }
 }

@@ -101,7 +101,7 @@ fn the_helper_names_the_lock_in_its_message() {
 - **1b-05:** the page latch ignores poisoning on purpose (`PoisonError::into_inner`).
 - **1f:** the buffer pool's latch table.
 - **4a-02:** `begin` and `commit` lock the watermark; a panic inside would poison it.
-- **0a-04:** `TrieStore` takes two locks per write.
+- **0a-03:** `TrieStore` takes two locks per write.
 
 ### Where it is used
 

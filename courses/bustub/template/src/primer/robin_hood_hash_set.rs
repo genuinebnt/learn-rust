@@ -44,24 +44,12 @@ impl RobinHoodHash for String {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-enum Slot<K> {
-    Empty,
-    /// A removed key. Lookups probe past it; an insert may reuse it.
-    Tombstone,
-    Live(K),
-}
-
-struct Table<K> {
-    slots: Vec<Slot<K>>,
-    /// The number of live keys.
-    size: usize,
-}
-
 pub struct RobinHoodHashSet<K> {
-    capacity: usize,
-    table: RwLock<Table<K>>,
+    _set: std::marker::PhantomData<K>,
+    // TODO(0c-01): your fields: the capacity, the buckets (with a way to tell an empty one from a removed one from a live one), the number of live keys, the lock
 }
+
+// TODO(0c-01): the bucket type and the table of your own
 
 impl<K: RobinHoodHash + Clone + PartialEq> RobinHoodHashSet<K> {
     /// A set with exactly `capacity` buckets, all empty. Capacity 0 is an error.
@@ -80,12 +68,12 @@ impl<K: RobinHoodHash + Clone + PartialEq> RobinHoodHashSet<K> {
     }
 
     pub fn capacity(&self) -> usize {
-        self.capacity
+        todo!("0c-01: the capacity the set was made with")
     }
 
     /// The number of buckets (the same as the capacity).
     pub fn bucket_count(&self) -> usize {
-        self.capacity
+        todo!("0c-01: the number of buckets")
     }
 
     /// The number of live keys.
@@ -118,9 +106,7 @@ impl<K: RobinHoodHash + Clone + PartialEq> RobinHoodHashSet<K> {
     /// A textbook Robin Hood lookup also stops at a key that is closer to its home than we are to ours (our key would have displaced
     /// it). With tombstones that rule is **unsafe**: `remove` leaves a tombstone, a later insert may put a key with a short probe
     /// distance into it, and a key that was already further on is then unreachable if the lookup stops in front of that new key.
-    fn find(&self, table: &Table<K>, key: &K) -> Option<usize> {
-        todo!("0c-02: for distance 0..capacity from the home bucket (wrapping): an empty bucket ends the search; a live equal key is the answer; tombstones and other keys are probed past")
-    }
+    // TODO(0c-02): a private lookup of your own: probe from the home bucket until an empty bucket; an equal live key is the answer; tombstones and other keys are probed past
 
     /// Removes `key`, leaving a tombstone. Returns whether it was there.
     pub fn remove(&self, key: &K) -> bool {

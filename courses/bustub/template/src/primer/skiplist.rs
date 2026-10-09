@@ -9,51 +9,12 @@ use std::sync::RwLock;
 
 use super::mt19937::Mt19937;
 
-/// The index of a node in the arena; the header is always node 0.
-type NodeId = usize;
-const HEADER: NodeId = 0;
-const LOWEST_LEVEL: usize = 0;
-
-/// A node of the skip list: its key (the header has none) and one forward link per level it takes part in.
-pub struct SkipNode<K> {
-    key: Option<K>,
-    /// `links[0]` is the lowest level; `links.len()` is the node's height.
-    links: Vec<Option<NodeId>>,
-}
-
-impl<K> SkipNode<K> {
-    fn new(height: usize, key: Option<K>) -> SkipNode<K> {
-        todo!("0b-01: a node with `height` links, all empty")
-    }
-
-    /// The number of levels the node is linked into.
-    pub fn height(&self) -> usize {
-        todo!("0b-01: the number of links")
-    }
-
-    fn next(&self, level: usize) -> Option<NodeId> {
-        todo!("0b-01: the link at `level`, or none if the node is not that tall or the link is empty")
-    }
-
-    fn set_next(&mut self, level: usize, next: Option<NodeId>) {
-        todo!("0b-01: store the link at `level`")
-    }
-}
-
-struct Inner<K> {
-    nodes: Vec<SkipNode<K>>,
-    /// Arena slots of erased nodes, to be reused.
-    free: Vec<NodeId>,
-    /// The highest level in use: at least 1, at most `MAX_HEIGHT`.
-    height: usize,
-    size: usize,
-    rng: Mt19937,
-}
-
 pub struct SkipList<K, const MAX_HEIGHT: usize = 14, const SEED: u32 = 15445> {
-    compare: Box<dyn Fn(&K, &K) -> bool + Send + Sync>,
-    inner: RwLock<Inner<K>>,
+    _list: std::marker::PhantomData<K>,
+    // TODO(0b-01): your fields: the order, the nodes (an arena of nodes linked by index is the intended design), the height, the size, the random generator
 }
+
+// TODO(0b-01): the node type and the helpers of your own: a search that remembers the last node before the key on every level (the update vector), a random height (BusTub's rule: 1, plus one for every draw divisible by 4, up to MAX_HEIGHT), a way to reuse the slots of erased nodes
 
 impl<K: Clone + Ord + Send + Sync + 'static, const MAX_HEIGHT: usize, const SEED: u32> SkipList<K, MAX_HEIGHT, SEED> {
     /// An empty list ordered by `<`.
@@ -63,10 +24,10 @@ impl<K: Clone + Ord + Send + Sync + 'static, const MAX_HEIGHT: usize, const SEED
 }
 
 impl<K: Clone + Send + Sync + 'static, const MAX_HEIGHT: usize, const SEED: u32> SkipList<K, MAX_HEIGHT, SEED> {
-    /// An empty list ordered by `compare` ("is `a` before `b`?"), like the `Compare` template argument of the C++ class.
+    /// An empty list ordered by `compare` ("is `a` before `b`?"), like the `Compare` template argument of the C++ class. The random
+    /// generator is `Mt19937::new(SEED)` (module `mt19937`, given).
     pub fn with_compare(compare: impl Fn(&K, &K) -> bool + Send + Sync + 'static) -> Self {
-        let header = SkipNode { key: None, links: vec![None; MAX_HEIGHT] };
-        SkipList { compare: Box::new(compare), inner: RwLock::new(Inner { nodes: vec![header], free: vec![], height: 1, size: 0, rng: Mt19937::new(SEED) }) }
+        todo!("0b-01: an empty list: the header node with MAX_HEIGHT empty links, height 1, size 0, a generator seeded with SEED")
     }
 
     pub fn is_empty(&self) -> bool {
@@ -79,7 +40,7 @@ impl<K: Clone + Send + Sync + 'static, const MAX_HEIGHT: usize, const SEED: u32>
 
     /// Forgets every element (the arena restarts with just the header).
     pub fn clear(&self) {
-        todo!("0b-02: under the write lock: keep only the header, empty its links, forget the free slots, height 1, size 0")
+        todo!("0b-02: under the write lock: forget every element; the list is as new (height 1, size 0)")
     }
 
     /// Adds `key`. Returns `false`, changing nothing, if an equivalent key is already there (neither is before the other).
@@ -97,64 +58,13 @@ impl<K: Clone + Send + Sync + 'static, const MAX_HEIGHT: usize, const SEED: u32>
         todo!("0b-01: read lock; search; is there a node?")
     }
 
-    /// The keys with their heights, in order (given; for tests and for printing).
+    /// The keys with their heights, in order (for tests and for printing).
     pub fn nodes(&self) -> Vec<(K, usize)> {
-        let inner = self.inner.read().unwrap();
-        let mut out = vec![];
-        let mut cur = inner.nodes[HEADER].next(LOWEST_LEVEL);
-        while let Some(id) = cur {
-            out.push((inner.nodes[id].key.clone().expect("only the header has no key"), inner.nodes[id].height()));
-            cur = inner.nodes[id].next(LOWEST_LEVEL);
-        }
-        out
+        todo!("0b-01: walk level 0 from the start: every key with the height of its node")
     }
 
-    /// The keys linked on `level`, in order (given; for tests).
+    /// The keys linked on `level`, in order (for tests).
     pub fn level(&self, level: usize) -> Vec<K> {
-        let inner = self.inner.read().unwrap();
-        let mut out = vec![];
-        let mut cur = inner.nodes[HEADER].next(level);
-        while let Some(id) = cur {
-            out.push(inner.nodes[id].key.clone().unwrap());
-            cur = inner.nodes[id].next(level);
-        }
-        out
-    }
-}
-
-impl<K> Inner<K> {
-    /// A new node's slot: a freed one if there is one.
-    fn alloc(&mut self, node: SkipNode<K>) -> NodeId {
-        match self.free.pop() {
-            Some(id) => {
-                self.nodes[id] = node;
-                id
-            }
-            None => {
-                self.nodes.push(node);
-                self.nodes.len() - 1
-            }
-        }
-    }
-
-    /// Marks the slot of an erased node as free (its key is dropped).
-    fn release(&mut self, id: NodeId) {
-        self.nodes[id] = SkipNode { key: None, links: vec![] };
-        self.free.push(id);
-    }
-
-    /// Draws a height like BusTub: 1, plus one for every draw divisible by 4 (a 1-in-4 chance, Pugh's branching factor), capped.
-    fn random_height(&mut self, max_height: usize) -> usize {
-        let mut height = 1;
-        while height < max_height && self.rng.next_u32() % 4 == 0 {
-            height += 1;
-        }
-        height
-    }
-
-    /// Walks from the top level: on each level go right while the next key is before `key`, then drop down. Returns the **update vector**
-    /// (the last node before `key` on every level, index = level) and the node holding an equivalent key, if any.
-    fn search(&self, compare: &dyn Fn(&K, &K) -> bool, key: &K) -> (Vec<NodeId>, Option<NodeId>) {
-        todo!("0b-01: cur = header; for each level from height-1 down to 0: while the next node's key is before `key`, move to it; remember cur in update[level]. The node after cur on level 0 is the candidate: found if `key` is not before its key")
+        todo!("0b-01: walk the given level from the start: the keys of the nodes linked on it")
     }
 }

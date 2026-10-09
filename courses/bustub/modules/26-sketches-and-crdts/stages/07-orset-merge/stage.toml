@@ -1,7 +1,0 @@
-id = "0d-07"
-title = "Observed-remove set: merge"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_0d::s0d_07"]
-learn = ["merge as union", "commutative, associative, idempotent", "add wins"]
-concepts = ["crdts-and-observed-remove-sets", "ordered-sets-as-priority-queues"]

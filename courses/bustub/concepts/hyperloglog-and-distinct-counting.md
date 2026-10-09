@@ -165,9 +165,9 @@ fn big_values_split_in_two_and_come_back_whole() {
 
 ### In the exercises
 
-- **0d-03:** the register index and the position of the leftmost one; `add_elem`.
-- **0d-04:** the estimate.
-- **0d-05:** the Presto layout with trailing zeros, dense and overflow buckets.
+- **0d-02:** the register index and the position of the leftmost one; `add_elem`.
+- **0d-02:** the estimate.
+- **0d-03:** the Presto layout with trailing zeros, dense and overflow buckets.
 
 ### Where it is used
 

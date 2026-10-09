@@ -161,8 +161,8 @@ fn inserting_a_present_key_still_gives_a_valid_tree() {
 
 ### In the exercises
 
-- **0a-02 / 0a-03:** `Trie::put` and `Trie::remove` copy the path and share everything else; the tests compare node pointers with `Arc::ptr_eq`.
-- **0a-04:** `TrieStore` publishes a new version by swapping one pointer.
+- **0a-02:** `Trie::put` and `Trie::remove` copy the path and share everything else; the tests compare node pointers with `Arc::ptr_eq`.
+- **0a-03:** `TrieStore` publishes a new version by swapping one pointer.
 
 ### Where it is used
 

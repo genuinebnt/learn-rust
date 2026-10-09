@@ -126,9 +126,9 @@ fn replicas_that_saw_the_same_updates_are_equal_whatever_the_order() {
 
 ### In the exercises
 
-- **0d-06:** `add`, `remove`, `contains` on one replica.
-- **0d-07:** `merge` and `elements`.
-- **0d-08:** a network of replicas that save and load each other's state, including a lost network.
+- **0d-04:** `add`, `remove`, `contains` on one replica.
+- **0d-04:** `merge` and `elements`.
+- **0d-05:** a network of replicas that save and load each other's state, including a lost network.
 
 ### Where it is used
 

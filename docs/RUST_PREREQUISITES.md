@@ -12,38 +12,36 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | L2 Borrowing | `l2-borrowing` | written | core | R, 1e, 1f, 1g |
 | L3 Lifetimes | `l3-lifetimes` | written | core | 1g, 2c, 3c, 3e, 3g, 4c |
 | L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3c, 3d, 3e, 3f, 3h, 4b |
-| L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b, 2c, 2d |
+| L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b, 2c, 2d, 0b |
 | L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
-| L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 4c, 0a |
+| L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 4c, 0a, 0c |
 | L8 Error design | `l8-error-design` | planned | core | R, 1a, 1b, 3a, 3d, 3e, 4b, 4c |
-| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e, 3h, 4a, 4b |
+| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e, 3h, 4a, 4b, 0a |
 | S2 Strings & text | `s2-strings-text` | written | core | 3a, 3b, 3d |
 | S3 Vec & slices | `s3-vec-slices` | written | core | R, 1a, 1c, 2a, 2c, 2d, 3b, 3g, 0c |
-| S4 Maps & sets | `s4-maps-sets` | written | core | 1a, 1c, 1d, 1e, 3c, 3f, 3g, 4a, 4b, 0a, 0d |
-| S5 Queues & heaps | `s5-queues-heaps` | planned | core | 1b, 1c, 1d, 3f, 3g, 0b |
+| S4 Maps & sets | `s4-maps-sets` | written | core | 1a, 1c, 1d, 1e, 3c, 3f, 3g, 4a, 4b, 0d |
+| S5 Queues & heaps | `s5-queues-heaps` | planned | core | 1b, 1c, 1d, 3f, 3g |
 | S6 Iterators | `s6-iterators` | planned | core | 1c, 1d, 2c, 3c, 3d, 3e, 3f, 3g |
-| S7 Smart pointers & interior mutability | `s7-smart-pointers` | planned | core | 1b, 1c, 1e, 1f, 1g, 2c, 3d, 3h, 4a, 0a, 0b |
+| S7 Smart pointers & interior mutability | `s7-smart-pointers` | planned | core | 1b, 1c, 1e, 1f, 1g, 2c, 3d, 3h, 4a, 0a |
 | S8 The core traits | `s8-core-traits` | planned | core | 1d, 1e, 1g, 2a, 2b, 2d, 3a, 3d, 3f, 3g, 0c, 0d |
 | S9 I/O & filesystem | `s9-io-filesystem` | planned | core | R, 1a, 3g, 4c |
 | S11 mem, ptr & alloc | `s11-mem-ptr-alloc` | planned | sde3 | 2a |
-| C1 Threads & shared state | `c1-threads-shared-state` | planned | core | 1a, 1b, 1f, 1g, 2b, 2c, 3c, 4a, 4b, 4c |
+| C1 Threads & shared state | `c1-threads-shared-state` | planned | core | 1a, 1b, 1f, 1g, 2b, 2c, 3c, 4a, 4b, 4c, 0a, 0b |
 | C2 Message passing | `c2-message-passing` | planned | core | 1b |
-| C3 Atomics & lock-free | `c3-atomics-lock-free` | planned | sde3 | 4a |
-| Y2 Unsafe Rust | `y2-unsafe-rust` | planned | sde3 | 0b |
-| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | R, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3f, 3g, 3h, 4a, 4b, 4c, 0d |
+| C3 Atomics & lock-free | `c3-atomics-lock-free` | planned | sde3 | 4a, 0d |
+| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | R, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3f, 3g, 3h, 4a, 4b, 4c, 0a, 0b, 0c, 0d |
 | F1 Measure & read the machine | `f1-measure-machine` | planned | sde3 | 1a |
 | F2 Data layout | `f2-data-layout` | written | sde3 | 2a, 2b, 2c, 3b |
 | F3 Memory & allocation | `f3-memory-allocation` | planned | sde3 | 1c, 1f, 3d, 0b |
 | F4 Hashing & purpose-built structures | `f4-hashing-structures` | planned | sde3 | 2b, 3f, 0c, 0d |
-| F5 CPU-level tricks | `f5-cpu-tricks` | planned | sde3 | 0c, 0d |
 | F7 I/O & serialization | `f7-io-serialization` | planned | sde3 | 2a, 3a, 3b, 3g, 4c |
 | D4 Binary search | `d4-binary-search` | planned | core | 2a |
 | D5 Linked lists | `d5-linked-lists` | planned | core | 1c, 0b |
 | D6 Trees & BSTs | `d6-trees-bsts` | planned | core | 2c |
-| D13 Matrix, bits & math | `d13-matrix-bits-math` | planned | core | 2b, 3a, 3d |
+| D13 Matrix, bits & math | `d13-matrix-bits-math` | planned | core | 2b, 3a, 3d, 0d |
 | P3 Binary search practice | `p3-binary-search-practice` | written | core | 2a |
 
-Not used by the course: L9 Modules, crates & Cargo, L10 Macros, S10 Time, env & processes, C4 Async & Tokio, C5 Async internals, C6 Data parallelism, Y3 FFI, F6 Concurrency performance. (They matter for other goals, not for BusTub.)
+Not used by the course: L9 Modules, crates & Cargo, L10 Macros, S10 Time, env & processes, C4 Async & Tokio, C5 Async internals, C6 Data parallelism, Y2 Unsafe Rust, Y3 FFI, F5 CPU-level tricks, F6 Concurrency performance. (They matter for other goals, not for BusTub.)
 
 ## 2. Module by module
 
@@ -339,39 +337,43 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [L1 Ownership & moves](/t/l1-ownership-moves) | Clones & drops | sharing structure instead of copying | the module |
-| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | `Rc`/`Arc` for path copying | the module |
-| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums & exhaustiveness | optional children | the module |
-| [S4 Maps & sets](/t/s4-maps-sets) | Use it | the model: `HashMap` | the module |
+| [L1 Ownership & moves](/t/l1-ownership-moves) | Clones & drops | sharing structure instead of copying: a clone of a node clones pointers | 0a-02 |
+| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | `Arc` for path copying and for snapshots; `Mutex` around a pointer | 0a-02, 0a-03 |
+| [S1 Option & Result](/t/s1-option-result) | Understand it | `?` on `Option` in a walk down a tree | 0a-01 |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums & exhaustiveness | a helper's outcomes as an enum; `dyn Any` downcasting | 0a-01, 0a-02 |
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | a short lock for a clone, a long one for writers | 0a-03 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | keep every version of a history and check them all | 0a-01, 0a-02, 0a-03 |
 
 ### 0B · A skip list
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | `Option<Box<Node>>`, interior links | the module |
-| [S5 Queues & heaps](/t/s5-queues-heaps) *(planned)* | Understand | ordered structures | the module |
-| [D5 Linked lists](/t/d5-linked-lists) *(planned)* | Linked lists, the Rust way | index-linked nodes | the module |
-| [F3 Memory & allocation](/t/f3-memory-allocation) *(planned)* | Arenas and pools | a node arena | the module |
-| [Y2 Unsafe Rust](/t/y2-unsafe-rust) *(planned)* | Use it | optional: raw pointers and their safety comments | the module |
+| [L5 Generics & associated types](/t/l5-generics) | Compile-time Rust | const generics for the height and the seed; a stored comparison closure | 0b-01 |
+| [D5 Linked lists](/t/d5-linked-lists) *(planned)* | Linked lists, the Rust way | index-linked nodes in a `Vec` | 0b-01, 0b-02 |
+| [F3 Memory & allocation](/t/f3-memory-allocation) *(planned)* | Arenas and pools | a node arena with a free list | 0b-01, 0b-02 |
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | `RwLock` around the whole structure | 0b-01, 0b-03 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | a `BTreeSet` as the oracle; a structural check after every step | 0b-01, 0b-02 |
 
 ### 0C · Robin Hood hashing
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) *(planned)* | Hashing; Right structure for the job | open addressing, probe distance | the module |
-| [S3 Vec & slices](/t/s3-vec-slices) | Understand it | a table in a `Vec` | the module |
-| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `Hash` and `Eq` | the module |
-| [F5 CPU-level tricks](/t/f5-cpu-tricks) *(planned)* | Branches | bit tricks | the module |
+| [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) *(planned)* | Hashing; Right structure for the job | open addressing, probe distance, tombstones | 0c-01, 0c-02, 0c-03 |
+| [S3 Vec & slices](/t/s3-vec-slices) | Understand it | a table in a `Vec`; `std::mem::replace` | 0c-02 |
+| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | a hash trait; `PartialEq` on keys | 0c-01 |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums & exhaustiveness | `Slot<K>`: empty, removed or live | 0c-01, 0c-03 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | invariants of a table (no gaps, bounded growth of probe distance) as properties | 0c-02, 0c-03 |
 
 ### 0D · Sketches and replicated sets
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) *(planned)* | Hashing | independent hash functions | the module |
-| [F5 CPU-level tricks](/t/f5-cpu-tricks) *(planned)* | Branches | popcount and leading zeros | the module |
-| [S4 Maps & sets](/t/s4-maps-sets) | Use it | `HashMap`/`BTreeSet` as the exact answer | the module |
-| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `Eq`/`Ord` and the laws a merge must obey | the module |
-| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it | algebraic laws as properties | the module |
+| [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) *(planned)* | Hashing | independent hash functions per row: a seeded hasher | 0d-01 |
+| [C3 Atomics & lock-free](/t/c3-atomics-lock-free) *(planned)* | Understand it | atomic counters with `fetch_add`; `Ordering::Relaxed` | 0d-01 |
+| [D13 Matrix, bits & math](/t/d13-matrix-bits-math) *(planned)* | Matrix, bits & math | popcount and leading or trailing zeros; masks and shifts | 0d-02, 0d-03 |
+| [S4 Maps & sets](/t/s4-maps-sets) | Use it | `HashMap`/`BTreeSet` as the exact answer and as the CRDT's state | 0d-03, 0d-04 |
+| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `Eq`/`Ord` and the laws a merge must obey | 0d-04 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it | algebraic laws (commutative, associative, idempotent) as properties | 0d-01, 0d-04, 0d-05 |
 
 ## 3. The order to write the tracks in
 
@@ -379,13 +381,13 @@ The planned tracks, sorted by the first module that needs them (then by how many
 
 | # | Track | First needed by | Used by |
 |---|---|---|---|
-| 1 | [Y5 Testing & verification](/t/y5-testing-verification) | R | 22 modules |
+| 1 | [Y5 Testing & verification](/t/y5-testing-verification) | R | 25 modules |
 | 2 | [L8 Error design](/t/l8-error-design) | R | 8 modules |
 | 3 | [S9 I/O & filesystem](/t/s9-io-filesystem) | R | 4 modules |
-| 4 | [C1 Threads & shared state](/t/c1-threads-shared-state) | 1A | 10 modules |
+| 4 | [C1 Threads & shared state](/t/c1-threads-shared-state) | 1A | 12 modules |
 | 5 | [F1 Measure & read the machine](/t/f1-measure-machine) | 1A | 1 modules |
-| 6 | [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) | 1B | 11 modules |
-| 7 | [S5 Queues & heaps](/t/s5-queues-heaps) | 1B | 6 modules |
+| 6 | [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) | 1B | 10 modules |
+| 7 | [S5 Queues & heaps](/t/s5-queues-heaps) | 1B | 5 modules |
 | 8 | [L6 Closures & functional Rust](/t/l6-closures) | 1B | 3 modules |
 | 9 | [C2 Message passing](/t/c2-message-passing) | 1B | 1 modules |
 | 10 | [S6 Iterators](/t/s6-iterators) | 1C | 8 modules |
@@ -396,12 +398,10 @@ The planned tracks, sorted by the first module that needs them (then by how many
 | 15 | [S11 mem, ptr & alloc](/t/s11-mem-ptr-alloc) | 2A | 1 modules |
 | 16 | [D4 Binary search](/t/d4-binary-search) | 2A | 1 modules |
 | 17 | [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) | 2B | 4 modules |
-| 18 | [D13 Matrix, bits & math](/t/d13-matrix-bits-math) | 2B | 3 modules |
-| 19 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | 2C | 9 modules |
+| 18 | [D13 Matrix, bits & math](/t/d13-matrix-bits-math) | 2B | 4 modules |
+| 19 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | 2C | 10 modules |
 | 20 | [D6 Trees & BSTs](/t/d6-trees-bsts) | 2C | 1 modules |
-| 21 | [C3 Atomics & lock-free](/t/c3-atomics-lock-free) | 4A | 1 modules |
-| 22 | [Y2 Unsafe Rust](/t/y2-unsafe-rust) | 0B | 1 modules |
-| 23 | [F5 CPU-level tricks](/t/f5-cpu-tricks) | 0C | 2 modules |
+| 21 | [C3 Atomics & lock-free](/t/c3-atomics-lock-free) | 4A | 2 modules |
 
 ## 4. Gaps the tracks do not cover yet
 

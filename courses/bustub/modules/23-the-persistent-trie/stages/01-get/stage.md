@@ -9,15 +9,21 @@ In `src/primer/trie.rs`:
 
 Stage 1 comes before `put`, so the tests build their tries by hand from the given `TrieNode` fields and `Trie::from_root`.
 
-## Tests
+The tests: exact scenarios (an empty trie has no values; `get` finds the value at the end of the key; a prefix that holds no value is not found; the requested type must match the stored one; the empty key lives in the root; a node can have a value and children; `get_shared` gives an owner of the value), and a property: **a trie built by hand from any set of keys answers `get` for every key of a 31-key universe as a map does**: present keys with their value, everything else (prefixes, extensions, a wrong type) with nothing.
 
-- An empty trie finds nothing.
-- The value at the end of the key is found; a prefix that holds no value, a key longer than any stored one, and a diverging key are not.
-- The requested type must match the stored one.
-- The empty key is the root's value; a node can have a value and children at once.
-- `get_shared` keeps the value alive after the trie is dropped.
+## Your freedom
 
-## Syntax and methods
+Almost none: the node type and the trie are given (they are the contract), and a walk down a tree is hard to do in more than one way. The freedom is in how you write the loop (a `for` with `?` on each step, a fold, recursion).
+
+## The Rust toolbox
+
+**`?` on an `Option` inside a loop.** `node = node.children.get(&c)?;` returns `None` from the whole function the moment a character has no child: the shortest possible 'not found'.
+
+**Type-erased values.** A value is `Arc<dyn Any + Send + Sync>`; `value.downcast_ref::<T>()` gives `Some(&T)` only if the stored value really is a `T`, which is how one trie holds a `u32` under one key and a `String` under another.
+
+**`Arc::downcast`.** `value.clone().downcast::<T>().ok()` turns the shared erased pointer into an `Arc<T>` that owns the value independently of the trie.
+
+**`char`s, not bytes.** `key.chars()` walks Unicode scalar values: the children map is keyed by `char`, so a multi-byte letter is one step.
 
 ```rust
 let mut node = self.root.as_ref()?;              // Option<&Arc<TrieNode>>: no root, no value
@@ -26,13 +32,57 @@ node.value.as_ref()?.downcast_ref::<T>()          // Option<&T>
 node.value.clone()?.downcast::<T>().ok()          // Option<Arc<T>>
 ```
 
-## Notes
+## Design notes
 
 **`?` is the algorithm.** Every failure in the walk means "not found": a missing child, no value, wrong type. In a function returning `Option`, `?` turns each into an early `None`.
 
 **Type-erased values.** `Arc<dyn Any + Send + Sync>` forgets the concrete type; `downcast_ref::<T>()` checks a hidden type id and returns `None` on a mismatch. That is the Rust counterpart of BusTub's `dynamic_cast<TrieNodeWithValue<T> *>`.
 
 **Keys are `char`s.** BusTub's children are keyed by `char`; here `chars()` yields Unicode scalar values, which for ASCII is the same thing.
+
+## If this is new
+
+- [S1 Option & Result](/t/s1-option-result): `?` on `Option`, `as_ref`, `and_then`.
+- [S7 Smart pointers & interior mutability](/t/s7-smart-pointers): `Arc` and sharing.
+- [L4 Traits & dispatch](/t/l4-traits-dispatch): `dyn Any` and downcasting.
+- The optional *tries* concept.
+- [L7 Enums & pattern matching](/t/l7-enums-patterns): Enums & exhaustiveness: a helper's outcomes as an enum; `dyn Any` downcasting.
+- [Y5 Testing & verification](/t/y5-testing-verification): Build it: keep every version of a history and check them all.
+
+## Tests
+
+- An empty trie; found values; prefixes; types; the empty key; nodes with value and children; `get_shared`.
+- Property: tries built by hand agree with a map on every key of the universe.
+
+## Hints
+
+### The walk and the check are two steps
+
+Reaching the node for the last character does not mean the key is stored: check the node's value separately.
+
+### Do not unwrap the downcast
+
+A value of another type is a normal answer (`None`), not a bug. Keep the `Option` flowing.
+
+## Performance
+
+`get` is `O(len(key) × log fan-out)`: one ordered-map lookup per character, independent of how many keys the trie holds. Nothing is allocated or locked.
+
+**Measure it.** Look up the same 10-character key in tries of 100 and 1 000 000 keys: the time is the same.
+
+## Experiment
+
+Optional. Predict first, then run.
+
+1. **Forget the type check.** Return the value as any type you are asked for (unsafe or a panic). Which test says why that is not an option?
+2. **Bytes instead of chars.** Walk `key.bytes()` with a `u8` map. Which keys break?
+
+## Other designs
+
+- **A map of children per node (given, BusTub's):** simple, ordered, memory-hungry.
+- **Array of children** for a small alphabet: faster, bigger.
+- **A radix (compressed) trie:** a node holds a whole substring; fewer nodes, more cases.
+- **A hash map from key to value:** no prefixes, no shared versions.
 
 ## In BusTub
 
@@ -49,20 +99,5 @@ node.value.clone()?.downcast::<T>().ok()          // Option<Arc<T>>
 **Port rule:** a pointer that may be null is an `Option<&T>`; each null check before use becomes `?`.
 
 ## Learn more
+
 - [`Any::downcast_ref`](https://doc.rust-lang.org/std/any/trait.Any.html#method.downcast_ref) · [`Arc::downcast`](https://doc.rust-lang.org/std/sync/struct.Arc.html#method.downcast)
-
-## Performance
-
-`get` is `O(len(key) × log fan-out)`: one ordered-map lookup per character, independent of how many keys the trie holds. Nothing is allocated or locked.
-
-**Measure it.** Look up the same 10-character key in tries of 100 and 1 000 000 keys: the time is the same.
-
-## Hints
-
-### The walk and the check are two steps
-
-Reaching the node for the last character does not mean the key is stored: check the node's value separately.
-
-### Do not unwrap the downcast
-
-A value of another type is a normal answer (`None`), not a bug. Keep the `Option` flowing.

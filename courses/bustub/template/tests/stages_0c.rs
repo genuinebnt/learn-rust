@@ -3,7 +3,10 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier};
 
+use std::collections::HashSet;
+
 use bustub::primer::robin_hood_hash_set::{RobinHoodHash, RobinHoodHashSet};
+use proptest::prelude::*;
 
 fn set(capacity: usize) -> RobinHoodHashSet<i32> {
     RobinHoodHashSet::new(capacity).unwrap()
@@ -409,4 +412,92 @@ fn s0c_04_a_big_table_takes_two_hundred_thousand_inserts() {
     }
     assert_eq!(s.size(), 200_000, "a big table takes two hundred thousand inserts");
     assert!(s.max_probe_distance() < 200, "probe distances stay short at load factor 0.76: {}", s.max_probe_distance());
+}
+
+// ---- properties: the set against a hash set, and the Robin Hood invariants --------------------------------------------------------------
+
+fn pconfig() -> ProptestConfig {
+    ProptestConfig { cases: 64, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
+}
+
+#[derive(Clone, Debug)]
+enum HashOp {
+    Insert(i32),
+    Remove(i32),
+    Contains(i32),
+    Clear,
+}
+
+fn hash_op() -> impl Strategy<Value = HashOp> {
+    prop_oneof![
+        6 => (0..40i32).prop_map(HashOp::Insert),
+        3 => (0..40i32).prop_map(HashOp::Remove),
+        3 => (0..40i32).prop_map(HashOp::Contains),
+        1 => Just(HashOp::Clear),
+    ]
+}
+
+proptest! {
+    #![proptest_config(pconfig())]
+
+    /// Any inserts, removes, lookups and clears on a small table (so it fills up and tombstones pile up): the set answers as a `HashSet`
+    /// does, an insert fails exactly when the table is full of other keys, and every key found is reported at a bucket within the table.
+    #[test]
+    fn s0c_03_the_set_behaves_like_a_hash_set_with_a_capacity(capacity in 1usize..24, ops in prop::collection::vec(hash_op(), 1..150)) {
+        let s = set(capacity);
+        let mut model: HashSet<i32> = HashSet::new();
+        for op in ops {
+            match op {
+                HashOp::Insert(k) => {
+                    let expected = model.contains(&k) || model.len() < capacity;
+                    prop_assert_eq!(s.insert(&k), expected, "insert {} with {} of {} buckets live", k, model.len(), capacity);
+                    if expected { model.insert(k); }
+                }
+                HashOp::Remove(k) => prop_assert_eq!(s.remove(&k), model.remove(&k)),
+                HashOp::Contains(k) => prop_assert_eq!(s.contains(&k), model.contains(&k)),
+                HashOp::Clear => { s.clear(); model.clear(); }
+            }
+            prop_assert_eq!(s.size(), model.len());
+            prop_assert_eq!(s.load_factor(), model.len() as f64 / capacity as f64);
+            for k in 0..40 {
+                prop_assert_eq!(s.contains(&k), model.contains(&k), "key {}", k);
+                let b = s.get_bucket(&k);
+                prop_assert_eq!(b < capacity, model.contains(&k), "the bucket of {} is {}", k, b);
+            }
+        }
+    }
+
+    /// With inserts only (no tombstones yet) the table is a proper **Robin Hood** table: a key sits at a distinct bucket; every bucket
+    /// between its home and its place is taken (no gaps in a probe sequence); and walking along a run of taken buckets, a key is never
+    /// more than one step further from its home than the key before it (richer keys never sit behind poorer ones).
+    #[test]
+    fn s0c_02_inserts_alone_leave_a_robin_hood_table(capacity in 2usize..40, keys in prop::collection::vec(0..400i32, 0..60)) {
+        let s = set(capacity);
+        let mut live: Vec<i32> = vec![];
+        for k in keys {
+            if s.insert(&k) && !live.contains(&k) { live.push(k); }
+        }
+        let mut at: Vec<Option<i32>> = vec![None; capacity];
+        for k in &live {
+            let b = s.get_bucket(k);
+            prop_assert!(b < capacity);
+            prop_assert!(at[b].is_none(), "two keys in bucket {}", b);
+            at[b] = Some(*k);
+        }
+        let dist = |k: &i32, b: usize| s.probe_distance(s.home_bucket(k), b);
+        for k in &live {
+            let b = s.get_bucket(k);
+            for d in 0..dist(k, b) {
+                let between = (s.home_bucket(k) + d) % capacity;
+                prop_assert!(at[between].is_some(), "a gap at bucket {} on the way to {}", between, k);
+            }
+        }
+        for b in 0..capacity {
+            let next = (b + 1) % capacity;
+            if let (Some(x), Some(y)) = (&at[b], &at[next]) {
+                // wrapping the end of the table starts a new run only if the first key sits at its home; the rule holds across it too
+                prop_assert!(dist(y, next) <= dist(x, b) + 1, "{} at {} is {} from home, but {} behind it is {}", x, b, dist(x, b), y, dist(y, next));
+            }
+        }
+    }
 }

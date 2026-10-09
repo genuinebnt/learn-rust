@@ -127,7 +127,7 @@ fn copy_out_then_work_outside_the_lock() {
 - **1f:** the buffer pool drops its latch before waiting on the disk.
 - **3f / 3g:** executors clone tuples into batches deliberately, and nothing else.
 - **4b-02:** `modify_tuple` is early returns, not nesting.
-- **0a-04:** the store does its work outside the root lock.
+- **0a-03:** the store does its work outside the root lock.
 
 ### Where it is used
 

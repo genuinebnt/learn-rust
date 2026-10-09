@@ -1,7 +1,8 @@
 id = "0b-01"
-title = "Insert and contains"
+title = "A skip list: search, insert and contains"
 kind = "build"
-difficulty = "medium"
+difficulty = "hard"
 tests = ["stages_0b::s0b_01"]
 learn = ["searching with an update vector", "splicing a node into several levels", "index links in an arena"]
-concepts = ["skip-lists", "arenas-and-generational-handles", "generics-and-static-dispatch", "allocation-and-cache-friendly-code"]
+concepts = []
+concepts_optional = ["skip-lists", "arenas-and-generational-handles", "generics-and-static-dispatch", "allocation-and-cache-friendly-code"]

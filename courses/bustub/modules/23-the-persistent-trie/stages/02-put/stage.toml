@@ -1,7 +1,0 @@
-id = "0a-02"
-title = "Put: copying the path"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_0a::s0a_02"]
-learn = ["path copying: new nodes on the path, shared nodes elsewhere", "recursion that returns the replacement node", "Arc::ptr_eq to prove sharing"]
-concepts = ["persistent-data-structures-and-path-copying", "tries", "smart-pointers-box-rc-arc"]

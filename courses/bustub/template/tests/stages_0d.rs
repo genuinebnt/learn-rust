@@ -1,10 +1,12 @@
 //! Tests for module 0d: sketches and a CRDT: a count-min sketch, HyperLogLog and an observed-remove set.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use bustub::primer::count_min_sketch::CountMinSketch;
 use bustub::primer::hyperloglog::{HyperLogLog, HyperLogLogPresto};
 use bustub::primer::orset::{ORSet, ORSetDriver};
+use proptest::prelude::*;
 
 fn cms<K: std::hash::Hash>(width: u32, depth: u32) -> CountMinSketch<K> {
     CountMinSketch::new(width, depth).unwrap()
@@ -104,10 +106,10 @@ fn s0d_01_each_row_hashes_differently_but_always_the_same_way() {
     assert!(distinct.len() >= 5, "rows should not all pick the same column: {columns:?}");
 }
 
-// ---- 0d-02: clear, merge and top-k ------------------------------------------------------------------------------------------------------------
+// ---- 0d-01: clear, merge and top-k ------------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s0d_02_clear_resets_every_count() {
+fn s0d_01_clear_resets_every_count() {
     let s: CountMinSketch<i32> = cms(200, 10);
     for (item, times) in [(1, 15), (2, 10), (3, 8)] {
         for _ in 0..times {
@@ -122,7 +124,7 @@ fn s0d_02_clear_resets_every_count() {
 }
 
 #[test]
-fn s0d_02_merge_adds_the_counts_of_two_sketches() {
+fn s0d_01_merge_adds_the_counts_of_two_sketches() {
     let (a, b): (CountMinSketch<String>, CountMinSketch<String>) = (cms(250, 8), cms(250, 8));
     let key = |x: &str| x.to_string();
     for (item, times) in [("055", 5), ("4987", 2), ("3125", 3), ("2256", 1)] {
@@ -143,7 +145,7 @@ fn s0d_02_merge_adds_the_counts_of_two_sketches() {
 }
 
 #[test]
-fn s0d_02_merge_with_collisions_and_with_incompatible_sketches() {
+fn s0d_01_merge_with_collisions_and_with_incompatible_sketches() {
     let (a, b): (CountMinSketch<i32>, CountMinSketch<i32>) = (cms(1, 20), cms(1, 20));
     for k in [1, 2, 5] {
         a.insert(&k);
@@ -160,7 +162,7 @@ fn s0d_02_merge_with_collisions_and_with_incompatible_sketches() {
 }
 
 #[test]
-fn s0d_02_top_k_orders_the_candidates_by_estimated_count() {
+fn s0d_01_top_k_orders_the_candidates_by_estimated_count() {
     for iter in 1..10u32 {
         let s: CountMinSketch<String> = cms(10, 3);
         for (item, times) in [("frequent", iter + 4), ("medium", iter + 2), ("rare", iter)] {
@@ -175,7 +177,7 @@ fn s0d_02_top_k_orders_the_candidates_by_estimated_count() {
 }
 
 #[test]
-fn s0d_02_top_k_keeps_at_most_k_and_at_most_the_candidates() {
+fn s0d_01_top_k_keeps_at_most_k_and_at_most_the_candidates() {
     let s: CountMinSketch<i32> = cms(200, 15);
     for (item, times) in [(1, 1), (2, 5), (3, 3), (4, 9)] {
         for _ in 0..times {
@@ -190,7 +192,7 @@ fn s0d_02_top_k_keeps_at_most_k_and_at_most_the_candidates() {
 }
 
 #[test]
-fn s0d_02_top_k_tracks_a_sketch_that_keeps_counting() {
+fn s0d_01_top_k_tracks_a_sketch_that_keeps_counting() {
     // BusTub's TopKDynamicTest: the same sketch gets more and more inserts
     let cases: [[u32; 4]; 6] = [[1, 2, 3, 4], [7, 5, 3, 1], [2, 2, 5, 7], [6, 6, 2, 2], [1, 3, 6, 6], [400, 200, 300, 100]];
     let expected: [[i32; 3]; 6] = [[4, 3, 2], [1, 2, 3], [4, 3, 1], [1, 2, 4], [4, 3, 2], [1, 3, 2]];
@@ -206,10 +208,10 @@ fn s0d_02_top_k_tracks_a_sketch_that_keeps_counting() {
     }
 }
 
-// ---- 0d-03: HyperLogLog: registers ---------------------------------------------------------------------------------------------------------
+// ---- 0d-02: HyperLogLog: registers ---------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s0d_03_the_register_is_the_top_bits_of_the_hash() {
+fn s0d_02_the_register_is_the_top_bits_of_the_hash() {
     let h: HyperLogLog<i64> = HyperLogLog::new(3);
     assert_eq!(h.register_index(0), 0, "the register is the top bits of the hash");
     assert_eq!(h.register_index(u64::MAX), 7, "the register is the top bits of the hash");
@@ -220,7 +222,7 @@ fn s0d_03_the_register_is_the_top_bits_of_the_hash() {
 }
 
 #[test]
-fn s0d_03_the_run_length_is_the_position_of_the_leftmost_one_after_the_register_bits() {
+fn s0d_02_the_run_length_is_the_position_of_the_leftmost_one_after_the_register_bits() {
     let h: HyperLogLog<i64> = HyperLogLog::new(3);
     // 3 register bits, then 61 bits
     assert_eq!(h.position_of_leftmost_one(0b000_1 << 60), 1, "the run length is the position of the leftmost one after the register bits");
@@ -231,7 +233,7 @@ fn s0d_03_the_run_length_is_the_position_of_the_leftmost_one_after_the_register_
 }
 
 #[test]
-fn s0d_03_with_no_register_bits_all_64_bits_count() {
+fn s0d_02_with_no_register_bits_all_64_bits_count() {
     let h: HyperLogLog<i64> = HyperLogLog::new(0);
     assert_eq!(h.position_of_leftmost_one(1 << 63), 1, "with no register bits all 64 bits count");
     assert_eq!(h.position_of_leftmost_one(1), 64, "with no register bits all 64 bits count");
@@ -239,7 +241,7 @@ fn s0d_03_with_no_register_bits_all_64_bits_count() {
 }
 
 #[test]
-fn s0d_03_adding_a_value_raises_exactly_one_register_to_its_rank() {
+fn s0d_02_adding_a_value_raises_exactly_one_register_to_its_rank() {
     let h: HyperLogLog<i64> = HyperLogLog::new(4);
     assert!(h.registers().iter().all(|r| *r == 0), "adding a value raises exactly one register to its rank: expected `h.registers().iter().all(|r| *r == 0)`");
     h.add_elem(&42);
@@ -249,7 +251,7 @@ fn s0d_03_adding_a_value_raises_exactly_one_register_to_its_rank() {
 }
 
 #[test]
-fn s0d_03_adding_the_same_value_twice_changes_nothing() {
+fn s0d_02_adding_the_same_value_twice_changes_nothing() {
     let h: HyperLogLog<i64> = HyperLogLog::new(4);
     h.add_elem(&42);
     let once = h.registers();
@@ -260,7 +262,7 @@ fn s0d_03_adding_the_same_value_twice_changes_nothing() {
 }
 
 #[test]
-fn s0d_03_a_register_only_ever_grows() {
+fn s0d_02_a_register_only_ever_grows() {
     let h: HyperLogLog<i64> = HyperLogLog::new(2);
     let mut before = h.registers();
     for i in 0..500 {
@@ -273,14 +275,14 @@ fn s0d_03_a_register_only_ever_grows() {
 }
 
 #[test]
-fn s0d_03_a_negative_size_has_no_registers_and_ignores_everything() {
+fn s0d_02_a_negative_size_has_no_registers_and_ignores_everything() {
     let none: HyperLogLog<i64> = HyperLogLog::new(-2);
     none.add_elem(&1);
     assert!(none.registers().is_empty(), "a negative size has no registers and ignores everything: expected `none.registers().is_empty()`");
 }
 
 #[test]
-fn s0d_03_adding_is_thread_safe() {
+fn s0d_02_adding_is_thread_safe() {
     let h: Arc<HyperLogLog<i64>> = Arc::new(HyperLogLog::new(3));
     let handles: Vec<_> = (0..8)
         .map(|t| {
@@ -294,10 +296,10 @@ fn s0d_03_adding_is_thread_safe() {
     assert_eq!(h.registers(), sequential.registers(), "taking the maximum is order independent, so threads lose nothing");
 }
 
-// ---- 0d-04: HyperLogLog: the estimate --------------------------------------------------------------------------------------------------
+// ---- 0d-02: HyperLogLog: the estimate --------------------------------------------------------------------------------------------------
 
 #[test]
-fn s0d_04_an_empty_sketch_estimates_the_formula_on_all_zero_registers() {
+fn s0d_02_an_empty_sketch_estimates_the_formula_on_all_zero_registers() {
     let h: HyperLogLog<i64> = HyperLogLog::new(3);
     assert_eq!(h.cardinality(), 0, "nothing computed yet");
     h.compute_cardinality();
@@ -306,7 +308,7 @@ fn s0d_04_an_empty_sketch_estimates_the_formula_on_all_zero_registers() {
 }
 
 #[test]
-fn s0d_04_zero_register_bits_is_one_register() {
+fn s0d_02_zero_register_bits_is_one_register() {
     let h: HyperLogLog<i64> = HyperLogLog::new(0);
     h.compute_cardinality();
     assert_eq!(h.cardinality(), 0, "0.79402 rounded down");
@@ -320,14 +322,14 @@ fn s0d_04_zero_register_bits_is_one_register() {
 }
 
 #[test]
-fn s0d_04_a_negative_size_has_cardinality_zero() {
+fn s0d_02_a_negative_size_has_cardinality_zero() {
     let h: HyperLogLog<i64> = HyperLogLog::new(-2);
     h.compute_cardinality();
     assert_eq!(h.cardinality(), 0, "a negative size has cardinality zero");
 }
 
 #[test]
-fn s0d_04_the_estimate_is_close_for_many_distinct_values() {
+fn s0d_02_the_estimate_is_close_for_many_distinct_values() {
     let h: HyperLogLog<i64> = HyperLogLog::new(10); // 1024 registers: about 3% standard error
     for i in 0..100_000i64 {
         h.add_elem(&i);
@@ -340,7 +342,7 @@ fn s0d_04_the_estimate_is_close_for_many_distinct_values() {
 }
 
 #[test]
-fn s0d_04_strings_and_a_small_set_give_a_plausible_estimate() {
+fn s0d_02_strings_and_a_small_set_give_a_plausible_estimate() {
     let h: HyperLogLog<String> = HyperLogLog::new(8);
     for i in 0..2000 {
         h.add_elem(&format!("user-{i}"));
@@ -350,10 +352,10 @@ fn s0d_04_strings_and_a_small_set_give_a_plausible_estimate() {
     assert!((0.8..1.4).contains(&ratio), "estimate / truth = {ratio}");
 }
 
-// ---- 0d-05: HyperLogLog, Presto-style ---------------------------------------------------------------------------------------------------
+// ---- 0d-03: HyperLogLog, Presto-style ---------------------------------------------------------------------------------------------------
 
 #[test]
-fn s0d_05_a_run_of_18_trailing_zeros_is_split_into_dense_and_overflow_bits() {
+fn s0d_03_a_run_of_18_trailing_zeros_is_split_into_dense_and_overflow_bits() {
     // BusTub's PrestoCase1: two register bits would be 1; 262144 = 2^18 has top bit 0 (register 0) and 18 trailing zeros
     let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(1);
     assert_eq!(h.cardinality(), 0, "a run of 18 trailing zeros is split into dense and overflow bits");
@@ -365,7 +367,7 @@ fn s0d_05_a_run_of_18_trailing_zeros_is_split_into_dense_and_overflow_bits() {
 }
 
 #[test]
-fn s0d_05_zero_has_all_the_remaining_bits_as_trailing_zeros() {
+fn s0d_03_zero_has_all_the_remaining_bits_as_trailing_zeros() {
     let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(1);
     h.add_elem(&262144);
     h.add_elem(&0);
@@ -376,7 +378,7 @@ fn s0d_05_zero_has_all_the_remaining_bits_as_trailing_zeros() {
 }
 
 #[test]
-fn s0d_05_a_second_register_and_the_estimate_for_long_runs() {
+fn s0d_03_a_second_register_and_the_estimate_for_long_runs() {
     let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(1);
     h.add_elem(&262144);
     h.add_elem(&0);
@@ -395,7 +397,7 @@ fn s0d_05_a_second_register_and_the_estimate_for_long_runs() {
 }
 
 #[test]
-fn s0d_05_one_register_uses_all_64_bits() {
+fn s0d_03_one_register_uses_all_64_bits() {
     let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(0);
     h.add_elem(&65536);
     assert_eq!(h.dense_bucket()[0], 0, "one register uses all 64 bits");
@@ -410,7 +412,7 @@ fn s0d_05_one_register_uses_all_64_bits() {
 }
 
 #[test]
-fn s0d_05_threads_adding_in_any_order_leave_the_same_registers_as_one_thread() {
+fn s0d_03_threads_adding_in_any_order_leave_the_same_registers_as_one_thread() {
     let h: Arc<HyperLogLogPresto<i64>> = Arc::new(HyperLogLogPresto::new(2));
     let values: Vec<i64> = (0..64).map(|k| 1i64 << k).chain((0..64).map(|k| (1i64 << 62) | (1i64 << k))).collect();
     let handles: Vec<_> = (0..8)
@@ -442,7 +444,7 @@ fn s0d_05_threads_adding_in_any_order_leave_the_same_registers_as_one_thread() {
 }
 
 #[test]
-fn s0d_05_negative_size_and_strings() {
+fn s0d_03_negative_size_and_strings() {
     let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(-2);
     h.compute_cardinality();
     assert_eq!(h.cardinality(), 0, "negative size and strings");
@@ -456,10 +458,10 @@ fn s0d_05_negative_size_and_strings() {
     assert!((0.35..0.8).contains(&ratio), "estimate / truth = {ratio}");
 }
 
-// ---- 0d-06: the observed-remove set ---------------------------------------------------------------------------------------------------
+// ---- 0d-04: the observed-remove set ---------------------------------------------------------------------------------------------------
 
 #[test]
-fn s0d_06_add_and_remove_on_one_replica() {
+fn s0d_04_add_and_remove_on_one_replica() {
     let mut s: ORSet<i32> = ORSet::new();
     for i in 0..10 {
         assert!(!s.contains(&i), "add and remove on one replica: expected `!s.contains(&i)`");
@@ -475,7 +477,7 @@ fn s0d_06_add_and_remove_on_one_replica() {
 }
 
 #[test]
-fn s0d_06_adding_an_element_twice_with_two_ids_needs_one_remove() {
+fn s0d_04_adding_an_element_twice_with_two_ids_needs_one_remove() {
     let mut s: ORSet<String> = ORSet::new();
     s.add(&"a".to_string(), 1);
     s.add(&"a".to_string(), 2);
@@ -484,7 +486,7 @@ fn s0d_06_adding_an_element_twice_with_two_ids_needs_one_remove() {
 }
 
 #[test]
-fn s0d_06_adding_back_after_a_remove_works() {
+fn s0d_04_adding_back_after_a_remove_works() {
     let mut s: ORSet<i32> = ORSet::new();
     s.add(&1, 0);
     s.remove(&1);
@@ -493,7 +495,7 @@ fn s0d_06_adding_back_after_a_remove_works() {
 }
 
 #[test]
-fn s0d_06_removing_an_absent_element_is_harmless() {
+fn s0d_04_removing_an_absent_element_is_harmless() {
     let mut s: ORSet<i32> = ORSet::new();
     s.remove(&7);
     s.add(&7, 0);
@@ -501,7 +503,7 @@ fn s0d_06_removing_an_absent_element_is_harmless() {
 }
 
 #[test]
-fn s0d_06_other_elements_are_not_affected() {
+fn s0d_04_other_elements_are_not_affected() {
     let mut s: ORSet<i32> = ORSet::new();
     s.add(&1, 0);
     s.add(&2, 1);
@@ -509,10 +511,10 @@ fn s0d_06_other_elements_are_not_affected() {
     assert!(!s.contains(&1) && s.contains(&2), "other elements are not affected: expected `!s.contains(&1) && s.contains(&2)`");
 }
 
-// ---- 0d-07: merging, and a network of replicas ---------------------------------------------------------------------------------------------
+// ---- 0d-04: merging, and a network of replicas ---------------------------------------------------------------------------------------------
 
 #[test]
-fn s0d_07_merge_brings_in_adds_and_removes() {
+fn s0d_04_merge_brings_in_adds_and_removes() {
     let (mut a, mut b): (ORSet<i32>, ORSet<i32>) = (ORSet::new(), ORSet::new());
     a.add(&1, 0);
     b.add(&2, 1);
@@ -527,7 +529,7 @@ fn s0d_07_merge_brings_in_adds_and_removes() {
 }
 
 #[test]
-fn s0d_07_add_wins_over_a_concurrent_remove() {
+fn s0d_04_add_wins_over_a_concurrent_remove() {
     let (mut a, mut b): (ORSet<String>, ORSet<String>) = (ORSet::new(), ORSet::new());
     let c = "15-445".to_string();
     a.add(&c, 0);
@@ -540,7 +542,7 @@ fn s0d_07_add_wins_over_a_concurrent_remove() {
 }
 
 #[test]
-fn s0d_07_merging_twice_changes_nothing() {
+fn s0d_04_merging_twice_changes_nothing() {
     let (mut a, mut b): (ORSet<String>, ORSet<String>) = (ORSet::new(), ORSet::new());
     let s = |x: &str| x.to_string();
     a.add(&s("15-410"), 0);
@@ -559,7 +561,7 @@ fn s0d_07_merging_twice_changes_nothing() {
 }
 
 #[test]
-fn s0d_07_elements_lists_each_element_once_and_to_string_sorts_them() {
+fn s0d_04_elements_lists_each_element_once_and_to_string_sorts_them() {
     let mut s: ORSet<i32> = ORSet::new();
     s.add(&3, 0);
     s.add(&1, 1);
@@ -574,7 +576,7 @@ fn s0d_07_elements_lists_each_element_once_and_to_string_sorts_them() {
 }
 
 #[test]
-fn s0d_07_merge_order_does_not_matter() {
+fn s0d_04_merge_order_does_not_matter() {
     let mut replicas: Vec<ORSet<i32>> = (0..3).map(|_| ORSet::new()).collect();
     let mut uid = 0;
     for step in 0..30 {
@@ -596,10 +598,10 @@ fn s0d_07_merge_order_does_not_matter() {
     assert_eq!(left.to_string(), right.to_string(), "merge order does not matter");
 }
 
-// ---- 0d-08: BusTub's driver tests -------------------------------------------------------------------------------------------------------
+// ---- 0d-05: BusTub's driver tests -------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s0d_08_add_remove_and_sync_across_three_nodes() {
+fn s0d_05_add_remove_and_sync_across_three_nodes() {
     let mut d: ORSetDriver<i32> = ORSetDriver::new(3);
     for i in 0..10usize {
         d.add(i % 3, &(i as i32));
@@ -618,7 +620,7 @@ fn s0d_08_add_remove_and_sync_across_three_nodes() {
 }
 
 #[test]
-fn s0d_08_merge_test_two_nodes_agree_after_sync() {
+fn s0d_05_merge_test_two_nodes_agree_after_sync() {
     let mut d: ORSetDriver<i32> = ORSetDriver::new(2);
     d.add(0, &1);
     d.add(1, &1);
@@ -638,7 +640,7 @@ fn s0d_08_merge_test_two_nodes_agree_after_sync() {
 }
 
 #[test]
-fn s0d_08_removing_everything_and_adding_it_back() {
+fn s0d_05_removing_everything_and_adding_it_back() {
     let mut d: ORSetDriver<i32> = ORSetDriver::new(3);
     for i in 0..10usize {
         d.add(i % 3, &(i as i32));
@@ -662,7 +664,7 @@ fn s0d_08_removing_everything_and_adding_it_back() {
 }
 
 #[test]
-fn s0d_08_adds_win_a_lot() {
+fn s0d_05_adds_win_a_lot() {
     let mut d: ORSetDriver<i32> = ORSetDriver::new(3);
     for i in 0..10 {
         for n in 0..3 {
@@ -680,7 +682,7 @@ fn s0d_08_adds_win_a_lot() {
 }
 
 #[test]
-fn s0d_08_a_lost_network_still_converges_later() {
+fn s0d_05_a_lost_network_still_converges_later() {
     let mut d: ORSetDriver<i32> = ORSetDriver::new(3);
     for i in 0..10 {
         d.add((i % 2) as usize, &i);
@@ -706,5 +708,237 @@ fn s0d_08_a_lost_network_still_converges_later() {
     d.sync();
     for i in 10..20 {
         assert!((0..3).all(|n| d.contains(n, &i)), "node 0's fresh add beats node 2's remove of the old one");
+    }
+}
+
+// ---- properties ----------------------------------------------------------------------------------------------------------------------
+
+fn pconfig() -> ProptestConfig {
+    ProptestConfig { cases: 64, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() }
+}
+
+proptest! {
+    #![proptest_config(pconfig())]
+
+    /// A count-min sketch of any size **never counts an item lower than it occurred**, however many items collide; with a width that gives
+    /// every distinct item a column of its own in some row it is exact; and counts never decrease as the stream grows.
+    #[test]
+    fn s0d_01_the_estimate_is_never_below_the_truth(width in 1u32..40, depth in 1u32..5, stream in prop::collection::vec(0u16..60, 0..150)) {
+        let s = cms::<u16>(width, depth);
+        let mut seen: BTreeMap<u16, u32> = BTreeMap::new();
+        let mut last: BTreeMap<u16, u32> = BTreeMap::new();
+        for x in &stream {
+            s.insert(x);
+            *seen.entry(*x).or_insert(0) += 1;
+            for (item, truth) in &seen {
+                let est = s.count(item);
+                prop_assert!(est >= *truth, "{} counted {} but occurred {} times", item, est, truth);
+                prop_assert!(est >= last.get(item).copied().unwrap_or(0), "the count of {} went down", item);
+                last.insert(*item, est);
+            }
+        }
+        let total = stream.len() as u32;
+        for item in 0..60u16 {
+            prop_assert!(s.count(&item) <= total, "no item can be counted more often than there were insertions");
+        }
+    }
+
+    /// Merging the sketch of one stream into the sketch of another counts exactly like the sketch of the two streams together, for every
+    /// item; merging is commutative; and `clear` gives back the empty sketch.
+    #[test]
+    fn s0d_01_merge_equals_the_sketch_of_both_streams(width in 1u32..30, depth in 1u32..4, a in prop::collection::vec(0u16..50, 0..80), b in prop::collection::vec(0u16..50, 0..80)) {
+        let (sa, sb, both, rev) = (cms::<u16>(width, depth), cms::<u16>(width, depth), cms::<u16>(width, depth), cms::<u16>(width, depth));
+        for x in &a { sa.insert(x); both.insert(x); }
+        for x in &b { sb.insert(x); both.insert(x); }
+        sa.merge(&sb).unwrap();
+        for x in b.iter().chain(&a) { rev.insert(x); }
+        for item in 0..50u16 {
+            prop_assert_eq!(sa.count(&item), both.count(&item), "item {}", item);
+            prop_assert_eq!(rev.count(&item), both.count(&item), "order of the streams does not matter");
+        }
+        sa.clear();
+        for item in 0..50u16 {
+            prop_assert_eq!(sa.count(&item), 0);
+        }
+    }
+
+    /// `top_k`: at most `k` answers, never more than there are candidates, each with the sketch's own count, sorted by count (highest
+    /// first, ties in the order of the candidates), and nobody left out has a higher count than the last one returned.
+    #[test]
+    fn s0d_01_top_k_returns_the_best_candidates_in_order(stream in prop::collection::vec(0u16..20, 0..100), candidates in prop::collection::btree_set(0u16..25, 0..20).prop_map(|s| s.into_iter().rev().collect::<Vec<_>>()), k in 0u16..25) {
+        let s = cms::<u16>(16, 3);
+        for x in &stream { s.insert(x); }
+        let top = s.top_k(k, &candidates);
+        prop_assert_eq!(top.len(), (k as usize).min(candidates.len()));
+        for (item, count) in &top {
+            prop_assert_eq!(*count, s.count(item));
+        }
+        prop_assert!(top.windows(2).all(|w| w[0].1 >= w[1].1), "sorted by count, highest first");
+        if let Some((_, floor)) = top.last() {
+            for c in &candidates {
+                let included = top.iter().any(|(i, _)| i == c);
+                prop_assert!(included || s.count(c) <= *floor, "{} counted {} was left out below {}", c, s.count(c), floor);
+            }
+        }
+        // ties keep the order of the candidates
+        for w in top.windows(2) {
+            if w[0].1 == w[1].1 {
+                let pos = |x: &u16| candidates.iter().position(|c| c == x).unwrap();
+                prop_assert!(pos(&w[0].0) <= pos(&w[1].0));
+            }
+        }
+    }
+
+    /// HyperLogLog does not depend on the order of the stream or on repeats (the registers are the same), registers only ever grow,
+    /// and the estimate of a stream is the estimate of its distinct values.
+    #[test]
+    fn s0d_02_registers_depend_only_on_the_set_of_values(values in prop::collection::vec(any::<i64>(), 0..200), bits in 0i16..9, shuffle in any::<u64>()) {
+        let once: HyperLogLog<i64> = HyperLogLog::new(bits);
+        let mut last = once.registers();
+        for v in &values {
+            once.add_elem(v);
+            let now = once.registers();
+            prop_assert!(now.iter().zip(&last).all(|(n, l)| n >= l), "a register went down");
+            last = now;
+        }
+        let mut again: Vec<i64> = values.iter().copied().chain(values.iter().copied()).collect();
+        let mut x = shuffle | 1;
+        let mut tagged: Vec<(u64, i64)> = again.iter().map(|v| { x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407); (x >> 20, *v) }).collect();
+        tagged.sort();
+        again = tagged.into_iter().map(|t| t.1).collect();
+        let other: HyperLogLog<i64> = HyperLogLog::new(bits);
+        for v in &again { other.add_elem(v); }
+        prop_assert_eq!(other.registers(), once.registers());
+        once.compute_cardinality();
+        other.compute_cardinality();
+        prop_assert_eq!(once.cardinality(), other.cardinality());
+        prop_assert!(once.registers().iter().all(|r| *r as u32 <= 64 - bits as u32 + 1));
+    }
+
+    /// The Presto-style sketch keeps the same information as one register per value: whatever the order, the registers rebuilt from the
+    /// dense and the overflow bits are the longest run of trailing zeros of the values that fall in them, for hashes we choose.
+    #[test]
+    fn s0d_03_dense_and_overflow_bits_hold_the_longest_run(values in prop::collection::vec(any::<u64>(), 0..120), bits in 0i16..6) {
+        let h: HyperLogLogPresto<i64> = HyperLogLogPresto::new(bits);
+        let b = bits as u32;
+        let mut model = vec![0u32; 1usize << bits];
+        for v in &values {
+            h.add_elem(&(*v as i64));
+            let idx = if b == 0 { 0 } else { (*v >> (64 - b)) as usize };
+            let rest = 64 - b;
+            let tz = if rest == 64 { v.trailing_zeros() } else { (v & ((1u64 << rest) - 1)).trailing_zeros().min(rest) };
+            model[idx] = model[idx].max(tz);
+        }
+        let dense = h.dense_bucket();
+        for (i, want) in model.iter().enumerate() {
+            let got = dense[i] as u32 | ((h.overflow_bucket_of(i as u16) as u32) << 4);
+            prop_assert_eq!(got, *want, "register {}", i);
+            prop_assert!(dense[i] < 16, "the dense part is 4 bits");
+            prop_assert!(h.overflow_bucket_of(i as u16) < 8, "the overflow part is 3 bits");
+        }
+    }
+}
+
+#[test]
+fn s0d_02_the_estimate_tracks_the_number_of_distinct_values_across_sizes() {
+    // the course's constant is about 10% above the textbook one for these sizes: the ratio runs high but stays in a band
+    for (n, bits) in [(3_000i64, 8i16), (10_000, 8), (30_000, 10), (60_000, 12)] {
+        let h: HyperLogLog<i64> = HyperLogLog::new(bits);
+        for i in 0..n {
+            h.add_elem(&(i * 7919 + 13));
+        }
+        h.compute_cardinality();
+        let ratio = h.cardinality() as f64 / n as f64;
+        assert!((0.8..1.4).contains(&ratio), "{n} distinct values with {bits} bits: estimate / truth = {ratio}");
+    }
+}
+
+#[derive(Clone, Debug)]
+enum SetOp {
+    Add(u8),
+    Remove(u8),
+}
+
+fn replica_from(ops: &[SetOp], uids: &mut i64) -> ORSet<u8> {
+    let mut r = ORSet::new();
+    for op in ops {
+        match op {
+            SetOp::Add(e) => { r.add(e, *uids); *uids += 1; }
+            SetOp::Remove(e) => r.remove(e),
+        }
+    }
+    r
+}
+
+fn state(r: &ORSet<u8>) -> BTreeSet<u8> {
+    (0..8u8).filter(|e| r.contains(e)).collect()
+}
+
+fn ops_strategy() -> impl Strategy<Value = Vec<SetOp>> {
+    prop::collection::vec(prop_oneof![3 => (0..8u8).prop_map(SetOp::Add), 2 => (0..8u8).prop_map(SetOp::Remove)], 0..25)
+}
+
+proptest! {
+    #![proptest_config(pconfig())]
+
+    /// The laws of a CRDT: merge is **commutative**, **associative** and **idempotent**, for replicas that did arbitrary adds and removes
+    /// independently (so any order of merging, any number of times, gives one set).
+    #[test]
+    fn s0d_04_merge_is_commutative_associative_and_idempotent(a in ops_strategy(), b in ops_strategy(), c in ops_strategy()) {
+        let mut uid = 0;
+        let (ra, rb, rc) = (replica_from(&a, &mut uid), replica_from(&b, &mut uid), replica_from(&c, &mut uid));
+        let merged = |x: &ORSet<u8>, y: &ORSet<u8>| { let mut m = x.clone(); m.merge(y); m };
+        prop_assert_eq!(state(&merged(&ra, &rb)), state(&merged(&rb, &ra)), "commutative");
+        prop_assert_eq!(state(&merged(&merged(&ra, &rb), &rc)), state(&merged(&ra, &merged(&rb, &rc))), "associative");
+        prop_assert_eq!(state(&merged(&ra, &ra)), state(&ra), "idempotent");
+        let once = merged(&ra, &rb);
+        prop_assert_eq!(state(&merged(&once, &rb)), state(&once), "merging the same replica again changes nothing");
+        // the listing agrees with `contains`, and lists each element once
+        let listed = once.elements();
+        prop_assert_eq!(listed.iter().copied().collect::<BTreeSet<_>>(), state(&once));
+        prop_assert_eq!(listed.len(), state(&once).len(), "each element once");
+    }
+
+    /// **Add wins**: an element added at one replica and removed at another that never saw the add is in the set after they merge; a remove
+    /// that did see the add removes it, and adding it again (with a new id) brings it back.
+    #[test]
+    fn s0d_04_a_remove_only_removes_the_adds_it_has_seen(e in 0..8u8) {
+        let (mut a, mut b) = (ORSet::new(), ORSet::new());
+        a.add(&e, 1);
+        b.remove(&e); // b has never seen the add
+        a.merge(&b);
+        prop_assert!(a.contains(&e), "the concurrent remove did not see the add");
+        let mut c = a.clone();
+        c.remove(&e); // c has seen it
+        prop_assert!(!c.contains(&e));
+        c.add(&e, 2);
+        prop_assert!(c.contains(&e), "a new add brings it back");
+        a.merge(&c);
+        prop_assert!(a.contains(&e));
+    }
+
+    /// A network of replicas with random adds, removes, saves, loads and lost messages: after one final full sync (twice, so that nothing
+    /// is in flight) **every replica holds the same set**, and it contains every element that was added after the last remove of it on
+    /// the replica where it was removed... checked here as agreement plus: an element never removed anywhere is present.
+    #[test]
+    fn s0d_05_replicas_converge_after_a_sync_whatever_the_network_did(steps in prop::collection::vec((0usize..3, 0u8..4, 0u8..8), 1..60)) {
+        let mut net: ORSetDriver<u8> = ORSetDriver::new(3);
+        let mut ever_removed: BTreeSet<u8> = BTreeSet::new();
+        let mut ever_added: BTreeSet<u8> = BTreeSet::new();
+        for (node, what, elem) in steps {
+            match what {
+                0 => { net.add(node, &elem); ever_added.insert(elem); }
+                1 => { net.remove(node, &elem); ever_removed.insert(elem); }
+                2 => net.save(node),
+                _ => net.load(node),
+            }
+        }
+        net.sync();
+        net.sync();
+        let states: Vec<BTreeSet<u8>> = (0..3).map(|n| (0..8u8).filter(|e| net.contains(n, e)).collect()).collect();
+        prop_assert!(states.windows(2).all(|w| w[0] == w[1]), "the replicas disagree: {:?}", states);
+        for e in ever_added.difference(&ever_removed) {
+            prop_assert!(states[0].contains(e), "{} was added and never removed anywhere", e);
+        }
     }
 }

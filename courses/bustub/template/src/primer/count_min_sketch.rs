@@ -13,30 +13,23 @@ use crate::common::exception::{Exception, ExceptionType, Result};
 const SEED_BASE: u64 = 15445;
 
 pub struct CountMinSketch<K> {
-    width: u32,
-    depth: u32,
-    /// `depth` rows of `width` counters, row after row. Atomic, so that many threads can add at once without a lock.
-    counters: Vec<AtomicU32>,
     _key: PhantomData<fn(&K)>,
+    // TODO(0d-01): your fields: the dimensions and the counters (atomic counters let many threads add without a lock)
 }
 
 impl<K: Hash> CountMinSketch<K> {
     /// A sketch of `depth` rows of `width` counters, all zero. A zero width or depth is an error.
     pub fn new(width: u32, depth: u32) -> Result<CountMinSketch<K>> {
-        todo!("0d-01: an error for a zero width or depth; otherwise width x depth atomic counters, all zero")
+        todo!("0d-01: an error for a zero width or depth; otherwise width x depth counters, all zero")
     }
 
-    /// The column of `item` in row `row`: a hash of the item seeded by the row, modulo the width. Given: every row hashes differently.
+    /// The column of `item` in row `row`: a hash of the item seeded by the row, modulo the width. Every row must hash differently
+    /// (the same item lands in different columns of different rows) and always the same way (the same row and item: the same column).
     pub fn column(&self, row: u32, item: &K) -> usize {
-        let mut hasher = DefaultHasher::new();
-        (SEED_BASE, row as u64).hash(&mut hasher);
-        item.hash(&mut hasher);
-        (hasher.finish() % self.width as u64) as usize
+        todo!("0d-01: hash (SEED_BASE, row) and then the item with a DefaultHasher; modulo the width")
     }
 
-    fn cell(&self, row: u32, item: &K) -> &AtomicU32 {
-        &self.counters[row as usize * self.width as usize + self.column(row, item)]
-    }
+    // TODO(0d-01): helpers of your own (the counter of an item in a row)
 
     /// Counts one more occurrence of `item`.
     pub fn insert(&self, item: &K) {
@@ -50,16 +43,13 @@ impl<K: Hash> CountMinSketch<K> {
 
     /// Back to the empty sketch.
     pub fn clear(&self) {
-        todo!("0d-02: every counter to zero")
+        todo!("0d-01: every counter to zero")
     }
 
     /// Adds the counters of `other` to this sketch's, so that it counts both streams. The sketches must have the same dimensions
     /// (error otherwise): the same hash functions put an item in the same columns.
     pub fn merge(&self, other: &CountMinSketch<K>) -> Result<()> {
-        if self.width != other.width || self.depth != other.depth {
-            return Err(Exception::new(ExceptionType::Invalid, "Incompatible CountMinSketch dimensions for merge."));
-        }
-        todo!("0d-02: add every counter of `other` to the same counter here")
+        todo!("0d-01: an error (Invalid) if the widths or depths differ; otherwise add every counter of `other` to the same counter here")
     }
 
     /// The `k` candidates with the highest estimated counts, as `(item, count)` pairs in descending order of count (candidates with equal
@@ -68,6 +58,6 @@ impl<K: Hash> CountMinSketch<K> {
     where
         K: Clone,
     {
-        todo!("0d-02: the estimated count of every candidate; sort by count, highest first (stably); keep the first k")
+        todo!("0d-01: the estimated count of every candidate; sort by count, highest first (stably); keep the first k")
     }
 }

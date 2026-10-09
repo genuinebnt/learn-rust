@@ -146,7 +146,7 @@ fn a_value_that_is_not_clonable_can_live_behind_any() {
 ### In the exercises
 
 - **0a-01:** `Trie::get` and `get_shared`.
-- **0a-02 / 0a-03:** `put` and `remove`, with pruning.
+- **0a-02:** `put` and `remove`, with pruning.
 
 ### Where it is used
 

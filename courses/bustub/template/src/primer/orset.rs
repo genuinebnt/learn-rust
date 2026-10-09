@@ -13,38 +13,36 @@ pub type Uid = i64;
 
 #[derive(Clone, Debug, Default)]
 pub struct ORSet<T: Ord + Clone> {
-    /// Every `(element, uid)` pair ever added.
-    adds: BTreeSet<(T, Uid)>,
-    /// The pairs that have been removed.
-    removed: BTreeSet<(T, Uid)>,
+    _set: std::marker::PhantomData<T>,
+    // TODO(0d-04): your fields: what has been added (each add has a unique id) and what has been removed
 }
 
 impl<T: Ord + Clone + Display> ORSet<T> {
     pub fn new() -> ORSet<T> {
-        ORSet { adds: BTreeSet::new(), removed: BTreeSet::new() }
+        todo!("0d-04: an empty set")
     }
 
     pub fn contains(&self, elem: &T) -> bool {
-        todo!("0d-06: is there an add pair for elem that is not in the removed set?")
+        todo!("0d-04: is there an add pair for elem that is not in the removed set?")
     }
 
     pub fn add(&mut self, elem: &T, uid: Uid) {
-        todo!("0d-06: remember the pair (elem, uid)")
+        todo!("0d-04: remember the pair (elem, uid)")
     }
 
     /// Removes `elem` as far as this replica has seen it: every add pair for it that exists now is marked removed.
     pub fn remove(&mut self, elem: &T) {
-        todo!("0d-06: mark every add pair of elem that is here as removed")
+        todo!("0d-04: mark every add pair of elem that is here as removed")
     }
 
     /// Takes in what `other` knows: all its adds and all its removals.
     pub fn merge(&mut self, other: &ORSet<T>) {
-        todo!("0d-07: the union of the add pairs and the union of the removed pairs")
+        todo!("0d-04: the union of the add pairs and the union of the removed pairs")
     }
 
     /// The elements in the set, each once.
     pub fn elements(&self) -> Vec<T> {
-        todo!("0d-07: the elements of the pairs that are not removed, without repeats")
+        todo!("0d-04: the elements of the pairs that are not removed, without repeats")
     }
 
     /// `{a, b, c}` with the elements sorted (given).

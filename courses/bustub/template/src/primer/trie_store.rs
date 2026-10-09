@@ -22,10 +22,8 @@ impl<T> Deref for ValueGuard<T> {
 
 #[derive(Default)]
 pub struct TrieStore {
-    /// The current version. Held only to clone or replace the pointer, never while reading or building.
-    root: Mutex<Trie>,
-    /// Makes writers take turns, so that two writes cannot both start from the same version and lose one of the changes.
-    write_lock: Mutex<()>,
+    _store: (),
+    // TODO(0a-03): your fields: the current version of the trie behind a lock, and whatever makes writers take turns (the type must stay Default)
 }
 
 impl TrieStore {
@@ -35,14 +33,14 @@ impl TrieStore {
 
     /// Looks `key` up in the current version.
     pub fn get<T: Any + Send + Sync>(&self, key: &str) -> Option<ValueGuard<T>> {
-        todo!("0a-04: take the root lock only to clone the current trie; read from the clone with get_shared; wrap the value in a guard")
+        todo!("0a-03: take the root lock only to clone the current trie; read from the clone with get_shared; wrap the value in a guard")
     }
 
     pub fn put<T: Any + Send + Sync>(&self, key: &str, value: T) {
-        todo!("0a-04: take the write lock for the whole operation; clone the current root; build the new trie without the root lock held; then take the root lock only to publish it")
+        todo!("0a-03: take the write lock for the whole operation; clone the current root; build the new trie without the root lock held; then take the root lock only to publish it")
     }
 
     pub fn remove(&self, key: &str) {
-        todo!("0a-04: as put, with remove")
+        todo!("0a-03: as put, with remove")
     }
 }

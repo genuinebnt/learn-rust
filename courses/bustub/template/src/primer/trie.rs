@@ -65,7 +65,7 @@ impl Trie {
     /// A new trie without the value under `key`. A node left with no value and no children is removed, and so on up the path, so an
     /// emptied trie has no root. A key that is not in the trie gives a trie equal to `self`.
     pub fn remove(&self, key: &str) -> Trie {
-        todo!("0a-03: a recursive helper that returns the node for the new trie (or none if it became empty), or reports the key is missing; copy the nodes on the path, clear the value at the end, and drop children that became empty")
+        todo!("0a-02: a recursive helper that returns the node for the new trie (or none if it became empty), or reports the key is missing; copy the nodes on the path, clear the value at the end, and drop children that became empty")
     }
 
 }

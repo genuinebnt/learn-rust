@@ -1618,25 +1618,25 @@ async fn a_stage_keeps_its_run_history_newest_first_capped_at_ten(db: PgPool) {
 #[sqlx::test(migrator = "anneal_api::MIGRATOR")]
 async fn concepts_can_be_marked_read_and_unread(db: PgPool) {
     let app = test_app(db);
-    // a stage whose concepts are required (the rewritten modules' are all optional reading; the primer modules are still the old shape)
-    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/0a-01", None).await;
+    // a stage with concepts: every module is written with its concepts optional now, so `required` follows the stage's own list
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
     let k = st["concepts"][0]["id"].as_str().unwrap().to_owned();
     assert_eq!(st["concepts"][0]["read"], false);
-    assert_eq!(st["concepts"][0]["required"], true, "linked concepts are required unless the stage lists them as optional");
+    assert!(st["concepts"][0]["required"].is_boolean(), "every linked concept says whether it is required");
 
     let url = format!("/api/courses/bustub/concepts/{k}/read");
     let (status, r) = call(&app, Method::PUT, &url, Some(json!({ "read": true }))).await;
     assert_eq!((status, r["read"].as_bool()), (StatusCode::OK, Some(true)));
     // twice is fine
     assert_eq!(call(&app, Method::PUT, &url, Some(json!({ "read": true }))).await.0, StatusCode::OK);
-    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/0a-01", None).await;
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
     assert_eq!(st["concepts"][0]["read"], true);
     let (_, c) = call(&app, Method::GET, &format!("/api/courses/bustub/concepts/{k}"), None).await;
     assert_eq!(c["read"], true);
 
     let (_, r) = call(&app, Method::PUT, &url, Some(json!({ "read": false }))).await;
     assert_eq!(r["read"], false);
-    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/0a-01", None).await;
+    let (_, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;
     assert_eq!(st["concepts"][0]["read"], false);
 
     assert_eq!(call(&app, Method::PUT, "/api/courses/bustub/concepts/nope/read", Some(json!({ "read": true }))).await.0, StatusCode::NOT_FOUND);

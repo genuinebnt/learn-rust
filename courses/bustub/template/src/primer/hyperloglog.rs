@@ -25,71 +25,56 @@ fn hash64<K: Hash>(val: &K) -> u64 {
     h ^ (h >> 31)
 }
 
-/// The estimate from the registers: `CONSTANT * m^2 / sum(2^-register)`, rounded down. No registers: 0.
-fn estimate(registers: impl Iterator<Item = u32>, m: usize) -> u64 {
-    if m == 0 {
-        return 0;
-    }
-    let sum: f64 = registers.map(|r| 2f64.powi(-(r as i32))).sum();
-    (CONSTANT * (m as f64) * (m as f64) / sum) as u64
+pub struct HyperLogLog<K> {
+    _key: PhantomData<fn(&K)>,
+    // TODO(0d-02): your fields: the number of register bits, the registers, the last estimate (behind locks, so many threads can add)
 }
 
-pub struct HyperLogLog<K> {
-    n_bits: i16,
-    registers: Mutex<Vec<u8>>,
-    cardinality: Mutex<u64>,
-    _key: PhantomData<fn(&K)>,
-}
+// TODO(0d-02): the estimator as a function of its own: the Presto-style sketch (stage 3) needs the same one
 
 impl<K: Hash> HyperLogLog<K> {
     /// A sketch with `2^n_bits` registers. A negative `n_bits` gives no registers (cardinality 0 forever).
     pub fn new(n_bits: i16) -> HyperLogLog<K> {
-        let m = if n_bits < 0 { 0 } else { 1usize << n_bits };
-        HyperLogLog { n_bits, registers: Mutex::new(vec![0; m]), cardinality: Mutex::new(0), _key: PhantomData }
+        todo!("0d-02: 2^n_bits registers, all zero (none for a negative n_bits), and the estimate 0")
     }
 
     /// The last estimate (see `compute_cardinality`).
     pub fn cardinality(&self) -> u64 {
-        *self.cardinality.lock().unwrap()
+        todo!("0d-02: the stored estimate")
     }
 
-    /// The registers (given; for tests): the longest run seen in each.
+    /// The registers: the longest run seen in each.
     pub fn registers(&self) -> Vec<u8> {
-        self.registers.lock().unwrap().clone()
+        todo!("0d-02: a copy of the registers")
     }
 
     /// The register a hash belongs to: its first `n_bits` bits.
     pub fn register_index(&self, hash: u64) -> usize {
-        todo!("0d-03: the top n_bits bits of the hash as a number (0 when n_bits is 0)")
+        todo!("0d-02: the top n_bits bits of the hash as a number (0 when n_bits is 0)")
     }
 
     /// The run length of the hash: the **position of the leftmost 1** among the 64 - n_bits bits after the register bits, counted from 1.
     /// All zeros: `64 - n_bits + 1`.
     pub fn position_of_leftmost_one(&self, hash: u64) -> u8 {
-        todo!("0d-03: drop the first n_bits bits (shift left), count the leading zeros of what is left (at most 64 - n_bits), plus one")
+        todo!("0d-02: drop the first n_bits bits (shift left), count the leading zeros of what is left (at most 64 - n_bits), plus one")
     }
 
     /// Takes `val` into account.
     pub fn add_elem(&self, val: &K) {
-        todo!("0d-03: hash the value; the register is register_index; keep the larger of its value and position_of_leftmost_one (under the lock; do nothing if there are no registers)")
+        todo!("0d-02: hash the value; the register is register_index; keep the larger of its value and position_of_leftmost_one (under the lock; do nothing if there are no registers)")
     }
 
     /// Recomputes the estimate from the registers and stores it.
     pub fn compute_cardinality(&self) {
-        todo!("0d-04: CONSTANT * m * m / the sum of 2^-register over the registers, rounded down; 0 with no registers; store it")
+        todo!("0d-02: CONSTANT * m * m / the sum of 2^-register over the registers, rounded down; 0 with no registers; store it")
     }
 }
 
 /// HyperLogLog as Presto stores it: the run length is the number of **trailing** zeros of the bits after the register bits, and a
 /// register keeps its low 4 bits in a dense array and the rest (up to 3 bits) in a sparse overflow map, since most registers stay small.
 pub struct HyperLogLogPresto<K> {
-    n_leading_bits: i16,
-    /// Low 4 bits of each register.
-    dense: Mutex<Vec<u8>>,
-    /// Bits 4 to 6 of the registers that need them.
-    overflow: Mutex<HashMap<u16, u8>>,
-    cardinality: Mutex<u64>,
     _key: PhantomData<fn(&K)>,
+    // TODO(0d-03): your fields: the dense low bits, the sparse overflow bits, the last estimate
 }
 
 /// The hash Presto's sketch uses for a key (given): integers hash to themselves, so tests can pick the bits; anything else is hashed.
@@ -111,34 +96,30 @@ impl PrestoHash for String {
 
 impl<K: PrestoHash> HyperLogLogPresto<K> {
     pub fn new(n_leading_bits: i16) -> HyperLogLogPresto<K> {
-        let m = if n_leading_bits < 0 { 0 } else { 1usize << n_leading_bits };
-        HyperLogLogPresto { n_leading_bits, dense: Mutex::new(vec![0; m]), overflow: Mutex::new(HashMap::new()), cardinality: Mutex::new(0), _key: PhantomData }
+        todo!("0d-03: 2^n registers, all zero, no overflow bits (none at all for a negative n)")
     }
 
     pub fn cardinality(&self) -> u64 {
-        *self.cardinality.lock().unwrap()
+        todo!("0d-03: the stored estimate")
     }
 
     /// The dense array: the low 4 bits of every register.
     pub fn dense_bucket(&self) -> Vec<u8> {
-        self.dense.lock().unwrap().clone()
+        todo!("0d-03: a copy of the dense array")
     }
 
     /// The overflow bits (bits 4 to 6) of register `idx`; 0 if it has none.
     pub fn overflow_bucket_of(&self, idx: u16) -> u8 {
-        self.overflow.lock().unwrap().get(&idx).copied().unwrap_or(0)
+        todo!("0d-03: the overflow bits stored for the register, or 0")
     }
 
-    /// The whole value of register `idx`: dense bits plus overflow bits shifted in above them.
-    fn register(&self, idx: usize) -> u32 {
-        (self.dense.lock().unwrap()[idx] as u32) | ((self.overflow_bucket_of(idx as u16) as u32) << 4)
-    }
+    // TODO(0d-03): helpers of your own (the whole value of a register)
 
     pub fn add_elem(&self, val: &K) {
-        todo!("0d-05: the register is the top n bits of the hash; its run is the trailing zeros of the other 64 - n bits (all zero: 64 - n); under both locks, held together: if larger than the register's value store the low 4 bits densely and bits 4 to 6 in the overflow map")
+        todo!("0d-03: the register is the top n bits of the hash; its run is the trailing zeros of the other 64 - n bits (all zero: 64 - n); under both locks, held together: if larger than the register's value store the low 4 bits densely and bits 4 to 6 in the overflow map")
     }
 
     pub fn compute_cardinality(&self) {
-        todo!("0d-05: the same estimate as HyperLogLog, over the registers rebuilt from dense and overflow bits")
+        todo!("0d-03: the same estimate as HyperLogLog, over the registers rebuilt from dense and overflow bits")
     }
 }

@@ -4,4 +4,4 @@ kind = "build"
 difficulty = "medium"
 tests = ["stages_4a::s4a_02"]
 learn = ["a read timestamp is a snapshot of the commit counter", "taking two readings atomically under one lock", "temporary timestamps"]
-concepts = ["logical-clocks-and-timestamps", "multi-version-concurrency-control", "deadlock-and-lock-ordering", "smart-pointers-box-rc-arc", "interior-mutability", "lock-poisoning-and-the-unwrap-policy", "newtypes-and-type-driven-design", "modules-visibility-and-api-boundaries"]
+concepts = ["logical-clocks-and-timestamps", "multi-version-concurrency-control", "deadlock-and-lock-ordering", "smart-pointers-box-rc-arc", "interior-mutability", "lock-poisoning-and-the-unwrap-policy", "newtypes-and-type-driven-design", "modules-visibility-and-api-boundaries", "lock-free-basics-and-false-sharing"]

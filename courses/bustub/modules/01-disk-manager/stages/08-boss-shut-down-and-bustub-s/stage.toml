@@ -3,3 +3,4 @@ title = "Boss: shut_down and BusTub's disk_manager_test"
 kind = "boss"
 difficulty = "easy"
 tests = ["stages_1a::s1a_19", "disk_manager_test"]
+concepts = ["durability-and-fsync"]

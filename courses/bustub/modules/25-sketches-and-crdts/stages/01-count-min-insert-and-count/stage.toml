@@ -4,4 +4,4 @@ kind = "build"
 difficulty = "medium"
 tests = ["stages_0d::s0d_01"]
 learn = ["a matrix of counters indexed by hashes", "taking the minimum of independent estimates", "lock-free counting with atomics"]
-concepts = ["count-min-sketch-and-frequency-estimation", "atomics-ordering-and-the-log", "send-and-sync", "interior-mutability", "newtypes-and-type-driven-design"]
+concepts = ["count-min-sketch-and-frequency-estimation", "atomics-ordering-and-the-log", "send-and-sync", "interior-mutability", "newtypes-and-type-driven-design", "lock-free-basics-and-false-sharing"]

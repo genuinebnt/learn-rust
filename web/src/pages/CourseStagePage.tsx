@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, type CourseRun, type CourseStagePage as Page, type CourseStageRow, type SolutionFile } from "../api";
 import { Header } from "../components/Header";
 import { DIFFICULTY_COLOR, SplitTitle } from "./CoursePage";
@@ -362,12 +362,20 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     const [tab, setTab] = useState<Tab>(tabFromHash);
     // Each tab keeps its own scroll position, so going to Hints and back returns to where you were reading.
     const scrolls = useRef<Partial<Record<Tab, number>>>({});
+    const restore = useRef<number | null>(null);
     const pick = (k: Tab) => {
         scrolls.current[tab] = window.scrollY;
+        restore.current = scrolls.current[k] ?? 0;
         setTab(k);
-        history.replaceState(null, "", k === "instructions" ? location.pathname : `#${k}`);
-        requestAnimationFrame(() => window.scrollTo({ top: scrolls.current[k] ?? 0 }));
+        // A hash on every tab: dropping it makes the router treat the change as a new page and scroll to the top.
+        history.replaceState(null, "", `#${k}`);
     };
+    // After the new tab is in the page: scrolling earlier would be clamped to the height of the tab being left.
+    useLayoutEffect(() => {
+        if (restore.current === null) return;
+        window.scrollTo({ top: restore.current });
+        restore.current = null;
+    }, [tab]);
 
     useEffect(() => {
         window.scrollTo({ top: 0 });

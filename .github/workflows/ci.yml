@@ -79,10 +79,58 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
+  e2e:
+    name: Browser tests (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: anneal
+          POSTGRES_PASSWORD: anneal
+          POSTGRES_DB: anneal
+        ports: ["5435:5432"]
+        options: >-
+          --health-cmd "pg_isready -U anneal" --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
+      - run: pnpm build
+        working-directory: web
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked -p anneal-api
+      - name: Start the API
+        env:
+          ANNEAL_DATABASE_URL: postgres://anneal:anneal@localhost:5435/anneal
+          ANNEAL_SANDBOX: host
+          ANNEAL_ADDR: 127.0.0.1:8791
+          ANNEAL_WEB_DIST: web/dist
+        run: |
+          ./target/debug/anneal-api > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:8791/courses && exit 0; sleep 1; done
+          cat api.log; exit 1
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: web
+      - run: pnpm e2e
+        working-directory: web
+      - name: API log on failure
+        if: failure()
+        run: cat api.log
+
   deploy:
     name: Deploy to production
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    needs: [rust, web]
+    needs: [rust, web, e2e]
     runs-on: ubuntu-latest
     # One deploy at a time; a newer commit waits and then ships, older queued ones are skipped.
     concurrency:

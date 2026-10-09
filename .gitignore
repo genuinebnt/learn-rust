@@ -9,3 +9,5 @@ __pycache__/
 /deploy/.env
 /tools/neetcode/cache/
 tools/*/target
+web/test-results
+web/playwright-report

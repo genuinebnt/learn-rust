@@ -66,3 +66,6 @@
 .knxt b { font-size: 14px; }
 .kdlg .acts .two:has(> :only-child) { grid-template-columns: 1fr; }
 .kdlg :focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+
+.kcopy { height: 24px; padding: 0 9px; border: 1px solid var(--line2); border-radius: 4px; font: 500 11px var(--mono); letter-spacing: 0.1em; color: var(--dim); transition: color 0.2s, border-color 0.2s; flex: none; }
+.kcopy:hover { color: var(--fg); border-color: var(--line); }

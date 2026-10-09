@@ -1,8 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { api, type CourseOverview, type CourseStageRow, type StageDifficulty } from "../api";
 import { Header } from "../components/Header";
+import { CopyButton } from "../components/kit";
+import { getPref, setPref } from "../prefs";
 
 /** The course the Courses nav item opens. */
 export const COURSE_ID = "bustub";
@@ -40,9 +42,9 @@ export function DifficultyMark({ d }: { d: StageDifficulty }) {
     );
 }
 
-function StageRow({ course, s, current }: { course: string; s: CourseStageRow; current: boolean }) {
+function StageRow({ course, s, current, index }: { course: string; s: CourseStageRow; current: boolean; index: number }) {
     return (
-        <Link className={`cx-srow${current ? " cur" : ""}`} to="/courses/$course/$stage" params={{ course, stage: s.id }}>
+        <Link className={`cx-srow${current ? " cur" : ""}`} style={{ "--k": index } as CSSProperties} to="/courses/$course/$stage" params={{ course, stage: s.id }}>
             <span className={`cx-sdot${s.state === "solved" ? " ok" : s.state === "assisted" ? " asst" : ""}`} aria-label={s.state === "todo" ? "not passed" : "passed"}>
                 {s.state === "todo" ? "" : "✓"}
             </span>
@@ -57,7 +59,30 @@ function StageRow({ course, s, current }: { course: string; s: CourseStageRow; c
     );
 }
 
+type Filter = "all" | "todo" | "done" | "boss";
+const FILTERS: [Filter, string][] = [
+    ["all", "all"],
+    ["todo", "to do"],
+    ["done", "passed"],
+    ["boss", "boss"],
+];
+
 export function CoursePage({ course = COURSE_ID }: { course?: string }) {
+    // Which modules are open: remembered in this browser; until there is a choice, only the module you are in.
+    const [openCodes, setOpenCodes] = useState<string[] | null>(() => getPref<string[] | null>("course.open", null));
+    const [filter, setFilter] = useState<Filter>("all");
+    const [find, setFind] = useState("");
+    const findBox = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            const el = document.activeElement as HTMLElement | null;
+            if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey || (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable))) return;
+            e.preventDefault();
+            findBox.current?.focus();
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, []);
     const q = useQuery({ queryKey: ["course", course], queryFn: () => api.course(course) });
     const c: CourseOverview | undefined = q.data;
     const modules = c?.projects.reduce((n, p) => n + p.modules.length, 0) ?? 0;
@@ -65,6 +90,28 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
     const here = c?.projects.flatMap((p) => p.modules).find((m) => m.stages.some((s) => s.id === c.current));
     const hereDone = here?.stages.filter((s) => s.state !== "todo").length ?? 0;
     const style = { "--ca": "var(--grn)", "--cab": "var(--grn-bg)" } as CSSProperties;
+    const allModules = c?.projects.flatMap((p) => p.modules) ?? [];
+    const needle = find.trim().toLowerCase();
+    // Searching or filtering shows every module that has a match, open; the module toggles rest meanwhile.
+    const active = filter !== "all" || needle !== "";
+    const matches = (x: CourseStageRow, m: { code: string; title: string }) => {
+        const okFilter = filter === "all" || (filter === "boss" ? x.kind === "boss" : filter === "done" ? x.state !== "todo" : x.state === "todo");
+        const okText = !needle || `${x.title} ${x.id} ${m.title} ${m.code}`.toLowerCase().includes(needle);
+        return okFilter && okText;
+    };
+    const openSet = new Set(openCodes ?? (here ? [here.code] : []));
+    const allOpen = allModules.length > 0 && allModules.every((m) => openSet.has(m.code));
+    const choose = (codes: string[]) => {
+        setOpenCodes(codes);
+        setPref("course.open", codes);
+    };
+    const toggle = (code: string) => choose(openSet.has(code) ? [...openSet].filter((x) => x !== code) : [...openSet, code]);
+    const jump = (code: string) => {
+        if (!openSet.has(code)) choose([...openSet, code]);
+        setFilter("all");
+        setFind("");
+        requestAnimationFrame(() => document.getElementById(`mod-${code}`)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
+    };
     return (
         <>
             <Header area="courses" />
@@ -123,34 +170,104 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                     <span className="tc-go">open stage ›</span>
                                 </Link>
                             )}
+                            <div className="cx-map" aria-label="Course map">
+                                <h4>
+                                    <span>COURSE MAP</span>
+                                    <span>hover a module · click to open it</span>
+                                </h4>
+                                {c.projects
+                                    .filter((p) => p.modules.length > 0)
+                                    .map((p) => (
+                                        <div className="cx-mp" key={p.number}>
+                                            <span>Project {p.number}</span>
+                                            <div className="cx-nodes">
+                                                {p.modules.map((m) => {
+                                                    const done = m.stages.filter((x) => x.state !== "todo").length;
+                                                    return (
+                                                        <button
+                                                            key={m.code}
+                                                            className={`cx-node${done === m.stages.length ? " done" : ""}${m.code === here?.code ? " cur" : ""}`}
+                                                            onClick={() => jump(m.code)}
+                                                            aria-label={`${m.code.toUpperCase()} ${m.title}: ${done} of ${m.stages.length} passed`}
+                                                        >
+                                                            {m.code.toUpperCase()}
+                                                            <span className="cx-tip" aria-hidden="true">
+                                                                {m.title} · {done}/{m.stages.length}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+                            <div className="cx-tools">
+                                <label className="cx-find">
+                                    <span aria-hidden="true">⌕</span>
+                                    <input ref={findBox} value={find} onChange={(e) => setFind(e.target.value)} placeholder="find a stage…" autoComplete="off" spellCheck={false} aria-label="Find a stage" onKeyDown={(e) => e.key === "Escape" && e.currentTarget.blur()} />
+                                    <kbd>/</kbd>
+                                </label>
+                                <div className="cx-seg" role="group" aria-label="Show" style={{ "--i": FILTERS.findIndex(([k]) => k === filter) } as CSSProperties}>
+                                    <span className="cx-thumb" aria-hidden="true" />
+                                    {FILTERS.map(([k, label]) => (
+                                        <button key={k} aria-pressed={filter === k} className={filter === k ? "on" : ""} onClick={() => setFilter(k)}>
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button className="cx-ea" onClick={() => choose(allOpen ? [] : allModules.map((m) => m.code))} disabled={active}>
+                                    {allOpen ? "COLLAPSE ALL" : "EXPAND ALL"}
+                                </button>
+                            </div>
+                            {active && !c.projects.some((p) => p.modules.some((m) => m.stages.some((x) => matches(x, m)))) && (
+                                <div className="cx-none" role="status">
+                                    No stage matches that. <button onClick={() => (setFind(""), setFilter("all"))}>Clear it</button>
+                                </div>
+                            )}
                             {c.projects
                                 .filter((p) => p.modules.length > 0)
-                                .map((p) => (
-                                    <div key={p.number} style={{ display: "contents" }}>
-                                        <div className="flabel">PROJECT {p.number} · {p.title.toUpperCase()}</div>
-                                        {p.modules.map((m) => {
-                                            const done = m.stages.filter((x) => x.state !== "todo").length;
-                                            return (
-                                                <section className="cx-sec" key={m.code}>
-                                                    <div className="cx-sech">
-                                                        <b>
-                                                            {m.code.toUpperCase()} · {m.title}
-                                                        </b>
-                                                        <span>
-                                                            {done} / {m.stages.length} stages
-                                                        </span>
-                                                    </div>
-                                                    {m.summary && <p className="cx-secp">{m.summary}</p>}
-                                                    <div className="cx-srows">
-                                                        {m.stages.map((x) => (
-                                                            <StageRow key={x.id} course={c.id} s={x} current={x.id === c.current} />
-                                                        ))}
-                                                    </div>
-                                                </section>
-                                            );
-                                        })}
-                                    </div>
-                                ))}
+                                .map((p) => {
+                                    const shown = p.modules.filter((m) => !active || m.stages.some((x) => matches(x, m)));
+                                    if (shown.length === 0) return null;
+                                    return (
+                                        <div key={p.number} style={{ display: "contents" }}>
+                                            <div className="flabel">PROJECT {p.number} · {p.title.toUpperCase()}</div>
+                                            {shown.map((m) => {
+                                                const done = m.stages.filter((x) => x.state !== "todo").length;
+                                                const isOpen = active || openSet.has(m.code);
+                                                const rows = active ? m.stages.filter((x) => matches(x, m)) : m.stages;
+                                                return (
+                                                    <section className={`cx-mod${isOpen ? " open" : ""}${m.code === here?.code ? " cur" : ""}`} id={`mod-${m.code}`} key={m.code}>
+                                                        <button className="cx-mh" aria-expanded={isOpen} onClick={() => toggle(m.code)} disabled={active}>
+                                                            <span className="cx-chev" aria-hidden="true">›</span>
+                                                            <span className="cx-mt">
+                                                                <b>
+                                                                    {m.code.toUpperCase()} · {m.title}
+                                                                </b>
+                                                                {m.summary && <span className="cx-msum">{m.summary}</span>}
+                                                            </span>
+                                                            <span className="cx-mc">
+                                                                <span className="cx-mini" aria-hidden="true">
+                                                                    <i style={{ width: `${Math.round((100 * done) / m.stages.length)}%` }} />
+                                                                </span>
+                                                                {done} / {m.stages.length}
+                                                            </span>
+                                                        </button>
+                                                        <div className="cx-mb">
+                                                            <div inert={!isOpen}>
+                                                                <div className="cx-srows">
+                                                                    {rows.map((x, i) => (
+                                                                        <StageRow key={x.id} course={c.id} s={x} current={x.id === c.current} index={i} />
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </section>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })}
                             {c.projects.some((p) => p.modules.length === 0) && (
                                 <div style={{ display: "contents" }}>
                                     <div className="flabel">PLANNED</div>
@@ -176,10 +293,13 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                     <span>GET STARTED</span>
                                 </h4>
                                 <div className="cx-cmds">
-                                    <code>anneal course init {c.id}</code>
-                                    <code>cd {c.id}-rs</code>
-                                    <code>anneal course login {location.origin}</code>
-                                    <code>anneal course test</code>
+                                    {[`anneal course init ${c.id}`, `cd ${c.id}-rs`, `anneal course login ${location.origin}`, "anneal course test"].map((cmd, i) => (
+                                        <div className="cx-cmd" key={cmd}>
+                                            <span className="n">{i + 1}</span>
+                                            <code>{cmd}</code>
+                                            <CopyButton text={cmd} />
+                                        </div>
+                                    ))}
                                 </div>
                                 <p className="note" style={{ marginTop: 10 }}>
                                     Edit the stubs in your own repo. <code>git push</code> runs the tests and reports each run here.
@@ -197,7 +317,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                     const done = st.filter((x) => x.state !== "todo").length;
                                     const pct = st.length ? Math.round((100 * done) / st.length) : null;
                                     return (
-                                        <div className="rmeter" key={p.number} style={{ marginBottom: 6 }}>
+                                        <button className="rmeter link" key={p.number} style={{ marginBottom: 6 }} disabled={!p.modules[0]} onClick={() => p.modules[0] && jump(p.modules[0].code)}>
                                             <span>
                                                 Project {p.number} · {p.title}
                                             </span>
@@ -205,7 +325,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                             <i>
                                                 <b style={{ width: `${pct ?? 0}%`, background: "var(--grn)" }} />
                                             </i>
-                                        </div>
+                                        </button>
                                     );
                                 })}
                             </div>

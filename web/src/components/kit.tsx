@@ -161,3 +161,30 @@ export function Celebration({ title, message, stats, next, goLabel, onGo, review
         </Modal>
     );
 }
+
+/** A small COPY button that says COPIED for a moment; the clipboard can be refused, which just leaves the label alone. */
+export function CopyButton({ text, className = "kcopy" }: { text: string; className?: string }) {
+    const [done, setDone] = useState(false);
+    const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    useEffect(() => () => clearTimeout(timer.current), []);
+    return (
+        <button
+            type="button"
+            className={className}
+            onClick={() => {
+                const ok = () => {
+                    setDone(true);
+                    clearTimeout(timer.current);
+                    timer.current = setTimeout(() => setDone(false), 1200);
+                };
+                try {
+                    navigator.clipboard.writeText(text).then(ok, () => {});
+                } catch {
+                    // no clipboard in this context
+                }
+            }}
+        >
+            {done ? "COPIED" : "COPY"}
+        </button>
+    );
+}

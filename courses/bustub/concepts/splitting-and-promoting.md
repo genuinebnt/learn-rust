@@ -327,8 +327,7 @@ fn any_arrival_order_gives_a_valid_tree_of_the_same_keys() {
 
 ### In the exercises
 
-- **2c-04:** the `Node::Leaf` arm of `insert_into`, and `insert_into_parent` when the parent has room or the root split (`Some((separator, right))` at the top of `insert`). In the page version the "returned" separator is passed to `insert_into_parent`.
-- **2c-05:** the `Node::Internal` split arm: `keep`, `split_off`, and the key that `remove(0)` takes out and moves up. The test shapes above are the stage's.
+- **2c-02:** the leaf split (the first key of the right page is copied up), the internal split (`keep`, `split_off`, the middle key moves up), and `insert_into_parent` when the parent has room or the root split.
 - **Structure checker:** `check` is the idea behind `check_structure` in the tests: same depth, sizes within bounds, keys in order.
 
 ### Where it is used

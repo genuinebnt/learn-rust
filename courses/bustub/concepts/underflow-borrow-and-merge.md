@@ -549,8 +549,7 @@ fn random_inserts_and_removes_agree_with_a_btreeset_and_keep_every_rule() {
 
 ### In the exercises
 
-- **2c-07:** the leaf arms of `borrow_from_left`/`borrow_from_right`, the root checks at the top of `remove` (an empty root leaf makes the tree empty), and `fix_child`'s first two branches; the first test is the stage's pair of scenarios.
-- **2c-08:** `merge` and the third `fix_child` branch, the cascade (each level's `fix_child` call) and the single-child root replacement; the third and fourth tests are the stage's exact shapes.
+- **2c-04:** the leaf and internal arms of borrowing from either sibling, `merge` and the cascade up the tree (each level's repair), the root checks (an empty root leaf empties the tree; a root with one child is replaced by it).
 - **Model test:** the last test is the shape of the stage's `random_inserts_and_removes_agree_with_a_btreemap`, with the structure checker after every step.
 
 ### Where it is used

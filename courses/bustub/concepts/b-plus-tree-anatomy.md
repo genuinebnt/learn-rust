@@ -173,8 +173,7 @@ fn the_layout_is_header_then_entries() {
 
 ### In the exercises
 
-- **2c-01 (the pages):** the capacities, the three headers and `min_size`, exactly as in the first and second tests above; the stage's tests pin 511 and 681 and the `min_size` table.
-- **2c-04, 2c-05:** the split rule (`left keeps ceil`) is the `split` function; the structure checker in `tests/b_plus_tree_utils` asserts the invariants listed above after every operation.
+- **2c-01 to 2c-02:** the pages you design (capacities, the page header, `min_size`) and the split rule (the left page keeps `ceil`). The tests check the rules from outside with observers (`depth`, `leaf_sizes`) and a shape checker, not by reading your pages.
 - **Everywhere:** `levels` is how you know what height a test tree should have.
 
 ### Where it is used

@@ -12,18 +12,18 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | L2 Borrowing | `l2-borrowing` | written | core | R, 1e, 1f, 1g |
 | L3 Lifetimes | `l3-lifetimes` | written | core | 1g, 2c, 3c |
 | L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3e, 3h |
-| L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b |
-| L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 3e |
+| L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b, 2c, 2d |
+| L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
 | L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 0a |
 | L8 Error design | `l8-error-design` | planned | core | R, 1a, 1b, 3a, 3d, 3e, 4b, 4c |
-| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f |
+| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c |
 | S2 Strings & text | `s2-strings-text` | written | core | 3a, 3b, 3d |
-| S3 Vec & slices | `s3-vec-slices` | written | core | R, 1a, 1c, 2a, 3b, 3g, 0c |
+| S3 Vec & slices | `s3-vec-slices` | written | core | R, 1a, 1c, 2a, 2c, 2d, 3b, 3g, 0c |
 | S4 Maps & sets | `s4-maps-sets` | written | core | 1a, 1c, 1d, 1e, 3c, 3f, 4a, 4b, 0a, 0d |
 | S5 Queues & heaps | `s5-queues-heaps` | planned | core | 1b, 1c, 1d, 3f, 3g, 0b |
 | S6 Iterators | `s6-iterators` | planned | core | 1c, 1d, 2c, 3c, 3d, 3e, 3f, 3g |
 | S7 Smart pointers & interior mutability | `s7-smart-pointers` | planned | core | 1b, 1c, 1e, 1f, 1g, 2c, 3d, 3h, 4a, 0a, 0b |
-| S8 The core traits | `s8-core-traits` | planned | core | 1d, 1e, 1g, 2a, 2b, 3a, 3f, 4c, 0c, 0d |
+| S8 The core traits | `s8-core-traits` | planned | core | 1d, 1e, 1g, 2a, 2b, 2d, 3a, 3f, 4c, 0c, 0d |
 | S9 I/O & filesystem | `s9-io-filesystem` | planned | core | R, 1a, 3g, 4c |
 | S11 mem, ptr & alloc | `s11-mem-ptr-alloc` | planned | sde3 | 2a |
 | C1 Threads & shared state | `c1-threads-shared-state` | planned | core | 1a, 1b, 1f, 1g, 2b, 2c, 3c, 4a, 4b, 4c |
@@ -182,21 +182,28 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [D6 Trees & BSTs](/t/d6-trees-bsts) *(planned)* | Trees & BSTs | search trees, rotations of thought: split, borrow, merge | the module |
-| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums & exhaustiveness; Patterns in depth | a page-type enum, slice patterns | the module |
-| [S6 Iterators](/t/s6-iterators) *(planned)* | Build | an iterator over a tree without allocating | the module |
-| [L3 Lifetimes](/t/l3-lifetimes) | Structs holding refs | an iterator that holds a guard | the module |
-| [F2 Data layout](/t/f2-data-layout) | Locality | a slotted page for a B-tree node | the module |
-| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | latch crabbing, optimistic descent | the module |
-| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | page ids instead of pointers | the module |
-| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it | a `BTreeMap` model and structural invariants | the module |
+| [L5 Generics & associated types](/t/l5-generics) | Compile-time Rust; Generic code | const generics (`TOMBS`), bounds on an `impl` block | 2c-01 |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums & exhaustiveness | a page-type tag as an enum, `TryFrom<u32>`, `match` that must cover every kind | 2c-01 |
+| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | page ids instead of pointers; why a tree of references fights the borrow checker | 2c-01 |
+| [F2 Data layout](/t/f2-data-layout) | Locality | a slotted page for a B-tree node: header, slot array, cell heap | 2c-01 |
+| [D6 Trees & BSTs](/t/d6-trees-bsts) *(planned)* | Trees & BSTs | search trees: split, borrow, merge | 2c-02, 2c-04 |
+| [S3 Vec & slices](/t/s3-vec-slices) | Understand it | `split_off`, `partition_point`, `insert`, `remove` | 2c-02, 2c-04 |
+| [S1 Option & Result](/t/s1-option-result) | Understand it | `pop()` returns an `Option`; `let Some(x) = .. else` | 2c-02, 2c-04 |
+| [S6 Iterators](/t/s6-iterators) *(planned)* | Build | implementing `Iterator`, an iterator without allocation | 2c-03 |
+| [L3 Lifetimes](/t/l3-lifetimes) | Structs holding refs | an iterator that holds the pool by reference | 2c-03 |
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | latch crabbing, lock order, `RwLock` has no upgrade | 2c-05 |
+| [L6 Closures & functional Rust](/t/l6-closures) *(planned)* | Fn / FnMut / FnOnce | `impl Fn` parameters: one descent for insert and remove | 2c-05 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it; Build it | a model and a shape checker; threaded tests under a timeout | 2c-02, 2c-04, 2c-05 |
 
 ### 2D · B+ tree tombstones
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums as design | a state that is part of an entry | the module |
-| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it | an equivalence property: the same behaviour as the plain tree | the module |
+| [L5 Generics & associated types](/t/l5-generics) | Compile-time Rust | const generics and associated constants decide a page layout | 2d-01 |
+| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | comparing keys through a comparator, not by bytes | 2d-01 |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums as design | a state (live or deleted) that is part of an entry | 2d-01 |
+| [S3 Vec & slices](/t/s3-vec-slices) | Understand it | `partition`, `drain`, `extend` to move tombstones with their pairs | 2d-02 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it | an equivalence property over every buffer size | 2d-02 |
 
 ### 3A · Values and types
 
@@ -359,12 +366,12 @@ The planned tracks, sorted by the first module that needs them (then by how many
 | 5 | [F1 Measure & read the machine](/t/f1-measure-machine) | 1A | 1 modules |
 | 6 | [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) | 1B | 11 modules |
 | 7 | [S5 Queues & heaps](/t/s5-queues-heaps) | 1B | 6 modules |
-| 8 | [L6 Closures & functional Rust](/t/l6-closures) | 1B | 2 modules |
+| 8 | [L6 Closures & functional Rust](/t/l6-closures) | 1B | 3 modules |
 | 9 | [C2 Message passing](/t/c2-message-passing) | 1B | 1 modules |
 | 10 | [S6 Iterators](/t/s6-iterators) | 1C | 8 modules |
 | 11 | [F3 Memory & allocation](/t/f3-memory-allocation) | 1C | 4 modules |
 | 12 | [D5 Linked lists](/t/d5-linked-lists) | 1C | 2 modules |
-| 13 | [S8 The core traits](/t/s8-core-traits) | 1D | 10 modules |
+| 13 | [S8 The core traits](/t/s8-core-traits) | 1D | 11 modules |
 | 14 | [F7 I/O & serialization](/t/f7-io-serialization) | 2A | 4 modules |
 | 15 | [S11 mem, ptr & alloc](/t/s11-mem-ptr-alloc) | 2A | 1 modules |
 | 16 | [D4 Binary search](/t/d4-binary-search) | 2A | 1 modules |

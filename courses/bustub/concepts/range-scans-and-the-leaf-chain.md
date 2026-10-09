@@ -166,8 +166,7 @@ fn an_ordered_index_answers_between_top_n_and_next_after() {
 
 ### In the exercises
 
-- **2c-06 Part 1:** `normalise` is `skip_past_the_end_of_leaves`; `Scan::next` is `IndexIterator::next`; `Cursor`'s derived `PartialEq` is the stage's equality.
-- **2c-06 Part 2:** `begin_at` is `find_leaf(Some(key))` + `lower_bound` + `IndexIterator::at`; the third test is how a range query is built from it.
+- **2c-03:** moving past the end of a leaf to the next, `Iterator::next`, `begin_at` as a descent plus `lower_bound`, and why no latch is kept between calls.
 - **The stage's tests** assert the same facts as the first test above (every leaf boundary), plus "nothing stays pinned between calls".
 
 ### Where it is used

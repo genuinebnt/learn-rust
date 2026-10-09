@@ -181,9 +181,7 @@ fn a_tombstone_hides_older_data_until_compaction_drops_both() {
 
 ### In the exercises
 
-- **2d-01:** the buffer of the first test (`tombs`, oldest first, bounded by `cap`) as page bytes; `is_deleted_at` is `is_deleted`.
-- **2d-02:** `delete` is `remove_logically`, `insert` is the leaf's `insert` with the "back to life" arm, `scan` is the iterator's skip.
-- **2d-03:** what the first test does not show: moving a leaf's pairs between pages moves their tombstones, which is what the tree-level rules in the table are for.
+- **2d-01, 2d-02:** the buffer (oldest first, bounded by `TOMBS`) as part of your leaf page, `remove` as a logical delete, `insert` with the "back to life" arm, the scan skipping tombstones; and what moving pairs between pages (split, borrow, merge) must do with their tombstones.
 - **Boss:** BusTub's four tombstone tests check exactly these rules, in this order.
 
 ### Where it is used

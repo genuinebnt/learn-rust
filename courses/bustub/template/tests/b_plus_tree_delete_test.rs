@@ -68,15 +68,14 @@ fn optimistic_delete_test() {
         tree.insert(&index_key(i), &rid_of(i));
     }
 
+    // a leaf that stays at least half full after losing a key: its size > min_size = max_size / 2
     let mut to_delete = num_keys + 1;
-    let mut leaf = IndexLeaves::new(tree.get_root_page_id(), &bpm);
-    while leaf.valid() {
-        if leaf.leaf().size() > leaf.leaf().min_size() {
-            to_delete = leaf.leaf().key_at(0).get_as_integer();
+    let firsts = leaf_first_keys(&tree);
+    for (leaf, size) in tree.leaf_sizes().into_iter().enumerate() {
+        if (size as u32) > 4 / 2 {
+            to_delete = firsts[leaf];
         }
-        leaf.advance();
     }
-    drop(leaf);
 
     let base_reads = tree.bpm.get_reads();
     let base_writes = tree.bpm.get_writes();

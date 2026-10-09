@@ -1,8 +1,0 @@
-id = "2c-04"
-title = "Split a leaf"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_2c::s2c_04"]
-learn = ["splitting a full leaf in two and copying a separator up", "the next-leaf chain", "growing a new root when the root splits"]
-concepts = ["splitting-and-promoting", "b-plus-tree-anatomy", "checking-invariants"]
-concepts_optional = ["the-root-and-the-header-page", "routing-with-separator-keys"]

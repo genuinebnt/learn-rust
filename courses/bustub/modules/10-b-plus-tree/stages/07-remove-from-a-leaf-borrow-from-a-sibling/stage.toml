@@ -1,7 +1,0 @@
-id = "2c-07"
-title = "Remove from a leaf; borrow from a sibling"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_2c::s2c_07"]
-learn = ["underflow: when a page is too empty", "borrowing an entry through the parent's separator", "removing the last key of the root"]
-concepts = ["underflow-borrow-and-merge", "checking-invariants"]

@@ -141,9 +141,7 @@ fn the_standard_binary_search_reports_found_or_the_insertion_point() {
 
 ### In the exercises
 
-- **2c-02 Part 1:** `child_for` is `route` over the keys of slots `1..size` (sliced after slot 0) using `PageArray::lower_bound` from module 2a with `<=` as the "less" test; the stage's first test is the table in `the_key_equal_to_a_separator_goes_right`.
-- **2c-02 Part 1 (leaf):** `lower_bound` and `lookup`: the first slot not less than the key; a hit if it is equal.
-- **2c-03 and 2c-04:** the same searches find where a pair or a separator is inserted (`Err(at)` above).
+- **2c-01, 2c-02:** `child_for` routes with a binary search over the separator keys; a leaf's `lower_bound` finds the first slot not less than the key, and the same searches find where a pair or a separator is inserted.
 
 ### Where it is used
 

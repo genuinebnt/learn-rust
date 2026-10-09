@@ -217,9 +217,7 @@ fn a_leaf_write_does_not_wait_for_a_reader_on_the_root_but_a_root_write_would() 
 
 ### In the exercises
 
-- **2c-02:** `find_leaf` is `contains`'s loop: `guard = self.bpm.read_page(child)` latches the child, then drops the parent.
-- **2c-03:** the pessimistic write path keeps every guard on a stack (`ctx.write_set`): `latches_held` with no safe pages.
-- **2c-09:** `safe_to_insert` and `safe_to_remove` are the first test's functions; `release_ancestors()` is `held = 0`; the second test of the stage ("does not wait for a reader on the root") is the last test above on a real tree.
+- **2c-01, 2c-02, 2c-05:** the read descent takes the child's latch before dropping the parent's; the pessimistic write path keeps every guard on a stack; `safe_to_insert` and `safe_to_remove` decide where the ancestors are released.
 - **2c-10 (boss):** the concurrent tests are the first concurrency test above, with a deadlock watchdog.
 
 ### Where it is used

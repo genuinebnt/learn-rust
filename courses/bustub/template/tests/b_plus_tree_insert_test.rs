@@ -10,8 +10,6 @@ use b_plus_tree_utils::*;
 use bustub::buffer::buffer_pool_manager::BufferPoolManager;
 use bustub::common::rid::Rid;
 use bustub::storage::disk::disk_manager_memory::DiskManagerUnlimitedMemory;
-use bustub::storage::page::b_plus_tree_leaf_page::BPlusTreeLeafPage as Leaf;
-use bustub::storage::page::b_plus_tree_page::BPlusTreePage as Page;
 
 fn new_bpm(frames: usize) -> BufferPoolManager {
     BufferPoolManager::new(frames, Arc::new(DiskManagerUnlimitedMemory::new()))
@@ -25,13 +23,10 @@ fn basic_insert_test() {
     let key = 42;
     tree.insert(&index_key(key), &rid_of(key));
 
-    let root_page_id = tree.get_root_page_id();
-    let root_page_guard = bpm.read_page(root_page_id);
-    assert!(Page::new(&root_page_guard[..]).is_leaf_page());
-
-    let root_as_leaf = Leaf::<_, Key, Rid>::new(&root_page_guard[..]);
-    assert_eq!(root_as_leaf.size(), 1);
-    assert_eq!(root_as_leaf.key_at(0), index_key(key));
+    // the root is a leaf holding the one key
+    assert_eq!(tree.depth(), 1);
+    assert_eq!(tree.leaf_sizes(), vec![1]);
+    assert_eq!(keys_by_scan(&tree), vec![key]);
 }
 
 #[test]
@@ -47,15 +42,14 @@ fn optimistic_insert_test() {
         tree.insert(&index_key(2 * i), &rid_of(i));
     }
 
+    // a leaf with room for one more: its size + 1 < max_size; the key to insert is one more than its first key (which lands there)
     let mut to_insert = 2 * num_keys;
-    let mut leaf = IndexLeaves::new(tree.get_root_page_id(), &bpm);
-    while leaf.valid() {
-        if leaf.leaf().size() + 1 < leaf.leaf().max_size() {
-            to_insert = leaf.leaf().key_at(0).get_as_integer() + 1;
+    let firsts = leaf_first_keys(&tree);
+    for (leaf, size) in tree.leaf_sizes().into_iter().enumerate() {
+        if (size as u32) + 1 < 4 {
+            to_insert = firsts[leaf] + 1;
         }
-        leaf.advance();
     }
-    drop(leaf);
     assert_ne!(to_insert, 2 * num_keys);
 
     let base_reads = tree.bpm.get_reads();

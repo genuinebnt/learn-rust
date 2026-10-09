@@ -1,17 +1,15 @@
-//! Port of `test/include/storage/b_plus_tree_utils.h` (BusTub, MIT, Copyright (c) 2015-2025 Carnegie Mellon University Database
-//! Group), plus a stricter checker of this course's own (`check_structure`) and a text rendering of a tree's shape.
-//! Not part of any stage: nothing here for you to write.
+//! Helpers shared by the B+ tree tests: BusTub's `b_plus_tree_utils.h` helpers that need only the tree's public API, and a checker
+//! (`check_shape`) that verifies the rules every B+ tree keeps from outside, through the tree's observers (`depth`, `leaf_sizes`,
+//! `leaf_tombstones`), a scan and the number of pages a lookup latches. Not part of any stage: nothing here for you to write.
 #![allow(dead_code)]
+
+use std::collections::BTreeSet;
 
 use bustub::buffer::buffer_pool_manager::BufferPoolManager;
 use bustub::common::config::PageId;
 use bustub::common::rid::Rid;
 use bustub::storage::index::b_plus_tree::BPlusTree;
-use bustub::storage::index::generic_key::{GenericComparator, GenericKey, KeyComparator};
-use bustub::storage::page::b_plus_tree_internal_page::BPlusTreeInternalPage as Internal;
-use bustub::storage::page::b_plus_tree_leaf_page::BPlusTreeLeafPage as Leaf;
-use bustub::storage::page::b_plus_tree_page::BPlusTreePage as Page;
-use bustub::storage::page::page_guard::ReadPageGuard;
+use bustub::storage::index::generic_key::{GenericComparator, GenericKey};
 
 pub type Key = GenericKey<8>;
 pub type Cmp = GenericComparator<8>;
@@ -56,288 +54,172 @@ pub fn keys_by_scan<const T: usize>(tree: &Tree<T>) -> Vec<i64> {
     tree.begin().map(|(k, _)| k.get_as_integer()).collect()
 }
 
-// ---- IsTreeValid ----------------------------------------------------------------------------------------------------------------
-
-#[allow(clippy::too_many_arguments)]
-fn is_tree_valid_impl<const T: usize>(node_page_id: PageId, bpm: &BufferPoolManager, cmp: &Cmp, mut lower_bound: Key, upper_bound: Key, mut is_lower_neg_inf: bool, is_upper_inf: bool) -> bool {
-    let guard = bpm.read_page(node_page_id);
-    let page = Page::new(&guard[..]);
-    let mut is_valid = true;
-    if page.is_leaf_page() {
-        let leaf = Leaf::<_, Key, Rid, T>::new(&guard[..]);
-        if leaf.size() == 0 {
-            return false;
-        }
-        for i in 0..leaf.size() {
-            // Overall ordering validity
-            if !is_lower_neg_inf && cmp.compare(&leaf.key_at(i), &lower_bound).is_lt() {
-                is_valid = false;
-                break;
-            }
-            if !is_upper_inf && cmp.compare(&leaf.key_at(i), &upper_bound).is_ge() {
-                is_valid = false;
-                break;
-            }
-            // Ordering validity within the page
-            if i > 0 && cmp.compare(&leaf.key_at(i - 1), &leaf.key_at(i)).is_gt() {
-                is_valid = false;
-                break;
-            }
-        }
-    } else {
-        let internal = Internal::<_, Key>::new(&guard[..]);
-        if internal.size() == 0 {
-            return false;
-        }
-        for i in 1..internal.size() {
-            if !is_lower_neg_inf && cmp.compare(&internal.key_at(i), &lower_bound).is_lt() {
-                is_valid = false;
-                break;
-            }
-            if !is_upper_inf && cmp.compare(&internal.key_at(i), &upper_bound).is_ge() {
-                is_valid = false;
-                break;
-            }
-            if i > 1 && cmp.compare(&internal.key_at(i - 1), &internal.key_at(i)).is_gt() {
-                is_valid = false;
-                break;
-            }
-            if !is_tree_valid_impl::<T>(internal.value_at(i - 1), bpm, cmp, lower_bound, internal.key_at(i), is_lower_neg_inf, false) {
-                is_valid = false;
-                break;
-            }
-            lower_bound = internal.key_at(i);
-            is_lower_neg_inf = false;
-        }
-        is_valid = is_valid && is_tree_valid_impl::<T>(internal.value_at(internal.size() - 1), bpm, cmp, lower_bound, upper_bound, is_lower_neg_inf, is_upper_inf);
-    }
-    is_valid
-}
-
-/// BusTub's `IsTreeValid`: every leaf is non-empty and every key lies within the range its ancestors' keys allow.
-pub fn is_tree_valid(root_page_id: PageId, bpm: &BufferPoolManager) -> bool {
-    is_tree_valid_t::<0>(root_page_id, bpm)
-}
-
-pub fn is_tree_valid_t<const T: usize>(root_page_id: PageId, bpm: &BufferPoolManager) -> bool {
-    is_tree_valid_impl::<T>(root_page_id, bpm, &GenericComparator::<8>, Key::default(), Key::default(), true, true)
-}
-
 /// BusTub's `TreeValuesMatch`: every inserted key has exactly one value, every deleted key has none.
 pub fn tree_values_match<const T: usize>(tree: &Tree<T>, inserted: &[i64], deleted: &[i64]) -> bool {
     inserted.iter().all(|&k| get(tree, k).len() == 1) && deleted.iter().all(|&k| get(tree, k).is_empty())
 }
 
-// ---- Walking the leaves ---------------------------------------------------------------------------------------------------------
-
-pub fn get_leftmost_leaf_page_id(root_page_id: PageId, bpm: &BufferPoolManager) -> PageId {
-    let mut page_id = root_page_id;
-    loop {
-        let guard = bpm.read_page(page_id);
-        if Page::new(&guard[..]).is_leaf_page() {
-            return page_id;
-        }
-        page_id = Internal::<_, Key>::new(&guard[..]).value_at(0);
+/// The first key of each leaf, left to right, for a tree without tombstones: leaves hold consecutive runs of the sorted keys.
+pub fn leaf_first_keys(tree: &Tree<0>) -> Vec<i64> {
+    let keys = keys_by_scan(tree);
+    let mut at = 0;
+    let mut firsts = Vec::new();
+    for size in tree.leaf_sizes() {
+        firsts.push(keys[at]);
+        at += size;
     }
+    firsts
 }
 
-/// BusTub's `IndexLeaves`: walks the leaf pages left to right. Each item is the leaf's read guard.
-pub struct IndexLeaves<'a, const T: usize = 0> {
-    bpm: &'a BufferPoolManager,
-    guard: Option<ReadPageGuard<'a>>,
+/// How many leaves a tree with `leaves` leaves and these maxima may have at most `levels` internal levels above them, and the fewest.
+fn leaf_range(internal_max: u32, levels: u32) -> (u128, u128) {
+    let min_fanout = internal_max.div_ceil(2) as u128;
+    let fewest = if levels == 0 { 1 } else { 2 * min_fanout.pow(levels - 1) };
+    let most = (internal_max as u128).pow(levels);
+    (fewest, most)
 }
 
-impl<'a> IndexLeaves<'a, 0> {
-    pub fn new(root_page_id: PageId, bpm: &'a BufferPoolManager) -> IndexLeaves<'a, 0> {
-        IndexLeaves::with_tombstones(root_page_id, bpm)
-    }
-}
-
-impl<'a, const T: usize> IndexLeaves<'a, T> {
-    /// The leaves of a tree whose leaves have a tombstone buffer of `T` keys.
-    pub fn with_tombstones(root_page_id: PageId, bpm: &'a BufferPoolManager) -> IndexLeaves<'a, T> {
-        let page_id = get_leftmost_leaf_page_id(root_page_id, bpm);
-        IndexLeaves { bpm, guard: Some(bpm.read_page(page_id)) }
-    }
-
-    pub fn valid(&self) -> bool {
-        self.guard.is_some()
-    }
-
-    /// The current leaf.
-    pub fn leaf(&self) -> Leaf<&[u8], Key, Rid, T> {
-        Leaf::new(&self.guard.as_ref().expect("invalid iterator")[..])
-    }
-
-    /// Moves to the next leaf (or past the last).
-    pub fn advance(&mut self) {
-        let next = self.leaf().next_page_id();
-        self.guard = next.map(|id| self.bpm.read_page(id));
-    }
-}
-
-pub fn get_num_leaves<const T: usize>(tree: &Tree<T>, bpm: &BufferPoolManager) -> usize {
-    let mut leaves = IndexLeaves::<T>::with_tombstones(tree.get_root_page_id(), bpm);
-    let mut count = 0;
-    while leaves.valid() {
-        count += 1;
-        leaves.advance();
-    }
-    count
-}
-
-// ---- This course's own checker --------------------------------------------------------------------------------------------------
-
-/// What `check_structure` found.
-#[derive(Debug, PartialEq)]
-pub struct Shape {
-    /// Levels, counting the leaves: a lone root leaf is 1.
-    pub height: usize,
-    pub leaves: usize,
-    pub internals: usize,
-    pub keys: usize,
-}
-
-/// Checks every rule a B+ tree must keep, and returns what it found or the first rule that is broken:
-/// every leaf at the same depth; non-root leaves hold `min_size..max_size` pairs and non-root internal pages `min_size..=max_size`
-/// children; the root is a leaf with a pair or an internal page with two children; keys are sorted within pages and inside the
-/// range their ancestors allow; each internal key is the smallest key of its right subtree's first leaf (for the tests' trees,
-/// whose separators are copied up from leaves, a separator may also be a key since deleted: only the range is checked); and the
-/// chain of `next_page_id`s visits exactly the leaves, left to right.
-pub fn check_structure(bpm: &BufferPoolManager, root_page_id: PageId) -> Result<Shape, String> {
-    check_structure_t::<0>(bpm, root_page_id)
-}
-
-/// `check_structure` for a tree whose leaves have a tombstone buffer of `T` keys: also checks the buffers (at most `T` keys, no
-/// duplicates, every tombstoned key still physically in its leaf). `Shape::keys` counts the pairs in the pages, tombstoned or not.
-pub fn check_structure_t<const T: usize>(bpm: &BufferPoolManager, root_page_id: PageId) -> Result<Shape, String> {
-    if !root_page_id.is_valid() {
-        return Ok(Shape { height: 0, leaves: 0, internals: 0, keys: 0 });
-    }
-    let cmp = GenericComparator::<8>;
-    struct Walk {
-        leaf_ids: Vec<PageId>,
-        leaf_depth: Option<usize>,
-        internals: usize,
-        keys: usize,
-    }
-    fn walk<const T: usize>(bpm: &BufferPoolManager, cmp: &Cmp, page_id: PageId, depth: usize, is_root: bool, lo: Option<Key>, hi: Option<Key>, w: &mut Walk) -> Result<(), String> {
-        let guard = bpm.read_page(page_id);
-        let page = Page::new(&guard[..]);
-        let in_range = |k: &Key| lo.as_ref().is_none_or(|lo| cmp.compare(k, lo).is_ge()) && hi.as_ref().is_none_or(|hi| cmp.compare(k, hi).is_lt());
-        if page.is_leaf_page() {
-            let leaf = Leaf::<_, Key, Rid, T>::new(&guard[..]);
-            let (size, max, min) = (leaf.size(), leaf.max_size(), leaf.min_size());
-            if size == 0 || size >= max {
-                return Err(format!("leaf {page_id:?} has {size} pairs; a leaf holds 1..{max} pairs at rest"));
-            }
-            if !is_root && size < min {
-                return Err(format!("leaf {page_id:?} has {size} pairs, fewer than min_size {min}"));
-            }
-            for i in 0..size {
-                let k = leaf.key_at(i);
-                if !in_range(&k) {
-                    return Err(format!("leaf {page_id:?}: key {} is outside the range its ancestors allow", k.get_as_integer()));
-                }
-                if i > 0 && cmp.compare(&leaf.key_at(i - 1), &k).is_ge() {
-                    return Err(format!("leaf {page_id:?}: keys are not strictly increasing at slot {i}"));
-                }
-            }
-            // (a tree without tombstones never calls the buffer functions: they belong to module 2d)
-            let tombs = if T > 0 { leaf.tombstones() } else { vec![] };
-            if tombs.len() > T {
-                return Err(format!("leaf {page_id:?} has {} tombstones but a buffer of {T}", tombs.len()));
-            }
-            for (i, t) in tombs.iter().enumerate() {
-                if leaf.find(t, cmp).is_none() {
-                    return Err(format!("leaf {page_id:?}: tombstone {} has no pair in the page", t.get_as_integer()));
-                }
-                if tombs[..i].iter().any(|u| u == t) {
-                    return Err(format!("leaf {page_id:?}: tombstone {} is buffered twice", t.get_as_integer()));
-                }
-            }
-            match w.leaf_depth {
-                None => w.leaf_depth = Some(depth),
-                Some(d) if d != depth => return Err(format!("leaf {page_id:?} is at depth {depth} but another leaf is at depth {d}")),
-                _ => {}
-            }
-            w.leaf_ids.push(page_id);
-            w.keys += size as usize;
+/// Checks, from outside, every rule a B+ tree without tombstones keeps (Err names the first broken one):
+/// - the leaves hold exactly the live keys: their sizes add up to the number of keys;
+/// - a leaf at rest holds at most `leaf_max - 1` pairs, and every leaf of a tree with more than one leaf holds at least `leaf_max / 2`;
+/// - the depth fits the number of leaves for the fan-out limits: between `2 * ceil(max/2)^(h-1)` and `max^h` leaves under `h` internal levels;
+/// - **every leaf is at the same depth**: every lookup latches the header and exactly one page per level (`depth() + 1` read latches);
+/// - with `with_scan`, a scan returns the keys in strictly increasing order and they are exactly the live keys.
+pub fn check_shape(tree: &Tree<0>, live: &BTreeSet<i64>, leaf_max: u32, internal_max: u32, with_scan: bool) -> Result<(), String> {
+    let sizes = tree.leaf_sizes();
+    let depth = tree.depth();
+    if live.is_empty() {
+        return if depth == 0 && sizes.is_empty() && tree.is_empty() && !tree.get_root_page_id().is_valid() {
             Ok(())
         } else {
-            let node = Internal::<_, Key>::new(&guard[..]);
-            let (size, max, min) = (node.size(), node.max_size(), node.min_size());
-            if size > max {
-                return Err(format!("internal page {page_id:?} has {size} children, more than max_size {max}"));
-            }
-            if is_root && size < 2 {
-                return Err(format!("the root {page_id:?} is an internal page with {size} child"));
-            }
-            if !is_root && size < min {
-                return Err(format!("internal page {page_id:?} has {size} children, fewer than min_size {min}"));
-            }
-            for i in 2..size {
-                if cmp.compare(&node.key_at(i - 1), &node.key_at(i)).is_ge() {
-                    return Err(format!("internal page {page_id:?}: keys are not strictly increasing at slot {i}"));
-                }
-            }
-            for i in 1..size {
-                if !in_range(&node.key_at(i)) {
-                    return Err(format!("internal page {page_id:?}: key {} is outside the range its ancestors allow", node.key_at(i).get_as_integer()));
-                }
-            }
-            w.internals += 1;
-            for i in 0..size {
-                let child_lo = if i == 0 { lo } else { Some(node.key_at(i)) };
-                let child_hi = if i + 1 < size { Some(node.key_at(i + 1)) } else { hi };
-                walk::<T>(bpm, cmp, node.value_at(i), depth + 1, false, child_lo, child_hi, w)?;
-            }
-            Ok(())
+            Err(format!("an empty tree must have depth 0, no leaves and an invalid root; got depth {depth}, leaves {sizes:?}"))
+        };
+    }
+    if tree.is_empty() || depth == 0 {
+        return Err(format!("{} keys but the tree says it is empty (depth {depth})", live.len()));
+    }
+    if sizes.iter().sum::<usize>() != live.len() {
+        return Err(format!("the leaves hold {:?} = {} pairs but {} keys were inserted", sizes, sizes.iter().sum::<usize>(), live.len()));
+    }
+    if let Some(too_big) = sizes.iter().find(|&&s| s as u32 >= leaf_max) {
+        return Err(format!("a leaf holds {too_big} pairs; at rest a leaf holds at most leaf_max_size - 1 = {}", leaf_max - 1));
+    }
+    if sizes.len() > 1 {
+        if let Some(too_small) = sizes.iter().find(|&&s| (s as u32) < leaf_max / 2) {
+            return Err(format!("a leaf holds {too_small} pairs, fewer than the minimum {} (leaf sizes {sizes:?})", leaf_max / 2));
         }
     }
-    let mut w = Walk { leaf_ids: vec![], leaf_depth: None, internals: 0, keys: 0 };
-    walk::<T>(bpm, &cmp, root_page_id, 1, true, None, None, &mut w)?;
-    // the leaf chain
-    let mut chain = vec![];
-    let mut next = Some(w.leaf_ids[0]);
-    while let Some(id) = next {
-        chain.push(id);
-        if chain.len() > w.leaf_ids.len() {
-            break;
+    let leaves = sizes.len() as u128;
+    let internal_levels = depth as u32 - 1;
+    let (fewest, most) = leaf_range(internal_max, internal_levels);
+    if leaves < fewest || leaves > most {
+        return Err(format!("{leaves} leaves under {internal_levels} internal levels with at most {internal_max} children each: that needs {fewest} to {most} leaves"));
+    }
+    // equal depth: every lookup latches the header page and one page per level
+    for &k in live.iter().step_by((live.len() / 40).max(1)) {
+        let before = tree.bpm.get_reads();
+        let found = get(tree, k);
+        let latched = tree.bpm.get_reads() - before;
+        if found.len() != 1 {
+            return Err(format!("key {k} has {} values", found.len()));
         }
-        next = Leaf::<_, Key, Rid, T>::new(&bpm.read_page(id)[..]).next_page_id();
+        if latched != depth + 1 {
+            return Err(format!("a lookup of key {k} latched {latched} pages; with depth {depth} every lookup should latch {} (header plus one page per level): leaves are not all at one depth", depth + 1));
+        }
     }
-    if chain != w.leaf_ids {
-        return Err(format!("the next-leaf chain {chain:?} is not the leaves left to right {:?}", w.leaf_ids));
+    if with_scan {
+        let scanned = keys_by_scan(tree);
+        if !scanned.windows(2).all(|w| w[0] < w[1]) {
+            return Err("a scan did not return strictly increasing keys".into());
+        }
+        if scanned != live.iter().copied().collect::<Vec<_>>() {
+            return Err(format!("a scan returned {} keys, not the {} live ones", scanned.len(), live.len()));
+        }
     }
-    Ok(Shape { height: w.leaf_depth.unwrap(), leaves: w.leaf_ids.len(), internals: w.internals, keys: w.keys })
+    Ok(())
 }
 
-/// The tree's shape as text, for exact comparisons: a leaf is `[1,2]`; an internal page is `{k1,k2 child child child}`, listing its
-/// keys (not the unused first one) and then its children. A lone root leaf is `[1,2]`; an empty tree is `empty`.
-pub fn shape(bpm: &BufferPoolManager, root_page_id: PageId) -> String {
-    shape_t::<0>(bpm, root_page_id)
-}
-
-/// `shape` with tombstones: a leaf is `[1,2,3~2]` (keys, then `~` and the tombstoned keys, oldest first).
-pub fn shape_t<const T: usize>(bpm: &BufferPoolManager, root_page_id: PageId) -> String {
-    fn go<const T: usize>(bpm: &BufferPoolManager, page_id: PageId) -> String {
-        let guard = bpm.read_page(page_id);
-        if Page::new(&guard[..]).is_leaf_page() {
-            let leaf = Leaf::<_, Key, Rid, T>::new(&guard[..]);
-            let keys: Vec<String> = (0..leaf.size()).map(|i| leaf.key_at(i).get_as_integer().to_string()).collect();
-            let tombs: Vec<String> = if T > 0 { leaf.tombstones().iter().map(|k| k.get_as_integer().to_string()).collect() } else { vec![] };
-            if tombs.is_empty() { format!("[{}]", keys.join(",")) } else { format!("[{}~{}]", keys.join(","), tombs.join(",")) }
-        } else {
-            let node = Internal::<_, Key>::new(&guard[..]);
-            let keys: Vec<String> = (1..node.size()).map(|i| node.key_at(i).get_as_integer().to_string()).collect();
-            let children: Vec<String> = (0..node.size()).map(|i| go::<T>(bpm, node.value_at(i))).collect();
-            format!("{{{} {}}}", keys.join(","), children.join(" "))
+/// `check_shape` for a tree whose leaves have a tombstone buffer of `T` keys. A leaf holds its live pairs and its tombstoned pairs, both
+/// counted in its size. Checks: every leaf's keys are strictly increasing; each leaf's tombstone buffer has at most `T` keys, no repeats,
+/// every one of them physically in that leaf; the live keys are exactly the physical keys minus the tombstoned ones (and a scan, with
+/// `with_scan`, returns just those, in order); leaf sizes and depth obey the same limits as without tombstones; every lookup latches
+/// `depth() + 1` pages.
+pub fn check_shape_t<const T: usize>(tree: &Tree<T>, live: &BTreeSet<i64>, leaf_max: u32, internal_max: u32, with_scan: bool) -> Result<(), String> {
+    let keys: Vec<Vec<i64>> = tree.leaf_keys().into_iter().map(|l| l.iter().map(|k| k.get_as_integer()).collect()).collect();
+    let tombs: Vec<Vec<i64>> = tree.leaf_tombstones().into_iter().map(|l| l.iter().map(|k| k.get_as_integer()).collect()).collect();
+    let depth = tree.depth();
+    if keys.len() != tombs.len() || keys.len() != tree.leaf_sizes().len() {
+        return Err("the observers disagree about how many leaves there are".into());
+    }
+    let mut physical_live = BTreeSet::new();
+    let mut tombstoned = 0;
+    for (i, (ks, ts)) in keys.iter().zip(&tombs).enumerate() {
+        if !ks.windows(2).all(|w| w[0] < w[1]) {
+            return Err(format!("leaf {i}: keys {ks:?} are not strictly increasing"));
+        }
+        if ts.len() > T {
+            return Err(format!("leaf {i}: {} tombstones but the buffer holds {T}", ts.len()));
+        }
+        let distinct: BTreeSet<_> = ts.iter().collect();
+        if distinct.len() != ts.len() {
+            return Err(format!("leaf {i}: a key is tombstoned twice: {ts:?}"));
+        }
+        if let Some(t) = ts.iter().find(|t| !ks.contains(t)) {
+            return Err(format!("leaf {i}: tombstone {t} is not a key of that leaf ({ks:?})"));
+        }
+        if ks.len() as u32 >= leaf_max {
+            return Err(format!("leaf {i} holds {} pairs; at rest at most {}", ks.len(), leaf_max - 1));
+        }
+        if keys.len() > 1 && (ks.len() as u32) < leaf_max / 2 {
+            return Err(format!("leaf {i} holds {} pairs, fewer than the minimum {}", ks.len(), leaf_max / 2));
+        }
+        tombstoned += ts.len();
+        physical_live.extend(ks.iter().filter(|k| !ts.contains(k)).copied());
+    }
+    if &physical_live != live {
+        return Err(format!("the leaves hold {} live keys but {} were expected (tombstones in the leaves: {tombstoned})", physical_live.len(), live.len()));
+    }
+    if live.is_empty() && tombstoned == 0 {
+        return if depth == 0 { Ok(()) } else { Err(format!("nothing is stored but the depth is {depth}")) };
+    }
+    if depth == 0 {
+        return Err("keys are stored but the tree says depth 0".into());
+    }
+    let (fewest, most) = leaf_range(internal_max, depth as u32 - 1);
+    if (keys.len() as u128) < fewest || (keys.len() as u128) > most {
+        return Err(format!("{} leaves under {} internal levels with at most {internal_max} children each: that needs {fewest} to {most} leaves", keys.len(), depth - 1));
+    }
+    for &k in live.iter().step_by((live.len() / 40).max(1)) {
+        let before = tree.bpm.get_reads();
+        let found = get(tree, k);
+        let latched = tree.bpm.get_reads() - before;
+        if found.len() != 1 {
+            return Err(format!("live key {k} has {} values", found.len()));
+        }
+        if latched != depth + 1 {
+            return Err(format!("a lookup of key {k} latched {latched} pages; with depth {depth} it should latch {}", depth + 1));
         }
     }
-    if root_page_id.is_valid() {
-        go::<T>(bpm, root_page_id)
-    } else {
-        "empty".to_owned()
+    if with_scan {
+        let scanned = keys_by_scan(tree);
+        if scanned != live.iter().copied().collect::<Vec<_>>() {
+            return Err(format!("a scan returned {} keys, not the {} live ones", scanned.len(), live.len()));
+        }
     }
+    Ok(())
+}
+
+/// The leaves of a tree as text, left to right: `[0,1][2,3~2,3][4,5~4]` is three leaves; the keys before the `~` are the pairs stored
+/// in the leaf, the keys after it its tombstone buffer, oldest first.
+pub fn leaves_t<const T: usize>(tree: &Tree<T>) -> String {
+    let keys = tree.leaf_keys();
+    let tombs = tree.leaf_tombstones();
+    keys.iter()
+        .zip(&tombs)
+        .map(|(ks, ts)| {
+            let k: Vec<String> = ks.iter().map(|k| k.get_as_integer().to_string()).collect();
+            let t: Vec<String> = ts.iter().map(|k| k.get_as_integer().to_string()).collect();
+            if t.is_empty() { format!("[{}]", k.join(",")) } else { format!("[{}~{}]", k.join(","), t.join(",")) }
+        })
+        .collect()
 }

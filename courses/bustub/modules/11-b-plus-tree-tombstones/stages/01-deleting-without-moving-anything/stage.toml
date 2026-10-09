@@ -1,0 +1,8 @@
+id = "2d-01"
+title = "Deleting without moving anything"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_2d::s2d_01"]
+learn = ["a logical delete: leave the pair, remember the key", "a bounded buffer that forces the oldest delete to become real", "const generics decide the layout"]
+concepts = []
+concepts_optional = ["tombstones-and-lazy-deletion", "const-generics-for-page-layouts", "repr-c-layouts-and-const-asserts", "model-based-testing"]

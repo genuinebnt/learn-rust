@@ -131,8 +131,7 @@ fn different_parameters_are_different_types() {
 
 ### In the exercises
 
-- **2d-01:** `BPlusTreeLeafPage<B, K, V, const TOMBS: usize = 0>`, `TOMB_REGION` and `ENTRIES_AT` are the second test's constants; the first test is the buffer's behaviour (`add_tombstone` returning the evicted key is `remove_logically`'s "remove the oldest" step).
-- **2d-02, 2d-03:** `Leaf::<_, K, V, TOMBS>::new` everywhere in your tree and iterator; `if TOMBS > 0 { leaf.remove_logically(..) } else { leaf.remove(..) }` is the `if N == 0` of the first test.
+- **2d-01, 2d-02:** `BPlusTreeLeafPage<B, K, V, const TOMBS: usize = 0>` with `TOMB_REGION` and `ENTRIES_AT` computed from the parameter; `Leaf::<_, K, V, TOMBS>::new` everywhere in your tree and iterator, and `if TOMBS > 0 { .. }` for the tombstone paths.
 - **Tests:** `new_tree_t::<2>(..)`, `IndexLeaves::<2>::with_tombstones(..)` pass the parameter explicitly.
 
 ### Where it is used

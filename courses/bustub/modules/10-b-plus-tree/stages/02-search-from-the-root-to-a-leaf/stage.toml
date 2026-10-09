@@ -1,8 +1,0 @@
-id = "2c-02"
-title = "Search: from the root to a leaf"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_2c::s2c_02"]
-learn = ["routing a key through separator keys with a binary search", "latch crabbing for readers", "the header page as the tree's entry point"]
-concepts = ["routing-with-separator-keys", "the-root-and-the-header-page", "slices-copy-within-and-binary-search"]
-concepts_optional = ["latch-crabbing-and-safe-nodes"]

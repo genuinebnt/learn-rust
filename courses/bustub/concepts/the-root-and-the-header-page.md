@@ -134,10 +134,7 @@ fn an_unformatted_header_names_page_zero_and_init_fixes_it() {
 
 ### In the exercises
 
-- **2c-01:** `BPlusTreeHeaderPage` (`root_page_id`, `set_root_page_id`, `init`): the third test above.
-- **2c-02:** `BPlusTree::new` formats the header; `find_leaf` read-latches the header, then the root, then drops the header.
-- **2c-03:** the first insert write-latches the header, sees `INVALID`, makes the root leaf and stores its id: the `root_or_create` shape.
-- **2c-04, 2c-05, 2c-08:** `ctx.set_root(..)` after a root split and after a root collapse; the stage 9 `release_ancestors` drops the header guard as soon as the root is safe.
+- **2c-01, 2c-02, 2c-04, 2c-05:** the header page (`root_page_id`, set, init) is formatted by `new`; `find_leaf` read-latches the header, then the root, then drops the header; the first insert write-latches it and stores the new root; a root split or collapse updates it; a safe page releases it.
 
 ### Where it is used
 

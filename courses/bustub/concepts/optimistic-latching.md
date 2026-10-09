@@ -182,8 +182,7 @@ fn readers_never_see_a_torn_pair_and_never_block_the_writer() {
 
 ### In the exercises
 
-- **2c-09:** `insert_optimistic` and `remove_optimistic` are `insert_fast`: check the leaf under its write latch; a duplicate/missing key is a finished answer; change nothing before you know; `None`/`false` means "redo it pessimistically". The stage's counter tests (`writes == 1`) measure the fast path.
-- **2c-09 (pessimistic fallback):** `insert_slow` is the stage 3 to 5 insert, unchanged.
+- **2c-05:** `insert_optimistic` and `remove_optimistic` check the leaf under its write latch (a duplicate or missing key is simply done); anything else falls back to the pessimistic path, which is the insert and remove of the earlier stages unchanged.
 - **Version-checked retry:** the second test is the validation step in "optimistic lock coupling"; the course's index gets the same safety from the parent's read latch instead of a version number.
 
 ### Where it is used

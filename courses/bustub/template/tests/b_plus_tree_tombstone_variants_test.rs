@@ -314,10 +314,7 @@ fn random_workload<const T: usize>(leaf: u32, internal: u32, seed: u64) {
             model.remove(&key);
             remove(&tree, key);
         }
-        check_structure_t::<T>(&bpm, tree.get_root_page_id()).unwrap_or_else(|e| panic!("T={T} ({leaf},{internal}) seed {seed} step {step}: {e}\n{}", shape_t::<T>(&bpm, tree.get_root_page_id())));
-        if step % 25 == 0 {
-            assert_eq!(keys_by_scan(&tree), model.iter().copied().collect::<Vec<_>>(), "T={T} ({leaf},{internal}) seed {seed} step {step}");
-        }
+        check_shape_t::<T>(&tree, &model, leaf, internal, step % 25 == 0).unwrap_or_else(|e| panic!("T={T} ({leaf},{internal}) seed {seed} step {step}: {e}\n{}", leaves_t(&tree)));
     }
     for k in 0..80 {
         assert_eq!(get(&tree, k).len(), model.contains(&k) as usize, "key {k}");

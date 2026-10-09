@@ -1,0 +1,8 @@
+id = "0d-c2"
+title = "Challenge: reservoir sampling"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_0d::s0d_c2"]
+learn = ["a uniform sample of a stream of unknown length in constant memory", "a proof-by-test that each item has the same chance"]
+concepts = []
+concepts_optional = ["property-testing-and-fuzzing", "hyperloglog-and-distinct-counting"]

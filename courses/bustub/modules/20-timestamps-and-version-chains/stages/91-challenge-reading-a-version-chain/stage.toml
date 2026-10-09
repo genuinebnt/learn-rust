@@ -1,0 +1,8 @@
+id = "4a-c2"
+title = "Challenge: reading a version chain"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4a::s4a_c2"]
+learn = ["picking the version a reader at a timestamp may see", "your own uncommitted version, and a delete marker"]
+concepts = []
+concepts_optional = ["multi-version-concurrency-control", "snapshot-isolation"]

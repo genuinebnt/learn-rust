@@ -1,0 +1,8 @@
+id = "3b-c4"
+title = "Challenge: checksummed pages"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3b::s3b_c4"]
+learn = ["a table-driven CRC-32", "sealing a payload and refusing damaged ones"]
+concepts = []
+concepts_optional = ["durability-and-fsync", "bytes-endianness-and-views", "errors-as-values-with-result"]

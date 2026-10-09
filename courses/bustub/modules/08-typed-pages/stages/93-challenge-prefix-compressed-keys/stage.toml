@@ -1,0 +1,8 @@
+id = "2a-c4"
+title = "Challenge: prefix-compressed keys"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_2a::s2a_c4"]
+learn = ["storing sorted keys by what differs from the previous key", "decoding untrusted bytes without panicking"]
+concepts = []
+concepts_optional = ["bytes-endianness-and-views", "errors-as-values-with-result", "property-testing-and-fuzzing"]

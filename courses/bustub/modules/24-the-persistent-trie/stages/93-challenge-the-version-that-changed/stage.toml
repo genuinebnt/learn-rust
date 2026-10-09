@@ -1,0 +1,8 @@
+id = "0a-c4"
+title = "Challenge: the version that changed"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_0a::s0a_c4"]
+learn = ["finding the bug where a 'new version' mutates the old one through shared ownership"]
+concepts = []
+concepts_optional = ["persistent-data-structures-and-path-copying", "interior-mutability", "property-testing-and-fuzzing"]

@@ -1,0 +1,49 @@
+A challenge: no walkthrough, no hints, no solution. It is extra practice and does not count towards the course.
+
+## What to fix
+
+`random_height` in `src/primer/height.rs` draws a node's height from a source of coin flips and must never exceed `max`. It works in nearly every run, and once in a while it returns `max + 1` (and a list built on it indexes past its tower array). Find the bug and fix it.
+
+## Why
+
+The loop `while flip() { level += 1 }` is half the code of a skip list and the half most often written without its bound: with the bound on the wrong side of the comparison, the failure waits for `max` consecutive heads, which at 14 levels and a fair coin is once in sixteen thousand nodes. A test that controls the coin makes it a certainty.
+
+## The contract
+
+- `random_height(flip, max)`: start at 1; while `flip()` returns true **and** the height is below `max`, add one. The result is in `1..=max`.
+- `flip` is called at most `max` times, and not at all when `max == 1`.
+
+## Invariants
+
+These must hold after every step, whatever the input:
+
+- The height is never above `max`.
+- The height is `1 + the number of leading heads`, capped at `max`.
+
+## Relations between input and output
+
+How the answer must change when the input changes. The property tests check these on random inputs:
+
+- With a coin that is always heads the result is exactly `max`.
+- With a coin that is always tails the result is 1 and `flip` was called once.
+- `flip` is never called after the cap is reached.
+
+## Examples
+
+Worked cases (the tests include them):
+
+```text
+max 4, always heads -> 4
+max 4, H H T -> 3
+max 1, any coin -> 1 with no flips
+```
+
+## What the tests check
+
+- Always heads, always tails and mixed sequences.
+- The number of flips.
+- A property over all coin sequences.
+
+## Done when
+
+All the `s0b_c4` tests pass, and you can say in one sentence what the bug was.

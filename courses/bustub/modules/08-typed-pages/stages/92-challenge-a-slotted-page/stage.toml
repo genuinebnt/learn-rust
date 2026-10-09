@@ -1,0 +1,8 @@
+id = "2a-c3"
+title = "Challenge: a slotted page"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_2a::s2a_c3"]
+learn = ["storing variable-length records in a fixed-size page", "reclaiming fragmented space without losing a record"]
+concepts = []
+concepts_optional = ["slotted-pages", "slot-allocation-and-invariants", "model-based-testing"]

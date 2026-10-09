@@ -1,0 +1,8 @@
+id = "3d-c1"
+title = "Challenge: a hardened lexer"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3d::s3d_c1"]
+learn = ["tokenising SQL with quoted strings, quoted identifiers and comments", "reporting a lexical error with its byte position"]
+concepts = []
+concepts_optional = ["lexers-and-precedence-climbing", "errors-as-values-with-result"]

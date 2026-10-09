@@ -1,0 +1,8 @@
+id = "1b-c3"
+title = "Challenge: a priority queue of requests"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1b::s1b_c3"]
+learn = ["ordering work by priority and, within a priority, by arrival", "keeping a stable order without sorting the whole queue every time"]
+concepts = []
+concepts_optional = ["condvars-and-blocking-queues", "model-based-testing"]

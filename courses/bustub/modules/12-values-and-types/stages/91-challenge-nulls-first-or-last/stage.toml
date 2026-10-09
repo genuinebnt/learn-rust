@@ -1,0 +1,8 @@
+id = "3a-c2"
+title = "Challenge: NULLS FIRST or LAST"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3a::s3a_c2"]
+learn = ["ordering values that may be NULL in either direction with NULLs placed independently", "a comparator that is a total preorder"]
+concepts = []
+concepts_optional = ["sort-keys-and-null-ordering", "sql-types-and-three-valued-logic"]

@@ -942,3 +942,393 @@ proptest! {
         }
     }
 }
+
+// @@ challenge 0d-c1 begin
+mod ch_0d_c1 {
+    use proptest::prelude::*;
+
+    use bustub::primer::bloom::BloomFilter;
+
+    #[test]
+    fn s0d_c1_there_are_no_false_negatives() {
+        let mut f = BloomFilter::new(2000, 5);
+        for k in 0..200u64 {
+            f.insert(k * 7919);
+        }
+        assert!((0..200u64).all(|k| f.contains(k * 7919)));
+    }
+
+    #[test]
+    fn s0d_c1_an_empty_filter_contains_nothing_and_inserting_twice_changes_nothing() {
+        let mut f = BloomFilter::new(512, 3);
+        assert!(!f.contains(1) && f.bits_set() == 0);
+        f.insert(1);
+        let once = f.bits_set();
+        f.insert(1);
+        assert_eq!(f.bits_set(), once);
+        assert!(once <= 3);
+    }
+
+    #[test]
+    fn s0d_c1_the_false_positive_rate_matches_the_theory() {
+        // 10 bits per key and 7 hashes: about 0.8% in theory; accept up to 3%
+        let mut f = BloomFilter::new(10_000, 7);
+        for k in 0..1000u64 {
+            f.insert(k);
+        }
+        let fp = (1_000_000u64..1_005_000).filter(|&k| f.contains(k)).count();
+        assert!(fp < 150, "{fp} false positives in 5000 probes");
+    }
+
+    #[test]
+    fn s0d_c1_union_contains_everything_either_contained_and_checks_the_shape() {
+        let (mut a, mut b) = (BloomFilter::new(1024, 4), BloomFilter::new(1024, 4));
+        for k in 0..50u64 { a.insert(k); }
+        for k in 100..150u64 { b.insert(k); }
+        let u = a.union(&b).unwrap();
+        assert!((0..50u64).chain(100..150).all(|k| u.contains(k)));
+        assert_eq!(u.bits_set() , {
+            let mut both = BloomFilter::new(1024, 4);
+            for k in (0..50u64).chain(100..150) { both.insert(k); }
+            both.bits_set()
+        });
+        assert!(a.union(&BloomFilter::new(512, 4)).is_none());
+        assert!(a.union(&BloomFilter::new(1024, 5)).is_none());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: whatever is inserted is contained, and the number of set bits is at most `k` per key.
+        #[test]
+        fn s0d_c1_property_inserted_keys_are_always_found(keys in proptest::collection::vec(any::<u64>(), 0..80), m in 64usize..4000, k in 1u32..8) {
+            let mut f = BloomFilter::new(m, k);
+            for &x in &keys { f.insert(x); }
+            for &x in &keys { prop_assert!(f.contains(x)); }
+            prop_assert!(f.bits_set() <= (k as usize * keys.len()).min(m));
+        }
+    }
+}
+// @@ challenge 0d-c1 end
+
+// @@ challenge 0d-c2 begin
+mod ch_0d_c2 {
+    use proptest::prelude::*;
+
+    use bustub::primer::reservoir::Reservoir;
+
+    #[test]
+    fn s0d_c2_a_short_stream_is_kept_whole() {
+        let mut r = Reservoir::new(5, 1);
+        for i in 0..3 {
+            r.offer(i);
+        }
+        let mut s = r.sample().to_vec();
+        s.sort();
+        assert_eq!((s, r.seen()), (vec![0, 1, 2], 3));
+    }
+
+    #[test]
+    fn s0d_c2_the_sample_never_exceeds_k() {
+        let mut r = Reservoir::new(4, 9);
+        for i in 0..1000 {
+            r.offer(i);
+            assert!(r.sample().len() <= 4);
+        }
+        assert_eq!((r.sample().len(), r.seen()), (4, 1000));
+    }
+
+    #[test]
+    fn s0d_c2_a_reservoir_of_zero_holds_nothing() {
+        let mut r = Reservoir::new(0, 3);
+        for i in 0..10 {
+            r.offer(i);
+        }
+        assert_eq!((r.sample().len(), r.seen()), (0, 10));
+    }
+
+    #[test]
+    fn s0d_c2_the_same_seed_gives_the_same_sample() {
+        let run = |seed| {
+            let mut r = Reservoir::new(5, seed);
+            for i in 0..500 {
+                r.offer(i);
+            }
+            r.sample().to_vec()
+        };
+        assert_eq!(run(7), run(7));
+        assert_ne!(run(7), run(8));
+    }
+
+    #[test]
+    fn s0d_c2_every_item_is_equally_likely_to_be_sampled() {
+        // 10 items, k = 3: each should be sampled in about 30% of 20 000 runs
+        let n = 10usize;
+        let runs = 20_000;
+        let mut hits = vec![0usize; n];
+        for seed in 0..runs {
+            let mut r = Reservoir::new(3, seed as u64 + 1);
+            for i in 0..n {
+                r.offer(i);
+            }
+            for &i in r.sample() {
+                hits[i] += 1;
+            }
+        }
+        for (i, &h) in hits.iter().enumerate() {
+            let p = h as f64 / runs as f64;
+            assert!((p - 0.3).abs() < 0.03, "item {i} was sampled with frequency {p}, expected 0.3 (all: {hits:?})");
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the sample is a sub-multiset of the stream with `min(k, n)` items.
+        #[test]
+        fn s0d_c2_property_the_sample_comes_from_the_stream(stream in proptest::collection::vec(0u32..6, 0..40), k in 0usize..8, seed in any::<u64>()) {
+            let mut r = Reservoir::new(k, seed);
+            for &x in &stream { r.offer(x); }
+            prop_assert_eq!(r.sample().len(), k.min(stream.len()));
+            let mut pool = stream.clone();
+            for x in r.sample() {
+                let at = pool.iter().position(|y| y == x);
+                prop_assert!(at.is_some(), "{} sampled more often than offered", x);
+                pool.remove(at.unwrap());
+            }
+        }
+    }
+}
+// @@ challenge 0d-c2 end
+
+// @@ challenge 0d-c3 begin
+mod ch_0d_c3 {
+    use proptest::prelude::*;
+
+    use bustub::primer::merkle::{leaf_hash, node_hash, verify, MerkleTree};
+
+    fn leaves(n: usize) -> Vec<Vec<u8>> {
+        (0..n).map(|i| format!("leaf-{i}").into_bytes()).collect()
+    }
+
+    #[test]
+    fn s0d_c3_roots_of_small_trees_by_hand() {
+        assert_eq!(MerkleTree::new(&[]).root(), 0);
+        let one = leaves(1);
+        assert_eq!(MerkleTree::new(&one).root(), leaf_hash(&one[0]));
+        let two = leaves(2);
+        assert_eq!(MerkleTree::new(&two).root(), node_hash(leaf_hash(&two[0]), leaf_hash(&two[1])));
+        let three = leaves(3);
+        let (a, b, c) = (leaf_hash(&three[0]), leaf_hash(&three[1]), leaf_hash(&three[2]));
+        assert_eq!(MerkleTree::new(&three).root(), node_hash(node_hash(a, b), node_hash(c, c)), "an odd node is paired with itself");
+    }
+
+    #[test]
+    fn s0d_c3_every_leaf_has_a_proof_that_verifies() {
+        for n in 1..=9 {
+            let ls = leaves(n);
+            let t = MerkleTree::new(&ls);
+            for (i, l) in ls.iter().enumerate() {
+                let p = t.proof(i).unwrap();
+                assert!(verify(t.root(), l, &p), "n {n}, leaf {i}");
+                assert_eq!(p.len(), (n as f64).log2().ceil() as usize);
+            }
+            assert!(t.proof(n).is_none());
+        }
+    }
+
+    #[test]
+    fn s0d_c3_a_wrong_leaf_or_a_tampered_proof_fails() {
+        let ls = leaves(6);
+        let t = MerkleTree::new(&ls);
+        let p = t.proof(2).unwrap();
+        assert!(!verify(t.root(), b"leaf-3", &p), "a proof is for one leaf");
+        let mut bad = p.clone();
+        bad[0].0 ^= 1;
+        assert!(!verify(t.root(), &ls[2], &bad));
+        let mut flipped = p.clone();
+        flipped[1].1 = !flipped[1].1;
+        assert!(!verify(t.root(), &ls[2], &flipped));
+    }
+
+    #[test]
+    fn s0d_c3_changing_any_leaf_or_the_order_changes_the_root() {
+        let ls = leaves(5);
+        let root = MerkleTree::new(&ls).root();
+        for i in 0..5 {
+            let mut m = ls.clone();
+            m[i].push(b'!');
+            assert_ne!(MerkleTree::new(&m).root(), root, "leaf {i}");
+        }
+        let mut swapped = ls.clone();
+        swapped.swap(0, 4);
+        assert_ne!(MerkleTree::new(&swapped).root(), root);
+        assert_eq!(MerkleTree::new(&ls).root(), root, "the root is a function of the leaves");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: every leaf's proof verifies against the root and against nothing else.
+        #[test]
+        fn s0d_c3_property_proofs_verify_exactly_their_leaf(ls in proptest::collection::vec(proptest::collection::vec(any::<u8>(), 0..6), 1..12)) {
+            let t = MerkleTree::new(&ls);
+            for (i, l) in ls.iter().enumerate() {
+                let p = t.proof(i).unwrap();
+                prop_assert!(verify(t.root(), l, &p));
+                let mut other = l.clone();
+                other.push(0);
+                prop_assert!(!verify(t.root(), &other, &p));
+            }
+        }
+    }
+}
+// @@ challenge 0d-c3 end
+
+// @@ challenge 0d-c4 begin
+mod ch_0d_c4 {
+    use proptest::prelude::*;
+
+    use bustub::primer::pn_counter::PnCounter;
+
+    fn counter(ops: &[(u32, bool, u64)]) -> PnCounter {
+        let mut c = PnCounter::new();
+        for &(n, up, v) in ops {
+            if up { c.inc(n, v) } else { c.dec(n, v) }
+        }
+        c
+    }
+
+    #[test]
+    fn s0d_c4_values_add_and_subtract() {
+        let c = counter(&[(1, true, 5), (1, false, 2), (2, true, 10)]);
+        assert_eq!(c.value(), 13);
+        assert_eq!(PnCounter::new().value(), 0);
+        assert_eq!(counter(&[(1, false, 4)]).value(), -4);
+    }
+
+    #[test]
+    fn s0d_c4_merging_two_replicas_combines_their_updates() {
+        let mut a = counter(&[(1, true, 5)]);
+        let b = counter(&[(2, true, 3), (2, false, 1)]);
+        a.merge(&b);
+        assert_eq!(a.value(), 7);
+        a.merge(&b);
+        assert_eq!(a.value(), 7, "merging again changes nothing");
+    }
+
+    #[test]
+    fn s0d_c4_two_replicas_that_each_saw_a_newer_state_of_the_same_node_keep_the_larger() {
+        let old = counter(&[(1, true, 3)]);
+        let new = counter(&[(1, true, 8)]);
+        let mut m = old.clone();
+        m.merge(&new);
+        assert_eq!(m.value(), 8, "not 11: the counts of one node are not added together");
+    }
+
+    #[test]
+    fn s0d_c4_updates_made_after_a_merge_are_not_lost_by_the_next_one() {
+        let mut a = counter(&[(1, true, 2)]);
+        let mut b = a.clone();
+        b.inc(2, 4);
+        a.inc(1, 1);
+        a.merge(&b);
+        b.merge(&a);
+        assert_eq!((a.value(), b.value()), (7, 7));
+        assert_eq!(a, b);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: merge is commutative, associative and idempotent, and replicas that exchange everything agree.
+        #[test]
+        fn s0d_c4_property_the_three_laws(a in proptest::collection::vec((0u32..3, any::<bool>(), 0u64..9), 0..8), b in proptest::collection::vec((0u32..3, any::<bool>(), 0u64..9), 0..8), c in proptest::collection::vec((0u32..3, any::<bool>(), 0u64..9), 0..8)) {
+            let (a, b, c) = (counter(&a), counter(&b), counter(&c));
+            let merged = |x: &PnCounter, y: &PnCounter| { let mut m = x.clone(); m.merge(y); m };
+            prop_assert_eq!(merged(&a, &b), merged(&b, &a));
+            prop_assert_eq!(merged(&merged(&a, &b), &c), merged(&a, &merged(&b, &c)));
+            prop_assert_eq!(merged(&a, &a), a.clone());
+            let all = merged(&merged(&a, &b), &c);
+            prop_assert_eq!(merged(&all, &a), all);
+        }
+    }
+}
+// @@ challenge 0d-c4 end
+
+// @@ challenge 0d-c5 begin
+mod ch_0d_c5 {
+    use proptest::prelude::*;
+
+    use bustub::primer::hll_registers::{Registers, SizeMismatch};
+
+    fn sketch(hashes: &[u64]) -> Registers {
+        let mut r = Registers::new(4);
+        for &h in hashes {
+            r.update(h);
+        }
+        r
+    }
+
+    fn mix(i: u64) -> u64 {
+        let mut x = i.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+        x ^= x >> 29;
+        x = x.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        x ^ (x >> 32)
+    }
+
+    #[test]
+    fn s0d_c5_merging_takes_the_larger_register_not_the_sum() {
+        let a = sketch(&[mix(1), mix(2), mix(3)]);
+        let mut b = a.clone();
+        b.merge(&a).unwrap();
+        assert_eq!(b, a, "merging a sketch with itself changes nothing");
+    }
+
+    #[test]
+    fn s0d_c5_registers_of_two_sketches_combine_by_maximum() {
+        let a = sketch(&(0..20).map(mix).collect::<Vec<_>>());
+        let b = sketch(&(10..40).map(mix).collect::<Vec<_>>());
+        let mut m = a.clone();
+        m.merge(&b).unwrap();
+        for i in 0..16 {
+            assert_eq!(m.registers()[i], a.registers()[i].max(b.registers()[i]));
+        }
+    }
+
+    #[test]
+    fn s0d_c5_the_sketch_of_a_stream_is_the_merge_of_the_sketches_of_its_parts() {
+        let all: Vec<u64> = (0..200).map(mix).collect();
+        let whole = sketch(&all);
+        let mut parts = sketch(&all[..70]);
+        parts.merge(&sketch(&all[70..])).unwrap();
+        assert_eq!(parts, whole);
+        let mut again = parts.clone();
+        again.merge(&sketch(&all[..70])).unwrap();
+        assert_eq!(again, whole, "merging in a part that was already included changes nothing");
+    }
+
+    #[test]
+    fn s0d_c5_sketches_of_different_sizes_do_not_merge() {
+        let mut a = Registers::new(4);
+        assert_eq!(a.merge(&Registers::new(5)), Err(SizeMismatch));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the three laws, and the split-stream equality, for arbitrary hashes.
+        #[test]
+        fn s0d_c5_property_merge_is_a_semilattice(a in proptest::collection::vec(any::<u64>(), 0..30), b in proptest::collection::vec(any::<u64>(), 0..30), c in proptest::collection::vec(any::<u64>(), 0..30)) {
+            let (sa, sb, sc) = (sketch(&a), sketch(&b), sketch(&c));
+            let m = |x: &Registers, y: &Registers| { let mut r = x.clone(); r.merge(y).unwrap(); r };
+            prop_assert_eq!(m(&sa, &sb), m(&sb, &sa));
+            prop_assert_eq!(m(&m(&sa, &sb), &sc), m(&sa, &m(&sb, &sc)));
+            prop_assert_eq!(m(&sa, &sa), sa.clone());
+            let mut joined = a.clone();
+            joined.extend(&b);
+            prop_assert_eq!(m(&sa, &sb), sketch(&joined));
+        }
+    }
+}
+// @@ challenge 0d-c5 end

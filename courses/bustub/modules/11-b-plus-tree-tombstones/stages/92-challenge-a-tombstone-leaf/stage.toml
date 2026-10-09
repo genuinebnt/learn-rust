@@ -1,0 +1,8 @@
+id = "2d-c2"
+title = "Challenge: a tombstone leaf"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_2d::s2d_c2"]
+learn = ["deleting by marking, and reviving a marked slot", "a compaction rule driven by the share of dead entries"]
+concepts = []
+concepts_optional = ["range-scans-and-the-leaf-chain", "slot-allocation-and-invariants", "model-based-testing"]

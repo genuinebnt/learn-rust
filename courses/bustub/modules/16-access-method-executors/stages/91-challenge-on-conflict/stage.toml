@@ -1,0 +1,8 @@
+id = "3e-c2"
+title = "Challenge: ON CONFLICT"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3e::s3e_c2"]
+learn = ["inserting a batch where some keys already exist", "reporting what happened to each row"]
+concepts = []
+concepts_optional = ["maintaining-indexes-on-writes", "model-based-testing"]

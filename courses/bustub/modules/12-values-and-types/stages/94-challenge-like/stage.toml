@@ -1,0 +1,8 @@
+id = "3a-c5"
+title = "Challenge: LIKE"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3a::s3a_c5"]
+learn = ["matching a pattern with wildcards without exponential backtracking", "an escape character and its error case"]
+concepts = []
+concepts_optional = ["parsing-numbers-from-text", "property-testing-and-fuzzing"]

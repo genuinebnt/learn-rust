@@ -1,0 +1,8 @@
+id = "3b-c1"
+title = "Challenge: a row with a null bitmap"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3b::s3b_c1"]
+learn = ["a row format whose size depends on which columns are NULL", "decoding bytes against a schema without trusting them"]
+concepts = []
+concepts_optional = ["structs-and-accessors", "bytes-endianness-and-views", "errors-as-values-with-result"]

@@ -581,3 +581,356 @@ proptest! {
         }
     }
 }
+
+// @@ challenge 1f-c1 begin
+mod ch_1f_c1 {
+    use proptest::prelude::*;
+
+    use bustub::buffer::pin_table::{NotPinned, PinTable};
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn s1f_c1_pins_count_up_and_down() {
+        let mut t = PinTable::new();
+        assert_eq!((t.pin(3), t.pin(3)), (1, 2));
+        assert_eq!(t.unpin(3), Ok(1));
+        assert_eq!(t.unpin(3), Ok(0));
+        assert!(!t.is_pinned(3));
+        assert_eq!(t.unpin(3), Err(NotPinned));
+    }
+
+    #[test]
+    fn s1f_c1_unpinning_what_was_never_pinned_changes_nothing() {
+        let mut t = PinTable::new();
+        t.pin(1);
+        assert_eq!(t.unpin(2), Err(NotPinned));
+        assert_eq!(t.pinned_pages(), vec![1]);
+        assert_eq!(t.count(1), 1);
+    }
+
+    #[test]
+    fn s1f_c1_a_page_can_be_pinned_again_after_its_pins_reach_zero() {
+        let mut t = PinTable::new();
+        t.pin(4);
+        assert_eq!(t.unpin(4), Ok(0));
+        assert!(!t.is_pinned(4));
+        assert_eq!(t.pin(4), 1, "the count starts again from one");
+        assert_eq!(t.pinned_pages(), vec![4]);
+    }
+
+    #[test]
+    fn s1f_c1_pages_are_independent_and_listed_in_order() {
+        let mut t = PinTable::new();
+        for p in [9, 2, 5, 2] {
+            t.pin(p);
+        }
+        assert_eq!(t.pinned_pages(), vec![2, 5, 9]);
+        assert_eq!((t.count(2), t.count(5), t.count(7)), (2, 1, 0));
+        t.unpin(5).unwrap();
+        assert_eq!(t.pinned_pages(), vec![2, 9], "a page with no pins is not listed");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a map of counts, with no zero entries.
+        #[test]
+        fn s1f_c1_property_a_pin_table_matches_a_counting_map(ops in proptest::collection::vec((any::<bool>(), 0u32..5), 0..80)) {
+            let mut t = PinTable::new();
+            let mut m: BTreeMap<u32, usize> = BTreeMap::new();
+            for (pin, p) in ops {
+                if pin {
+                    *m.entry(p).or_insert(0) += 1;
+                    prop_assert_eq!(t.pin(p), m[&p]);
+                } else {
+                    let want = match m.get_mut(&p) {
+                        None => Err(NotPinned),
+                        Some(c) => { *c -= 1; let n = *c; if n == 0 { m.remove(&p); } Ok(n) }
+                    };
+                    prop_assert_eq!(t.unpin(p), want);
+                }
+                prop_assert_eq!(t.pinned_pages(), m.keys().copied().collect::<Vec<_>>());
+            }
+        }
+    }
+}
+// @@ challenge 1f-c1 end
+
+// @@ challenge 1f-c2 begin
+mod ch_1f_c2 {
+    use proptest::prelude::*;
+
+    use bustub::buffer::flush_runs::flush_runs;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn s1f_c2_neighbours_merge_and_the_rest_stand_alone() {
+        assert_eq!(flush_runs(&[5, 3, 4, 10, 3], 8), vec![(3, 3), (10, 1)]);
+    }
+
+    #[test]
+    fn s1f_c2_the_cap_splits_a_long_stretch() {
+        assert_eq!(flush_runs(&[1, 2, 3, 4, 5], 2), vec![(1, 2), (3, 2), (5, 1)]);
+        assert_eq!(flush_runs(&[1, 2, 3], 1), vec![(1, 1), (2, 1), (3, 1)]);
+    }
+
+    #[test]
+    fn s1f_c2_nothing_in_nothing_out() {
+        assert_eq!(flush_runs(&[], 4), vec![]);
+        assert_eq!(flush_runs(&[7, 7, 7], 4), vec![(7, 1)]);
+    }
+
+    #[test]
+    fn s1f_c2_the_largest_page_numbers_do_not_overflow() {
+        assert_eq!(flush_runs(&[u32::MAX, u32::MAX - 1], 8), vec![(u32::MAX - 1, 2)]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: exact coverage, disjoint increasing runs within the cap, the fewest runs, and the same answer for any order.
+        #[test]
+        fn s1f_c2_property_runs_cover_the_pages_in_the_fewest_writes(pages in proptest::collection::vec(0u32..40, 0..40), max_run in 1u32..8) {
+            let runs = flush_runs(&pages, max_run);
+            let set: BTreeSet<u32> = pages.iter().copied().collect();
+            let covered: Vec<u32> = runs.iter().flat_map(|&(s, l)| s..s + l).collect();
+            prop_assert_eq!(covered.clone(), set.iter().copied().collect::<Vec<_>>());
+            prop_assert!(runs.iter().all(|&(_, l)| (1..=max_run).contains(&l)));
+            // fewest: each maximal consecutive stretch of length n needs ceil(n / max_run) runs
+            let mut want = 0u32;
+            let mut stretch = 0u32;
+            let mut prev: Option<u32> = None;
+            for &p in &set {
+                if prev == Some(p.wrapping_sub(1)) && prev.is_some() { stretch += 1; } else { want += stretch.div_ceil(max_run); stretch = 1; }
+                prev = Some(p);
+            }
+            want += stretch.div_ceil(max_run);
+            prop_assert_eq!(runs.len() as u32, want);
+            let mut rev = pages.clone();
+            rev.reverse();
+            prop_assert_eq!(flush_runs(&rev, max_run), runs);
+        }
+    }
+}
+// @@ challenge 1f-c2 end
+
+// @@ challenge 1f-c3 begin
+mod ch_1f_c3 {
+    use proptest::prelude::*;
+
+    use bustub::buffer::write_behind::WriteBehind;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn s1f_c3_pages_dirty_long_enough_are_due_oldest_first() {
+        let mut w = WriteBehind::new();
+        w.mark_dirty(1, 0);
+        w.mark_dirty(3, 5);
+        w.mark_dirty(2, 5);
+        assert_eq!(w.due(10, 5), vec![1, 2, 3], "ties are by page number");
+        assert_eq!(w.due(10, 6), vec![1]);
+        assert_eq!(w.due(4, 5), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn s1f_c3_dirtying_a_dirty_page_again_does_not_make_it_younger() {
+        let mut w = WriteBehind::new();
+        w.mark_dirty(1, 0);
+        w.mark_dirty(1, 8);
+        assert_eq!(w.oldest(), Some((1, 0)));
+        assert_eq!(w.due(10, 10), vec![1]);
+    }
+
+    #[test]
+    fn s1f_c3_a_flushed_page_is_clean_and_starts_again_when_dirtied() {
+        let mut w = WriteBehind::new();
+        w.mark_dirty(1, 0);
+        assert!(w.flushed(1));
+        assert!(!w.flushed(1));
+        assert_eq!((w.dirty_count(), w.oldest()), (0, None));
+        w.mark_dirty(1, 20);
+        assert_eq!(w.oldest(), Some((1, 20)));
+    }
+
+    #[test]
+    fn s1f_c3_a_clock_behind_the_dirty_time_counts_as_age_zero() {
+        let mut w = WriteBehind::new();
+        w.mark_dirty(1, 100);
+        assert_eq!(w.due(50, 0), vec![1]);
+        assert_eq!(w.due(50, 1), Vec::<u32>::new());
+        assert_eq!(w.due(100, 0), vec![1]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a map of dirty-since times.
+        #[test]
+        fn s1f_c3_property_due_pages_match_a_model(ops in proptest::collection::vec((0u8..3, 0u32..6, 0u64..50), 0..60), age in 0u64..30) {
+            let mut w = WriteBehind::new();
+            let mut m: BTreeMap<u32, u64> = BTreeMap::new();
+            let mut clock = 0u64;
+            for (op, page, dt) in ops {
+                clock += dt % 5;
+                match op {
+                    0 | 1 => { w.mark_dirty(page, clock); m.entry(page).or_insert(clock); }
+                    _ => prop_assert_eq!(w.flushed(page), m.remove(&page).is_some()),
+                }
+                let mut want: Vec<(u64, u32)> = m.iter().filter(|&(_, &s)| clock - s >= age).map(|(&p, &s)| (s, p)).collect();
+                want.sort();
+                prop_assert_eq!(w.due(clock, age), want.into_iter().map(|(_, p)| p).collect::<Vec<_>>());
+                prop_assert_eq!(w.dirty_count(), m.len());
+            }
+        }
+    }
+}
+// @@ challenge 1f-c3 end
+
+// @@ challenge 1f-c4 begin
+mod ch_1f_c4 {
+    use proptest::prelude::*;
+
+    use bustub::buffer::seq_detector::SeqDetector;
+
+    #[test]
+    fn s1f_c4_nothing_is_suggested_before_the_run_is_long_enough() {
+        let mut d = SeqDetector::new(3, 2);
+        assert_eq!(d.access(1), Vec::<u32>::new());
+        assert_eq!(d.access(2), Vec::<u32>::new());
+        assert_eq!(d.access(3), vec![4, 5]);
+    }
+
+    #[test]
+    fn s1f_c4_a_continuing_scan_only_gets_the_new_pages() {
+        let mut d = SeqDetector::new(3, 2);
+        for p in 1..=3 {
+            d.access(p);
+        }
+        assert_eq!(d.access(4), vec![6], "5 was suggested already");
+        assert_eq!(d.access(5), vec![7]);
+    }
+
+    #[test]
+    fn s1f_c4_a_jump_or_a_repeat_starts_over() {
+        let mut d = SeqDetector::new(2, 3);
+        d.access(10);
+        assert_eq!(d.access(11), vec![12, 13, 14]);
+        assert_eq!(d.access(30), Vec::<u32>::new(), "a jump resets the run");
+        assert_eq!(d.access(31), vec![32, 33, 34], "and the next run can be prefetched afresh");
+        assert_eq!(d.access(31), Vec::<u32>::new(), "a repeat is not sequential");
+    }
+
+    #[test]
+    fn s1f_c4_a_depth_of_zero_never_suggests_and_a_trigger_of_one_suggests_at_once() {
+        let mut z = SeqDetector::new(2, 0);
+        z.access(1);
+        assert_eq!(z.access(2), Vec::<u32>::new());
+        let mut one = SeqDetector::new(1, 1);
+        assert_eq!(one.access(7), vec![8]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: suggestions are above the accessed page, never repeated within a run, and only made once the run is long enough; a long run
+        /// ends with everything up to `last + depth` suggested.
+        #[test]
+        fn s1f_c4_property_suggestions_follow_the_run(trigger in 1u32..5, depth in 0u32..5, steps in proptest::collection::vec((any::<bool>(), 0u32..50), 0..60)) {
+            let mut d = SeqDetector::new(trigger, depth);
+            let mut last: Option<u32> = None;
+            let mut run = 0u32;
+            let mut seen: std::collections::BTreeSet<u32> = Default::default();
+            for (seq, jump) in steps {
+                let page = match (seq, last) { (true, Some(l)) => l + 1, _ => 1000 + jump * 7 };
+                if last.is_some_and(|l| l + 1 == page) { run += 1; } else { run = 1; seen.clear(); }
+                last = Some(page);
+                let s = d.access(page);
+                prop_assert!(s.iter().all(|&x| x > page && x <= page + depth));
+                prop_assert!(s.windows(2).all(|w| w[0] < w[1]));
+                for x in &s { prop_assert!(seen.insert(*x), "page {} suggested twice in one run", x); }
+                if run < trigger { prop_assert!(s.is_empty()); }
+                if run >= trigger && depth > 0 {
+                    prop_assert!((page + 1..=page + depth).all(|x| seen.contains(&x)), "pages up to {} must have been suggested", page + depth);
+                }
+            }
+        }
+    }
+}
+// @@ challenge 1f-c4 end
+
+// @@ challenge 1f-c5 begin
+mod ch_1f_c5 {
+    use proptest::prelude::*;
+
+    use bustub::buffer::page_table::PageTable;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn s1f_c5_insert_and_look_up_both_ways() {
+        let mut t = PageTable::new();
+        t.insert(1, 10);
+        assert_eq!((t.frame_of(1), t.page_of(10), t.len()), (Some(10), Some(1), 1));
+    }
+
+    #[test]
+    fn s1f_c5_a_removed_page_leaves_no_trace_in_either_direction() {
+        let mut t = PageTable::new();
+        t.insert(1, 10);
+        assert_eq!(t.remove_page(1), Some(10));
+        assert_eq!((t.frame_of(1), t.page_of(10), t.len()), (None, None, 0), "the frame no longer claims to hold page 1");
+        assert_eq!(t.remove_page(1), None);
+    }
+
+    #[test]
+    fn s1f_c5_a_frame_reused_after_its_page_was_removed_holds_only_the_new_page() {
+        let mut t = PageTable::new();
+        t.insert(1, 10);
+        t.remove_page(1);
+        t.insert(2, 10);
+        assert_eq!((t.page_of(10), t.frame_of(1), t.frame_of(2)), (Some(2), None, Some(10)));
+    }
+
+    #[test]
+    fn s1f_c5_moving_a_page_to_another_frame_frees_the_old_one() {
+        let mut t = PageTable::new();
+        t.insert(1, 10);
+        t.insert(1, 11);
+        assert_eq!((t.page_of(10), t.page_of(11), t.len()), (None, Some(1), 1));
+    }
+
+    #[test]
+    fn s1f_c5_putting_another_page_in_a_used_frame_evicts_the_old_page_from_the_table() {
+        let mut t = PageTable::new();
+        t.insert(1, 10);
+        t.insert(2, 10);
+        assert_eq!((t.frame_of(1), t.frame_of(2), t.len()), (None, Some(10), 1));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the table equals a set of (page, frame) pairs with unique columns, and the two directions always mirror each other.
+        #[test]
+        fn s1f_c5_property_the_two_maps_mirror(ops in proptest::collection::vec((any::<bool>(), 0u32..5, 0u32..5), 0..60)) {
+            let mut t = PageTable::new();
+            let mut m: BTreeMap<u32, u32> = BTreeMap::new(); // page -> frame
+            for (ins, page, frame) in ops {
+                if ins {
+                    t.insert(page, frame);
+                    m.retain(|&p, &mut f| p != page && f != frame);
+                    m.insert(page, frame);
+                } else {
+                    prop_assert_eq!(t.remove_page(page), m.remove(&page));
+                }
+                prop_assert_eq!(t.len(), m.len());
+                for p in 0..5 {
+                    prop_assert_eq!(t.frame_of(p), m.get(&p).copied());
+                }
+                for f in 0..5 {
+                    prop_assert_eq!(t.page_of(f), m.iter().find(|&(_, &x)| x == f).map(|(&p, _)| p), "frame {}", f);
+                }
+            }
+        }
+    }
+}
+// @@ challenge 1f-c5 end

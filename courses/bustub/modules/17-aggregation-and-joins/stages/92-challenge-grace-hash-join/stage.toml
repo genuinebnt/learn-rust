@@ -1,0 +1,8 @@
+id = "3f-c3"
+title = "Challenge: Grace hash join"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3f::s3f_c3"]
+learn = ["partitioning both inputs by a hash of the join key so each partition fits in memory", "joining partition by partition"]
+concepts = []
+concepts_optional = ["join-algorithms", "hash-aggregation", "hashing-values-and-keys"]

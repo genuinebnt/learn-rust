@@ -5,3 +5,8 @@
 pub mod ast;
 pub mod lexer;
 pub mod parser;
+pub mod mini_lexer;
+pub mod mini_expr;
+pub mod mini_parse;
+pub mod error_render;
+pub mod resolve;

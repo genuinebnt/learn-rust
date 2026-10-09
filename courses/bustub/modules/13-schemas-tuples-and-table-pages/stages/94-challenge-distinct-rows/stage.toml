@@ -1,0 +1,8 @@
+id = "3b-c5"
+title = "Challenge: distinct rows"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3b::s3b_c5"]
+learn = ["the one place SQL treats NULL as equal to NULL", "removing duplicates while keeping first-seen order"]
+concepts = []
+concepts_optional = ["sql-types-and-three-valued-logic", "hashing-values-and-keys", "eq-hash-ord-contracts"]

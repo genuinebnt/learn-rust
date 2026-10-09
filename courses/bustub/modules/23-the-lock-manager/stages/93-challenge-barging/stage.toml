@@ -1,0 +1,8 @@
+id = "4d-c4"
+title = "Challenge: barging"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4d::s4d_c4"]
+learn = ["finding the grant rule that lets a reader overtake a blocked writer"]
+concepts = []
+concepts_optional = ["lock-modes-and-two-phase-locking", "condvars-and-blocking-queues", "property-testing-and-fuzzing"]

@@ -532,3 +532,333 @@ fn s3b_05_comparing_values_read_from_a_tuple_works_like_comparing_the_originals(
     let t = Tuple::new(&[Value::integer(7), Value::varchar("7")], &s);
     assert_eq!(t.get_value(&s, 0).compare_equals(&t.get_value(&s, 1)).unwrap(), CmpBool::True, "7 = '7' even after a trip through bytes");
 }
+
+// @@ challenge 3b-c1 begin
+mod ch_3b_c1 {
+    use proptest::prelude::*;
+
+    use bustub::storage::table::null_row::{decode_row, encode_row, Cell, Ty};
+
+    fn i(v: i64) -> Option<Cell> {
+        Some(Cell::Int(v))
+    }
+    fn t(s: &str) -> Option<Cell> {
+        Some(Cell::Text(s.to_owned()))
+    }
+
+    #[test]
+    fn s3b_c1_the_exact_bytes_of_a_mixed_row() {
+        let bytes = encode_row(&[i(1), None, t("ab")]);
+        let mut want = vec![0b010];
+        want.extend_from_slice(&1i64.to_le_bytes());
+        want.extend_from_slice(&2u32.to_le_bytes());
+        want.extend_from_slice(b"ab");
+        assert_eq!(bytes, want);
+        assert_eq!(encode_row(&[None, None]), vec![0b11]);
+    }
+
+    #[test]
+    fn s3b_c1_rows_round_trip_including_more_than_eight_columns() {
+        let row: Vec<Option<Cell>> = (0..11).map(|n| if n % 3 == 0 { None } else if n % 2 == 0 { t("x") } else { i(n) }).collect();
+        let types: Vec<Ty> = row.iter().enumerate().map(|(n, _)| if n % 2 == 0 { Ty::Text } else { Ty::Int }).collect();
+        assert_eq!(decode_row(&encode_row(&row), &types), Some(row));
+    }
+
+    #[test]
+    fn s3b_c1_a_null_costs_one_bit_not_a_value() {
+        let full = encode_row(&[i(1), i(2), i(3)]);
+        let nulls = encode_row(&[None, None, None]);
+        assert_eq!((full.len(), nulls.len()), (1 + 24, 1));
+    }
+
+    #[test]
+    fn s3b_c1_malformed_bytes_are_rejected() {
+        let types = [Ty::Int, Ty::Text];
+        let good = encode_row(&[i(7), t("hi")]);
+        for cut in 0..good.len() {
+            assert_eq!(decode_row(&good[..cut], &types), None, "cut at {cut}");
+        }
+        let mut trailing = good.clone();
+        trailing.push(0);
+        assert_eq!(decode_row(&trailing, &types), None);
+        let mut bad_utf8 = vec![0u8, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0xFF];
+        bad_utf8[9] = 1;
+        assert_eq!(decode_row(&bad_utf8, &types), None);
+        assert_eq!(decode_row(&[0b100], &types), None, "a bit set past the last column");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: round trip, the size formula, and no panic on arbitrary bytes.
+        #[test]
+        fn s3b_c1_property_rows_round_trip(cols in proptest::collection::vec(proptest::option::of(prop_oneof![any::<i64>().prop_map(Cell::Int), "[a-z]{0,6}".prop_map(Cell::Text)]), 0..14)) {
+            let types: Vec<Ty> = cols.iter().map(|c| match c { Some(Cell::Text(_)) => Ty::Text, _ => Ty::Int }).collect();
+            // a NULL column may be either type: use Int for it
+            let bytes = encode_row(&cols);
+            let want_len = cols.len().div_ceil(8) + cols.iter().flatten().map(|c| match c { Cell::Int(_) => 8, Cell::Text(s) => 4 + s.len() }).sum::<usize>();
+            prop_assert_eq!(bytes.len(), want_len);
+            prop_assert_eq!(decode_row(&bytes, &types), Some(cols));
+        }
+
+        #[test]
+        fn s3b_c1_property_arbitrary_bytes_never_panic(bytes in proptest::collection::vec(any::<u8>(), 0..40), types in proptest::collection::vec(prop_oneof![Just(Ty::Int), Just(Ty::Text)], 0..6)) {
+            if let Some(row) = decode_row(&bytes, &types) {
+                prop_assert_eq!(encode_row(&row), bytes, "accepted bytes must be exactly what encoding the row gives");
+            }
+        }
+    }
+}
+// @@ challenge 3b-c1 end
+
+// @@ challenge 3b-c2 begin
+mod ch_3b_c2 {
+    use proptest::prelude::*;
+
+    use bustub::storage::table::struct_layout::{layout, packed_order, Layout};
+
+    #[test]
+    fn s3b_c2_padding_between_and_after_fields() {
+        let l = layout(&[(1, 1), (8, 8), (2, 2)]);
+        assert_eq!(l, Layout { offsets: vec![0, 8, 16], size: 24, align: 8 });
+    }
+
+    #[test]
+    fn s3b_c2_no_fields_and_one_field() {
+        assert_eq!(layout(&[]), Layout { offsets: vec![], size: 0, align: 1 });
+        assert_eq!(layout(&[(4, 4)]), Layout { offsets: vec![0], size: 4, align: 4 });
+    }
+
+    #[test]
+    fn s3b_c2_the_packed_order_removes_the_padding() {
+        let fields = [(1, 1), (8, 8), (2, 2)];
+        let order = packed_order(&fields);
+        assert_eq!(order, vec![1, 2, 0]);
+        let packed: Vec<_> = order.iter().map(|&i| fields[i]).collect();
+        assert_eq!(layout(&packed).size, 16);
+    }
+
+    #[test]
+    fn s3b_c2_equal_alignments_keep_their_order() {
+        assert_eq!(packed_order(&[(4, 4), (4, 4), (4, 4)]), vec![0, 1, 2]);
+    }
+
+    fn permutations(n: usize) -> Vec<Vec<usize>> {
+        if n == 0 {
+            return vec![vec![]];
+        }
+        let mut out = Vec::new();
+        for p in permutations(n - 1) {
+            for at in 0..=p.len() {
+                let mut q = p.clone();
+                q.insert(at, n - 1);
+                out.push(q);
+            }
+        }
+        out
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: layouts are valid, and the packed order is as small as the best of all permutations.
+        #[test]
+        fn s3b_c2_property_layouts_are_valid_and_the_packed_order_is_minimal(fields in proptest::collection::vec((0u32..4, 1usize..4), 0..6)) {
+            let fields: Vec<(usize, usize)> = fields.into_iter().map(|(mult, e)| { let align = 1usize << (e - 1); (align * (mult as usize), align) }).collect();
+            let l = layout(&fields);
+            for (i, &(size, a)) in fields.iter().enumerate() {
+                prop_assert_eq!(l.offsets[i] % a, 0);
+                if i > 0 { prop_assert!(l.offsets[i] >= l.offsets[i - 1] + fields[i - 1].0); }
+                let _ = size;
+            }
+            prop_assert_eq!(l.size % l.align, 0);
+            prop_assert!(l.size >= fields.iter().map(|f| f.0).sum::<usize>());
+            let best = permutations(fields.len()).into_iter().map(|p| layout(&p.iter().map(|&i| fields[i]).collect::<Vec<_>>()).size).min().unwrap();
+            let order = packed_order(&fields);
+            let mut sorted = order.clone();
+            sorted.sort();
+            prop_assert_eq!(sorted, (0..fields.len()).collect::<Vec<_>>());
+            prop_assert_eq!(layout(&order.iter().map(|&i| fields[i]).collect::<Vec<_>>()).size, best);
+        }
+    }
+}
+// @@ challenge 3b-c2 end
+
+// @@ challenge 3b-c3 begin
+mod ch_3b_c3 {
+    use proptest::prelude::*;
+
+    use bustub::storage::table::var_row::{column, encode};
+
+    fn cols(v: &[&str]) -> Vec<Vec<u8>> {
+        v.iter().map(|s| s.as_bytes().to_vec()).collect()
+    }
+
+    #[test]
+    fn s3b_c3_each_column_comes_back() {
+        let b = encode(&cols(&["ab", "", "cde"]));
+        assert_eq!(column(&b, 0), Some(&b"ab"[..]));
+        assert_eq!(column(&b, 1), Some(&b""[..]));
+        assert_eq!(column(&b, 2), Some(&b"cde"[..]));
+    }
+
+    #[test]
+    fn s3b_c3_an_index_past_the_end_is_none() {
+        let b = encode(&cols(&["x"]));
+        assert_eq!(column(&b, 1), None);
+        assert_eq!(column(&[], 0), None);
+    }
+
+    #[test]
+    fn s3b_c3_the_first_column_starts_at_zero_and_a_single_column_row_works() {
+        let b = encode(&cols(&["hello"]));
+        assert_eq!(column(&b, 0), Some(&b"hello"[..]));
+    }
+
+    #[test]
+    fn s3b_c3_empty_columns_at_the_end_and_a_row_of_only_empty_columns() {
+        let b = encode(&cols(&["x", "", ""]));
+        assert_eq!((column(&b, 0), column(&b, 1), column(&b, 2)), (Some(&b"x"[..]), Some(&b""[..]), Some(&b""[..])));
+        let e = encode(&cols(&["", ""]));
+        assert_eq!((column(&e, 0), column(&e, 1), column(&e, 2)), (Some(&b""[..]), Some(&b""[..]), None));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: every column reads back, and together they are exactly the data section.
+        #[test]
+        fn s3b_c3_property_columns_read_back(rows in proptest::collection::vec(proptest::collection::vec(any::<u8>(), 0..6), 0..8)) {
+            let b = encode(&rows);
+            let mut all = Vec::new();
+            for (i, c) in rows.iter().enumerate() {
+                prop_assert_eq!(column(&b, i), Some(c.as_slice()), "column {}", i);
+                all.extend_from_slice(column(&b, i).unwrap());
+            }
+            prop_assert_eq!(all.len(), rows.iter().map(|c| c.len()).sum::<usize>());
+            prop_assert_eq!(column(&b, rows.len()), None);
+        }
+    }
+}
+// @@ challenge 3b-c3 end
+
+// @@ challenge 3b-c4 begin
+mod ch_3b_c4 {
+    use proptest::prelude::*;
+
+    use bustub::storage::table::checksum::{crc32, seal, unseal, SealError};
+
+    #[test]
+    fn s3b_c4_the_standard_check_values() {
+        assert_eq!(crc32(b"123456789"), 0xCBF4_3926);
+        assert_eq!(crc32(b""), 0);
+        assert_eq!(crc32(b"a"), 0xE8B7_BE43);
+        assert_eq!(crc32(b"The quick brown fox jumps over the lazy dog"), 0x414F_A339);
+    }
+
+    #[test]
+    fn s3b_c4_sealing_appends_the_crc_in_little_endian() {
+        let s = seal(b"abc");
+        assert_eq!(&s[..3], b"abc");
+        assert_eq!(&s[3..], &crc32(b"abc").to_le_bytes());
+        assert_eq!(unseal(&s), Ok(&b"abc"[..]));
+        assert_eq!(unseal(&seal(b"")), Ok(&b""[..]));
+    }
+
+    #[test]
+    fn s3b_c4_short_and_damaged_buffers_are_refused() {
+        assert_eq!(unseal(b"abc"), Err(SealError::TooShort));
+        assert_eq!(unseal(b""), Err(SealError::TooShort));
+        let mut s = seal(b"hello world");
+        s[2] ^= 1;
+        assert_eq!(unseal(&s), Err(SealError::Mismatch));
+    }
+
+    #[test]
+    fn s3b_c4_every_single_bit_flip_of_a_sealed_page_is_detected() {
+        let page: Vec<u8> = (0..200u32).map(|i| (i * 31 % 251) as u8).collect();
+        let s = seal(&page);
+        for byte in 0..s.len() {
+            for bit in 0..8 {
+                let mut t = s.clone();
+                t[byte] ^= 1 << bit;
+                assert!(unseal(&t).is_err(), "flipping bit {bit} of byte {byte} went unnoticed");
+            }
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: seal then unseal is the identity, and dropping or adding a byte is caught.
+        #[test]
+        fn s3b_c4_property_sealed_payloads_round_trip_and_changes_are_caught(p in proptest::collection::vec(any::<u8>(), 0..64), extra in any::<u8>()) {
+            let s = seal(&p);
+            prop_assert_eq!(unseal(&s), Ok(p.as_slice()));
+            let mut more = s.clone();
+            more.push(extra);
+            prop_assert!(unseal(&more).is_err());
+            if !p.is_empty() {
+                let mut less = s.clone();
+                less.remove(0);
+                prop_assert!(unseal(&less).is_err());
+            }
+        }
+    }
+}
+// @@ challenge 3b-c4 end
+
+// @@ challenge 3b-c5 begin
+mod ch_3b_c5 {
+    use proptest::prelude::*;
+
+    use bustub::storage::table::distinct::{distinct_count, distinct_rows, Row};
+
+    fn r(v: &[Option<i64>]) -> Row {
+        v.to_vec()
+    }
+
+    #[test]
+    fn s3b_c5_nulls_are_the_same_for_distinct() {
+        let rows = vec![r(&[Some(1), None]), r(&[Some(1), None]), r(&[Some(2), Some(3)]), r(&[Some(1), None])];
+        assert_eq!(distinct_rows(&rows), vec![r(&[Some(1), None]), r(&[Some(2), Some(3)])]);
+        assert_eq!(distinct_count(&rows), 2);
+    }
+
+    #[test]
+    fn s3b_c5_null_and_zero_are_different() {
+        let rows = vec![r(&[None]), r(&[Some(0)]), r(&[None])];
+        assert_eq!(distinct_rows(&rows), vec![r(&[None]), r(&[Some(0)])]);
+    }
+
+    #[test]
+    fn s3b_c5_first_occurrences_keep_their_order() {
+        let rows = vec![r(&[Some(3)]), r(&[Some(1)]), r(&[Some(3)]), r(&[Some(2)]), r(&[Some(1)])];
+        assert_eq!(distinct_rows(&rows), vec![r(&[Some(3)]), r(&[Some(1)]), r(&[Some(2)])]);
+    }
+
+    #[test]
+    fn s3b_c5_empty_input_and_rows_of_different_lengths() {
+        assert_eq!(distinct_rows(&[]), Vec::<Row>::new());
+        assert_eq!(distinct_rows(&[r(&[]), r(&[]), r(&[None])]), vec![r(&[]), r(&[None])]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: a first-seen filter, idempotent, with a count that does not depend on order.
+        #[test]
+        fn s3b_c5_property_distinct_keeps_first_occurrences(rows in proptest::collection::vec(proptest::collection::vec(proptest::option::of(0i64..3), 0..3), 0..20)) {
+            let out = distinct_rows(&rows);
+            let mut want: Vec<Row> = Vec::new();
+            for row in &rows { if !want.contains(row) { want.push(row.clone()); } }
+            prop_assert_eq!(&out, &want);
+            prop_assert_eq!(distinct_rows(&out), out.clone());
+            prop_assert_eq!(distinct_count(&rows), out.len());
+            let mut rev = rows.clone();
+            rev.reverse();
+            prop_assert_eq!(distinct_count(&rev), out.len());
+        }
+    }
+}
+// @@ challenge 3b-c5 end

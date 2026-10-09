@@ -1,0 +1,8 @@
+id = "1f-c5"
+title = "Challenge: the stale mapping"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1f::s1f_c5"]
+learn = ["finding a bug where two maps that must mirror each other drift apart"]
+concepts = []
+concepts_optional = ["checking-invariants", "property-testing-and-fuzzing", "pin-counts-and-dirty-pages"]

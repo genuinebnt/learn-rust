@@ -1,0 +1,8 @@
+id = "4c-c4"
+title = "Challenge: point-in-time recovery"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4c::s4c_c4"]
+learn = ["replaying a log only up to a chosen point, applying only committed transactions", "what 'as of LSN n' means for a transaction that committed after n"]
+concepts = []
+concepts_optional = ["aries-recovery", "write-ahead-logging"]

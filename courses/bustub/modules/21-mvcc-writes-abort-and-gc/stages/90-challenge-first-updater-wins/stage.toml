@@ -1,0 +1,8 @@
+id = "4b-c1"
+title = "Challenge: first updater wins"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4b::s4b_c1"]
+learn = ["a write-write conflict detector that never waits", "releasing everything a transaction claimed at commit or abort"]
+concepts = []
+concepts_optional = ["multi-version-concurrency-control", "snapshot-isolation"]

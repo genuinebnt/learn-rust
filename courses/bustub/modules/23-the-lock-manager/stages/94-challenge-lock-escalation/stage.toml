@@ -1,0 +1,8 @@
+id = "4d-c5"
+title = "Challenge: lock escalation"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4d::s4d_c5"]
+learn = ["trading many fine locks for one coarse one", "what a row lock request means once the table is locked"]
+concepts = []
+concepts_optional = ["lock-modes-and-two-phase-locking", "coarse-and-fine-grained-locking"]

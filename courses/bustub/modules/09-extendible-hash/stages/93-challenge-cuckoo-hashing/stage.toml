@@ -1,0 +1,8 @@
+id = "2b-c4"
+title = "Challenge: cuckoo hashing"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_2b::s2b_c4"]
+learn = ["a hash table where every key has exactly two possible homes", "displacing keys and growing when displacement cycles"]
+concepts = []
+concepts_optional = ["extendible-hashing", "hash-functions-and-murmur3", "model-based-testing"]

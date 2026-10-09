@@ -1397,3 +1397,344 @@ proptest! {
         prop_assert_eq!(query(&db, &fresh, "SELECT a, c FROM p"), latest, "a new transaction sees the latest committed state");
     }
 }
+
+// @@ challenge 4a-c1 begin
+mod ch_4a_c1 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::read_view::ReadView;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn s4a_c1_the_three_rules_on_a_small_view() {
+        let v = ReadView::new(5, &[3, 5, 7], 9);
+        assert!(v.visible(2), "committed before the snapshot");
+        assert!(!v.visible(3), "was active");
+        assert!(v.visible(4));
+        assert!(v.visible(5), "my own writes");
+        assert!(!v.visible(7));
+        assert!(!v.visible(9), "began after the snapshot");
+        assert!(!v.visible(100));
+    }
+
+    #[test]
+    fn s4a_c1_an_empty_active_set_sees_every_older_transaction() {
+        let v = ReadView::new(10, &[], 10);
+        assert!((0..10).all(|w| v.visible(w)));
+        assert!(v.visible(10));
+        assert!(!v.visible(11));
+    }
+
+    #[test]
+    fn s4a_c1_own_writes_are_visible_even_when_listed_active() {
+        let v = ReadView::new(3, &[3], 4);
+        assert!(v.visible(3));
+    }
+
+    #[test]
+    fn s4a_c1_the_boundary_id_is_exclusive() {
+        let v = ReadView::new(1, &[], 6);
+        assert!(v.visible(5));
+        assert!(!v.visible(6));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against the definition with sets, and adding an active id only removes visibility.
+        #[test]
+        fn s4a_c1_property_visibility_follows_the_definition(own in 0u64..12, active in proptest::collection::btree_set(0u64..12, 0..6), next in 0u64..14, extra in 0u64..12, w in 0u64..16) {
+            let act: Vec<u64> = active.iter().copied().collect();
+            let v = ReadView::new(own, &act, next);
+            let want = w == own || (w < next && !active.contains(&w));
+            prop_assert_eq!(v.visible(w), want);
+            let mut more: BTreeSet<u64> = active.clone();
+            more.insert(extra);
+            let v2 = ReadView::new(own, &more.iter().copied().collect::<Vec<_>>(), next);
+            if v2.visible(w) { prop_assert!(v.visible(w)); }
+        }
+    }
+}
+// @@ challenge 4a-c1 end
+
+// @@ challenge 4a-c2 begin
+mod ch_4a_c2 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::version_read::{read_version, Stamp::*, Version};
+
+    fn v(writer: u64, stamp: bustub::concurrency::version_read::Stamp, value: Option<i64>) -> Version {
+        Version { writer, stamp, value }
+    }
+
+    fn chain() -> Vec<Version> {
+        vec![v(7, Pending, Some(30)), v(2, Commit(5), Some(20)), v(1, Commit(2), Some(10))]
+    }
+
+    #[test]
+    fn s4a_c2_a_reader_sees_the_newest_committed_version_at_its_timestamp() {
+        assert_eq!(read_version(&chain(), 1, 9), None, "nothing was committed yet at ts 1");
+        assert_eq!(read_version(&chain(), 4, 9), Some(10));
+        assert_eq!(read_version(&chain(), 5, 9), Some(20));
+        assert_eq!(read_version(&chain(), 100, 9), Some(20));
+    }
+
+    #[test]
+    fn s4a_c2_the_writer_sees_its_own_pending_version() {
+        assert_eq!(read_version(&chain(), 5, 7), Some(30));
+        assert_eq!(read_version(&chain(), 0, 7), Some(30), "its own write is visible whatever the timestamp");
+    }
+
+    #[test]
+    fn s4a_c2_a_committed_delete_hides_the_row_after_its_timestamp() {
+        let c = vec![v(3, Commit(5), None), v(1, Commit(2), Some(10))];
+        assert_eq!(read_version(&c, 3, 9), Some(10));
+        assert_eq!(read_version(&c, 6, 9), None);
+    }
+
+    #[test]
+    fn s4a_c2_a_pending_delete_by_someone_else_is_invisible() {
+        let c = vec![v(7, Pending, None), v(1, Commit(2), Some(10))];
+        assert_eq!(read_version(&c, 5, 9), Some(10));
+        assert_eq!(read_version(&c, 5, 7), None, "but the deleter sees its own delete");
+    }
+
+    #[test]
+    fn s4a_c2_an_empty_chain_is_no_row() {
+        assert_eq!(read_version(&[], 10, 1), None);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: equals a scan for the newest visible version; raising the timestamp never reads an older version.
+        #[test]
+        fn s4a_c2_property_reading_equals_a_scan(ts_list in proptest::collection::btree_set(1u64..20, 0..6), pending in proptest::option::of((0u64..4, proptest::option::of(0i64..50))), read_ts in 0u64..22, reader in 0u64..4) {
+            let mut stamps: Vec<u64> = ts_list.into_iter().collect();
+            stamps.reverse(); // newest first
+            let mut chain: Vec<Version> = Vec::new();
+            if let Some((w, val)) = pending { chain.push(v(w, Pending, val)); }
+            for (i, ts) in stamps.iter().enumerate() { chain.push(v(9, Commit(*ts), if i % 3 == 2 { None } else { Some(*ts as i64) })); }
+            let want = chain.iter().find(|x| match x.stamp { Commit(t) => t <= read_ts, Pending => x.writer == reader }).and_then(|x| x.value);
+            prop_assert_eq!(read_version(&chain, read_ts, reader), want);
+            // a later reader never sees an older committed version: compare the committed-only chains
+            let committed: Vec<Version> = chain.iter().filter(|x| x.stamp != Pending).cloned().collect();
+            let early = committed.iter().position(|x| matches!(x.stamp, Commit(t) if t <= read_ts));
+            let late = committed.iter().position(|x| matches!(x.stamp, Commit(t) if t <= read_ts + 5));
+            if let (Some(e), Some(l)) = (early, late) { prop_assert!(l <= e, "a later timestamp must not pick an older version"); }
+        }
+    }
+}
+// @@ challenge 4a-c2 end
+
+// @@ challenge 4a-c3 begin
+mod ch_4a_c3 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::ts_oracle::TsOracle;
+
+    #[test]
+    fn s4a_c3_a_commit_that_finished_early_does_not_pull_the_snapshot_over_a_gap() {
+        let mut o = TsOracle::new();
+        assert_eq!((o.reserve(), o.reserve(), o.reserve()), (1, 2, 3));
+        assert_eq!(o.begin(), 0);
+        o.finish(2);
+        assert_eq!(o.begin(), 0, "commit 1 is not finished: a snapshot at 2 would show commit 2 without commit 1");
+        o.finish(1);
+        assert_eq!(o.begin(), 2);
+        o.finish(3);
+        assert_eq!(o.begin(), 3);
+    }
+
+    #[test]
+    fn s4a_c3_nothing_reserved_means_timestamp_zero() {
+        assert_eq!(TsOracle::new().begin(), 0);
+    }
+
+    #[test]
+    fn s4a_c3_finishing_in_order_advances_one_at_a_time() {
+        let mut o = TsOracle::new();
+        for i in 1..=5 {
+            o.reserve();
+            o.finish(i);
+            assert_eq!(o.begin(), i);
+        }
+    }
+
+    #[test]
+    fn s4a_c3_odd_calls_are_ignored() {
+        let mut o = TsOracle::new();
+        o.reserve();
+        o.finish(5);
+        o.finish(0);
+        assert_eq!(o.begin(), 0);
+        o.finish(1);
+        o.finish(1);
+        assert_eq!(o.begin(), 1);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: `begin` is the largest t with every reserved ts <= t finished, and never decreases.
+        #[test]
+        fn s4a_c3_property_the_read_timestamp_is_a_finished_prefix(n in 1u64..8, order in proptest::collection::vec(0usize..8, 0..16)) {
+            let mut o = TsOracle::new();
+            for _ in 0..n { o.reserve(); }
+            let mut done = std::collections::BTreeSet::new();
+            let mut last = 0;
+            for k in order {
+                let ts = (k as u64 % n) + 1;
+                o.finish(ts);
+                done.insert(ts);
+                let want = (0..n).take_while(|i| done.contains(&(i + 1))).count() as u64;
+                let got = o.begin();
+                prop_assert_eq!(got, want);
+                prop_assert!(got >= last);
+                last = got;
+            }
+        }
+    }
+}
+// @@ challenge 4a-c3 end
+
+// @@ challenge 4a-c4 begin
+mod ch_4a_c4 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::undo::{apply_undo, make_undo, UndoLog};
+
+    #[test]
+    fn s4a_c4_an_update_records_only_the_changed_columns() {
+        let log = make_undo(Some(&[1, 2, 3]), Some(&[1, 9, 3]));
+        assert_eq!(log, UndoLog::Columns { mask: vec![false, true, false], values: vec![2] });
+        assert_eq!(apply_undo(Some(&[1, 9, 3]), &log), Some(vec![1, 2, 3]));
+    }
+
+    #[test]
+    fn s4a_c4_an_insert_is_undone_by_removing_and_a_delete_by_restoring() {
+        assert_eq!(make_undo(None, Some(&[4])), UndoLog::Remove);
+        assert_eq!(apply_undo(Some(&[4]), &UndoLog::Remove), None);
+        let del = make_undo(Some(&[4, 5]), None);
+        assert_eq!(del, UndoLog::Restore(vec![4, 5]));
+        assert_eq!(apply_undo(None, &del), Some(vec![4, 5]));
+    }
+
+    #[test]
+    fn s4a_c4_an_unchanged_row_has_an_empty_mask_and_changes_nothing() {
+        let log = make_undo(Some(&[7, 8]), Some(&[7, 8]));
+        assert_eq!(log, UndoLog::Columns { mask: vec![false, false], values: vec![] });
+        assert_eq!(apply_undo(Some(&[7, 8]), &log), Some(vec![7, 8]));
+    }
+
+    #[test]
+    fn s4a_c4_a_chain_of_updates_is_walked_back_newest_first() {
+        let versions = [vec![1, 1, 1], vec![1, 2, 1], vec![3, 2, 1], vec![3, 2, 9]];
+        let logs: Vec<UndoLog> = (1..versions.len()).map(|i| make_undo(Some(&versions[i - 1]), Some(&versions[i]))).collect();
+        let mut cur = Some(versions[3].clone());
+        for i in (0..3).rev() {
+            cur = apply_undo(cur.as_deref(), &logs[i]);
+            assert_eq!(cur.as_ref(), Some(&versions[i]), "undoing back to version {i}");
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: undoing a change gives back the old version, for any pair of versions and any chain.
+        #[test]
+        fn s4a_c4_property_undo_restores_the_old_version(cols in 1usize..5, a in proptest::collection::vec(-3i64..3, 5), b in proptest::collection::vec(-3i64..3, 5), c in proptest::collection::vec(-3i64..3, 5), kinds in (any::<bool>(), any::<bool>())) {
+            let (a, b, c) = (a[..cols].to_vec(), b[..cols].to_vec(), c[..cols].to_vec());
+            let old = if kinds.0 { Some(a.as_slice()) } else { None };
+            let new = if kinds.1 { Some(b.as_slice()) } else { None };
+            let log = make_undo(old, new);
+            prop_assert_eq!(apply_undo(new, &log), old.map(|r| r.to_vec()));
+            if let UndoLog::Columns { mask, values } = &log {
+                prop_assert_eq!(values.len(), mask.iter().filter(|m| **m).count());
+                for (i, m) in mask.iter().enumerate() { prop_assert_eq!(*m, a[i] != b[i]); }
+            }
+            let l1 = make_undo(Some(&a), Some(&b));
+            let l2 = make_undo(Some(&b), Some(&c));
+            let back_b = apply_undo(Some(&c), &l2);
+            prop_assert_eq!(back_b.as_ref(), Some(&b));
+            prop_assert_eq!(apply_undo(back_b.as_deref(), &l1), Some(a));
+        }
+    }
+}
+// @@ challenge 4a-c4 end
+
+// @@ challenge 4a-c5 begin
+mod ch_4a_c5 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::timestamp_ordering::{Abort, ToItem};
+
+    #[test]
+    fn s4a_c5_a_read_that_arrives_after_a_younger_write_aborts() {
+        let mut i = ToItem::new(0);
+        assert_eq!(i.write(5, 1), Ok(()));
+        assert_eq!(i.read(3), Err(Abort));
+        assert_eq!(i.read(5), Ok(1));
+        assert_eq!(i.read(7), Ok(1));
+    }
+
+    #[test]
+    fn s4a_c5_a_write_that_arrives_after_a_younger_read_aborts() {
+        let mut i = ToItem::new(0);
+        i.read(7).unwrap();
+        assert_eq!(i.write(6, 2), Err(Abort));
+        assert_eq!(i.write(8, 3), Ok(()));
+        assert_eq!(i.read(9), Ok(3));
+    }
+
+    #[test]
+    fn s4a_c5_a_write_older_than_the_last_write_aborts() {
+        let mut i = ToItem::new(0);
+        i.write(5, 1).unwrap();
+        assert_eq!(i.write(4, 2), Err(Abort));
+        assert_eq!(i.read(6), Ok(1));
+    }
+
+    #[test]
+    fn s4a_c5_a_refused_operation_changes_nothing() {
+        let mut i = ToItem::new(9);
+        i.write(5, 1).unwrap();
+        let before = i.timestamps();
+        let _ = i.read(2);
+        let _ = i.write(3, 77);
+        assert_eq!(i.timestamps(), before);
+        assert_eq!(i.read(5), Ok(1));
+    }
+
+    #[test]
+    fn s4a_c5_the_largest_timestamp_is_never_refused() {
+        let mut i = ToItem::new(0);
+        for ts in 1..20 {
+            assert!(i.write(ts, ts as i64).is_ok());
+            assert_eq!(i.read(ts), Ok(ts as i64));
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: every accepted read returned the value of the accepted write with the largest timestamp not above the reader's.
+        #[test]
+        fn s4a_c5_property_accepted_reads_match_a_serial_replay(ops in proptest::collection::vec((any::<bool>(), 1u64..8, 0i64..50), 0..40)) {
+            let mut item = ToItem::new(-1);
+            let mut accepted_writes: Vec<(u64, i64)> = vec![(0, -1)];
+            for (is_write, ts, v) in ops {
+                if is_write {
+                    if item.write(ts, v).is_ok() { accepted_writes.push((ts, v)); }
+                } else if let Ok(got) = item.read(ts) {
+                    let want = accepted_writes.iter().filter(|w| w.0 <= ts).max_by_key(|w| w.0).map(|w| w.1);
+                    prop_assert_eq!(Some(got), want);
+                }
+                let (r, w) = item.timestamps();
+                prop_assert!(accepted_writes.iter().all(|a| a.0 <= w));
+                let _ = r;
+            }
+        }
+    }
+}
+// @@ challenge 4a-c5 end

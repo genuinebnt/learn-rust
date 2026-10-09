@@ -1,0 +1,8 @@
+id = "4b-c4"
+title = "Challenge: predicate validation"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4b::s4b_c4"]
+learn = ["detecting read-write conflicts for range and equality predicates, not only for single rows", "checking both the old and the new image of a write"]
+concepts = []
+concepts_optional = ["serializable-validation-by-predicates", "snapshot-isolation", "conjunctive-predicates"]

@@ -1,0 +1,8 @@
+id = "4a-c5"
+title = "Challenge: timestamp ordering"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4a::s4a_c5"]
+learn = ["the basic timestamp-ordering protocol with read and write timestamps per item", "what makes an accepted history equal to a serial one"]
+concepts = []
+concepts_optional = ["logical-clocks-and-timestamps", "multi-version-concurrency-control"]

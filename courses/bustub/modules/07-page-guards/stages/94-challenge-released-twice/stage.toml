@@ -1,0 +1,8 @@
+id = "1g-c3"
+title = "Challenge: released twice"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1g::s1g_c3"]
+learn = ["finding a double release caused by a guard that is consumed explicitly", "moving out of a guard that has a Drop"]
+concepts = []
+concepts_optional = ["raii-guards-and-lifetimes", "ownership-of-files-and-raii", "property-testing-and-fuzzing"]

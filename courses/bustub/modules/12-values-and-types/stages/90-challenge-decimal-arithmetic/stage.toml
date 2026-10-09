@@ -1,0 +1,8 @@
+id = "3a-c1"
+title = "Challenge: decimal arithmetic"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3a::s3a_c1"]
+learn = ["fixed-point arithmetic on integers with explicit rounding", "parsing and printing exact decimals"]
+concepts = []
+concepts_optional = ["overflow-and-checked-arithmetic", "integers-and-casts", "parsing-numbers-from-text"]

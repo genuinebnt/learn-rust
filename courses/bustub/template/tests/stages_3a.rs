@@ -593,3 +593,319 @@ proptest! {
         prop_assert_eq!(v.compare_equals(&back).unwrap(), CmpBool::True);
     }
 }
+
+// @@ challenge 3a-c1 begin
+mod ch_3a_c1 {
+    use proptest::prelude::*;
+
+    use bustub::types::decimal::Decimal;
+
+    fn d(s: &str) -> Decimal {
+        Decimal::parse(s).unwrap_or_else(|| panic!("{s:?} should parse"))
+    }
+
+    #[test]
+    fn s3a_c1_parsing_and_printing() {
+        assert_eq!(d("12.5").to_string(), "12.50");
+        assert_eq!(d("-0.07").to_string(), "-0.07");
+        assert_eq!(d("+3").to_string(), "3.00");
+        assert_eq!(d("-0.00").to_string(), "0.00");
+        assert_eq!(d("-0.00"), d("0"));
+    }
+
+    #[test]
+    fn s3a_c1_what_is_not_a_decimal() {
+        for s in ["", "-", "1.234", "1.", ".5", "1e3", " 1", "1 ", "1.2.3", "--1", "0x10"] {
+            assert_eq!(Decimal::parse(s), None, "{s:?}");
+        }
+    }
+
+    #[test]
+    fn s3a_c1_addition_is_exact_where_floats_are_not() {
+        assert_eq!(d("0.1").add(d("0.2")).unwrap(), d("0.30"));
+        assert_eq!(d("10").sub(d("0.01")).unwrap().to_string(), "9.99");
+        assert_eq!(Decimal::from_cents(i128::MAX).add(d("0.01")), None);
+        assert_eq!(Decimal::from_cents(i128::MIN).sub(d("0.01")), None);
+    }
+
+    #[test]
+    fn s3a_c1_multiplication_rounds_half_away_from_zero() {
+        assert_eq!(d("1.25").mul(d("1.25")).unwrap().to_string(), "1.56");
+        assert_eq!(d("-1.25").mul(d("1.25")).unwrap().to_string(), "-1.56");
+        assert_eq!(d("0.05").mul(d("0.10")).unwrap().to_string(), "0.01", "0.005 rounds to 0.01");
+        assert_eq!(d("0.04").mul(d("0.10")).unwrap().to_string(), "0.00");
+    }
+
+    #[test]
+    fn s3a_c1_division_rounds_and_refuses_zero() {
+        assert_eq!(d("1").div(d("3")).unwrap().to_string(), "0.33");
+        assert_eq!(d("2").div(d("3")).unwrap().to_string(), "0.67");
+        assert_eq!(d("-2").div(d("3")).unwrap().to_string(), "-0.67");
+        assert_eq!(d("1").div(d("0")), None);
+        assert_eq!(d("5").div(d("2")).unwrap().to_string(), "2.50");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against `i128` arithmetic on hundredths, and printing then parsing is the identity.
+        #[test]
+        fn s3a_c1_property_decimals_match_integer_arithmetic(a in -100_000i128..100_000, b in -100_000i128..100_000) {
+            let (x, y) = (Decimal::from_cents(a), Decimal::from_cents(b));
+            prop_assert_eq!(Decimal::parse(&x.to_string()), Some(x));
+            prop_assert_eq!(x.add(y).unwrap().cents(), a + b);
+            prop_assert_eq!(x.sub(y).unwrap().cents(), a - b);
+            let rnd = |n: i128, dd: i128| { let q = n / dd; let r = n % dd; if r.abs() * 2 >= dd.abs() { q + if (n < 0) != (dd < 0) { -1 } else { 1 } } else { q } };
+            prop_assert_eq!(x.mul(y).unwrap().cents(), rnd(a * b, 100));
+            if b != 0 { prop_assert_eq!(x.div(y).unwrap().cents(), rnd(a * 100, b)); } else { prop_assert_eq!(x.div(y), None); }
+            prop_assert_eq!(x.add(y), y.add(x));
+            prop_assert_eq!(x.mul(y), y.mul(x));
+            prop_assert_eq!(x.mul(Decimal::from_cents(100)), Some(x));
+        }
+    }
+}
+// @@ challenge 3a-c1 end
+
+// @@ challenge 3a-c2 begin
+mod ch_3a_c2 {
+    use proptest::prelude::*;
+
+    use bustub::types::null_order::{cmp_nullable, Dir, Nulls};
+
+    fn sorted(v: &[Option<i64>], dir: Dir, nulls: Nulls) -> Vec<Option<i64>> {
+        let mut v = v.to_vec();
+        v.sort_by(|a, b| cmp_nullable(*a, *b, dir, nulls));
+        v
+    }
+
+    const ROWS: [Option<i64>; 3] = [Some(3), None, Some(1)];
+
+    #[test]
+    fn s3a_c2_ascending_nulls_last() {
+        assert_eq!(sorted(&ROWS, Dir::Asc, Nulls::Last), vec![Some(1), Some(3), None]);
+    }
+
+    #[test]
+    fn s3a_c2_descending_nulls_first_puts_nulls_first_and_values_downwards() {
+        assert_eq!(sorted(&ROWS, Dir::Desc, Nulls::First), vec![None, Some(3), Some(1)]);
+    }
+
+    #[test]
+    fn s3a_c2_the_placement_is_independent_of_the_direction() {
+        assert_eq!(sorted(&ROWS, Dir::Asc, Nulls::First), vec![None, Some(1), Some(3)]);
+        assert_eq!(sorted(&ROWS, Dir::Desc, Nulls::Last), vec![Some(3), Some(1), None]);
+    }
+
+    #[test]
+    fn s3a_c2_two_nulls_are_equal_and_sorting_is_stable() {
+        use std::cmp::Ordering::Equal;
+        assert_eq!(cmp_nullable(None, None, Dir::Desc, Nulls::First), Equal);
+        let mut tagged = vec![(None, 'a'), (Some(1), 'b'), (None, 'c'), (Some(1), 'd')];
+        tagged.sort_by(|x, y| cmp_nullable(x.0, y.0, Dir::Asc, Nulls::Last));
+        assert_eq!(tagged.iter().map(|t| t.1).collect::<String>(), "bdac");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: a total preorder whose NULL placement ignores the direction and whose value order flips with it.
+        #[test]
+        fn s3a_c2_property_a_total_preorder_with_independent_options(a in proptest::option::of(-3i64..3), b in proptest::option::of(-3i64..3), c in proptest::option::of(-3i64..3)) {
+            for dir in [Dir::Asc, Dir::Desc] {
+                for nulls in [Nulls::First, Nulls::Last] {
+                    let f = |x, y| cmp_nullable(x, y, dir, nulls);
+                    prop_assert_eq!(f(a, b), f(b, a).reverse());
+                    prop_assert_eq!(f(a, a), std::cmp::Ordering::Equal);
+                    if f(a, b).is_le() && f(b, c).is_le() { prop_assert!(f(a, c).is_le()); }
+                }
+            }
+            for nulls in [Nulls::First, Nulls::Last] {
+                let asc = cmp_nullable(a, b, Dir::Asc, nulls);
+                let desc = cmp_nullable(a, b, Dir::Desc, nulls);
+                if a.is_some() && b.is_some() { prop_assert_eq!(desc, asc.reverse()); } else { prop_assert_eq!(desc, asc); }
+            }
+        }
+    }
+}
+// @@ challenge 3a-c2 end
+
+// @@ challenge 3a-c3 begin
+mod ch_3a_c3 {
+    use proptest::prelude::*;
+
+    use bustub::types::int_parse::{parse_sql_int, IntError};
+
+    #[test]
+    fn s3a_c3_numbers_with_surrounding_whitespace_and_signs() {
+        assert_eq!(parse_sql_int("  42 "), Ok(42));
+        assert_eq!(parse_sql_int("+5"), Ok(5));
+        assert_eq!(parse_sql_int("-0"), Ok(0));
+        assert_eq!(parse_sql_int("\t-17\n"), Ok(-17));
+        assert_eq!(parse_sql_int("007"), Ok(7));
+    }
+
+    #[test]
+    fn s3a_c3_the_edges_of_i64() {
+        assert_eq!(parse_sql_int("9223372036854775807"), Ok(i64::MAX));
+        assert_eq!(parse_sql_int("-9223372036854775808"), Ok(i64::MIN));
+        assert_eq!(parse_sql_int("9223372036854775808"), Err(IntError::OutOfRange));
+        assert_eq!(parse_sql_int("-9223372036854775809"), Err(IntError::OutOfRange));
+        assert_eq!(parse_sql_int("99999999999999999999999999"), Err(IntError::OutOfRange));
+    }
+
+    #[test]
+    fn s3a_c3_empty_and_invalid_are_different_errors() {
+        assert_eq!(parse_sql_int(""), Err(IntError::Empty));
+        assert_eq!(parse_sql_int("   "), Err(IntError::Empty));
+        for s in ["+", "-", "4 2", "1_0", "0x1", "1.0", "1e3", "--1", "+-1", "12a", "\u{0663}"] {
+            assert_eq!(parse_sql_int(s), Err(IntError::Invalid), "{s:?}");
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: every printed `i64` parses back, whitespace changes nothing, and everything else agrees with 128-bit parsing.
+        #[test]
+        fn s3a_c3_property_round_trip_and_range(v in any::<i64>(), w in 0usize..3, digits in "[0-9]{1,24}", neg in any::<bool>()) {
+            prop_assert_eq!(parse_sql_int(&v.to_string()), Ok(v));
+            let padded = format!("{}{}{}", " ".repeat(w), v, "\t".repeat(w));
+            prop_assert_eq!(parse_sql_int(&padded), Ok(v));
+            let text = format!("{}{}", if neg { "-" } else { "" }, digits);
+            let wide: i128 = text.parse().unwrap_or(i128::MAX);
+            let want = if wide >= i64::MIN as i128 && wide <= i64::MAX as i128 && digits.len() < 38 { Ok(wide as i64) } else { Err(IntError::OutOfRange) };
+            prop_assert_eq!(parse_sql_int(&text), want);
+        }
+
+        /// Property: never panics on any string.
+        #[test]
+        fn s3a_c3_property_never_panics(s in ".{0,12}") {
+            let _ = parse_sql_int(&s);
+        }
+    }
+}
+// @@ challenge 3a-c3 end
+
+// @@ challenge 3a-c4 begin
+mod ch_3a_c4 {
+    use proptest::prelude::*;
+
+    use bustub::types::int_ops::{checked_abs_i32, checked_add_i32, checked_div_i32, checked_neg_i32, IntOpError};
+
+    #[test]
+    fn s3a_c4_ordinary_values() {
+        assert_eq!(checked_add_i32(2, 3), Ok(5));
+        assert_eq!(checked_neg_i32(7), Ok(-7));
+        assert_eq!(checked_abs_i32(-7), Ok(7));
+        assert_eq!(checked_div_i32(-7, 2), Ok(-3), "truncation towards zero, as SQL does");
+    }
+
+    #[test]
+    fn s3a_c4_division_by_zero_is_an_error() {
+        assert_eq!(checked_div_i32(5, 0), Err(IntOpError::DivisionByZero));
+        assert_eq!(checked_div_i32(i32::MIN, 0), Err(IntOpError::DivisionByZero));
+    }
+
+    #[test]
+    fn s3a_c4_the_one_division_that_overflows_is_an_error_not_a_panic() {
+        assert_eq!(checked_div_i32(i32::MIN, -1), Err(IntOpError::Overflow));
+        assert_eq!(checked_div_i32(i32::MIN, 1), Ok(i32::MIN));
+        assert_eq!(checked_div_i32(i32::MAX, -1), Ok(-i32::MAX));
+    }
+
+    #[test]
+    fn s3a_c4_the_other_extremes() {
+        assert_eq!(checked_abs_i32(i32::MIN), Err(IntOpError::Overflow));
+        assert_eq!(checked_neg_i32(i32::MIN), Err(IntOpError::Overflow));
+        assert_eq!(checked_add_i32(i32::MAX, 1), Err(IntOpError::Overflow));
+        assert_eq!(checked_add_i32(i32::MIN, -1), Err(IntOpError::Overflow));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: never panics, and agrees with 64-bit arithmetic, over values that include the extremes.
+        #[test]
+        fn s3a_c4_property_agrees_with_64_bit_arithmetic(a in prop_oneof![any::<i32>(), Just(i32::MIN), Just(i32::MAX), Just(0), Just(-1), Just(1)], b in prop_oneof![any::<i32>(), Just(i32::MIN), Just(i32::MAX), Just(0), Just(-1), Just(1)]) {
+            let fit = |x: i64| i32::try_from(x).map_err(|_| IntOpError::Overflow);
+            prop_assert_eq!(checked_add_i32(a, b), fit(a as i64 + b as i64));
+            prop_assert_eq!(checked_neg_i32(a), fit(-(a as i64)));
+            prop_assert_eq!(checked_abs_i32(a), fit((a as i64).abs()));
+            let want = if b == 0 { Err(IntOpError::DivisionByZero) } else { fit(a as i64 / b as i64) };
+            prop_assert_eq!(checked_div_i32(a, b), want);
+        }
+    }
+}
+// @@ challenge 3a-c4 end
+
+// @@ challenge 3a-c5 begin
+mod ch_3a_c5 {
+    use proptest::prelude::*;
+
+    use bustub::types::like_match::{like, LikeError};
+
+    #[test]
+    fn s3a_c5_wildcards_and_literals() {
+        assert_eq!(like("hello", "h%o", None), Ok(true));
+        assert_eq!(like("hello", "h_llo", None), Ok(true));
+        assert_eq!(like("hello", "h_lo", None), Ok(false));
+        assert_eq!(like("hello", "%", None), Ok(true));
+        assert_eq!(like("", "%", None), Ok(true));
+        assert_eq!(like("", "_", None), Ok(false));
+        assert_eq!(like("hello", "HELLO", None), Ok(false), "case-sensitive");
+        assert_eq!(like("hello", "hell", None), Ok(false), "the whole text must match");
+    }
+
+    #[test]
+    fn s3a_c5_the_escape_character_makes_the_next_character_literal() {
+        assert_eq!(like("100%", "100\\%", Some('\\')), Ok(true));
+        assert_eq!(like("1000", "100\\%", Some('\\')), Ok(false));
+        assert_eq!(like("a_b", "a\\_b", Some('\\')), Ok(true));
+        assert_eq!(like("axb", "a\\_b", Some('\\')), Ok(false));
+        assert_eq!(like("a\\b", "a\\\\b", Some('\\')), Ok(true), "an escaped escape is a literal escape");
+    }
+
+    #[test]
+    fn s3a_c5_a_trailing_escape_is_an_error() {
+        assert_eq!(like("ab", "a\\", Some('\\')), Err(LikeError::TrailingEscape));
+        assert_eq!(like("a\\", "a\\", None), Ok(true), "without an escape character it is just a character");
+    }
+
+    #[test]
+    fn s3a_c5_unicode_characters_count_as_one() {
+        assert_eq!(like("héllo", "h_llo", None), Ok(true));
+        assert_eq!(like("日本語", "___", None), Ok(true));
+        assert_eq!(like("日本語", "__", None), Ok(false));
+    }
+
+    #[test]
+    fn s3a_c5_an_adversarial_pattern_finishes_quickly() {
+        let text = "a".repeat(20_000);
+        let pat = format!("{}b", "%a".repeat(12));
+        let t = std::time::Instant::now();
+        assert_eq!(like(&text, &pat, None), Ok(false));
+        assert!(t.elapsed() < std::time::Duration::from_secs(3), "took {:?}: a recursive matcher is exponential here", t.elapsed());
+    }
+
+    fn brute(t: &[char], p: &[char]) -> bool {
+        match p.split_first() {
+            None => t.is_empty(),
+            Some((&'%', rest)) => (0..=t.len()).any(|i| brute(&t[i..], rest)),
+            Some((&'_', rest)) => !t.is_empty() && brute(&t[1..], rest),
+            Some((c, rest)) => t.first() == Some(c) && brute(&t[1..], rest),
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a brute-force recursive matcher on short strings over a small alphabet.
+        #[test]
+        fn s3a_c5_property_matches_a_brute_force_matcher(text in "[ab]{0,8}", pattern in "[ab%_]{0,7}") {
+            let t: Vec<char> = text.chars().collect();
+            let p: Vec<char> = pattern.chars().collect();
+            prop_assert_eq!(like(&text, &pattern, None), Ok(brute(&t, &p)), "{:?} LIKE {:?}", text, pattern);
+        }
+    }
+}
+// @@ challenge 3a-c5 end

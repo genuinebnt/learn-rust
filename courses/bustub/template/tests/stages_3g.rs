@@ -1104,3 +1104,296 @@ proptest! {
         prop_assert_eq!(sorted(ranks), sorted(want_all), "rank");
     }
 }
+
+// @@ challenge 3g-c1 begin
+mod ch_3g_c1 {
+    use proptest::prelude::*;
+
+    use bustub::execution::sort_plan::{plan_sort, SortPlan};
+
+    #[test]
+    fn s3g_c1_a_typical_plan() {
+        assert_eq!(plan_sort(100, 10), Some(SortPlan { initial_runs: 10, passes: 3, io_pages: 600 }));
+    }
+
+    #[test]
+    fn s3g_c1_an_input_that_fits_in_memory_is_one_pass() {
+        assert_eq!(plan_sort(8, 10), Some(SortPlan { initial_runs: 1, passes: 1, io_pages: 16 }));
+        assert_eq!(plan_sort(10, 10), Some(SortPlan { initial_runs: 1, passes: 1, io_pages: 20 }));
+    }
+
+    #[test]
+    fn s3g_c1_exact_powers_of_the_fan_in_do_not_cost_an_extra_pass() {
+        // buffer 5: fan-in 4. 5 * 4^3 pages -> 64 runs -> 16 -> 4 -> 1: three merge passes
+        assert_eq!(plan_sort(5 * 64, 5).unwrap().passes, 4);
+        assert_eq!(plan_sort(5 * 64 + 1, 5).unwrap().passes, 5, "one page more makes 65 runs and one more pass");
+    }
+
+    #[test]
+    fn s3g_c1_no_pages_and_not_enough_memory() {
+        assert_eq!(plan_sort(0, 10), Some(SortPlan { initial_runs: 0, passes: 0, io_pages: 0 }));
+        assert_eq!(plan_sort(100, 2), None);
+        assert_eq!(plan_sort(100, 0), None);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: monotone in both arguments, one pass when it fits, and equal to simulating the merges.
+        #[test]
+        fn s3g_c1_property_the_plan_is_monotone_and_matches_a_simulation(pages in 1u64..5000, buffer in 3u64..40) {
+            let p = plan_sort(pages, buffer).unwrap();
+            let mut runs = pages.div_ceil(buffer);
+            let mut passes = 1;
+            while runs > 1 { runs = runs.div_ceil(buffer - 1); passes += 1; }
+            prop_assert_eq!(p.passes, passes);
+            prop_assert_eq!(p.io_pages, 2 * pages * passes as u64);
+            prop_assert!(plan_sort(pages, buffer + 1).unwrap().passes <= p.passes);
+            prop_assert!(plan_sort(pages + 1, buffer).unwrap().passes >= p.passes);
+            if pages <= buffer { prop_assert_eq!(p.passes, 1); }
+        }
+    }
+}
+// @@ challenge 3g-c1 end
+
+// @@ challenge 3g-c2 begin
+mod ch_3g_c2 {
+    use proptest::prelude::*;
+
+    use bustub::execution::top_n::TopN;
+
+    #[test]
+    fn s3g_c2_the_smallest_n_with_ties_by_arrival() {
+        let mut t = TopN::new(2);
+        for (k, p) in [(5, 0), (1, 1), (5, 2), (1, 3)] {
+            t.push(k, p);
+        }
+        assert_eq!(t.finish(), vec![(1, 1), (1, 3)]);
+    }
+
+    #[test]
+    fn s3g_c2_an_earlier_arrival_wins_a_tie_at_the_boundary() {
+        let mut t = TopN::new(2);
+        for (k, p) in [(3, 10), (3, 11), (3, 12)] {
+            t.push(k, p);
+        }
+        assert_eq!(t.finish(), vec![(3, 10), (3, 11)]);
+    }
+
+    #[test]
+    fn s3g_c2_n_zero_holds_nothing() {
+        let mut t = TopN::new(0);
+        t.push(1, 1);
+        assert_eq!((t.len(), t.is_empty()), (0, true));
+        assert_eq!(t.finish(), vec![]);
+    }
+
+    #[test]
+    fn s3g_c2_fewer_rows_than_n_and_bounded_memory() {
+        let mut t = TopN::new(3);
+        t.push(9, 0);
+        assert_eq!(t.len(), 1);
+        for i in 0..1000 {
+            t.push(1000 - i, i as u32);
+            assert!(t.len() <= 3);
+        }
+        let r = t.finish();
+        assert_eq!(r.iter().map(|x| x.0).collect::<Vec<_>>(), vec![1, 2, 3]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: a stable sort of everything, cut at `n`.
+        #[test]
+        fn s3g_c2_property_equals_a_stable_sort_and_take(rows in proptest::collection::vec(-5i64..5, 0..30), n in 0usize..10) {
+            let mut t = TopN::new(n);
+            for (i, &k) in rows.iter().enumerate() { t.push(k, i as u32); prop_assert!(t.len() <= n); }
+            let mut want: Vec<(i64, u32)> = rows.iter().enumerate().map(|(i, &k)| (k, i as u32)).collect();
+            want.sort_by_key(|r| r.0);
+            want.truncate(n);
+            prop_assert_eq!(t.finish(), want);
+        }
+    }
+}
+// @@ challenge 3g-c2 end
+
+// @@ challenge 3g-c3 begin
+mod ch_3g_c3 {
+    use proptest::prelude::*;
+
+    use bustub::execution::moving_sum::moving_sum;
+
+    fn s(v: &[i64]) -> Vec<Option<i64>> {
+        v.iter().map(|&x| Some(x)).collect()
+    }
+
+    #[test]
+    fn s3g_c3_a_running_total_and_a_trailing_window() {
+        assert_eq!(moving_sum(&s(&[1, 2, 3, 4]), 100, 0), s(&[1, 3, 6, 10]));
+        assert_eq!(moving_sum(&s(&[1, 2, 3, 4]), 1, 0), s(&[1, 3, 5, 7]));
+    }
+
+    #[test]
+    fn s3g_c3_a_centred_window_is_clipped_at_both_ends() {
+        assert_eq!(moving_sum(&s(&[1, 2, 3, 4]), 1, 1), s(&[3, 6, 9, 7]));
+    }
+
+    #[test]
+    fn s3g_c3_nulls_contribute_nothing_and_an_all_null_frame_is_null() {
+        let v = [Some(1), None, Some(3)];
+        assert_eq!(moving_sum(&v, 1, 1), s(&[1, 4, 3]));
+        assert_eq!(moving_sum(&[None, None], 1, 1), vec![None, None]);
+        assert_eq!(moving_sum(&[None, Some(5)], 0, 0), vec![None, Some(5)]);
+    }
+
+    #[test]
+    fn s3g_c3_empty_input_and_a_zero_frame() {
+        assert_eq!(moving_sum(&[], 2, 2), vec![]);
+        assert_eq!(moving_sum(&s(&[7, 8]), 0, 0), s(&[7, 8]));
+    }
+
+    #[test]
+    fn s3g_c3_a_long_column_is_linear() {
+        let v: Vec<Option<i64>> = (0..200_000).map(|i| Some(i % 7)).collect();
+        let t = std::time::Instant::now();
+        let r = moving_sum(&v, 50_000, 50_000);
+        assert_eq!(r.len(), v.len());
+        assert!(t.elapsed() < std::time::Duration::from_secs(3), "took {:?}: recomputing each frame is quadratic", t.elapsed());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: equals summing each frame directly.
+        #[test]
+        fn s3g_c3_property_equals_the_naive_frame_sum(v in proptest::collection::vec(proptest::option::of(-20i64..20), 0..15), p in 0usize..5, f in 0usize..5) {
+            let got = moving_sum(&v, p, f);
+            for i in 0..v.len() {
+                let frame = &v[i.saturating_sub(p)..(i + f + 1).min(v.len())];
+                let want = if frame.iter().all(|x| x.is_none()) { None } else { Some(frame.iter().flatten().sum::<i64>()) };
+                prop_assert_eq!(got[i], want, "row {}", i);
+            }
+            prop_assert_eq!(got.len(), v.len());
+        }
+    }
+}
+// @@ challenge 3g-c3 end
+
+// @@ challenge 3g-c4 begin
+mod ch_3g_c4 {
+    use proptest::prelude::*;
+
+    use bustub::execution::ranks::{dense_rank, rank, row_number};
+
+    #[test]
+    fn s3g_c4_the_three_functions_on_data_with_a_tie() {
+        let k = [10, 20, 20, 30];
+        assert_eq!(row_number(&k), vec![1, 2, 3, 4]);
+        assert_eq!(rank(&k), vec![1, 2, 2, 4]);
+        assert_eq!(dense_rank(&k), vec![1, 2, 2, 3]);
+    }
+
+    #[test]
+    fn s3g_c4_a_big_tie_group_makes_a_big_gap() {
+        let k = [1, 1, 1, 1, 2];
+        assert_eq!(rank(&k), vec![1, 1, 1, 1, 5]);
+        assert_eq!(dense_rank(&k), vec![1, 1, 1, 1, 2]);
+    }
+
+    #[test]
+    fn s3g_c4_without_ties_all_three_agree_and_empty_is_empty() {
+        let k = [1, 2, 3];
+        assert_eq!(rank(&k), row_number(&k));
+        assert_eq!(dense_rank(&k), row_number(&k));
+        assert_eq!(rank(&[]), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn s3g_c4_all_keys_equal() {
+        let k = [5, 5, 5];
+        assert_eq!(rank(&k), vec![1, 1, 1]);
+        assert_eq!(dense_rank(&k), vec![1, 1, 1]);
+        assert_eq!(row_number(&k), vec![1, 2, 3]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the definitions, counting smaller keys.
+        #[test]
+        fn s3g_c4_property_rank_counts_smaller_rows(mut keys in proptest::collection::vec(-4i64..4, 0..15)) {
+            keys.sort();
+            let r = rank(&keys);
+            let d = dense_rank(&keys);
+            for (i, k) in keys.iter().enumerate() {
+                prop_assert_eq!(r[i], 1 + keys.iter().filter(|x| *x < k).count());
+                let mut smaller: Vec<_> = keys.iter().filter(|x| *x < k).collect();
+                smaller.dedup();
+                prop_assert_eq!(d[i], 1 + smaller.len());
+            }
+        }
+    }
+}
+// @@ challenge 3g-c4 end
+
+// @@ challenge 3g-c5 begin
+mod ch_3g_c5 {
+    use proptest::prelude::*;
+
+    use bustub::execution::radix_sort::radix_sort;
+
+    #[test]
+    fn s3g_c5_sorts_by_key_keeping_the_order_of_equal_keys() {
+        let mut v = vec![(3, 1), (1, 2), (3, 3), (2, 4)];
+        radix_sort(&mut v);
+        assert_eq!(v, vec![(1, 2), (2, 4), (3, 1), (3, 3)]);
+    }
+
+    #[test]
+    fn s3g_c5_keys_that_differ_only_in_a_high_byte() {
+        let mut v = vec![(0x0100_0000, 0), (0x00FF_FFFF, 1), (0xFF00_0000, 2), (0, 3)];
+        radix_sort(&mut v);
+        assert_eq!(v.iter().map(|r| r.1).collect::<Vec<_>>(), vec![3, 1, 0, 2]);
+    }
+
+    #[test]
+    fn s3g_c5_empty_single_and_already_sorted() {
+        let mut e: Vec<(u32, u32)> = vec![];
+        radix_sort(&mut e);
+        assert!(e.is_empty());
+        let mut one = vec![(5, 5)];
+        radix_sort(&mut one);
+        assert_eq!(one, vec![(5, 5)]);
+        let mut sorted: Vec<(u32, u32)> = (0..100).map(|i| (i, i)).collect();
+        let copy = sorted.clone();
+        radix_sort(&mut sorted);
+        assert_eq!(sorted, copy);
+    }
+
+    #[test]
+    fn s3g_c5_equal_keys_and_reversed_input() {
+        let mut same: Vec<(u32, u32)> = (0..50).map(|i| (7, i)).collect();
+        let copy = same.clone();
+        radix_sort(&mut same);
+        assert_eq!(same, copy, "equal keys keep their input order");
+        let mut rev: Vec<(u32, u32)> = (0..50).rev().map(|i| (i, i)).collect();
+        radix_sort(&mut rev);
+        assert!(rev.windows(2).all(|w| w[0].0 < w[1].0));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: equals the standard library's stable sort by key.
+        #[test]
+        fn s3g_c5_property_equals_a_stable_sort(keys in proptest::collection::vec(prop_oneof![0u32..8, any::<u32>()], 0..60)) {
+            let mut rows: Vec<(u32, u32)> = keys.iter().enumerate().map(|(i, &k)| (k, i as u32)).collect();
+            let mut want = rows.clone();
+            want.sort_by_key(|r| r.0);
+            radix_sort(&mut rows);
+            prop_assert_eq!(rows, want);
+        }
+    }
+}
+// @@ challenge 3g-c5 end

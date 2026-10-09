@@ -1,0 +1,8 @@
+id = "1b-c4"
+title = "Challenge: write coalescing"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_1b::s1b_c4"]
+learn = ["reordering and dropping requests without changing what any read sees", "stating the invariant a reordering must preserve"]
+concepts = []
+concepts_optional = ["model-based-testing", "property-testing-and-fuzzing"]

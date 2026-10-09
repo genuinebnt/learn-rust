@@ -631,3 +631,413 @@ proptest! {
         sql(&db, "set force_optimizer_starter_rule=no");
     }
 }
+
+// @@ challenge 3h-c1 begin
+mod ch_3h_c1 {
+    use proptest::prelude::*;
+
+    use bustub::optimizer::const_fold::{eval, fold, Expr, Expr::*};
+
+    fn b(e: Expr) -> Box<Expr> {
+        Box::new(e)
+    }
+
+    #[test]
+    fn s3h_c1_subtrees_without_columns_are_evaluated() {
+        let e = Mul(b(Add(b(Int(1)), b(Int(2)))), b(Col(0)));
+        assert_eq!(fold(&e), Mul(b(Int(3)), b(Col(0))));
+        assert_eq!(fold(&Lt(b(Int(1)), b(Int(2)))), Bool(true));
+    }
+
+    #[test]
+    fn s3h_c1_arithmetic_identities() {
+        assert_eq!(fold(&Add(b(Col(0)), b(Int(0)))), Col(0));
+        assert_eq!(fold(&Add(b(Add(b(Int(2)), b(Int(-2)))), b(Col(1)))), Col(1));
+        assert_eq!(fold(&Mul(b(Int(1)), b(Col(0)))), Col(0));
+        assert_eq!(fold(&Mul(b(Col(0)), b(Add(b(Int(1)), b(Int(-1)))))), Int(0));
+    }
+
+    #[test]
+    fn s3h_c1_boolean_identities() {
+        let p = || Lt(b(Col(0)), b(Int(5)));
+        assert_eq!(fold(&And(b(Bool(true)), b(p()))), p());
+        assert_eq!(fold(&And(b(p()), b(Bool(false)))), Bool(false));
+        assert_eq!(fold(&Or(b(Bool(false)), b(p()))), p());
+        assert_eq!(fold(&Or(b(p()), b(Bool(true)))), Bool(true));
+        assert_eq!(fold(&Not(b(Not(b(p()))))), p());
+        assert_eq!(fold(&Not(b(Bool(false)))), Bool(true));
+    }
+
+    #[test]
+    fn s3h_c1_a_trap_must_not_be_folded_away() {
+        // an overflow cannot be evaluated: it is left in the tree, not turned into a made-up value
+        let e = Add(b(Int(i64::MAX)), b(Int(1)));
+        assert_eq!(fold(&e), e);
+    }
+
+    fn arb_int(depth: u32) -> BoxedStrategy<Expr> {
+        let leaf = prop_oneof![(-3i64..4).prop_map(Int), (0usize..2).prop_map(Col)];
+        if depth == 0 {
+            return leaf.boxed();
+        }
+        let inner = arb_int(depth - 1);
+        prop_oneof![
+            leaf,
+            (inner.clone(), inner.clone()).prop_map(|(a, c)| Add(Box::new(a), Box::new(c))),
+            (inner.clone(), inner).prop_map(|(a, c)| Mul(Box::new(a), Box::new(c))),
+        ]
+        .boxed()
+    }
+
+    fn arb_bool(depth: u32) -> BoxedStrategy<Expr> {
+        let leaf = prop_oneof![any::<bool>().prop_map(Bool), (arb_int(2), arb_int(2)).prop_map(|(a, c)| Lt(Box::new(a), Box::new(c)))];
+        if depth == 0 {
+            return leaf.boxed();
+        }
+        let inner = arb_bool(depth - 1);
+        prop_oneof![
+            leaf,
+            (inner.clone(), inner.clone()).prop_map(|(a, c)| And(Box::new(a), Box::new(c))),
+            (inner.clone(), inner.clone()).prop_map(|(a, c)| Or(Box::new(a), Box::new(c))),
+            inner.prop_map(|a| Not(Box::new(a))),
+        ]
+        .boxed()
+    }
+
+    fn size(e: &Expr) -> usize {
+        match e {
+            Int(_) | Bool(_) | Col(_) => 1,
+            Add(a, b) | Mul(a, b) | Lt(a, b) | And(a, b) | Or(a, b) => 1 + size(a) + size(b),
+            Not(a) => 1 + size(a),
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the folded tree has the same value on every row, is no bigger, and folding again changes nothing.
+        #[test]
+        fn s3h_c1_property_folding_preserves_the_value(e in arb_bool(3), r0 in -4i64..5, r1 in -4i64..5) {
+            let f = fold(&e);
+            prop_assert_eq!(eval(&f, &[r0, r1]), eval(&e, &[r0, r1]));
+            prop_assert!(size(&f) <= size(&e));
+            prop_assert_eq!(fold(&f), f);
+        }
+
+        #[test]
+        fn s3h_c1_property_integer_trees_too(e in arb_int(3), r0 in -4i64..5, r1 in -4i64..5) {
+            let f = fold(&e);
+            prop_assert_eq!(eval(&f, &[r0, r1]), eval(&e, &[r0, r1]));
+            prop_assert_eq!(fold(&f), f.clone());
+        }
+    }
+}
+// @@ challenge 3h-c1 end
+
+// @@ challenge 3h-c2 begin
+mod ch_3h_c2 {
+    use proptest::prelude::*;
+
+    use bustub::optimizer::pushdown::{columns, conjuncts, holds, split_for_join, CmpOp::*, Pred, Pred::*};
+
+    #[test]
+    fn s3h_c2_nested_ands_are_flattened_in_order() {
+        let p = And(vec![Cmp(0, Eq, 1), And(vec![Cmp(1, Gt, 3), And(vec![])]), Cmp(2, Lt, 9)]);
+        assert_eq!(conjuncts(&p), vec![Cmp(0, Eq, 1), Cmp(1, Gt, 3), Cmp(2, Lt, 9)]);
+        assert_eq!(conjuncts(&And(vec![])), Vec::<Pred>::new());
+        assert_eq!(conjuncts(&Cmp(0, Eq, 1)), vec![Cmp(0, Eq, 1)]);
+    }
+
+    #[test]
+    fn s3h_c2_the_split_by_side() {
+        // left has columns 0 and 1; right has columns 2 and 3
+        let p = And(vec![Cmp(0, Eq, 1), Cmp(3, Gt, 3), ColCmp(1, Lt, 2)]);
+        let (l, r, b) = split_for_join(&p, 2);
+        assert_eq!((l, r, b), (vec![Cmp(0, Eq, 1)], vec![Cmp(3, Gt, 3)], vec![ColCmp(1, Lt, 2)]));
+    }
+
+    #[test]
+    fn s3h_c2_an_or_is_never_split() {
+        let p = And(vec![Or(vec![Cmp(0, Eq, 1), Cmp(3, Eq, 2)]), Cmp(1, Gt, 0)]);
+        let (l, r, b) = split_for_join(&p, 2);
+        assert_eq!((l.len(), r.len(), b.len()), (1, 0, 1));
+        assert_eq!(b[0], Or(vec![Cmp(0, Eq, 1), Cmp(3, Eq, 2)]));
+    }
+
+    #[test]
+    fn s3h_c2_a_negation_stays_whole_and_goes_by_its_columns() {
+        let p = And(vec![Not(Box::new(Cmp(2, Eq, 0))), Not(Box::new(ColCmp(0, Eq, 3)))]);
+        let (l, r, b) = split_for_join(&p, 2);
+        assert_eq!((l.len(), r.len(), b.len()), (0, 1, 1));
+    }
+
+    fn arb_pred() -> impl Strategy<Value = Pred> {
+        let op = prop_oneof![Just(Lt), Just(Eq), Just(Gt)];
+        let leaf = prop_oneof![
+            (0usize..4, op.clone(), -2i64..3).prop_map(|(c, o, v)| Cmp(c, o, v)),
+            (0usize..4, op, 0usize..4).prop_map(|(a, o, b)| ColCmp(a, o, b)),
+        ];
+        leaf.prop_recursive(3, 12, 3, |inner| {
+            prop_oneof![
+                proptest::collection::vec(inner.clone(), 0..4).prop_map(And),
+                proptest::collection::vec(inner.clone(), 1..3).prop_map(Or),
+                inner.prop_map(|p| Not(Box::new(p))),
+            ]
+        })
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the three lists together are equivalent to the input, and each list obeys its column rule.
+        #[test]
+        fn s3h_c2_property_the_split_is_equivalent_and_sorted_by_side(p in arb_pred(), left in 0usize..5, row in proptest::collection::vec(-2i64..3, 4)) {
+            let (l, r, b) = split_for_join(&p, left);
+            for q in &l { prop_assert!(columns(q).iter().all(|&c| c < left)); }
+            for q in &r { prop_assert!(columns(q).iter().all(|&c| c >= left)); }
+            let all: Vec<Pred> = l.iter().chain(&r).chain(&b).cloned().collect();
+            prop_assert_eq!(all.len(), conjuncts(&p).len());
+            prop_assert_eq!(all.iter().all(|q| holds(q, &row)), holds(&p, &row));
+        }
+    }
+}
+// @@ challenge 3h-c2 end
+
+// @@ challenge 3h-c3 begin
+mod ch_3h_c3 {
+    use proptest::prelude::*;
+
+    use bustub::optimizer::join_order::best_join_order;
+
+    fn unit(n: usize) -> Vec<Vec<f64>> {
+        vec![vec![1.0; n]; n]
+    }
+
+    fn cost_of(order: &[usize], card: &[f64], sel: &[Vec<f64>]) -> f64 {
+        let mut total = 0.0;
+        for k in 2..=order.len() {
+            let set = &order[..k];
+            let mut s = 1.0;
+            for (a, &i) in set.iter().enumerate() {
+                s *= card[i];
+                for &j in &set[a + 1..] {
+                    s *= sel[i][j];
+                }
+            }
+            total += s;
+        }
+        total
+    }
+
+    #[test]
+    fn s3h_c3_a_selective_join_goes_first() {
+        let card = [1000.0, 10.0, 100.0];
+        let mut sel = unit(3);
+        sel[0][1] = 0.001;
+        sel[1][0] = 0.001;
+        let (cost, order) = best_join_order(&card, &sel);
+        assert_eq!(cost_of(&order, &card, &sel), cost);
+        assert!(order[..2].contains(&0) && order[..2].contains(&1), "tables 0 and 1 join first: {order:?}");
+        assert!((cost - (10.0 + 1000.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn s3h_c3_without_predicates_the_smallest_tables_go_first() {
+        let card = [500.0, 5.0, 50.0, 2.0];
+        let (_, order) = best_join_order(&card, &unit(4));
+        assert_eq!(order[0..2].iter().copied().collect::<std::collections::BTreeSet<_>>(), [1usize, 3].into_iter().collect());
+        assert_eq!(*order.last().unwrap(), 0);
+    }
+
+    #[test]
+    fn s3h_c3_one_table_and_no_tables() {
+        assert_eq!(best_join_order(&[7.0], &unit(1)), (0.0, vec![0]));
+        assert_eq!(best_join_order(&[], &[]), (0.0, vec![]));
+    }
+
+    fn permutations(n: usize) -> Vec<Vec<usize>> {
+        if n == 0 {
+            return vec![vec![]];
+        }
+        let mut out = Vec::new();
+        for p in permutations(n - 1) {
+            for at in 0..=p.len() {
+                let mut q = p.clone();
+                q.insert(at, n - 1);
+                out.push(q);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn s3h_c3_the_returned_order_is_a_permutation_with_the_reported_cost() {
+        let card = [30.0, 4.0, 200.0, 9.0, 60.0];
+        let mut sel = unit(5);
+        sel[1][2] = 0.01;
+        sel[2][1] = 0.01;
+        sel[3][4] = 0.1;
+        sel[4][3] = 0.1;
+        let (cost, order) = best_join_order(&card, &sel);
+        let mut sorted = order.clone();
+        sorted.sort();
+        assert_eq!(sorted, vec![0, 1, 2, 3, 4]);
+        assert!((cost_of(&order, &card, &sel) - cost).abs() < 1e-6);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the returned cost is that of the returned order, and no permutation is cheaper.
+        #[test]
+        fn s3h_c3_property_dynamic_programming_equals_brute_force(card in proptest::collection::vec(1.0f64..1000.0, 2..6), sels in proptest::collection::vec(0.001f64..1.0, 15)) {
+            let n = card.len();
+            let mut sel = unit(n);
+            let mut k = 0;
+            for i in 0..n { for j in i + 1..n { sel[i][j] = sels[k]; sel[j][i] = sels[k]; k += 1; } }
+            let (cost, order) = best_join_order(&card, &sel);
+            let mut sorted = order.clone();
+            sorted.sort();
+            prop_assert_eq!(sorted, (0..n).collect::<Vec<_>>());
+            prop_assert!((cost_of(&order, &card, &sel) - cost).abs() <= 1e-6 * cost.max(1.0));
+            let best = permutations(n).iter().map(|p| cost_of(p, &card, &sel)).fold(f64::INFINITY, f64::min);
+            prop_assert!((best - cost).abs() <= 1e-6 * best.max(1.0), "dp {} vs brute force {}", cost, best);
+        }
+    }
+}
+// @@ challenge 3h-c3 end
+
+// @@ challenge 3h-c4 begin
+mod ch_3h_c4 {
+    use proptest::prelude::*;
+
+    use bustub::optimizer::push_not::{eval, push_not, B, B::*};
+
+    fn b(e: B) -> Box<B> {
+        Box::new(e)
+    }
+
+    #[test]
+    fn s3h_c4_not_over_and_becomes_or_of_nots() {
+        let e = Not(b(And(b(Var(0)), b(Var(1)))));
+        assert_eq!(push_not(&e), Or(b(Not(b(Var(0)))), b(Not(b(Var(1))))));
+    }
+
+    #[test]
+    fn s3h_c4_not_over_or_becomes_and_of_nots() {
+        let e = Not(b(Or(b(Var(0)), b(Not(b(Var(1)))))));
+        assert_eq!(push_not(&e), And(b(Not(b(Var(0)))), b(Var(1))));
+    }
+
+    #[test]
+    fn s3h_c4_double_negation_disappears() {
+        assert_eq!(push_not(&Not(b(Not(b(Var(2)))))), Var(2));
+    }
+
+    fn arb() -> impl Strategy<Value = B> {
+        (0usize..3).prop_map(Var).prop_recursive(4, 20, 2, |inner| {
+            prop_oneof![
+                inner.clone().prop_map(|e| Not(Box::new(e))),
+                (inner.clone(), inner.clone()).prop_map(|(a, c)| And(Box::new(a), Box::new(c))),
+                (inner.clone(), inner).prop_map(|(a, c)| Or(Box::new(a), Box::new(c))),
+            ]
+        })
+    }
+
+    fn nots_only_on_vars(e: &B) -> bool {
+        match e {
+            Var(_) => true,
+            Not(a) => matches!(**a, Var(_)),
+            And(a, c) | Or(a, c) => nots_only_on_vars(a) && nots_only_on_vars(c),
+        }
+    }
+
+    #[test]
+    fn s3h_c4_triple_negation_leaves_one_and_negated_variables_stay() {
+        assert_eq!(push_not(&Not(b(Not(b(Not(b(Var(1)))))))), Not(b(Var(1))));
+        assert_eq!(push_not(&Not(b(Var(0)))), Not(b(Var(0))));
+        assert_eq!(push_not(&And(b(Var(0)), b(Not(b(Not(b(Var(1)))))))), And(b(Var(0)), b(Var(1))));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: same truth table on every assignment, NOT only on variables, and idempotent.
+        #[test]
+        fn s3h_c4_property_the_truth_table_is_preserved(e in arb()) {
+            let p = push_not(&e);
+            for bits in 0..8u32 {
+                let vars: Vec<bool> = (0..3).map(|i| bits >> i & 1 == 1).collect();
+                prop_assert_eq!(eval(&p, &vars), eval(&e, &vars), "assignment {:03b}", bits);
+            }
+            prop_assert!(nots_only_on_vars(&p));
+            prop_assert_eq!(push_not(&p), p);
+        }
+    }
+}
+// @@ challenge 3h-c4 end
+
+// @@ challenge 3h-c5 begin
+mod ch_3h_c5 {
+    use proptest::prelude::*;
+
+    use bustub::optimizer::histogram::Histogram;
+
+    #[test]
+    fn s3h_c5_counts_add_up_and_the_edges_are_exact() {
+        let v: Vec<i64> = (0..100).collect();
+        let h = Histogram::build(&v, 10);
+        assert_eq!(h.bucket_counts().iter().sum::<u64>(), 100);
+        assert_eq!(h.count(), 100);
+        assert_eq!(h.estimate_le(-1), 0.0);
+        assert_eq!(h.estimate_le(99), 100.0);
+        assert_eq!(h.estimate_le(1000), 100.0);
+    }
+
+    #[test]
+    fn s3h_c5_bucket_boundaries_are_exact_for_evenly_spread_data() {
+        let v: Vec<i64> = (0..100).collect();
+        let h = Histogram::build(&v, 10);
+        assert!((h.estimate_le(49) - 50.0).abs() < 1e-9);
+        assert!((h.estimate_le(54) - 55.0).abs() < 1e-9, "half of the sixth bucket, linearly");
+        assert!((h.estimate_range(10, 29) - 20.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn s3h_c5_skewed_data_is_summarised_by_bucket_not_by_value() {
+        let mut v = vec![0i64; 90];
+        v.extend(90..100);
+        let h = Histogram::build(&v, 10);
+        assert_eq!(h.bucket_counts()[0], 90);
+        assert!((h.estimate_le(9) - 90.0).abs() < 1e-9);
+        assert!(h.estimate_le(4) > 40.0 && h.estimate_le(4) < 50.0, "inside the first bucket the values are assumed even: {}", h.estimate_le(4));
+    }
+
+    #[test]
+    fn s3h_c5_empty_and_constant_columns() {
+        let e = Histogram::build(&[], 4);
+        assert_eq!((e.count(), e.estimate_le(10)), (0, 0.0));
+        let c = Histogram::build(&[7, 7, 7], 4);
+        assert_eq!((c.estimate_le(6), c.estimate_le(7)), (0.0, 3.0));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: monotone, between 0 and n, and within the size of one bucket of the true count.
+        #[test]
+        fn s3h_c5_property_estimates_are_bounded_and_close(v in proptest::collection::vec(-50i64..50, 1..60), buckets in 1usize..9, x in -60i64..60) {
+            let h = Histogram::build(&v, buckets);
+            prop_assert_eq!(h.bucket_counts().iter().sum::<u64>(), v.len() as u64);
+            let est = h.estimate_le(x);
+            prop_assert!(est >= 0.0 && est <= v.len() as f64);
+            prop_assert!(h.estimate_le(x + 1) >= est - 1e-9);
+            let truth = v.iter().filter(|&&y| y <= x).count() as f64;
+            let widest = *h.bucket_counts().iter().max().unwrap() as f64;
+            prop_assert!((est - truth).abs() <= widest + 1e-9, "estimate {} truth {} widest bucket {}", est, truth, widest);
+            let (a, bnd) = (x.min(x + 7), x.max(x + 7));
+            prop_assert!((h.estimate_range(a, bnd) + h.estimate_le(a - 1) - h.estimate_le(bnd)).abs() < 1e-9);
+        }
+    }
+}
+// @@ challenge 3h-c5 end

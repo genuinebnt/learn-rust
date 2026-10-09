@@ -938,3 +938,333 @@ fn s3d_07_comments_and_case_do_not_matter_to_a_query() {
     assert_eq!(run(&db, "SELECT /* the answer */ 40 + 2 -- done").unwrap().trim(), "42", "comments and case do not matter to a query");
     assert_eq!(run(&db, "select\n  upper(  'mixed'  )").unwrap().trim(), "MIXED", "white space does not matter to a query");
 }
+
+// @@ challenge 3d-c1 begin
+mod ch_3d_c1 {
+    use proptest::prelude::*;
+
+    use bustub::sql::mini_lexer::{tokenize, LexError, LexErrorKind::*, Tok};
+
+    fn id(s: &str) -> Tok {
+        Tok::Ident(s.to_owned())
+    }
+    fn sym(s: &str) -> Tok {
+        Tok::Sym(s.to_owned())
+    }
+
+    #[test]
+    fn s3d_c1_identifiers_numbers_symbols_and_two_character_operators() {
+        assert_eq!(tokenize("a<=b").unwrap(), vec![id("a"), sym("<="), id("b")]);
+        assert_eq!(tokenize("t.x <> 12").unwrap(), vec![id("t"), sym("."), id("x"), sym("<>"), Tok::Int(12)]);
+        assert_eq!(tokenize("(a,b);").unwrap(), vec![sym("("), id("a"), sym(","), id("b"), sym(")"), sym(";")]);
+        assert_eq!(tokenize("a!=b").unwrap()[1], sym("!="));
+    }
+
+    #[test]
+    fn s3d_c1_a_doubled_quote_is_one_quote() {
+        assert_eq!(tokenize("'it''s'").unwrap(), vec![Tok::Str("it's".into())]);
+        assert_eq!(tokenize("\"a\"\"b\"").unwrap(), vec![Tok::QuotedIdent("a\"b".into())]);
+        assert_eq!(tokenize("''").unwrap(), vec![Tok::Str(String::new())]);
+        assert_eq!(tokenize(&"'".repeat(4)).unwrap(), vec![Tok::Str("'".into())]);
+    }
+
+    #[test]
+    fn s3d_c1_comments_produce_no_tokens_and_are_not_comments_inside_strings() {
+        assert_eq!(tokenize("a -- hi\nb /* x */ c").unwrap(), vec![id("a"), id("b"), id("c")]);
+        assert_eq!(tokenize("'-- not a comment'").unwrap(), vec![Tok::Str("-- not a comment".into())]);
+        assert_eq!(tokenize("'/* nor this */'").unwrap(), vec![Tok::Str("/* nor this */".into())]);
+        assert_eq!(tokenize("a--b").unwrap(), vec![id("a")]);
+    }
+
+    #[test]
+    fn s3d_c1_errors_carry_the_byte_position() {
+        assert_eq!(tokenize("x 'abc"), Err(LexError { pos: 2, kind: UnterminatedString }));
+        assert_eq!(tokenize("x \"abc"), Err(LexError { pos: 2, kind: UnterminatedIdent }));
+        assert_eq!(tokenize("a /* x"), Err(LexError { pos: 2, kind: UnterminatedComment }));
+        assert_eq!(tokenize("a # b"), Err(LexError { pos: 2, kind: BadChar }));
+        assert_eq!(tokenize("99999999999999999999"), Err(LexError { pos: 0, kind: IntegerOverflow }));
+        assert_eq!(tokenize("é"), Err(LexError { pos: 0, kind: BadChar }), "a multi-byte character is one bad character, at its first byte");
+        assert_eq!(tokenize("'é' é"), Err(LexError { pos: 5, kind: BadChar }), "positions count bytes");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: never panics, and an error position is a character boundary inside the input.
+        #[test]
+        fn s3d_c1_property_any_text_is_handled(s in "[ -~\\n\\té]{0,30}") {
+            if let Err(e) = tokenize(&s) {
+                prop_assert!(e.pos < s.len() || s.is_empty(), "position {} out of range for {:?}", e.pos, s);
+                prop_assert!(s.is_char_boundary(e.pos));
+            }
+        }
+
+        /// Property: whitespace and comments between tokens change nothing.
+        #[test]
+        fn s3d_c1_property_whitespace_and_comments_are_invisible(words in proptest::collection::vec("[a-z]{1,4}|[0-9]{1,3}|<=|,", 1..8), gap in prop_oneof![Just(" "), Just("  \n"), Just(" /* c */ "), Just(" -- c\n")]) {
+            let plain = words.join(" ");
+            let spaced = words.join(gap);
+            prop_assert_eq!(tokenize(&plain), tokenize(&spaced));
+        }
+    }
+}
+// @@ challenge 3d-c1 end
+
+// @@ challenge 3d-c2 begin
+mod ch_3d_c2 {
+    use proptest::prelude::*;
+
+    use bustub::sql::mini_expr::{parse, print_expr, Expr, Op};
+
+    fn n(v: i64) -> Box<Expr> {
+        Box::new(Expr::Num(v))
+    }
+    fn bin(l: Box<Expr>, op: Op, r: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Bin(l, op, r))
+    }
+
+    #[test]
+    fn s3d_c2_a_right_operand_of_the_same_precedence_needs_parentheses() {
+        assert_eq!(print_expr(&bin(n(1), Op::Sub, bin(n(2), Op::Sub, n(3)))), "1 - (2 - 3)");
+        assert_eq!(print_expr(&bin(bin(n(1), Op::Sub, n(2)), Op::Sub, n(3))), "1 - 2 - 3");
+        assert_eq!(print_expr(&bin(n(8), Op::Div, bin(n(4), Op::Mul, n(2)))), "8 / (4 * 2)");
+    }
+
+    #[test]
+    fn s3d_c2_a_stronger_child_needs_none_and_a_weaker_one_does() {
+        assert_eq!(print_expr(&bin(n(1), Op::Add, bin(n(2), Op::Mul, n(3)))), "1 + 2 * 3");
+        assert_eq!(print_expr(&bin(bin(n(1), Op::Add, n(2)), Op::Mul, n(3))), "(1 + 2) * 3");
+    }
+
+    #[test]
+    fn s3d_c2_negation() {
+        assert_eq!(print_expr(&Expr::Neg(n(3))), "-3");
+        assert_eq!(print_expr(&Expr::Neg(bin(n(1), Op::Add, n(2)))), "-(1 + 2)");
+        assert_eq!(print_expr(&bin(n(1), Op::Sub, Box::new(Expr::Neg(n(2))))), "1 - -2");
+    }
+
+    fn arb_expr() -> impl Strategy<Value = Expr> {
+        let leaf = (0i64..20).prop_map(Expr::Num);
+        leaf.prop_recursive(4, 24, 2, |inner| {
+            prop_oneof![
+                inner.clone().prop_map(|e| Expr::Neg(Box::new(e))),
+                (inner.clone(), prop_oneof![Just(Op::Add), Just(Op::Sub), Just(Op::Mul), Just(Op::Div)], inner).prop_map(|(l, o, r)| Expr::Bin(Box::new(l), o, Box::new(r))),
+            ]
+        })
+    }
+
+    #[test]
+    fn s3d_c2_redundant_parentheses_are_dropped_and_needed_ones_kept() {
+        for (src, want) in [("(1 + 2) + 3", "1 + 2 + 3"), ("1 + (2 * 3)", "1 + 2 * 3"), ("1 - (2 + 3)", "1 - (2 + 3)"), ("((7))", "7")] {
+            assert_eq!(print_expr(&parse(src).unwrap()), want, "{src}");
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: parsing the printed text gives the tree back, and no pair of parentheses can be removed.
+        #[test]
+        fn s3d_c2_property_round_trip_with_the_fewest_parentheses(e in arb_expr()) {
+            let text = print_expr(&e);
+            prop_assert_eq!(parse(&text), Some(e.clone()), "text was {:?}", text);
+            // try removing each matching pair: the parse must change
+            let chars: Vec<char> = text.chars().collect();
+            let mut stack = Vec::new();
+            for (i, &c) in chars.iter().enumerate() {
+                if c == '(' { stack.push(i); }
+                if c == ')' {
+                    let open = stack.pop().unwrap();
+                    let without: String = chars.iter().enumerate().filter(|&(j, _)| j != open && j != i).map(|(_, c)| *c).collect();
+                    prop_assert_ne!(parse(&without), Some(e.clone()), "the parentheses at {} and {} of {:?} are redundant", open, i, text);
+                }
+            }
+        }
+    }
+}
+// @@ challenge 3d-c2 end
+
+// @@ challenge 3d-c3 begin
+mod ch_3d_c3 {
+    use proptest::prelude::*;
+
+    use bustub::sql::mini_parse::parse_and_eval;
+
+    #[test]
+    fn s3d_c3_subtraction_associates_to_the_left() {
+        assert_eq!(parse_and_eval("10 - 4 - 3"), Some(3));
+        assert_eq!(parse_and_eval("10 - (4 - 3)"), Some(9));
+    }
+
+    #[test]
+    fn s3d_c3_division_associates_to_the_left() {
+        assert_eq!(parse_and_eval("100 / 10 / 5"), Some(2));
+        assert_eq!(parse_and_eval("100 / (10 / 5)"), Some(50));
+    }
+
+    #[test]
+    fn s3d_c3_precedence_still_works() {
+        assert_eq!(parse_and_eval("2 + 3 * 4"), Some(14));
+        assert_eq!(parse_and_eval("2 * 3 - 4 - 1"), Some(1));
+        assert_eq!(parse_and_eval("(2 + 3) * 4"), Some(20));
+    }
+
+    #[test]
+    fn s3d_c3_errors_are_none() {
+        assert_eq!(parse_and_eval("1 / 0"), None);
+        assert_eq!(parse_and_eval("1 +"), None);
+        assert_eq!(parse_and_eval("(1"), None);
+        assert_eq!(parse_and_eval("1 2"), None);
+        assert_eq!(parse_and_eval("a"), None);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: a left-leaning chain without parentheses equals folding it from the left.
+        #[test]
+        fn s3d_c3_property_chains_fold_from_the_left(first in 1i64..50, rest in proptest::collection::vec((prop_oneof![Just('+'), Just('-'), Just('*')], 1i64..10), 0..6)) {
+            let text = rest.iter().fold(first.to_string(), |s, (op, v)| format!("{s} {op} {v}"));
+            // evaluate with the usual precedence by hand: collect additive terms
+            let mut terms: Vec<i64> = vec![first];
+            let mut signs: Vec<i64> = vec![1];
+            for (op, v) in &rest {
+                match op {
+                    '*' => { let last = terms.last_mut().unwrap(); *last *= v; }
+                    '+' => { terms.push(*v); signs.push(1); }
+                    _ => { terms.push(*v); signs.push(-1); }
+                }
+            }
+            let want: i64 = terms.iter().zip(&signs).map(|(t, s)| t * s).sum();
+            prop_assert_eq!(parse_and_eval(&text), Some(want), "{}", text);
+        }
+    }
+}
+// @@ challenge 3d-c3 end
+
+// @@ challenge 3d-c4 begin
+mod ch_3d_c4 {
+    use proptest::prelude::*;
+
+    use bustub::sql::error_render::{line_col, render_error};
+
+    #[test]
+    fn s3d_c4_line_and_column_are_one_based() {
+        let src = "SELECT a\nFROM t";
+        assert_eq!(line_col(src, 0), (1, 1));
+        assert_eq!(line_col(src, 7), (1, 8));
+        assert_eq!(line_col(src, 9), (2, 1));
+        assert_eq!(line_col(src, 12), (2, 4));
+    }
+
+    #[test]
+    fn s3d_c4_columns_count_characters_and_the_end_of_input_has_a_position() {
+        assert_eq!(line_col("héllo", 3), (1, 3));
+        assert_eq!(line_col("héllo", 6), (1, 6));
+        assert_eq!(line_col("a\n", 2), (2, 1));
+        assert_eq!(line_col("", 0), (1, 1));
+    }
+
+    #[test]
+    fn s3d_c4_crlf_line_ends_do_not_change_columns() {
+        assert_eq!(line_col("a\r\nbc", 3), (2, 1));
+        assert_eq!(line_col("a\r\nbc", 4), (2, 2));
+        assert_eq!(line_col("a\r\nbc", 5), (2, 3));
+    }
+
+    #[test]
+    fn s3d_c4_the_rendering_shows_the_line_and_a_caret_under_the_error() {
+        let src = "SELECT nmae FROM t";
+        let out = render_error(src, 7, 4, "unknown column");
+        assert_eq!(out, "unknown column\nLINE 1: SELECT nmae FROM t\n               ^^^^");
+    }
+
+    #[test]
+    fn s3d_c4_errors_on_later_lines_and_at_the_end() {
+        let src = "SELECT 1\nFROM";
+        let out = render_error(src, src.len(), 0, "expected a table");
+        assert_eq!(out, format!("expected a table\nLINE 2: FROM\n{}^", " ".repeat(12)));
+        let long = render_error("ab\ncd", 0, 50, "m");
+        assert_eq!(long, "m\nLINE 1: ab\n        ^^", "carets stop at the end of the line");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: positions are monotone and agree with counting by hand.
+        #[test]
+        fn s3d_c4_property_positions_match_counting(src in "[a-é \\n]{0,30}") {
+            let mut prev = (1, 0);
+            let mut line = 1;
+            let mut col = 1;
+            for (off, ch) in src.char_indices() {
+                let p = line_col(&src, off);
+                prop_assert_eq!(p, (line, col));
+                prop_assert!(p >= prev || p.0 > prev.0);
+                prev = p;
+                if ch == '\n' { line += 1; col = 1; } else { col += 1; }
+            }
+            prop_assert_eq!(line_col(&src, src.len()), (line, col));
+        }
+    }
+}
+// @@ challenge 3d-c4 end
+
+// @@ challenge 3d-c5 begin
+mod ch_3d_c5 {
+    use proptest::prelude::*;
+
+    use bustub::sql::resolve::{resolve_column, ResolveError::*};
+
+    fn scope() -> Vec<(&'static str, Vec<&'static str>)> {
+        vec![("a", vec!["id", "x"]), ("b", vec!["id", "y"])]
+    }
+
+    #[test]
+    fn s3d_c5_qualified_names_pick_the_table() {
+        assert_eq!(resolve_column(&scope(), Some("a"), "id"), Ok((0, 0)));
+        assert_eq!(resolve_column(&scope(), Some("B"), "ID"), Ok((1, 0)));
+    }
+
+    #[test]
+    fn s3d_c5_an_unqualified_name_found_once_resolves() {
+        assert_eq!(resolve_column(&scope(), None, "y"), Ok((1, 1)));
+        assert_eq!(resolve_column(&scope(), None, "X"), Ok((0, 1)));
+    }
+
+    #[test]
+    fn s3d_c5_an_unqualified_name_in_two_tables_is_ambiguous() {
+        assert_eq!(resolve_column(&scope(), None, "id"), Err(Ambiguous(vec![0, 1])));
+    }
+
+    #[test]
+    fn s3d_c5_unknown_columns_and_tables_are_different_errors() {
+        assert_eq!(resolve_column(&scope(), None, "z"), Err(UnknownColumn));
+        assert_eq!(resolve_column(&scope(), Some("a"), "y"), Err(UnknownColumn));
+        assert_eq!(resolve_column(&scope(), Some("c"), "id"), Err(UnknownTable));
+    }
+
+    #[test]
+    fn s3d_c5_a_table_that_repeats_a_column_name_is_ambiguous_even_when_qualified() {
+        let t = vec![("t", vec!["a", "A"])];
+        assert_eq!(resolve_column(&t, Some("t"), "a"), Err(Ambiguous(vec![0, 0])));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: unqualified lookup agrees with listing every (table, column) match.
+        #[test]
+        fn s3d_c5_property_unqualified_lookup_is_a_search(cols in proptest::collection::vec(proptest::collection::vec(prop::sample::select(vec!["a", "b", "c", "D"]), 0..4), 1..4), name in prop::sample::select(vec!["a", "b", "c", "d", "e"])) {
+            let tables: Vec<(String, Vec<&str>)> = cols.into_iter().enumerate().map(|(i, c)| (format!("t{i}"), c)).collect();
+            let view: Vec<(&str, Vec<&str>)> = tables.iter().map(|(a, c)| (a.as_str(), c.clone())).collect();
+            let mut hits = Vec::new();
+            for (t, (_, c)) in view.iter().enumerate() {
+                for (i, col) in c.iter().enumerate() { if col.eq_ignore_ascii_case(name) { hits.push((t, i)); } }
+            }
+            let want = match hits.len() { 0 => Err(UnknownColumn), 1 => Ok(hits[0]), _ => Err(Ambiguous(hits.iter().map(|h| h.0).collect())) };
+            prop_assert_eq!(resolve_column(&view, None, name), want);
+        }
+    }
+}
+// @@ challenge 3d-c5 end

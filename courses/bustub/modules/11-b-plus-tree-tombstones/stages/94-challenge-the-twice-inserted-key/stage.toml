@@ -1,0 +1,8 @@
+id = "2d-c4"
+title = "Challenge: the twice-inserted key"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_2d::s2d_c4"]
+learn = ["finding a bug where reviving a deleted key creates a second entry"]
+concepts = []
+concepts_optional = ["checking-invariants", "property-testing-and-fuzzing"]

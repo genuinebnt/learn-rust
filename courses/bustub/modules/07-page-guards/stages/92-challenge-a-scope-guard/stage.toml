@@ -1,0 +1,8 @@
+id = "1g-c1"
+title = "Challenge: a scope guard"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1g::s1g_c1"]
+learn = ["running cleanup code on every exit path with Drop", "cancelling a guard, and what happens on a panic"]
+concepts = []
+concepts_optional = ["raii-guards-and-lifetimes", "ownership-of-files-and-raii", "panics-unwinding-and-catch-unwind"]

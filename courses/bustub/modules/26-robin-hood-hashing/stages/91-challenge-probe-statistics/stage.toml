@@ -1,0 +1,8 @@
+id = "0c-c2"
+title = "Challenge: probe statistics"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_0c::s0c_c2"]
+learn = ["measuring how far keys sit from home in your table", "what Robin Hood hashing does to the spread of probe distances"]
+concepts = []
+concepts_optional = ["robin-hood-hashing-and-open-addressing", "performance-tests-and-measuring"]

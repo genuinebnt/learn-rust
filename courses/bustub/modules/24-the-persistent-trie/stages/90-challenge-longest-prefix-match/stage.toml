@@ -1,0 +1,8 @@
+id = "0a-c1"
+title = "Challenge: longest prefix match"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_0a::s0a_c1"]
+learn = ["routing by the longest matching prefix", "comparing a trie-based answer with a brute-force one"]
+concepts = []
+concepts_optional = ["tries", "model-based-testing"]

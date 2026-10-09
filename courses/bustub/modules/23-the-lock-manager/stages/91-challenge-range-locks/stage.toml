@@ -1,0 +1,8 @@
+id = "4d-c2"
+title = "Challenge: range locks"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4d::s4d_c2"]
+learn = ["locking a range of keys, not just the keys that exist", "overlap of half-open ranges and shared/exclusive compatibility"]
+concepts = []
+concepts_optional = ["lock-modes-and-two-phase-locking", "serializable-validation-by-predicates"]

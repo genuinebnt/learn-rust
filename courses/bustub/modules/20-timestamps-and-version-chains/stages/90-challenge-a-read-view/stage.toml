@@ -1,0 +1,8 @@
+id = "4a-c1"
+title = "Challenge: a read view"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4a::s4a_c1"]
+learn = ["deciding which transactions' writes a snapshot may see from the set that was active when it began", "the id-based alternative to commit timestamps"]
+concepts = []
+concepts_optional = ["multi-version-concurrency-control", "snapshot-isolation", "logical-clocks-and-timestamps"]

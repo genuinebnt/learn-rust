@@ -431,3 +431,303 @@ fn s0b_03_threads_inserting_and_erasing_overlapping_keys_leave_a_well_formed_lis
         assert!(l.contains(k));
     }
 }
+
+// @@ challenge 0b-c1 begin
+mod ch_0b_c1 {
+    use proptest::prelude::*;
+
+    use bustub::primer::level_gen::LevelGenerator;
+
+    #[test]
+    fn s0b_c1_levels_stay_within_one_and_the_maximum() {
+        let mut g = LevelGenerator::new(7, 2, 5);
+        for _ in 0..5000 {
+            let l = g.next_level();
+            assert!((1..=5).contains(&l), "level {l}");
+        }
+    }
+
+    #[test]
+    fn s0b_c1_a_maximum_of_one_is_always_one() {
+        let mut g = LevelGenerator::new(1, 2, 1);
+        assert!((0..100).all(|_| g.next_level() == 1));
+    }
+
+    #[test]
+    fn s0b_c1_the_same_seed_gives_the_same_sequence() {
+        let a: Vec<_> = { let mut g = LevelGenerator::new(42, 4, 14); (0..200).map(|_| g.next_level()).collect() };
+        let b: Vec<_> = { let mut g = LevelGenerator::new(42, 4, 14); (0..200).map(|_| g.next_level()).collect() };
+        let c: Vec<_> = { let mut g = LevelGenerator::new(43, 4, 14); (0..200).map(|_| g.next_level()).collect() };
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn s0b_c1_the_tail_of_the_distribution_is_geometric() {
+        for (branching, expected) in [(2u64, 0.5f64), (4, 0.25)] {
+            let mut g = LevelGenerator::new(12345, branching, 20);
+            let n = 40_000;
+            let (mut ge2, mut ge3) = (0, 0);
+            for _ in 0..n {
+                let l = g.next_level();
+                ge2 += usize::from(l >= 2);
+                ge3 += usize::from(l >= 3);
+            }
+            let (p2, p3) = (ge2 as f64 / n as f64, ge3 as f64 / n as f64);
+            assert!((p2 - expected).abs() < 0.02, "branching {branching}: P(level >= 2) = {p2}, expected {expected}");
+            assert!((p3 - expected * expected).abs() < 0.02, "branching {branching}: P(level >= 3) = {p3}, expected {}", expected * expected);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: always within bounds, for any seed and parameters.
+        #[test]
+        fn s0b_c1_property_bounds_hold_for_any_seed(seed in any::<u64>(), branching in 2u64..9, max in 1usize..16) {
+            let mut g = LevelGenerator::new(seed, branching, max);
+            for _ in 0..200 { let l = g.next_level(); prop_assert!(l >= 1 && l <= max); }
+        }
+    }
+}
+// @@ challenge 0b-c1 end
+
+// @@ challenge 0b-c2 begin
+mod ch_0b_c2 {
+    use proptest::prelude::*;
+
+    use bustub::primer::skiplist::SkipList;
+    use bustub::primer::skiplist_extras::{check_integrity, check_levels};
+
+    #[test]
+    fn s0b_c2_a_well_formed_view_passes() {
+        let levels = vec![vec![1, 2, 3], vec![2, 3], vec![2]];
+        let nodes = vec![(1, 1), (2, 3), (3, 2)];
+        assert_eq!(check_levels(&levels, &nodes, 3), Ok(()));
+        assert_eq!(check_levels(&[], &[], 0), Ok(()));
+    }
+
+    #[test]
+    fn s0b_c2_a_key_on_a_higher_level_but_not_below_is_rejected() {
+        let levels = vec![vec![1, 3], vec![2]];
+        assert!(check_levels(&levels, &[(1, 1), (3, 1)], 2).is_err());
+    }
+
+    #[test]
+    fn s0b_c2_a_level_that_is_not_sorted_or_has_repeats_is_rejected() {
+        assert!(check_levels(&[vec![2, 1]], &[(2, 1), (1, 1)], 2).is_err());
+        assert!(check_levels(&[vec![1, 1]], &[(1, 1), (1, 1)], 2).is_err());
+    }
+
+    #[test]
+    fn s0b_c2_a_wrong_height_or_size_is_rejected() {
+        let levels = vec![vec![1, 2], vec![2]];
+        assert!(check_levels(&levels, &[(1, 1), (2, 1)], 2).is_err(), "key 2 appears on two levels but claims height 1");
+        assert!(check_levels(&levels, &[(1, 1), (2, 2)], 3).is_err(), "size 3 but two keys");
+        assert!(check_levels(&[], &[(1, 1)], 0).is_err());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 32, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: your skip list passes the checker after every operation of a random workload, and holds exactly the keys of a `BTreeSet`.
+        #[test]
+        fn s0b_c2_property_your_list_stays_valid(ops in proptest::collection::vec((any::<bool>(), 0i32..40), 0..150)) {
+            let list: SkipList<i32> = SkipList::new();
+            let mut model = std::collections::BTreeSet::new();
+            for (insert, k) in ops {
+                if insert { prop_assert_eq!(list.insert(&k), model.insert(k)); } else { prop_assert_eq!(list.erase(&k), model.remove(&k)); }
+                prop_assert_eq!(check_integrity(&list), Ok(()), "after {} {}", if insert { "insert" } else { "erase" }, k);
+                prop_assert_eq!(list.size(), model.len());
+            }
+            prop_assert_eq!(list.level(0), model.iter().copied().collect::<Vec<_>>());
+        }
+    }
+}
+// @@ challenge 0b-c2 end
+
+// @@ challenge 0b-c3 begin
+mod ch_0b_c3 {
+    use proptest::prelude::*;
+
+    use bustub::primer::skiplist::SkipList;
+    use bustub::primer::skiplist_extras::{floor, range_count};
+    use std::collections::BTreeSet;
+
+    fn list_of(keys: &[i32]) -> SkipList<i32> {
+        let l = SkipList::new();
+        for k in keys {
+            l.insert(k);
+        }
+        l
+    }
+
+    #[test]
+    fn s0b_c3_range_counts_include_both_ends() {
+        let l = list_of(&[10, 20, 30]);
+        assert_eq!(range_count(&l, 15, 30), 2);
+        assert_eq!(range_count(&l, 10, 10), 1);
+        assert_eq!(range_count(&l, 0, 100), 3);
+        assert_eq!(range_count(&l, 21, 29), 0);
+    }
+
+    #[test]
+    fn s0b_c3_reversed_ranges_and_the_empty_list() {
+        assert_eq!(range_count(&list_of(&[1, 2, 3]), 3, 1), 0);
+        assert_eq!(range_count(&list_of(&[]), 0, 10), 0);
+    }
+
+    #[test]
+    fn s0b_c3_floor_is_the_largest_key_not_above() {
+        let l = list_of(&[10, 20, 30]);
+        assert_eq!((floor(&l, 25), floor(&l, 20), floor(&l, 5), floor(&l, 99)), (Some(20), Some(20), None, Some(30)));
+        assert_eq!(floor(&list_of(&[]), 1), None);
+    }
+
+    #[test]
+    fn s0b_c3_negative_keys_and_a_key_inserted_twice() {
+        let l = list_of(&[-5, -5, 0, 5]);
+        assert_eq!(range_count(&l, -10, -1), 1);
+        assert_eq!((floor(&l, -5), floor(&l, -6)), (Some(-5), None));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a `BTreeSet`.
+        #[test]
+        fn s0b_c3_property_counts_and_floors_match_a_set(keys in proptest::collection::btree_set(-20i32..20, 0..15), lo in -25i32..25, hi in -25i32..25, k in -25i32..25) {
+            let l = list_of(&keys.iter().copied().collect::<Vec<_>>());
+            prop_assert_eq!(range_count(&l, lo, hi), if hi < lo { 0 } else { keys.range(lo..=hi).count() });
+            prop_assert_eq!(floor(&l, k), keys.range(..=k).next_back().copied());
+        }
+    }
+}
+// @@ challenge 0b-c3 end
+
+// @@ challenge 0b-c4 begin
+mod ch_0b_c4 {
+    use proptest::prelude::*;
+
+    use bustub::primer::height::random_height;
+
+    fn coin(seq: &[bool]) -> impl FnMut() -> bool + '_ {
+        let mut i = 0;
+        move || {
+            let v = seq.get(i).copied().unwrap_or(false);
+            i += 1;
+            v
+        }
+    }
+
+    #[test]
+    fn s0b_c4_a_coin_that_is_always_heads_stops_at_the_maximum() {
+        let mut flips = 0;
+        let h = random_height(|| { flips += 1; true }, 4);
+        assert_eq!(h, 4);
+        assert_eq!(flips, 3, "three flips take the height from 1 to 4; none after the cap");
+    }
+
+    #[test]
+    fn s0b_c4_tails_ends_the_climb() {
+        assert_eq!(random_height(coin(&[true, true, false]), 8), 3);
+        assert_eq!(random_height(coin(&[false]), 8), 1);
+    }
+
+    #[test]
+    fn s0b_c4_a_maximum_of_one_never_flips() {
+        let mut flips = 0;
+        assert_eq!(random_height(|| { flips += 1; true }, 1), 1);
+        assert_eq!(flips, 0);
+    }
+
+    #[test]
+    fn s0b_c4_each_level_climbed_costs_one_flip() {
+        for heads in 0..6 {
+            let mut seq = vec![true; heads];
+            seq.push(false);
+            let mut flips = 0;
+            let h = random_height(|| { let v = seq[flips]; flips += 1; v }, 10);
+            assert_eq!((h, flips), (heads + 1, heads + 1));
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: `1 + leading heads`, capped at the maximum, for any sequence of flips.
+        #[test]
+        fn s0b_c4_property_the_height_is_leading_heads_capped(seq in proptest::collection::vec(any::<bool>(), 0..24), max in 1usize..16) {
+            let heads = seq.iter().take_while(|&&b| b).count();
+            let want = (1 + heads).min(max);
+            let mut flips = 0;
+            let got = random_height(|| { let v = seq.get(flips).copied().unwrap_or(false); flips += 1; v }, max);
+            prop_assert_eq!(got, want);
+            prop_assert!(flips <= max);
+        }
+    }
+}
+// @@ challenge 0b-c4 end
+
+// @@ challenge 0b-c5 begin
+mod ch_0b_c5 {
+    use proptest::prelude::*;
+
+    use bustub::primer::skiplist::SkipList;
+    use bustub::primer::skiplist_extras::{check_integrity, union};
+    use std::collections::BTreeSet;
+
+    fn list_of(keys: &[i32]) -> SkipList<i32> {
+        let l = SkipList::new();
+        for k in keys {
+            l.insert(k);
+        }
+        l
+    }
+
+    #[test]
+    fn s0b_c5_a_key_in_both_lists_appears_once() {
+        let u = union(&list_of(&[1, 3, 5]), &list_of(&[3, 4]));
+        assert_eq!(u.level(0), vec![1, 3, 4, 5]);
+        assert_eq!(u.size(), 4);
+    }
+
+    #[test]
+    fn s0b_c5_the_inputs_are_left_alone() {
+        let (a, b) = (list_of(&[1, 2]), list_of(&[2, 3]));
+        let _ = union(&a, &b);
+        assert_eq!((a.level(0), b.level(0)), (vec![1, 2], vec![2, 3]));
+    }
+
+    #[test]
+    fn s0b_c5_empty_inputs() {
+        assert_eq!(union(&list_of(&[]), &list_of(&[])).size(), 0);
+        assert_eq!(union(&list_of(&[7]), &list_of(&[])).level(0), vec![7]);
+        assert_eq!(union(&list_of(&[]), &list_of(&[7])).level(0), vec![7]);
+    }
+
+    #[test]
+    fn s0b_c5_the_union_is_a_valid_list_you_can_keep_using() {
+        let u = union(&list_of(&[2, 4]), &list_of(&[1, 4, 6]));
+        assert_eq!(check_integrity(&u), Ok(()));
+        assert!(u.insert(&3));
+        assert!(!u.insert(&4), "4 is already there");
+        assert_eq!(u.level(0), vec![1, 2, 3, 4, 6]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the union of two sets, a valid list, and symmetric.
+        #[test]
+        fn s0b_c5_property_union_is_a_set_union(a in proptest::collection::btree_set(0i32..30, 0..12), b in proptest::collection::btree_set(0i32..30, 0..12)) {
+            let (la, lb) = (list_of(&a.iter().copied().collect::<Vec<_>>()), list_of(&b.iter().copied().collect::<Vec<_>>()));
+            let u = union(&la, &lb);
+            let want: Vec<i32> = a.union(&b).copied().collect::<BTreeSet<_>>().into_iter().collect();
+            prop_assert_eq!(u.level(0), want.clone());
+            prop_assert_eq!(union(&lb, &la).level(0), want);
+            prop_assert_eq!(check_integrity(&u), Ok(()));
+        }
+    }
+}
+// @@ challenge 0b-c5 end

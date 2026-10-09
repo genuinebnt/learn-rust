@@ -1,0 +1,8 @@
+id = "2d-c3"
+title = "Challenge: counting live keys"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_2d::s2d_c3"]
+learn = ["a Fenwick tree for prefix sums with point updates", "finding the leaf that holds the k-th live key"]
+concepts = []
+concepts_optional = ["range-scans-and-the-leaf-chain", "model-based-testing"]

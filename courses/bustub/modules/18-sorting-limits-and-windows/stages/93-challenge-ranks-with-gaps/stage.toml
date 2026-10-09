@@ -1,0 +1,8 @@
+id = "3g-c4"
+title = "Challenge: ranks with gaps"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3g::s3g_c4"]
+learn = ["telling RANK from DENSE_RANK and ROW_NUMBER"]
+concepts = []
+concepts_optional = ["sort-keys-and-null-ordering", "property-testing-and-fuzzing"]

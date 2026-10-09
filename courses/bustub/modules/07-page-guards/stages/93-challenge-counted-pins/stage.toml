@@ -1,0 +1,8 @@
+id = "1g-c2"
+title = "Challenge: counted pins"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1g::s1g_c2"]
+learn = ["a handle whose clone and drop keep a shared count exact", "what `Clone` must do for a resource-owning type"]
+concepts = []
+concepts_optional = ["raii-guards-and-lifetimes", "smart-pointers-box-rc-arc", "atomics-ordering-and-the-log"]

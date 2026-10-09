@@ -1,0 +1,8 @@
+id = "3e-c1"
+title = "Challenge: executor adapters"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3e::s3e_c1"]
+learn = ["composing pull-based operators with `Box<dyn Executor>`", "not pulling more rows from a child than needed"]
+concepts = []
+concepts_optional = ["iterators-and-closures", "generics-and-static-dispatch"]

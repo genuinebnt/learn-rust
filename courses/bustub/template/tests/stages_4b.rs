@@ -1671,3 +1671,370 @@ proptest! {
         );
     }
 }
+
+// @@ challenge 4b-c1 begin
+mod ch_4b_c1 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::write_claims::{Conflict, WriteClaims};
+    use std::collections::HashMap;
+
+    #[test]
+    fn s4b_c1_the_first_claimant_wins_and_the_second_is_told_who() {
+        let mut c = WriteClaims::new();
+        assert_eq!(c.claim(1, 10), Ok(()));
+        assert_eq!(c.claim(2, 10), Err(Conflict { owner: 1 }));
+        assert_eq!(c.owner_of(10), Some(1));
+    }
+
+    #[test]
+    fn s4b_c1_claiming_your_own_key_again_is_fine() {
+        let mut c = WriteClaims::new();
+        c.claim(1, 10).unwrap();
+        assert_eq!(c.claim(1, 10), Ok(()));
+        assert_eq!(c.release_all(1), 1);
+    }
+
+    #[test]
+    fn s4b_c1_release_frees_everything_the_transaction_held_and_nothing_else() {
+        let mut c = WriteClaims::new();
+        for k in [1, 2, 3] {
+            c.claim(1, k).unwrap();
+        }
+        c.claim(2, 4).unwrap();
+        assert_eq!(c.release_all(1), 3);
+        assert_eq!((c.owner_of(1), c.owner_of(4)), (None, Some(2)));
+        assert_eq!(c.claim(2, 1), Ok(()), "a released key can be claimed by another");
+        assert_eq!(c.release_all(9), 0);
+    }
+
+    #[test]
+    fn s4b_c1_a_conflict_changes_neither_the_owner_nor_the_losers_claims() {
+        let mut c = WriteClaims::new();
+        c.claim(1, 10).unwrap();
+        assert!(c.claim(2, 10).is_err());
+        assert_eq!(c.owner_of(10), Some(1));
+        assert_eq!(c.release_all(2), 0, "the loser holds nothing");
+        assert_eq!(c.release_all(1), 1);
+        assert_eq!(c.owner_of(10), None);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a map from key to owner.
+        #[test]
+        fn s4b_c1_property_claims_match_an_owner_map(ops in proptest::collection::vec((any::<bool>(), 1u64..4, 0i64..5), 0..40)) {
+            let mut c = WriteClaims::new();
+            let mut m: HashMap<i64, u64> = HashMap::new();
+            for (claim, txn, key) in ops {
+                if claim {
+                    let want = match m.get(&key) { Some(&o) if o != txn => Err(Conflict { owner: o }), _ => { m.insert(key, txn); Ok(()) } };
+                    prop_assert_eq!(c.claim(txn, key), want);
+                } else {
+                    let n = m.values().filter(|&&o| o == txn).count();
+                    m.retain(|_, o| *o != txn);
+                    prop_assert_eq!(c.release_all(txn), n);
+                }
+                for k in 0..5 { prop_assert_eq!(c.owner_of(k), m.get(&k).copied()); }
+            }
+        }
+    }
+}
+// @@ challenge 4b-c1 end
+
+// @@ challenge 4b-c2 begin
+mod ch_4b_c2 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::si_checker::{check_si, Txn, Violation::*};
+
+    fn t(id: u32, start: u64, commit: u64, reads: &[(i64, i64)], writes: &[(i64, i64)]) -> Txn {
+        Txn { id, start, commit, reads: reads.to_vec(), writes: writes.to_vec() }
+    }
+
+    #[test]
+    fn s4b_c2_a_reader_that_started_before_a_commit_does_not_see_it() {
+        let h = [t(1, 1, 3, &[], &[(0, 1)]), t(2, 2, 4, &[(0, 0)], &[])];
+        assert_eq!(check_si(&h), Ok(()));
+    }
+
+    #[test]
+    fn s4b_c2_a_reader_that_started_after_a_commit_must_see_it() {
+        let h = [t(1, 1, 2, &[], &[(0, 1)]), t(2, 3, 4, &[(0, 1)], &[])];
+        assert_eq!(check_si(&h), Ok(()));
+        let stale = [t(1, 1, 2, &[], &[(0, 1)]), t(2, 3, 4, &[(0, 0)], &[])];
+        assert_eq!(check_si(&stale), Err(StaleRead { txn: 2, key: 0 }));
+    }
+
+    #[test]
+    fn s4b_c2_reading_a_value_that_was_not_yet_committed_is_a_violation() {
+        let h = [t(1, 1, 4, &[], &[(0, 1)]), t(2, 2, 5, &[(0, 1)], &[])];
+        assert_eq!(check_si(&h), Err(StaleRead { txn: 2, key: 0 }));
+    }
+
+    #[test]
+    fn s4b_c2_overlapping_writers_of_one_key_are_a_lost_update() {
+        let h = [t(1, 1, 4, &[(0, 0)], &[(0, 5)]), t(2, 2, 5, &[(0, 0)], &[(0, 7)])];
+        assert_eq!(check_si(&h), Err(LostUpdate { a: 1, b: 2, key: 0 }));
+    }
+
+    #[test]
+    fn s4b_c2_writers_of_one_key_that_do_not_overlap_are_fine() {
+        let h = [t(1, 1, 2, &[(0, 0)], &[(0, 5)]), t(2, 3, 4, &[(0, 5)], &[(0, 7)])];
+        assert_eq!(check_si(&h), Ok(()));
+    }
+
+    #[test]
+    fn s4b_c2_write_skew_is_allowed_by_snapshot_isolation() {
+        // both read x and y = 0, then write different keys: legal under SI, an anomaly under serializability
+        let h = [t(1, 1, 3, &[(0, 0), (1, 0)], &[(0, 1)]), t(2, 2, 4, &[(0, 0), (1, 0)], &[(1, 1)])];
+        assert_eq!(check_si(&h), Ok(()));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: histories produced by a model SI engine are valid; changing one read makes them invalid.
+        #[test]
+        fn s4b_c2_property_engine_histories_are_valid_and_corrupted_ones_are_not(plan in proptest::collection::vec((0u64..3, 0i64..3, any::<bool>(), 1i64..9), 1..8)) {
+            // run transactions one after another but let each start a little before the previous commit (overlap by `gap`)
+            let mut store: std::collections::HashMap<i64, Vec<(u64, i64)>> = Default::default();
+            let mut hist: Vec<Txn> = Vec::new();
+            let mut clock = 10u64;
+            let mut claimed: Vec<(u64, u64, i64)> = Vec::new(); // (start, commit, key) of committed writers
+            for (id, (gap, key, writes, val)) in plan.into_iter().enumerate() {
+                let start = clock.saturating_sub(gap).max(1);
+                let commit = clock + 5;
+                // first committer wins: skip a writer that overlaps an earlier committed writer of the same key
+                let do_write = writes && !claimed.iter().any(|&(_, c, k)| k == key && c > start);
+                let snapshot = store.get(&key).and_then(|v| v.iter().rev().find(|&&(c, _)| c <= start).map(|&(_, x)| x)).unwrap_or(0);
+                let t = Txn { id: id as u32, start, commit, reads: vec![(key, snapshot)], writes: if do_write { vec![(key, val)] } else { vec![] } };
+                if do_write { store.entry(key).or_default().push((commit, val)); claimed.push((start, commit, key)); }
+                hist.push(t);
+                clock += 10;
+            }
+            prop_assert_eq!(check_si(&hist), Ok(()));
+            let mut bad = hist.clone();
+            let last = bad.len() - 1;
+            let original = bad[last].reads[0].1;
+            bad[last].reads[0].1 = original + 100;
+            prop_assert!(check_si(&bad).is_err());
+        }
+    }
+}
+// @@ challenge 4b-c2 end
+
+// @@ challenge 4b-c3 begin
+mod ch_4b_c3 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::version_gc::{gc_chain, read_at};
+
+    #[test]
+    fn s4b_c3_the_newest_version_at_or_below_the_watermark_stays() {
+        let mut c = vec![(9, 30), (5, 20), (2, 10)];
+        assert_eq!(gc_chain(&mut c, 6), 1);
+        assert_eq!(c, vec![(9, 30), (5, 20)]);
+        assert_eq!(read_at(&c, 6), Some(20), "a reader at the watermark still reads version 5");
+    }
+
+    #[test]
+    fn s4b_c3_a_watermark_exactly_on_a_version_keeps_that_version() {
+        let mut c = vec![(9, 30), (5, 20), (2, 10)];
+        gc_chain(&mut c, 5);
+        assert_eq!(c, vec![(9, 30), (5, 20)]);
+    }
+
+    #[test]
+    fn s4b_c3_a_watermark_below_everything_removes_nothing() {
+        let mut c = vec![(9, 30), (5, 20)];
+        assert_eq!(gc_chain(&mut c, 1), 0);
+        assert_eq!(c.len(), 2);
+    }
+
+    #[test]
+    fn s4b_c3_a_watermark_above_everything_keeps_only_the_newest() {
+        let mut c = vec![(9, 30), (5, 20), (2, 10)];
+        assert_eq!(gc_chain(&mut c, 100), 2);
+        assert_eq!(c, vec![(9, 30)]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: every read at or above the watermark is unchanged, and collecting again removes nothing.
+        #[test]
+        fn s4b_c3_property_readers_at_or_above_the_watermark_are_unaffected(stamps in proptest::collection::btree_set(1u64..30, 0..8), watermark in 0u64..32) {
+            let mut chain: Vec<(u64, i64)> = stamps.iter().rev().map(|&t| (t, t as i64 * 10)).collect();
+            let before = chain.clone();
+            gc_chain(&mut chain, watermark);
+            for t in watermark..40 {
+                prop_assert_eq!(read_at(&chain, t), read_at(&before, t), "read at {}", t);
+            }
+            prop_assert!(chain.windows(2).all(|w| w[0].0 > w[1].0));
+            prop_assert_eq!(gc_chain(&mut chain, watermark), 0);
+            if !before.is_empty() { prop_assert!(!chain.is_empty()); }
+        }
+    }
+}
+// @@ challenge 4b-c3 end
+
+// @@ challenge 4b-c4 begin
+mod ch_4b_c4 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::predicate_validation::{validate, Pred, Write};
+
+    fn w(old: Option<&[i64]>, new: Option<&[i64]>) -> Write {
+        Write { old: old.map(|r| r.to_vec()), new: new.map(|r| r.to_vec()) }
+    }
+
+    #[test]
+    fn s4b_c4_an_insert_into_the_range_is_a_phantom() {
+        assert!(!validate(&[Pred::Range(0, 10, 20)], &[w(None, Some(&[15]))]));
+        assert!(validate(&[Pred::Range(0, 10, 20)], &[w(None, Some(&[25]))]));
+    }
+
+    #[test]
+    fn s4b_c4_a_delete_from_the_range_matters_too() {
+        assert!(!validate(&[Pred::Range(0, 10, 20)], &[w(Some(&[15]), None)]));
+    }
+
+    #[test]
+    fn s4b_c4_an_update_matters_when_either_image_is_in_the_range() {
+        let p = [Pred::Range(0, 10, 20)];
+        assert!(validate(&p, &[w(Some(&[5]), Some(&[8]))]), "outside to outside");
+        assert!(!validate(&p, &[w(Some(&[15]), Some(&[30]))]), "moved out of the range");
+        assert!(!validate(&p, &[w(Some(&[5]), Some(&[12]))]), "moved into the range");
+    }
+
+    #[test]
+    fn s4b_c4_equality_predicates_and_other_columns() {
+        assert!(!validate(&[Pred::Eq(1, 7)], &[w(None, Some(&[0, 7]))]));
+        assert!(validate(&[Pred::Eq(1, 7)], &[w(None, Some(&[7, 0]))]), "the value is in another column");
+    }
+
+    #[test]
+    fn s4b_c4_nothing_to_check_is_valid() {
+        assert!(validate(&[], &[w(None, Some(&[1]))]));
+        assert!(validate(&[Pred::Eq(0, 1)], &[]));
+        assert!(validate(&[Pred::Eq(0, 1)], &[w(None, None)]));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: monotone in the predicates and the writes, and equal to a brute-force check.
+        #[test]
+        fn s4b_c4_property_conflicts_are_monotone(preds in proptest::collection::vec((0usize..2, 0i64..6, 0i64..6), 0..4), writes in proptest::collection::vec((proptest::option::of((0i64..8, 0i64..8)), proptest::option::of((0i64..8, 0i64..8))), 0..5)) {
+            let ps: Vec<Pred> = preds.iter().map(|&(c, a, b)| if a == b { Pred::Eq(c, a) } else { Pred::Range(c, a.min(b), a.max(b)) }).collect();
+            let ws: Vec<Write> = writes.iter().map(|(o, n)| Write { old: o.map(|(a, b)| vec![a, b]), new: n.map(|(a, b)| vec![a, b]) }).collect();
+            let brute = ws.iter().all(|w| [&w.old, &w.new].into_iter().flatten().all(|r| ps.iter().all(|p| match p { Pred::Eq(c, v) => r[*c] != *v, Pred::Range(c, lo, hi) => !(*lo <= r[*c] && r[*c] <= *hi) })));
+            prop_assert_eq!(validate(&ps, &ws), brute);
+            if !validate(&ps[..ps.len().saturating_sub(1)], &ws) { prop_assert!(!validate(&ps, &ws)); }
+        }
+    }
+}
+// @@ challenge 4b-c4 end
+
+// @@ challenge 4b-c5 begin
+mod ch_4b_c5 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::savepoints::{NoSuchSavepoint, SavepointTxn};
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn s4b_c5_rolling_back_to_a_savepoint_undoes_what_came_after_it() {
+        let mut t = SavepointTxn::begin(BTreeMap::new());
+        t.set(1, 1);
+        let a = t.savepoint();
+        t.set(1, 2);
+        t.set(2, 9);
+        t.delete(1);
+        assert_eq!(t.rollback_to(a), Ok(()));
+        assert_eq!((t.get(1), t.get(2)), (Some(1), None));
+        assert_eq!(t.commit(), BTreeMap::from([(1, 1)]));
+    }
+
+    #[test]
+    fn s4b_c5_a_later_savepoint_disappears_when_an_earlier_one_is_rolled_back_to() {
+        let mut t = SavepointTxn::begin(BTreeMap::new());
+        let a = t.savepoint();
+        t.set(1, 1);
+        let b = t.savepoint();
+        t.set(2, 2);
+        t.rollback_to(a).unwrap();
+        assert_eq!(t.rollback_to(b), Err(NoSuchSavepoint));
+        assert_eq!(t.rollback_to(a), Ok(()), "the savepoint itself can be used again");
+        assert_eq!(t.commit(), BTreeMap::new());
+    }
+
+    #[test]
+    fn s4b_c5_nested_savepoints_roll_back_innermost_first() {
+        let mut t = SavepointTxn::begin(BTreeMap::from([(1, 10)]));
+        let a = t.savepoint();
+        t.set(1, 20);
+        let b = t.savepoint();
+        t.set(1, 30);
+        t.rollback_to(b).unwrap();
+        assert_eq!(t.get(1), Some(20));
+        t.rollback_to(a).unwrap();
+        assert_eq!(t.get(1), Some(10));
+    }
+
+    #[test]
+    fn s4b_c5_release_keeps_the_changes_but_forgets_the_marks() {
+        let mut t = SavepointTxn::begin(BTreeMap::new());
+        let a = t.savepoint();
+        t.set(1, 1);
+        let b = t.savepoint();
+        t.set(2, 2);
+        assert_eq!(t.release(a), Ok(()));
+        assert_eq!(t.rollback_to(b), Err(NoSuchSavepoint), "releasing a savepoint releases the later ones too");
+        assert_eq!(t.release(99), Err(NoSuchSavepoint));
+        assert_eq!(t.commit(), BTreeMap::from([(1, 1), (2, 2)]));
+    }
+
+    #[test]
+    fn s4b_c5_rolling_back_everything_restores_the_initial_state() {
+        let init = BTreeMap::from([(1, 1), (2, 2)]);
+        let mut t = SavepointTxn::begin(init.clone());
+        t.set(1, 5);
+        t.delete(2);
+        t.set(3, 3);
+        t.rollback_all();
+        assert_eq!(t.commit(), init);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: rolling back to a savepoint gives exactly the map as it was when the savepoint was taken.
+        #[test]
+        fn s4b_c5_property_rollback_equals_a_snapshot(ops in proptest::collection::vec((0u8..4, 0i64..4, 0i64..9), 0..40)) {
+            let mut t = SavepointTxn::begin(BTreeMap::new());
+            let mut model: BTreeMap<i64, i64> = BTreeMap::new();
+            let mut snaps: Vec<(u64, BTreeMap<i64, i64>)> = Vec::new();
+            for (op, k, v) in ops {
+                match op {
+                    0 => { t.set(k, v); model.insert(k, v); }
+                    1 => { t.delete(k); model.remove(&k); }
+                    2 => { let id = t.savepoint(); snaps.push((id, model.clone())); }
+                    _ => {
+                        if let Some(pos) = snaps.len().checked_sub(1).map(|n| (v as usize) % (n + 1)).filter(|&p| p < snaps.len()) {
+                            let (id, snap) = snaps[pos].clone();
+                            prop_assert_eq!(t.rollback_to(id), Ok(()));
+                            model = snap;
+                            snaps.truncate(pos + 1);
+                        }
+                    }
+                }
+                for key in 0..4 { prop_assert_eq!(t.get(key), model.get(&key).copied()); }
+            }
+            prop_assert_eq!(t.commit(), model);
+        }
+    }
+}
+// @@ challenge 4b-c5 end

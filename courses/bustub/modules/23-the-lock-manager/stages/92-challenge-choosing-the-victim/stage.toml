@@ -1,0 +1,8 @@
+id = "4d-c3"
+title = "Challenge: choosing the victim"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4d::s4d_c3"]
+learn = ["policies for which transaction in a deadlock cycle to abort", "deterministic tie-breaking"]
+concepts = []
+concepts_optional = ["waits-for-graphs-and-deadlock-detection"]

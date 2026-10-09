@@ -1,0 +1,8 @@
+id = "4a-c3"
+title = "Challenge: the snapshot with a hole"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4a::s4a_c3"]
+learn = ["finding a timestamp-assignment bug that gives a snapshot a gap", "why a read timestamp must not pass an unfinished commit"]
+concepts = []
+concepts_optional = ["logical-clocks-and-timestamps", "snapshot-isolation", "property-testing-and-fuzzing"]

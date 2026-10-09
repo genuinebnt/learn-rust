@@ -1,9 +1,12 @@
 pub mod cached_disk;
+pub mod coalesce;
 pub mod disk_manager;
 pub mod disk_manager_memory;
 pub mod disk_scheduler;
+pub mod job_pool;
 pub mod mirrored_disk;
 pub mod page_bitmap;
+pub mod request_queue;
 pub mod slot_allocator;
 pub mod throttled_disk;
 pub mod versioned_pages;

@@ -1,0 +1,8 @@
+id = "3c-c4"
+title = "Challenge: rows that move"
+kind = "challenge"
+difficulty = "hard"
+tests = ["stages_3c::s3c_c4"]
+learn = ["keeping a row's id stable when an update no longer fits its page", "an indirection layer between ids and locations"]
+concepts = []
+concepts_optional = ["heap-files", "slotted-pages", "slot-allocation-and-invariants", "model-based-testing"]

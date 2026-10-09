@@ -1,0 +1,8 @@
+id = "1f-c3"
+title = "Challenge: write-behind"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_1f::s1f_c3"]
+learn = ["deciding which dirty pages are due for a background flush", "keeping time out of the logic so it can be tested"]
+concepts = []
+concepts_optional = ["eviction-and-write-back-ordering", "pin-counts-and-dirty-pages"]

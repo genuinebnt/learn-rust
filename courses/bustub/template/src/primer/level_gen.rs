@@ -1,0 +1,34 @@
+//! The random height of a skip-list node.
+
+/// A small seeded xorshift generator (given).
+pub struct XorShift(u64);
+
+impl XorShift {
+    pub fn new(seed: u64) -> XorShift {
+        XorShift(seed.max(1))
+    }
+
+    pub fn next_u64(&mut self) -> u64 {
+        let mut x = self.0;
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        self.0 = x;
+        x
+    }
+}
+
+pub struct LevelGenerator {
+    _gen: (),
+}
+
+impl LevelGenerator {
+    pub fn new(seed: u64, branching: u64, max_level: usize) -> LevelGenerator {
+        todo!("0b-c1: remember the generator and the limits")
+    }
+
+    /// A level in `1..=max_level`.
+    pub fn next_level(&mut self) -> usize {
+        todo!("0b-c1: 1, plus one for every trial that succeeds, up to the maximum")
+    }
+}

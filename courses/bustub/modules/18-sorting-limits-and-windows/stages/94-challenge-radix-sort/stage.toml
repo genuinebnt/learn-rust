@@ -1,0 +1,8 @@
+id = "3g-c5"
+title = "Challenge: radix sort"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3g::s3g_c5"]
+learn = ["sorting integers by digit with counting passes", "a stable sort that is not comparison-based"]
+concepts = []
+concepts_optional = ["external-merge-sort", "performance-tests-and-measuring"]

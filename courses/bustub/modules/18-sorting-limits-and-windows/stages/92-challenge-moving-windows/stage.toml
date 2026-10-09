@@ -1,0 +1,8 @@
+id = "3g-c3"
+title = "Challenge: moving windows"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3g::s3g_c3"]
+learn = ["a sliding window sum in linear time with prefix sums", "aggregates that skip NULLs and become NULL on an empty window"]
+concepts = []
+concepts_optional = ["sql-types-and-three-valued-logic", "iterators-and-closures"]

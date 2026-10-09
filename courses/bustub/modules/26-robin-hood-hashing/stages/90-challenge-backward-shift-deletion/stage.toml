@@ -1,0 +1,8 @@
+id = "0c-c1"
+title = "Challenge: backward-shift deletion"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_0c::s0c_c1"]
+learn = ["deleting from an open-addressing table without tombstones", "keeping every key reachable from its home slot"]
+concepts = []
+concepts_optional = ["robin-hood-hashing-and-open-addressing", "model-based-testing"]

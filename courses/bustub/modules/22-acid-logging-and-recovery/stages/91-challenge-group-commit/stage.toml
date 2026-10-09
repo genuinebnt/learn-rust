@@ -1,0 +1,8 @@
+id = "4c-c2"
+title = "Challenge: group commit"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4c::s4c_c2"]
+learn = ["acknowledging many commits with one log flush", "bounding how long a commit may wait for company"]
+concepts = []
+concepts_optional = ["write-ahead-logging", "durability-and-fsync"]

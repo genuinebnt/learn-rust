@@ -1,0 +1,8 @@
+id = "3e-c3"
+title = "Challenge: LIMIT 0"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3e::s3e_c3"]
+learn = ["finding a sentinel that collides with a legal value"]
+concepts = []
+concepts_optional = ["option-and-result-combinators", "property-testing-and-fuzzing"]

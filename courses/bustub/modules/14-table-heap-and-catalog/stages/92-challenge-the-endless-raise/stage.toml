@@ -1,0 +1,8 @@
+id = "3c-c3"
+title = "Challenge: the endless raise"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3c::s3c_c3"]
+learn = ["finding the Halloween problem in an update that appends", "scanning a snapshot of the table's extent"]
+concepts = []
+concepts_optional = ["halloween-problem", "heap-files", "property-testing-and-fuzzing"]

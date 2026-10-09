@@ -1,0 +1,8 @@
+id = "3h-c4"
+title = "Challenge: De Morgan"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3h::s3h_c4"]
+learn = ["finding a wrong rewrite by checking truth tables"]
+concepts = []
+concepts_optional = ["rule-based-query-optimization", "property-testing-and-fuzzing"]

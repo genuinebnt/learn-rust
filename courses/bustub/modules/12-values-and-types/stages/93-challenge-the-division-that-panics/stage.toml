@@ -1,0 +1,8 @@
+id = "3a-c4"
+title = "Challenge: the division that panics"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3a::s3a_c4"]
+learn = ["finding the one integer division that overflows", "turning a panic on user data into an error"]
+concepts = []
+concepts_optional = ["overflow-and-checked-arithmetic", "integers-and-casts", "property-testing-and-fuzzing"]

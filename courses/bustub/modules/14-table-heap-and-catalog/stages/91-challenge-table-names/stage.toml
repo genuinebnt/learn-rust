@@ -1,0 +1,8 @@
+id = "3c-c2"
+title = "Challenge: table names"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3c::s3c_c2"]
+learn = ["identifier rules in a catalog: case, uniqueness and never reusing an id", "rename and drop without breaking what points at the id"]
+concepts = []
+concepts_optional = ["structs-and-accessors", "slot-allocation-and-invariants"]

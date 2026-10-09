@@ -1,0 +1,8 @@
+id = "4d-c1"
+title = "Challenge: wait-die and wound-wait"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4d::s4d_c1"]
+learn = ["preventing deadlock by comparing ages at request time", "the two policies are mirror images"]
+concepts = []
+concepts_optional = ["waits-for-graphs-and-deadlock-detection", "deadlock-and-lock-ordering"]

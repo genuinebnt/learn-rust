@@ -1,0 +1,8 @@
+id = "3b-c2"
+title = "Challenge: struct layout"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3b::s3b_c2"]
+learn = ["computing padding and alignment like a C compiler", "finding the field order with the least padding"]
+concepts = []
+concepts_optional = ["repr-c-layouts-and-const-asserts", "shifts-masks-and-bit-tricks"]

@@ -814,3 +814,376 @@ fn s3c_05_a_table_and_its_index_agree_after_inserts_and_deletes_through_the_cata
         assert_eq!(table.table.get_tuple(*rid).unwrap().1.get_value(&schema, 0), Value::integer(*k));
     }
 }
+
+// @@ challenge 3c-c1 begin
+mod ch_3c_c1 {
+    use proptest::prelude::*;
+
+    use bustub::storage::table::free_space_map::FreeSpaceMap;
+
+    #[test]
+    fn s3c_c1_the_lowest_page_with_enough_room() {
+        let mut m = FreeSpaceMap::new(4);
+        for (p, f) in [(1, 50), (2, 20), (3, 80)] {
+            m.set(p, f);
+        }
+        assert_eq!((m.find(10), m.find(60), m.find(100)), (Some(1), Some(3), None));
+        m.set(0, 70);
+        assert_eq!(m.find(60), Some(0));
+        assert_eq!(m.get(0), 70);
+    }
+
+    #[test]
+    fn s3c_c1_nothing_has_room_in_a_new_map() {
+        let m = FreeSpaceMap::new(5);
+        assert_eq!(m.find(1), None);
+        assert_eq!(m.find(0), Some(0), "every page has at least 0 bytes");
+    }
+
+    #[test]
+    fn s3c_c1_no_pages_and_one_page() {
+        let m = FreeSpaceMap::new(0);
+        assert_eq!((m.find(0), m.pages()), (None, 0));
+        let mut one = FreeSpaceMap::new(1);
+        one.set(0, 5);
+        assert_eq!((one.find(5), one.find(6)), (Some(0), None));
+    }
+
+    #[test]
+    fn s3c_c1_pages_that_do_not_fill_the_tree_are_never_returned() {
+        let mut m = FreeSpaceMap::new(5);
+        m.set(4, 9);
+        assert_eq!(m.find(9), Some(4));
+        assert_eq!(m.find(10), None, "the padding leaves of the tree are not pages");
+    }
+
+    #[test]
+    fn s3c_c1_a_large_map_answers_quickly() {
+        let n = 200_000;
+        let mut m = FreeSpaceMap::new(n);
+        m.set(n - 1, 100);
+        let t = std::time::Instant::now();
+        for _ in 0..200_000 {
+            assert_eq!(m.find(100), Some(n - 1));
+        }
+        assert!(t.elapsed() < std::time::Duration::from_secs(5), "200 000 finds took {:?}: find must not scan", t.elapsed());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a linear scan, after any updates.
+        #[test]
+        fn s3c_c1_property_find_equals_a_scan(pages in 0usize..20, ops in proptest::collection::vec((0usize..20, 0u32..100), 0..60), probes in proptest::collection::vec(0u32..120, 1..10)) {
+            let mut m = FreeSpaceMap::new(pages);
+            let mut model = vec![0u32; pages];
+            for (p, f) in ops {
+                if pages == 0 { break; }
+                let p = p % pages;
+                m.set(p, f);
+                model[p] = f;
+                for &need in &probes {
+                    prop_assert_eq!(m.find(need), model.iter().position(|&x| x >= need));
+                }
+                prop_assert_eq!(m.get(p), f);
+            }
+        }
+    }
+}
+// @@ challenge 3c-c1 end
+
+// @@ challenge 3c-c2 begin
+mod ch_3c_c2 {
+    use proptest::prelude::*;
+
+    use bustub::catalog::name_catalog::{NameCatalog, NameError};
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn s3c_c2_names_are_case_insensitive_and_unique() {
+        let mut c = NameCatalog::new();
+        assert_eq!(c.create("Users"), Ok(1));
+        assert_eq!(c.create("USERS"), Err(NameError::Exists));
+        assert_eq!(c.lookup("users"), Some(1));
+        assert_eq!(c.create(""), Err(NameError::Invalid));
+        assert_eq!(c.names(), vec!["users".to_string()]);
+    }
+
+    #[test]
+    fn s3c_c2_an_id_is_never_reused() {
+        let mut c = NameCatalog::new();
+        assert_eq!(c.create("a"), Ok(1));
+        assert!(c.drop("A"));
+        assert!(!c.drop("a"));
+        assert_eq!(c.create("a"), Ok(2), "the dropped table's id must not come back");
+        assert_eq!(c.create("b"), Ok(3));
+    }
+
+    #[test]
+    fn s3c_c2_rename_keeps_the_id() {
+        let mut c = NameCatalog::new();
+        c.create("old").unwrap();
+        c.create("other").unwrap();
+        assert_eq!(c.rename("OLD", "New"), Ok(()));
+        assert_eq!((c.lookup("old"), c.lookup("new")), (None, Some(1)));
+        assert_eq!(c.rename("missing", "x"), Err(NameError::Missing));
+        assert_eq!(c.rename("new", "OTHER"), Err(NameError::Exists));
+        assert_eq!(c.rename("new", "NEW"), Ok(()), "renaming to the same name in another case is fine");
+    }
+
+    #[test]
+    fn s3c_c2_an_empty_catalog_has_no_names_and_dropping_a_missing_table_is_false() {
+        let mut c = NameCatalog::new();
+        assert!(c.names().is_empty());
+        assert_eq!(c.lookup("x"), None);
+        assert!(!c.drop("x"));
+        assert_eq!(c.create("x"), Ok(1), "a failed drop does not use up an id");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a map from lowercase name to id with a counter that only grows.
+        #[test]
+        fn s3c_c2_property_a_catalog_matches_a_model(ops in proptest::collection::vec((0u8..3, 0u8..4, any::<bool>()), 0..60)) {
+            let mut c = NameCatalog::new();
+            let mut m: BTreeMap<String, u32> = BTreeMap::new();
+            let mut next = 1u32;
+            for (op, n, upper) in ops {
+                let name = if upper { format!("T{n}") } else { format!("t{n}") };
+                let low = name.to_ascii_lowercase();
+                match op {
+                    0 => {
+                        let want = if m.contains_key(&low) { Err(NameError::Exists) } else { m.insert(low, next); next += 1; Ok(next - 1) };
+                        prop_assert_eq!(c.create(&name), want);
+                    }
+                    1 => prop_assert_eq!(c.drop(&name), m.remove(&low).is_some()),
+                    _ => {
+                        let new = format!("t{}", (n + 1) % 4);
+                        let want = if !m.contains_key(&low) { Err(NameError::Missing) } else if low != new && m.contains_key(&new) { Err(NameError::Exists) } else { let id = m.remove(&low).unwrap(); m.insert(new.clone(), id); Ok(()) };
+                        prop_assert_eq!(c.rename(&name, &new), want);
+                    }
+                }
+                prop_assert_eq!(c.names(), m.keys().cloned().collect::<Vec<_>>());
+                for (k, &id) in &m { prop_assert_eq!(c.lookup(k), Some(id)); }
+            }
+        }
+    }
+}
+// @@ challenge 3c-c2 end
+
+// @@ challenge 3c-c3 begin
+mod ch_3c_c3 {
+    use proptest::prelude::*;
+
+    use bustub::storage::table::raise::{give_raise, Slot};
+    use std::collections::BTreeMap;
+
+    fn live(rows: &[Slot]) -> BTreeMap<u32, i64> {
+        let mut m = BTreeMap::new();
+        for (id, s) in rows.iter().flatten() {
+            assert!(m.insert(*id, *s).is_none(), "employee {id} is live twice");
+        }
+        m
+    }
+
+    #[test]
+    fn s3c_c3_each_matching_row_is_raised_once() {
+        let mut rows = vec![Some((1, 100)), Some((2, 5000))];
+        assert_eq!(give_raise(&mut rows, 1000, 2), 1);
+        assert_eq!(live(&rows), BTreeMap::from([(1, 200), (2, 5000)]));
+    }
+
+    #[test]
+    fn s3c_c3_the_update_ends_even_when_the_new_salary_is_still_below_the_limit() {
+        let mut rows = vec![Some((1, 1)), Some((2, 2))];
+        assert_eq!(give_raise(&mut rows, 1_000_000, 3), 2, "each row once, not until it passes the limit");
+        assert_eq!(live(&rows), BTreeMap::from([(1, 3), (2, 6)]));
+    }
+
+    #[test]
+    fn s3c_c3_nothing_matches_and_dead_slots_are_skipped() {
+        let mut rows = vec![None, Some((1, 5000)), None];
+        assert_eq!(give_raise(&mut rows, 1000, 2), 0);
+        assert_eq!(rows.len(), 3, "nothing was appended");
+    }
+
+    #[test]
+    fn s3c_c3_a_salary_at_the_limit_is_not_below_it() {
+        let mut rows = vec![Some((1, 1000)), Some((2, 999))];
+        assert_eq!(give_raise(&mut rows, 1000, 2), 1);
+        assert_eq!(live(&rows), BTreeMap::from([(1, 1000), (2, 1998)]));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the live salaries equal applying the raise once to the rows below the limit.
+        #[test]
+        fn s3c_c3_property_the_raise_is_applied_once(sal in proptest::collection::vec(proptest::option::of(1i64..2000), 0..12), limit in 1i64..2500, factor in 1i64..4) {
+            let mut rows: Vec<Slot> = sal.iter().enumerate().map(|(i, s)| s.map(|x| (i as u32, x))).collect();
+            let before = live(&rows);
+            let n = give_raise(&mut rows, limit, factor);
+            let want: BTreeMap<u32, i64> = before.iter().map(|(&id, &s)| (id, if s < limit { s * factor } else { s })).collect();
+            prop_assert_eq!(live(&rows), want);
+            prop_assert_eq!(n, before.values().filter(|&&s| s < limit).count());
+        }
+    }
+}
+// @@ challenge 3c-c3 end
+
+// @@ challenge 3c-c4 begin
+mod ch_3c_c4 {
+    use proptest::prelude::*;
+
+    use bustub::storage::table::moving_heap::MovingHeap;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn s3c_c4_rows_keep_their_ids_and_land_on_pages_with_room() {
+        let mut h = MovingHeap::new(10);
+        let a = h.insert(&[1; 6]).unwrap();
+        let b = h.insert(&[2; 6]).unwrap();
+        assert_eq!((a, b), (0, 1));
+        assert_ne!(h.page_of(a), h.page_of(b), "6 + 6 does not fit in a page of 10");
+        assert_eq!((h.get(a), h.get(b)), (Some(&[1u8; 6][..]), Some(&[2u8; 6][..])));
+    }
+
+    #[test]
+    fn s3c_c4_an_update_that_fits_stays_where_it_is() {
+        let mut h = MovingHeap::new(10);
+        let a = h.insert(&[1; 4]).unwrap();
+        let page = h.page_of(a);
+        assert!(h.update(a, &[9; 9]));
+        assert_eq!(h.page_of(a), page);
+        assert_eq!(h.get(a), Some(&[9u8; 9][..]));
+    }
+
+    #[test]
+    fn s3c_c4_an_update_that_does_not_fit_moves_the_row_and_keeps_its_id() {
+        let mut h = MovingHeap::new(10);
+        let a = h.insert(&[1; 5]).unwrap();
+        let b = h.insert(&[2; 5]).unwrap();
+        assert_eq!(h.page_of(a), h.page_of(b));
+        assert!(h.update(a, &[7; 8]), "8 does not fit beside b's 5, so a moves");
+        assert_ne!(h.page_of(a), h.page_of(b));
+        assert_eq!((h.get(a), h.get(b)), (Some(&[7u8; 8][..]), Some(&[2u8; 5][..])));
+        for p in 0..h.pages() {
+            assert!(h.used(p) <= 10);
+        }
+    }
+
+    #[test]
+    fn s3c_c4_oversized_rows_and_unknown_ids_are_refused() {
+        let mut h = MovingHeap::new(10);
+        assert_eq!(h.insert(&[0; 11]), None);
+        let a = h.insert(&[1; 3]).unwrap();
+        assert!(!h.update(a, &[0; 11]));
+        assert!(!h.update(99, &[1]));
+        assert!(h.delete(a));
+        assert!(!h.delete(a));
+        assert_eq!(h.get(a), None);
+        assert_eq!(h.insert(&[1]).unwrap(), 1, "ids are not reused");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a map from rid to row, with every page within its size and the used bytes adding up.
+        #[test]
+        fn s3c_c4_property_a_moving_heap_is_a_map_within_its_pages(ops in proptest::collection::vec((0u8..3, 0u32..8, 0usize..14, any::<u8>()), 0..80)) {
+            let mut h = MovingHeap::new(12);
+            let mut m: BTreeMap<u32, Vec<u8>> = BTreeMap::new();
+            let mut next = 0u32;
+            for (op, rid, len, byte) in ops {
+                let row = vec![byte; len];
+                match op {
+                    0 => {
+                        let got = h.insert(&row);
+                        if len > 12 { prop_assert_eq!(got, None); } else { prop_assert_eq!(got, Some(next)); m.insert(next, row); next += 1; }
+                    }
+                    1 => {
+                        let want = m.contains_key(&rid) && len <= 12;
+                        prop_assert_eq!(h.update(rid, &row), want);
+                        if want { m.insert(rid, row); }
+                    }
+                    _ => prop_assert_eq!(h.delete(rid), m.remove(&rid).is_some()),
+                }
+                for (k, v) in &m { prop_assert_eq!(h.get(*k), Some(v.as_slice())); }
+                let mut total = 0;
+                for p in 0..h.pages() { prop_assert!(h.used(p) <= 12); total += h.used(p); }
+                prop_assert_eq!(total, m.values().map(|v| v.len()).sum::<usize>());
+            }
+        }
+    }
+}
+// @@ challenge 3c-c4 end
+
+// @@ challenge 3c-c5 begin
+mod ch_3c_c5 {
+    use proptest::prelude::*;
+
+    use bustub::catalog::evolving_table::EvolvingTable;
+
+    #[test]
+    fn s3c_c5_old_rows_read_the_default_of_a_new_column() {
+        let mut t = EvolvingTable::new(2);
+        let a = t.insert(&[1, 2]).unwrap();
+        t.add_column(7);
+        let b = t.insert(&[3, 4, 5]).unwrap();
+        assert_eq!(t.get(a), Some(vec![1, 2, 7]));
+        assert_eq!(t.get(b), Some(vec![3, 4, 5]));
+        assert_eq!(t.columns(), 3);
+    }
+
+    #[test]
+    fn s3c_c5_dropping_a_column_removes_it_from_every_row() {
+        let mut t = EvolvingTable::new(2);
+        let a = t.insert(&[1, 2]).unwrap();
+        t.add_column(7);
+        assert!(t.drop_column(0));
+        assert_eq!(t.get(a), Some(vec![2, 7]));
+        assert!(!t.drop_column(5));
+    }
+
+    #[test]
+    fn s3c_c5_a_row_of_the_wrong_width_is_refused() {
+        let mut t = EvolvingTable::new(2);
+        assert_eq!(t.insert(&[1]), None);
+        assert_eq!(t.insert(&[1, 2, 3]), None);
+        t.add_column(0);
+        assert!(t.insert(&[1, 2, 3]).is_some());
+    }
+
+    #[test]
+    fn s3c_c5_columns_added_later_have_their_own_defaults() {
+        let mut t = EvolvingTable::new(1);
+        let a = t.insert(&[1]).unwrap();
+        t.add_column(10);
+        let b = t.insert(&[2, 20]).unwrap();
+        t.add_column(30);
+        assert_eq!((t.get(a), t.get(b)), (Some(vec![1, 10, 30]), Some(vec![2, 20, 30])));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: equal to a table that rewrites every row eagerly at each schema change.
+        #[test]
+        fn s3c_c5_property_lazy_defaults_equal_eager_rewriting(ops in proptest::collection::vec((0u8..3, any::<i64>(), 0usize..6), 0..40)) {
+            let mut t = EvolvingTable::new(1);
+            let mut rows: Vec<Vec<i64>> = Vec::new();
+            let mut width = 1usize;
+            for (op, v, i) in ops {
+                match op {
+                    0 => { let row: Vec<i64> = (0..width as i64).map(|k| v.wrapping_add(k)).collect(); prop_assert_eq!(t.insert(&row), Some(rows.len())); rows.push(row); }
+                    1 => { t.add_column(v); for r in &mut rows { r.push(v); } width += 1; }
+                    _ => { let ok = i < width; prop_assert_eq!(t.drop_column(i), ok); if ok { for r in &mut rows { r.remove(i); } width -= 1; } }
+                }
+                prop_assert_eq!(t.columns(), width);
+                for (rid, r) in rows.iter().enumerate() { prop_assert_eq!(t.get(rid), Some(r.clone())); }
+            }
+        }
+    }
+}
+// @@ challenge 3c-c5 end

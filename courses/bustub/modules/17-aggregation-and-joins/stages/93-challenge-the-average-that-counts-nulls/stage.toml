@@ -1,0 +1,8 @@
+id = "3f-c4"
+title = "Challenge: the average that counts NULLs"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3f::s3f_c4"]
+learn = ["finding the SQL rule that aggregates skip NULLs, broken in one place"]
+concepts = []
+concepts_optional = ["hash-aggregation", "sql-types-and-three-valued-logic", "property-testing-and-fuzzing"]

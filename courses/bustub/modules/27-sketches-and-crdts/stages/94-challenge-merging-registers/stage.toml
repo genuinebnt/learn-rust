@@ -1,0 +1,8 @@
+id = "0d-c5"
+title = "Challenge: merging registers"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_0d::s0d_c5"]
+learn = ["finding a merge that adds where it should take the maximum", "testing the CRDT laws to catch it"]
+concepts = []
+concepts_optional = ["hyperloglog-and-distinct-counting", "crdts-and-observed-remove-sets", "property-testing-and-fuzzing"]

@@ -1,0 +1,8 @@
+id = "1b-c5"
+title = "Challenge: the lost jobs"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_1b::s1b_c5"]
+learn = ["finding a shutdown bug that drops queued work", "reasoning about when a worker may exit"]
+concepts = []
+concepts_optional = ["clean-shutdown-drop-and-join", "condvars-and-blocking-queues", "deadlock-and-lock-ordering"]

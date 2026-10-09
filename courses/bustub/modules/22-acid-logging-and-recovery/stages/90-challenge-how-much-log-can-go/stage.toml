@@ -1,0 +1,8 @@
+id = "4c-c1"
+title = "Challenge: how much log can go"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4c::s4c_c1"]
+learn = ["finding the oldest log record recovery can still need", "three different lower bounds and why all three matter"]
+concepts = []
+concepts_optional = ["aries-recovery", "write-ahead-logging"]

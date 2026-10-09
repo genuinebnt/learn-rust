@@ -1,0 +1,8 @@
+id = "3h-c3"
+title = "Challenge: join ordering"
+kind = "challenge"
+difficulty = "hard"
+tests = ["stages_3h::s3h_c3"]
+learn = ["dynamic programming over subsets of tables", "a cost model that sums the sizes of intermediate results"]
+concepts = []
+concepts_optional = ["rule-based-query-optimization", "join-algorithms", "model-based-testing"]

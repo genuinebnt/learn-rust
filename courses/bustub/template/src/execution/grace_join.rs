@@ -1,0 +1,21 @@
+//! A Grace hash join: partition both sides, then join each pair of partitions in memory.
+
+use std::collections::HashMap;
+
+pub type Row = (i64, u32);
+
+/// The bucket of `key` among `k` buckets (`k >= 1`).
+pub fn bucket_of(key: i64, k: usize) -> usize {
+    let mut x = key as u64 ^ 0x9E37_79B9_7F4A_7C15;
+    x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    ((x ^ (x >> 31)) % k as u64) as usize
+}
+
+pub fn partition(rows: &[Row], k: usize) -> Vec<Vec<Row>> {
+    todo!("3f-c3: send each row to the bucket of its key")
+}
+
+pub fn grace_join(left: &[Row], right: &[Row], k: usize) -> Vec<(u32, u32)> {
+    todo!("3f-c3: for each pair of buckets, build a table on the left and probe with the right")
+}

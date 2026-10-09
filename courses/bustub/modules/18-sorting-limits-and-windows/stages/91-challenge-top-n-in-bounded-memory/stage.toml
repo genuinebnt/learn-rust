@@ -1,0 +1,8 @@
+id = "3g-c2"
+title = "Challenge: top-N in bounded memory"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3g::s3g_c2"]
+learn = ["selecting the N smallest rows of a stream while holding only N", "a stable tie-break by arrival"]
+concepts = []
+concepts_optional = ["ordered-sets-as-priority-queues", "external-merge-sort"]

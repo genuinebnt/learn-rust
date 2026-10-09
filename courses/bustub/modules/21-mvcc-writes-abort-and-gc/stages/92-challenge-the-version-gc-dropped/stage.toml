@@ -1,0 +1,8 @@
+id = "4b-c3"
+title = "Challenge: the version nobody can see"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4b::s4b_c3"]
+learn = ["finding a garbage-collection bug that removes a version a reader still needs"]
+concepts = []
+concepts_optional = ["multi-version-concurrency-control", "snapshot-isolation", "property-testing-and-fuzzing"]

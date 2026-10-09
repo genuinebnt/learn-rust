@@ -1,0 +1,8 @@
+id = "3d-c3"
+title = "Challenge: the subtraction that leans right"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3d::s3d_c3"]
+learn = ["finding an associativity bug in a precedence-climbing parser", "reading a wrong tree shape from a failing evaluation"]
+concepts = []
+concepts_optional = ["lexers-and-precedence-climbing", "expression-trees", "property-testing-and-fuzzing"]

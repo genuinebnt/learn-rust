@@ -1,0 +1,8 @@
+id = "0a-c2"
+title = "Challenge: keys under a prefix"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_0a::s0a_c2"]
+learn = ["walking the node type you were given to enumerate what a trie holds", "the order a trie's children give for free"]
+concepts = []
+concepts_optional = ["tries", "persistent-data-structures-and-path-copying"]

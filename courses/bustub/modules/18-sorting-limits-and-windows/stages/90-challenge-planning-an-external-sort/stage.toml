@@ -1,0 +1,8 @@
+id = "3g-c1"
+title = "Challenge: planning an external sort"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3g::s3g_c1"]
+learn = ["the cost model of an external merge sort", "computing passes without floating-point logarithms"]
+concepts = []
+concepts_optional = ["external-merge-sort", "performance-tests-and-measuring"]

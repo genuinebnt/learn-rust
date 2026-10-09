@@ -1,0 +1,8 @@
+id = "3h-c2"
+title = "Challenge: where does the predicate go?"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3h::s3h_c2"]
+learn = ["splitting a filter into conjuncts and sorting them by the side of a join they depend on", "what may and may not be pushed below a join"]
+concepts = []
+concepts_optional = ["predicate-pushdown", "conjunctive-predicates", "rule-based-query-optimization"]

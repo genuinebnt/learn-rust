@@ -921,3 +921,281 @@ proptest! {
         prop_assert_eq!(count, vec![want.len().to_string()], "count over the join");
     }
 }
+
+// @@ challenge 3f-c1 begin
+mod ch_3f_c1 {
+    use proptest::prelude::*;
+
+    use bustub::execution::merge_join::merge_join;
+
+    #[test]
+    fn s3f_c1_duplicates_on_both_sides_give_the_cross_product() {
+        let l = [(1, 10), (2, 11), (2, 12)];
+        let r = [(2, 20), (2, 21), (3, 22)];
+        assert_eq!(merge_join(&l, &r), vec![(11, 20), (11, 21), (12, 20), (12, 21)]);
+    }
+
+    #[test]
+    fn s3f_c1_disjoint_and_empty_inputs() {
+        assert_eq!(merge_join(&[(1, 1)], &[(2, 2)]), vec![]);
+        assert_eq!(merge_join(&[], &[(2, 2)]), vec![]);
+        assert_eq!(merge_join(&[(1, 1)], &[]), vec![]);
+    }
+
+    #[test]
+    fn s3f_c1_every_key_matches_in_turn() {
+        let l: Vec<_> = (0..5).map(|k| (k, k as u32)).collect();
+        let r: Vec<_> = (0..5).map(|k| (k, 100 + k as u32)).collect();
+        assert_eq!(merge_join(&l, &r), (0..5u32).map(|k| (k, 100 + k)).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn s3f_c1_a_large_join_is_linear_not_quadratic() {
+        let l: Vec<_> = (0..200_000i64).map(|k| (k, k as u32)).collect();
+        let r: Vec<_> = (0..200_000i64).map(|k| (k * 2, k as u32)).collect();
+        let t = std::time::Instant::now();
+        let out = merge_join(&l, &r);
+        assert_eq!(out.len(), 100_000);
+        assert!(t.elapsed() < std::time::Duration::from_secs(3), "took {:?}", t.elapsed());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the same pairs, in the same order, as a nested-loop join.
+        #[test]
+        fn s3f_c1_property_equals_a_nested_loop(mut l in proptest::collection::vec(0i64..6, 0..12), mut r in proptest::collection::vec(0i64..6, 0..12)) {
+            l.sort();
+            r.sort();
+            let left: Vec<(i64, u32)> = l.iter().enumerate().map(|(i, &k)| (k, i as u32)).collect();
+            let right: Vec<(i64, u32)> = r.iter().enumerate().map(|(i, &k)| (k, 100 + i as u32)).collect();
+            let mut want = Vec::new();
+            for a in &left { for b in &right { if a.0 == b.0 { want.push((a.1, b.1)); } } }
+            prop_assert_eq!(merge_join(&left, &right), want);
+        }
+    }
+}
+// @@ challenge 3f-c1 end
+
+// @@ challenge 3f-c2 begin
+mod ch_3f_c2 {
+    use proptest::prelude::*;
+
+    use bustub::execution::semi_join::{anti_join, not_in, semi_join};
+
+    #[test]
+    fn s3f_c2_without_nulls_in_the_subquery() {
+        let left = [Some(1), Some(2), None];
+        let right = [Some(2), Some(3)];
+        assert_eq!(semi_join(&left, &right), vec![1]);
+        assert_eq!(anti_join(&left, &right), vec![0, 2]);
+        assert_eq!(not_in(&left, &right), vec![0], "a NULL left key is not provably absent");
+    }
+
+    #[test]
+    fn s3f_c2_a_null_in_the_subquery_empties_not_in_but_not_not_exists() {
+        let left = [Some(1), Some(2), None];
+        let right = [Some(2), None];
+        assert_eq!(semi_join(&left, &right), vec![1]);
+        assert_eq!(anti_join(&left, &right), vec![0, 2]);
+        assert_eq!(not_in(&left, &right), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn s3f_c2_an_empty_subquery_keeps_everything_for_not_in() {
+        let left = [Some(1), None];
+        assert_eq!(not_in(&left, &[]), vec![0, 1], "NOT IN over nothing is true for every row, NULL or not");
+        assert_eq!(semi_join(&left, &[]), Vec::<usize>::new());
+        assert_eq!(anti_join(&left, &[]), vec![0, 1]);
+    }
+
+    #[test]
+    fn s3f_c2_no_left_rows() {
+        assert!(semi_join(&[], &[Some(1)]).is_empty());
+        assert!(not_in(&[], &[Some(1)]).is_empty());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against three-valued logic written out: IN is true/unknown/false, and NOT IN keeps a row only when `NOT (x IN right)` is true.
+        #[test]
+        fn s3f_c2_property_matches_three_valued_logic(left in proptest::collection::vec(proptest::option::of(0i64..4), 0..8), right in proptest::collection::vec(proptest::option::of(0i64..4), 0..5)) {
+            // x IN right: Some(true) if equal to some non-NULL; Some(false) if right is empty or (x non-NULL and all non-NULL differ and no NULL); None (unknown) otherwise
+            let in_result = |x: Option<i64>| -> Option<bool> {
+                if right.is_empty() { return Some(false); }
+                let Some(x) = x else { return None };
+                if right.iter().any(|r| *r == Some(x)) { Some(true) }
+                else if right.iter().any(|r| r.is_none()) { None } else { Some(false) }
+            };
+            let want_not_in: Vec<usize> = (0..left.len()).filter(|&i| in_result(left[i]) == Some(false)).collect();
+            prop_assert_eq!(not_in(&left, &right), want_not_in);
+            let want_semi: Vec<usize> = (0..left.len()).filter(|&i| in_result(left[i]) == Some(true)).collect();
+            prop_assert_eq!(semi_join(&left, &right), want_semi.clone());
+            let want_anti: Vec<usize> = (0..left.len()).filter(|i| !want_semi.contains(i)).collect();
+            prop_assert_eq!(anti_join(&left, &right), want_anti);
+        }
+    }
+}
+// @@ challenge 3f-c2 end
+
+// @@ challenge 3f-c3 begin
+mod ch_3f_c3 {
+    use proptest::prelude::*;
+
+    use bustub::execution::grace_join::{bucket_of, grace_join, partition};
+
+    #[test]
+    fn s3f_c3_equal_keys_share_a_bucket_and_nothing_is_lost() {
+        let rows: Vec<(i64, u32)> = (0..100).map(|i| ((i % 7) as i64, i as u32)).collect();
+        let parts = partition(&rows, 5);
+        assert_eq!(parts.len(), 5);
+        assert_eq!(parts.iter().map(Vec::len).sum::<usize>(), 100);
+        for (b, p) in parts.iter().enumerate() {
+            assert!(p.iter().all(|r| bucket_of(r.0, 5) == b));
+        }
+        assert!(parts.iter().all(|p| p.windows(2).all(|w| w[0].1 < w[1].1)), "input order is kept inside a bucket");
+    }
+
+    #[test]
+    fn s3f_c3_the_join_of_two_small_inputs() {
+        let l = [(1, 10), (2, 11), (2, 12)];
+        let r = [(2, 20), (3, 21), (2, 22)];
+        let mut got = grace_join(&l, &r, 3);
+        got.sort();
+        assert_eq!(got, vec![(11, 20), (11, 22), (12, 20), (12, 22)]);
+    }
+
+    #[test]
+    fn s3f_c3_a_single_partition_is_a_plain_hash_join() {
+        let l = [(1, 1), (1, 2)];
+        let r = [(1, 9)];
+        let mut got = grace_join(&l, &r, 1);
+        got.sort();
+        assert_eq!(got, vec![(1, 9), (2, 9)]);
+    }
+
+    #[test]
+    fn s3f_c3_disjoint_keys_join_to_nothing_whatever_the_partition_count() {
+        let l = [(1, 1), (2, 2)];
+        let r = [(3, 3), (4, 4)];
+        for k in [1, 2, 7, 64] {
+            assert_eq!(grace_join(&l, &r, k), Vec::<(u32, u32)>::new(), "k = {k}");
+        }
+        assert_eq!(grace_join(&[], &r, 4), Vec::<(u32, u32)>::new());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the multiset of pairs equals a nested-loop join, whatever the number of partitions.
+        #[test]
+        fn s3f_c3_property_equals_a_nested_loop_for_every_k(l in proptest::collection::vec(0i64..6, 0..12), r in proptest::collection::vec(0i64..6, 0..12), k in 1usize..7) {
+            let left: Vec<(i64, u32)> = l.iter().enumerate().map(|(i, &x)| (x, i as u32)).collect();
+            let right: Vec<(i64, u32)> = r.iter().enumerate().map(|(i, &x)| (x, 100 + i as u32)).collect();
+            let mut want = Vec::new();
+            for a in &left { for b in &right { if a.0 == b.0 { want.push((a.1, b.1)); } } }
+            want.sort();
+            let mut got = grace_join(&left, &right, k);
+            got.sort();
+            prop_assert_eq!(got, want);
+        }
+    }
+}
+// @@ challenge 3f-c3 end
+
+// @@ challenge 3f-c4 begin
+mod ch_3f_c4 {
+    use proptest::prelude::*;
+
+    use bustub::execution::aggregates::{avg, count_col, count_star, sum};
+
+    #[test]
+    fn s3f_c4_nulls_are_skipped_by_everything_but_count_star() {
+        let v = [Some(1), None, Some(3)];
+        assert_eq!((count_star(&v), count_col(&v), sum(&v)), (3, 2, Some(4)));
+        assert_eq!(avg(&v), Some(2.0));
+    }
+
+    #[test]
+    fn s3f_c4_a_column_of_nulls_has_no_sum_and_no_average() {
+        let v = [None, None];
+        assert_eq!((count_star(&v), count_col(&v), sum(&v), avg(&v)), (2, 0, None, None));
+        assert_eq!(avg(&[]), None);
+    }
+
+    #[test]
+    fn s3f_c4_no_nulls_is_the_ordinary_mean() {
+        assert_eq!(avg(&[Some(2), Some(4), Some(9)]), Some(5.0));
+    }
+
+    #[test]
+    fn s3f_c4_the_average_is_not_rounded_and_a_zero_sum_is_not_null() {
+        assert_eq!(avg(&[Some(1), Some(2)]), Some(1.5));
+        assert_eq!(avg(&[Some(-1), None, Some(-2)]), Some(-1.5));
+        assert_eq!(sum(&[Some(-3), Some(3)]), Some(0));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: removing the NULLs first changes nothing but `count_star`, and the average is sum over non-NULL count.
+        #[test]
+        fn s3f_c4_property_nulls_are_invisible_except_to_count_star(v in proptest::collection::vec(proptest::option::of(-50i64..50), 0..12)) {
+            let clean: Vec<Option<i64>> = v.iter().flatten().map(|&x| Some(x)).collect();
+            prop_assert_eq!(sum(&v), sum(&clean));
+            prop_assert_eq!(count_col(&v), clean.len());
+            prop_assert_eq!(avg(&v), avg(&clean));
+            prop_assert!(count_col(&v) <= count_star(&v));
+            if let Some(a) = avg(&v) { prop_assert!((a * count_col(&v) as f64 - sum(&v).unwrap() as f64).abs() < 1e-6); }
+        }
+    }
+}
+// @@ challenge 3f-c4 end
+
+// @@ challenge 3f-c5 begin
+mod ch_3f_c5 {
+    use proptest::prelude::*;
+
+    use bustub::execution::stream_group::{stream_group_sums, NotSorted};
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn s3f_c5_groups_of_adjacent_equal_keys() {
+        assert_eq!(stream_group_sums(&[(1, 5), (1, 7), (2, 1)]), Ok(vec![(1, 12, 2), (2, 1, 1)]));
+    }
+
+    #[test]
+    fn s3f_c5_empty_and_single_row_inputs() {
+        assert_eq!(stream_group_sums(&[]), Ok(vec![]));
+        assert_eq!(stream_group_sums(&[(9, -4)]), Ok(vec![(9, -4, 1)]));
+    }
+
+    #[test]
+    fn s3f_c5_a_decreasing_key_is_reported_at_its_row() {
+        assert_eq!(stream_group_sums(&[(2, 1), (1, 1)]), Err(NotSorted { at: 1 }));
+        assert_eq!(stream_group_sums(&[(1, 1), (2, 1), (2, 1), (1, 1)]), Err(NotSorted { at: 3 }));
+    }
+
+    #[test]
+    fn s3f_c5_negative_keys_and_a_long_run() {
+        let mut rows: Vec<(i64, i64)> = vec![(-3, 1); 50];
+        rows.push((-1, 7));
+        assert_eq!(stream_group_sums(&rows), Ok(vec![(-3, 50, 50), (-1, 7, 1)]));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: equals a hash group-by sorted by key, whenever the input is sorted.
+        #[test]
+        fn s3f_c5_property_equals_a_hash_group_by(mut rows in proptest::collection::vec((0i64..5, -9i64..9), 0..20)) {
+            rows.sort_by_key(|r| r.0);
+            let mut m: BTreeMap<i64, (i64, usize)> = BTreeMap::new();
+            for &(k, v) in &rows { let e = m.entry(k).or_insert((0, 0)); e.0 += v; e.1 += 1; }
+            let want: Vec<_> = m.into_iter().map(|(k, (s, c))| (k, s, c)).collect();
+            prop_assert_eq!(stream_group_sums(&rows), Ok(want));
+        }
+    }
+}
+// @@ challenge 3f-c5 end

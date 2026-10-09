@@ -501,3 +501,346 @@ proptest! {
         }
     }
 }
+
+// @@ challenge 0c-c1 begin
+mod ch_0c_c1 {
+    use proptest::prelude::*;
+
+    use bustub::primer::shift_set::{home, Full, ShiftSet};
+    use std::collections::HashSet;
+
+    /// Keys that all hash to the same home slot of a table of `cap` slots (found by search; tests do not depend on which).
+    fn same_home(cap: usize, target: usize, n: usize) -> Vec<u64> {
+        (0u64..).filter(|&k| home(k, cap) == target).take(n).collect()
+    }
+
+    #[test]
+    fn s0c_c1_keys_with_one_home_form_a_run() {
+        let mut s = ShiftSet::new(8);
+        let ks = same_home(8, 2, 3);
+        for &k in &ks {
+            assert_eq!(s.insert(k), Ok(true));
+        }
+        assert_eq!(ks.iter().map(|&k| s.probe_len(k).unwrap()).collect::<Vec<_>>(), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn s0c_c1_removing_the_first_of_a_run_shifts_the_rest_back() {
+        let mut s = ShiftSet::new(8);
+        let ks = same_home(8, 2, 3);
+        for &k in &ks {
+            s.insert(k).unwrap();
+        }
+        assert!(s.remove(ks[0]));
+        assert_eq!((s.probe_len(ks[1]), s.probe_len(ks[2])), (Some(0), Some(1)), "no hole left in the run");
+        assert!(!s.contains(ks[0]));
+        assert!(!s.remove(ks[0]));
+    }
+
+    #[test]
+    fn s0c_c1_a_key_whose_home_is_after_the_hole_stays_put() {
+        let mut s = ShiftSet::new(8);
+        let a = same_home(8, 2, 2);
+        let b = same_home(8, 4, 1)[0];
+        s.insert(a[0]).unwrap();
+        s.insert(a[1]).unwrap(); // slot 3
+        s.insert(b).unwrap(); // slot 4: its own home
+        s.remove(a[0]);
+        assert_eq!(s.probe_len(b), Some(0));
+        assert_eq!(s.probe_len(a[1]), Some(0));
+    }
+
+    #[test]
+    fn s0c_c1_a_full_table_refuses_and_a_run_may_wrap_around_the_end() {
+        let mut s = ShiftSet::new(4);
+        let ks = same_home(4, 3, 4);
+        for &k in &ks {
+            assert_eq!(s.insert(k), Ok(true));
+        }
+        assert_eq!(s.insert(999_999), Err(Full));
+        assert!(s.remove(ks[1]));
+        assert!(ks.iter().filter(|&&k| k != ks[1]).all(|&k| s.contains(k)), "wrapping around the end must keep every key reachable");
+        assert_eq!(s.insert(999_999), Ok(true));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a `HashSet`; and after every step every stored key is found (reachable from its home without an empty slot).
+        #[test]
+        fn s0c_c1_property_a_shift_set_is_a_set_and_stays_reachable(cap in 2usize..14, ops in proptest::collection::vec((any::<bool>(), 0u64..40), 0..120)) {
+            let mut s = ShiftSet::new(cap);
+            let mut m: HashSet<u64> = HashSet::new();
+            for (ins, k) in ops {
+                if ins {
+                    let r = s.insert(k);
+                    if m.contains(&k) { prop_assert_eq!(r, Ok(false)); }
+                    else if m.len() == cap { prop_assert_eq!(r, Err(Full)); }
+                    else { prop_assert_eq!(r, Ok(true)); m.insert(k); }
+                } else {
+                    prop_assert_eq!(s.remove(k), m.remove(&k));
+                }
+                prop_assert_eq!(s.len(), m.len());
+                for &k in &m { prop_assert!(s.contains(k), "key {} lost", k); }
+                for k in 0..40 { prop_assert_eq!(s.contains(k), m.contains(&k)); }
+            }
+        }
+    }
+}
+// @@ challenge 0c-c1 end
+
+// @@ challenge 0c-c2 begin
+mod ch_0c_c2 {
+    use proptest::prelude::*;
+
+    use bustub::primer::probe_stats::{mean_probe, probe_histogram};
+    use bustub::primer::robin_hood_hash_set::RobinHoodHashSet;
+
+    fn filled(cap: usize, keys: &[i32]) -> RobinHoodHashSet<i32> {
+        let s = RobinHoodHashSet::new(cap).unwrap();
+        for k in keys {
+            s.insert(k);
+        }
+        s
+    }
+
+    #[test]
+    fn s0c_c2_the_histogram_counts_every_found_key_once() {
+        let keys: Vec<i32> = (1..=8).collect();
+        let s = filled(16, &keys);
+        let h = probe_histogram(&s, &keys);
+        assert_eq!(h.iter().sum::<usize>(), 8);
+        assert!(!h.is_empty());
+    }
+
+    #[test]
+    fn s0c_c2_absent_keys_are_skipped_and_an_empty_input_gives_an_empty_histogram() {
+        let s = filled(16, &[1, 2, 3]);
+        assert_eq!(probe_histogram(&s, &[100, 200]), Vec::<usize>::new());
+        assert_eq!(mean_probe(&s, &[]), 0.0);
+        assert_eq!(probe_histogram(&s, &[1, 1]).iter().sum::<usize>(), 2, "each occurrence counts");
+    }
+
+    #[test]
+    fn s0c_c2_a_nearly_empty_table_has_everything_at_home() {
+        let keys = [3, 4];
+        let s = filled(64, &keys);
+        let h = probe_histogram(&s, &keys);
+        assert_eq!(h[0], 2);
+        assert!(mean_probe(&s, &keys) < 1.0);
+    }
+
+    #[test]
+    fn s0c_c2_the_histogram_agrees_with_the_tables_own_maximum() {
+        let keys: Vec<i32> = (0..40).collect();
+        let s = filled(64, &keys);
+        let h = probe_histogram(&s, &keys);
+        assert_eq!(h.len() - 1, s.max_probe_distance(), "the largest distance of any key is the table's maximum");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: removing keys never raises the maximum distance of the others; mean lies between 0 and the maximum.
+        #[test]
+        fn s0c_c2_property_removal_does_not_raise_distances(keys in proptest::collection::btree_set(0i32..200, 1..30), remove in proptest::collection::vec(0i32..200, 0..15)) {
+            let keys: Vec<i32> = keys.into_iter().collect();
+            let s = filled(64, &keys);
+            let before = probe_histogram(&s, &keys);
+            let max_before = before.len().saturating_sub(1);
+            for r in &remove { s.remove(r); }
+            let after = probe_histogram(&s, &keys);
+            prop_assert!(after.len().saturating_sub(1) <= max_before);
+            let mean = mean_probe(&s, &keys);
+            prop_assert!(mean >= 0.0 && mean <= after.len().saturating_sub(1) as f64);
+        }
+    }
+}
+// @@ challenge 0c-c2 end
+
+// @@ challenge 0c-c3 begin
+mod ch_0c_c3 {
+    use proptest::prelude::*;
+
+    use bustub::primer::probe_dist::probe_distance;
+
+    #[test]
+    fn s0c_c3_distances_that_do_not_wrap() {
+        assert_eq!(probe_distance(2, 5, 8), 3);
+        assert_eq!(probe_distance(4, 4, 8), 0);
+    }
+
+    #[test]
+    fn s0c_c3_distances_that_wrap_around_the_end() {
+        assert_eq!(probe_distance(6, 1, 8), 3, "6, 7, 0, 1");
+        assert_eq!(probe_distance(7, 0, 8), 1);
+        assert_eq!(probe_distance(5, 4, 8), 7, "all the way around but one");
+    }
+
+    #[test]
+    fn s0c_c3_forward_and_back_make_a_full_circle() {
+        for c in 2..10 {
+            for h in 0..c {
+                for s in 0..c {
+                    if h != s {
+                        assert_eq!(probe_distance(h, s, c) + probe_distance(s, h, c), c, "capacity {c}, {h} <-> {s}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn s0c_c3_shifting_both_slots_by_the_same_amount_changes_nothing() {
+        for c in 3..9 {
+            for h in 0..c {
+                for s in 0..c {
+                    for k in 0..c {
+                        assert_eq!(probe_distance((h + k) % c, (s + k) % c, c), probe_distance(h, s, c));
+                    }
+                }
+            }
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: stepping forward from home exactly `distance` times lands on the slot, and the distance is below the capacity.
+        #[test]
+        fn s0c_c3_property_walking_the_distance_lands_on_the_slot(c in 1usize..20, h in 0usize..20, s in 0usize..20) {
+            let (h, s) = (h % c, s % c);
+            let d = probe_distance(h, s, c);
+            prop_assert!(d < c);
+            let mut at = h;
+            for _ in 0..d { at = (at + 1) % c; }
+            prop_assert_eq!(at, s);
+        }
+    }
+}
+// @@ challenge 0c-c3 end
+
+// @@ challenge 0c-c4 begin
+mod ch_0c_c4 {
+    use proptest::prelude::*;
+
+    use bustub::primer::range_reduce::{reduce, reduce_pow2};
+
+    #[test]
+    fn s0c_c4_the_ends_and_the_middle() {
+        assert_eq!(reduce(0, 10), 0);
+        assert_eq!(reduce(u32::MAX, 10), 9);
+        assert_eq!(reduce(1 << 31, 10), 5);
+        assert_eq!(reduce(12345, 1), 0);
+        assert_eq!(reduce(12345, 0), 0);
+    }
+
+    #[test]
+    fn s0c_c4_powers_of_two_are_the_top_bits() {
+        for bits in 0..=10 {
+            for h in [0u32, 1, 0x8000_0000, 0xDEAD_BEEF, u32::MAX, 0x1234_5678] {
+                assert_eq!(reduce(h, 1 << bits), reduce_pow2(h, bits), "h {h:#x}, {bits} bits");
+            }
+        }
+    }
+
+    #[test]
+    fn s0c_c4_every_bucket_gets_nearly_the_same_share_of_hash_values() {
+        // sample the hash space evenly: each of 7 buckets should receive within one sample of the average (1000)
+        let n = 7u32;
+        let samples = 7 * 1000;
+        let mut counts = vec![0usize; n as usize];
+        for i in 0..samples {
+            let h = ((i as u64 * (1u64 << 32)) / samples as u64) as u32;
+            counts[reduce(h, n) as usize] += 1;
+        }
+        assert!(counts.iter().all(|&c| (999..=1001).contains(&c)), "{counts:?}");
+    }
+
+    #[test]
+    fn s0c_c4_halving_a_fine_bucket_gives_the_coarse_one() {
+        for h in [0u32, 1, 12345, 0x8000_0000, 0xDEAD_BEEF, u32::MAX] {
+            assert_eq!(reduce(h, 20) / 2, reduce(h, 10), "h {h:#x}");
+            assert!(reduce(h, 10) <= reduce(h, 20));
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: below `n`, and non-decreasing in the hash.
+        #[test]
+        fn s0c_c4_property_in_range_and_monotone(a in any::<u32>(), b in any::<u32>(), n in 1u32..100_000) {
+            prop_assert!(reduce(a, n) < n);
+            let (lo, hi) = (a.min(b), a.max(b));
+            prop_assert!(reduce(lo, n) <= reduce(hi, n));
+        }
+    }
+}
+// @@ challenge 0c-c4 end
+
+// @@ challenge 0c-c5 begin
+mod ch_0c_c5 {
+    use proptest::prelude::*;
+
+    use bustub::primer::swar::{first_match, match_byte};
+
+    fn pack(bytes: [u8; 8]) -> u64 {
+        u64::from_le_bytes(bytes)
+    }
+
+    #[test]
+    fn s0c_c5_flags_the_matching_bytes_and_only_them() {
+        let g = pack([1, 7, 7, 0, 255, 7, 2, 9]);
+        let m = match_byte(g, 7);
+        assert_eq!(m, (1u64 << 15) | (1u64 << 23) | (1u64 << 47));
+        assert_eq!(first_match(m), Some(1));
+        assert_eq!(match_byte(g, 8), 0);
+        assert_eq!(first_match(0), None);
+    }
+
+    #[test]
+    fn s0c_c5_neighbours_of_the_target_do_not_cause_false_positives() {
+        // classic traps: a byte one above the target (borrow propagation) and the high-bit patterns
+        let g = pack([0x01, 0x00, 0x80, 0xFF, 0x7F, 0x81, 0xFE, 0x02]);
+        for (b, want) in [(0x00u8, vec![1usize]), (0x01, vec![0]), (0x80, vec![2]), (0xFF, vec![3]), (0x7F, vec![4]), (0x02, vec![7])] {
+            let m = match_byte(g, b);
+            let idx: Vec<usize> = (0..8).filter(|i| m >> (8 * i + 7) & 1 == 1).collect();
+            assert_eq!(idx, want, "byte {b:#x}");
+            assert_eq!(m & !0x8080_8080_8080_8080, 0);
+        }
+    }
+
+    #[test]
+    fn s0c_c5_all_equal_and_none_equal() {
+        assert_eq!(match_byte(u64::MAX, 0xFF), 0x8080_8080_8080_8080);
+        assert_eq!(match_byte(0, 0), 0x8080_8080_8080_8080);
+        assert_eq!(match_byte(0, 1), 0);
+    }
+
+    #[test]
+    fn s0c_c5_replacing_one_byte_flags_exactly_its_position() {
+        for i in 0..8 {
+            let mut bytes = [0xAAu8; 8];
+            bytes[i] = 0x17;
+            assert_eq!(match_byte(pack(bytes), 0x17), 1u64 << (8 * i + 7));
+            assert_eq!(first_match(match_byte(pack(bytes), 0x17)), Some(i));
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 1024, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: exactly the bytes equal to the target are flagged, whatever the group.
+        #[test]
+        fn s0c_c5_property_matches_a_per_byte_comparison(bytes in proptest::array::uniform8(prop_oneof![0u8..4, any::<u8>()]), b in prop_oneof![0u8..4, any::<u8>()]) {
+            let g = pack(bytes);
+            let m = match_byte(g, b);
+            let mut want = 0u64;
+            for (i, &x) in bytes.iter().enumerate() { if x == b { want |= 1 << (8 * i + 7); } }
+            prop_assert_eq!(m, want);
+            prop_assert_eq!(first_match(m), bytes.iter().position(|&x| x == b));
+        }
+    }
+}
+// @@ challenge 0c-c5 end

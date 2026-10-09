@@ -1,0 +1,8 @@
+id = "4c-c3"
+title = "Challenge: redo that goes backwards"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4c::s4c_c3"]
+learn = ["finding the rule that makes redo idempotent: compare record LSN with page LSN"]
+concepts = []
+concepts_optional = ["aries-recovery", "write-ahead-logging", "property-testing-and-fuzzing"]

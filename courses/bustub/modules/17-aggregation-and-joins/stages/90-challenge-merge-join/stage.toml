@@ -1,0 +1,8 @@
+id = "3f-c1"
+title = "Challenge: merge join"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3f::s3f_c1"]
+learn = ["joining two sorted inputs in one pass, including many-to-many matches", "producing output in a deterministic order"]
+concepts = []
+concepts_optional = ["join-algorithms", "model-based-testing"]

@@ -1,0 +1,8 @@
+id = "0d-c1"
+title = "Challenge: a Bloom filter"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_0d::s0d_c1"]
+learn = ["a set that may answer yes wrongly but never no wrongly", "choosing the number of bits and hashes for a target error rate"]
+concepts = []
+concepts_optional = ["count-min-sketch-and-frequency-estimation", "hash-functions-and-murmur3", "property-testing-and-fuzzing"]

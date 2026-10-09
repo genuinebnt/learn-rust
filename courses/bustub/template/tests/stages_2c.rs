@@ -767,3 +767,167 @@ proptest! {
         }
     }
 }
+
+// @@ challenge 2c-c3 begin
+mod ch_2c_c3 {
+    use proptest::prelude::*;
+
+    use bustub::storage::index::prefix_range::prefix_end;
+
+    #[test]
+    fn s2c_c3_the_next_string_after_a_prefix() {
+        assert_eq!(prefix_end(b"abc"), Some(b"abd".to_vec()));
+        assert_eq!(prefix_end(&[0x61]), Some(vec![0x62]));
+    }
+
+    #[test]
+    fn s2c_c3_trailing_ff_bytes_carry() {
+        assert_eq!(prefix_end(&[0x61, 0xFF]), Some(vec![0x62]));
+        assert_eq!(prefix_end(&[0x61, 0xFF, 0xFF]), Some(vec![0x62]));
+        assert_eq!(prefix_end(&[0x00, 0xFF]), Some(vec![0x01]));
+    }
+
+    #[test]
+    fn s2c_c3_no_bound_when_every_byte_is_ff_or_there_are_none() {
+        assert_eq!(prefix_end(&[0xFF, 0xFF]), None);
+        assert_eq!(prefix_end(&[]), None);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: a key is in `[prefix, prefix_end)` exactly when it starts with the prefix.
+        #[test]
+        fn s2c_c3_property_the_range_is_the_prefix(prefix in proptest::collection::vec(prop_oneof![Just(0u8), Just(1u8), Just(254u8), Just(255u8)], 0..4), key in proptest::collection::vec(prop_oneof![Just(0u8), Just(1u8), Just(254u8), Just(255u8)], 0..6)) {
+            let in_range = key >= prefix && prefix_end(&prefix).is_none_or(|e| key < e);
+            prop_assert_eq!(in_range, key.starts_with(&prefix), "prefix {:?} key {:?} end {:?}", prefix, key, prefix_end(&prefix));
+        }
+
+        /// Property: the bound is the smallest possible: appending anything to the prefix stays below it.
+        #[test]
+        fn s2c_c3_property_the_bound_is_not_too_large(prefix in proptest::collection::vec(any::<u8>(), 1..5)) {
+            if let Some(e) = prefix_end(&prefix) {
+                let mut longest = prefix.clone();
+                longest.extend([0xFF, 0xFF, 0xFF]);
+                prop_assert!(longest < e);
+                prop_assert!(!e.starts_with(&prefix));
+            }
+        }
+    }
+}
+// @@ challenge 2c-c3 end
+
+// @@ challenge 2c-c4 begin
+mod ch_2c_c4 {
+    use proptest::prelude::*;
+
+    use bustub::storage::index::kmerge::KMerge;
+
+    #[test]
+    fn s2c_c4_two_runs_with_a_tie_go_in_run_order() {
+        let out: Vec<_> = KMerge::new(vec![vec![1, 4], vec![2, 4]]).collect();
+        assert_eq!(out, vec![(1, 0), (2, 1), (4, 0), (4, 1)]);
+    }
+
+    #[test]
+    fn s2c_c4_empty_runs_and_no_runs() {
+        assert_eq!(KMerge::new(vec![]).count(), 0);
+        assert_eq!(KMerge::new(vec![vec![], vec![]]).count(), 0);
+        let out: Vec<_> = KMerge::new(vec![vec![], vec![3], vec![]]).collect();
+        assert_eq!(out, vec![(3, 1)]);
+    }
+
+    #[test]
+    fn s2c_c4_runs_of_very_different_lengths() {
+        let big: Vec<i64> = (0..1000).map(|i| i * 2).collect();
+        let out: Vec<_> = KMerge::new(vec![big, vec![1, 3, 5], vec![-5]]).collect();
+        assert_eq!(out.len(), 1004);
+        assert!(out.windows(2).all(|w| w[0] <= w[1]));
+        assert_eq!(out[0], (-5, 2));
+    }
+
+    #[test]
+    fn s2c_c4_it_is_lazy() {
+        // 100 runs of a million elements each would not fit in memory as one vector, but taking three items must be cheap
+        struct Count;
+        let _ = Count;
+        let runs: Vec<Vec<i64>> = (0..100).map(|r| (0..2000).map(|i| i * 100 + r).collect()).collect();
+        let first3: Vec<_> = KMerge::new(runs).take(3).collect();
+        assert_eq!(first3, vec![(0, 0), (1, 1), (2, 2)]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the merge is a stable sort of the concatenation, by key then run.
+        #[test]
+        fn s2c_c4_property_a_merge_is_a_stable_sort(mut runs in proptest::collection::vec(proptest::collection::vec(-8i64..8, 0..10), 0..6)) {
+            for r in &mut runs { r.sort(); }
+            let mut want: Vec<(i64, usize)> = runs.iter().enumerate().flat_map(|(i, r)| r.iter().map(move |&k| (k, i))).collect();
+            want.sort_by_key(|&(k, _)| k); // stable: equal keys stay in run order
+            prop_assert_eq!(KMerge::new(runs).collect::<Vec<_>>(), want);
+        }
+    }
+}
+// @@ challenge 2c-c4 end
+
+// @@ challenge 2c-c5 begin
+mod ch_2c_c5 {
+    use proptest::prelude::*;
+
+    use bustub::storage::index::rebalance::{after_delete, Action};
+
+    #[test]
+    fn s2c_c5_a_node_with_enough_keys_needs_nothing() {
+        assert_eq!(after_delete(2, 2, 4, Some(2), Some(4)), Action::Nothing);
+        assert_eq!(after_delete(4, 2, 4, None, None), Action::Nothing);
+    }
+
+    #[test]
+    fn s2c_c5_borrowing_is_preferred_to_merging() {
+        assert_eq!(after_delete(1, 2, 4, Some(3), Some(2)), Action::BorrowLeft, "the left sibling has a key to spare, and merging would also fit");
+        assert_eq!(after_delete(1, 2, 4, Some(2), Some(3)), Action::BorrowRight);
+    }
+
+    #[test]
+    fn s2c_c5_the_left_sibling_is_tried_first() {
+        assert_eq!(after_delete(1, 2, 4, Some(3), Some(4)), Action::BorrowLeft);
+        assert_eq!(after_delete(1, 2, 4, None, Some(3)), Action::BorrowRight);
+    }
+
+    #[test]
+    fn s2c_c5_merging_only_when_no_sibling_can_spare_a_key() {
+        assert_eq!(after_delete(1, 2, 4, Some(2), Some(2)), Action::MergeLeft);
+        assert_eq!(after_delete(1, 2, 4, None, Some(2)), Action::MergeRight);
+    }
+
+    #[test]
+    fn s2c_c5_a_node_alone_stays_underfull() {
+        assert_eq!(after_delete(1, 2, 4, None, None), Action::Underfull);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: never merge while a borrow is possible, a merge always fits, and a borrow leaves the sibling above the minimum.
+        #[test]
+        fn s2c_c5_property_the_decision_obeys_the_rules(min in 1usize..4, extra in 0usize..4, node in 0usize..6, left in proptest::option::of(0usize..9), right in proptest::option::of(0usize..9)) {
+            let max = 2 * min + extra;
+            let a = after_delete(node, min, max, left, right);
+            let can_borrow = left.is_some_and(|l| l > min) || right.is_some_and(|r| r > min);
+            if node >= min { prop_assert_eq!(a, Action::Nothing); return Ok(()); }
+            match a {
+                Action::BorrowLeft => prop_assert!(left.unwrap() > min),
+                Action::BorrowRight => { prop_assert!(right.unwrap() > min); prop_assert!(left.is_none_or(|l| l <= min), "the left sibling could have been used"); }
+                Action::MergeLeft | Action::MergeRight => {
+                    prop_assert!(!can_borrow, "merged although a borrow was possible");
+                    let sib = if a == Action::MergeLeft { left.unwrap() } else { right.unwrap() };
+                    prop_assert!(sib + node <= max);
+                }
+                Action::Underfull => prop_assert!(!can_borrow && left.is_none_or(|l| l + node > max) && right.is_none_or(|r| r + node > max)),
+                Action::Nothing => prop_assert!(false),
+            }
+        }
+    }
+}
+// @@ challenge 2c-c5 end

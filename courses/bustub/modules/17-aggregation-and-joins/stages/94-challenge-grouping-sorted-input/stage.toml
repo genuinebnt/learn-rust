@@ -1,0 +1,8 @@
+id = "3f-c5"
+title = "Challenge: grouping sorted input"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3f::s3f_c5"]
+learn = ["a streaming (sort-based) group by that holds one group at a time", "detecting that the input was not sorted"]
+concepts = []
+concepts_optional = ["hash-aggregation", "iterators-and-closures"]

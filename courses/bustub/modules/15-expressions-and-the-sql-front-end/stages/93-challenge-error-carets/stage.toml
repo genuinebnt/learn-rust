@@ -1,0 +1,8 @@
+id = "3d-c4"
+title = "Challenge: error carets"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3d::s3d_c4"]
+learn = ["turning a byte offset into a line and column", "rendering an error with the source line and a caret"]
+concepts = []
+concepts_optional = ["errors-as-values-with-result", "designing-error-types"]

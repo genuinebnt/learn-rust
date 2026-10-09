@@ -543,3 +543,438 @@ proptest! {
         run_guards(Policy::LruK(2), 3, &ops)?;
     }
 }
+
+// @@ challenge 1g-c1 begin
+mod ch_1g_c1 {
+    use proptest::prelude::*;
+
+    use bustub::common::defer::Defer;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    fn log() -> Rc<RefCell<Vec<u32>>> {
+        Rc::new(RefCell::new(Vec::new()))
+    }
+
+    #[test]
+    fn s1g_c1_runs_when_the_scope_ends() {
+        let l = log();
+        {
+            let l2 = l.clone();
+            let _g = Defer::new(move || l2.borrow_mut().push(1));
+            l.borrow_mut().push(0);
+        }
+        assert_eq!(*l.borrow(), vec![0, 1]);
+    }
+
+    #[test]
+    fn s1g_c1_a_cancelled_guard_never_runs() {
+        let l = log();
+        {
+            let l2 = l.clone();
+            let mut g = Defer::new(move || l2.borrow_mut().push(1));
+            g.cancel();
+        }
+        assert!(l.borrow().is_empty());
+    }
+
+    #[test]
+    fn s1g_c1_run_now_runs_once_and_drop_does_not_run_it_again() {
+        let l = log();
+        {
+            let l2 = l.clone();
+            let mut g = Defer::new(move || l2.borrow_mut().push(1));
+            g.run_now();
+            g.run_now();
+            assert_eq!(*l.borrow(), vec![1]);
+        }
+        assert_eq!(*l.borrow(), vec![1]);
+    }
+
+    #[test]
+    fn s1g_c1_guards_run_in_reverse_order_of_creation() {
+        let l = log();
+        {
+            let (a, b, c) = (l.clone(), l.clone(), l.clone());
+            let _x = Defer::new(move || a.borrow_mut().push(1));
+            let _y = Defer::new(move || b.borrow_mut().push(2));
+            let _z = Defer::new(move || c.borrow_mut().push(3));
+        }
+        assert_eq!(*l.borrow(), vec![3, 2, 1]);
+    }
+
+    #[test]
+    fn s1g_c1_an_early_return_and_a_question_mark_still_run_the_guard() {
+        fn work(l: Rc<RefCell<Vec<u32>>>, fail: bool) -> Result<u32, ()> {
+            let l2 = l.clone();
+            let _g = Defer::new(move || l2.borrow_mut().push(99));
+            if fail {
+                Err(())?;
+            }
+            Ok(1)
+        }
+        let l = log();
+        assert_eq!(work(l.clone(), true), Err(()));
+        assert_eq!(work(l.clone(), false), Ok(1));
+        assert_eq!(*l.borrow(), vec![99, 99]);
+    }
+
+    #[test]
+    fn s1g_c1_a_panic_runs_the_guard_while_unwinding() {
+        use std::sync::{Arc, Mutex};
+        let l = Arc::new(Mutex::new(Vec::new()));
+        let l2 = l.clone();
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let _g = Defer::new(move || l2.lock().unwrap().push(1));
+            panic!("boom");
+        }));
+        assert!(r.is_err());
+        assert_eq!(*l.lock().unwrap(), vec![1]);
+    }
+
+    #[test]
+    fn s1g_c1_a_moved_guard_runs_once_when_its_new_owner_drops() {
+        let l = log();
+        let l2 = l.clone();
+        let g = Defer::new(move || l2.borrow_mut().push(7));
+        let holder = vec![g];
+        assert!(l.borrow().is_empty(), "moving a guard into a vector does not run it");
+        drop(holder);
+        assert_eq!(*l.borrow(), vec![7]);
+    }
+}
+// @@ challenge 1g-c1 end
+
+// @@ challenge 1g-c2 begin
+mod ch_1g_c2 {
+    use proptest::prelude::*;
+
+    use bustub::common::pin_handle::Pins;
+
+    #[test]
+    fn s1g_c2_pin_clone_and_drop_keep_the_count_exact() {
+        let pins = Pins::new();
+        let a = pins.pin();
+        let b = pins.pin();
+        assert_eq!(pins.count(), 2);
+        let c = a.clone();
+        assert_eq!(pins.count(), 3);
+        drop(b);
+        drop(a);
+        assert_eq!(pins.count(), 1);
+        drop(c);
+        assert_eq!(pins.count(), 0);
+    }
+
+    #[test]
+    fn s1g_c2_a_scope_leaves_the_count_as_it_found_it() {
+        let pins = Pins::new();
+        let keep = pins.pin();
+        {
+            let h = pins.pin();
+            let _c = h.clone();
+            assert_eq!(pins.count(), 3);
+        }
+        assert_eq!(pins.count(), 1);
+        drop(keep);
+    }
+
+    #[test]
+    fn s1g_c2_handles_on_other_threads_count_and_uncount() {
+        let pins = Pins::new();
+        let hs: Vec<_> = (0..8).map(|_| pins.pin()).collect();
+        assert_eq!(pins.count(), 8);
+        let threads: Vec<_> = hs.into_iter().map(|h| std::thread::spawn(move || drop(h))).collect();
+        for t in threads {
+            t.join().unwrap();
+        }
+        assert_eq!(pins.count(), 0);
+    }
+
+    #[test]
+    fn s1g_c2_a_moved_handle_is_counted_once() {
+        let pins = Pins::new();
+        let h = pins.pin();
+        let moved = h;
+        assert_eq!(pins.count(), 1);
+        drop(moved);
+        assert_eq!(pins.count(), 0);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: after any sequence of pins, clones and drops the count is the number of live handles.
+        #[test]
+        fn s1g_c2_property_the_count_is_the_number_of_live_handles(ops in proptest::collection::vec((0u8..3, 0usize..8), 0..80)) {
+            let pins = Pins::new();
+            let mut live = Vec::new();
+            for (op, i) in ops {
+                match op {
+                    0 => live.push(pins.pin()),
+                    1 if !live.is_empty() => { let h = live[i % live.len()].clone(); live.push(h); }
+                    _ if !live.is_empty() => { live.swap_remove(i % live.len()); }
+                    _ => {}
+                }
+                prop_assert_eq!(pins.count(), live.len());
+            }
+        }
+    }
+}
+// @@ challenge 1g-c2 end
+
+// @@ challenge 1g-c3 begin
+mod ch_1g_c3 {
+    use proptest::prelude::*;
+
+    use bustub::common::scoped_pin::ScopedPin;
+    use std::cell::Cell;
+
+    #[test]
+    fn s1g_c3_dropping_uncounts() {
+        let c = Cell::new(0);
+        {
+            let _a = ScopedPin::new(&c);
+            let _b = ScopedPin::new(&c);
+            assert_eq!(c.get(), 2);
+        }
+        assert_eq!(c.get(), 0);
+    }
+
+    #[test]
+    fn s1g_c3_releasing_uncounts_once_and_returns_the_count_after() {
+        let c = Cell::new(0);
+        let a = ScopedPin::new(&c);
+        let _b = ScopedPin::new(&c);
+        assert_eq!(a.release(), 1);
+        assert_eq!(c.get(), 1, "the released guard must not uncount again when it goes out of scope");
+    }
+
+    #[test]
+    fn s1g_c3_a_mix_of_releases_and_drops() {
+        let c = Cell::new(0);
+        let guards: Vec<_> = (0..5).map(|_| ScopedPin::new(&c)).collect();
+        let mut left = 5;
+        for (i, g) in guards.into_iter().enumerate() {
+            if i % 2 == 0 {
+                left -= 1;
+                assert_eq!(g.release(), left);
+            } else {
+                drop(g);
+                left -= 1;
+            }
+            assert_eq!(c.get(), left);
+        }
+        assert_eq!(c.get(), 0);
+    }
+
+    #[test]
+    fn s1g_c3_releasing_the_last_guard_leaves_zero_and_the_value_returned_is_zero() {
+        let c = Cell::new(0);
+        let g = ScopedPin::new(&c);
+        assert_eq!(g.release(), 0);
+        assert_eq!(c.get(), 0, "it must stay at zero: a second uncount would underflow");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the counter is always the number of guards that are neither dropped nor released.
+        #[test]
+        fn s1g_c3_property_the_counter_equals_the_live_guards(ops in proptest::collection::vec((0u8..3, 0usize..6), 0..60)) {
+            let c = Cell::new(0);
+            let mut live = Vec::new();
+            for (op, i) in ops {
+                match op {
+                    0 => live.push(ScopedPin::new(&c)),
+                    1 if !live.is_empty() => { let g = live.swap_remove(i % live.len()); let n = g.release(); prop_assert_eq!(n, live.len()); }
+                    _ if !live.is_empty() => { live.swap_remove(i % live.len()); }
+                    _ => {}
+                }
+                prop_assert_eq!(c.get(), live.len());
+            }
+        }
+    }
+}
+// @@ challenge 1g-c3 end
+
+// @@ challenge 1g-c4 begin
+mod ch_1g_c4 {
+    use proptest::prelude::*;
+
+    use bustub::common::timed_latch::TimedLatch;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn s1g_c4_a_free_latch_is_taken_at_once() {
+        let l = TimedLatch::new();
+        assert!(l.try_acquire());
+        assert!(!l.try_acquire());
+        assert!(l.release());
+        assert!(l.acquire_timeout(Duration::from_millis(0)));
+    }
+
+    #[test]
+    fn s1g_c4_a_held_latch_times_out_after_about_the_timeout() {
+        let l = TimedLatch::new();
+        l.try_acquire();
+        let t = Instant::now();
+        assert!(!l.acquire_timeout(Duration::from_millis(60)));
+        let waited = t.elapsed();
+        assert!(waited >= Duration::from_millis(55), "returned after {waited:?}, before the timeout");
+        assert!(waited < Duration::from_secs(5));
+        assert!(l.release(), "a timed-out wait leaves the latch held by its owner");
+    }
+
+    #[test]
+    fn s1g_c4_a_release_within_the_timeout_hands_the_latch_to_the_waiter() {
+        let l = Arc::new(TimedLatch::new());
+        l.try_acquire();
+        let l2 = l.clone();
+        let h = std::thread::spawn(move || l2.acquire_timeout(Duration::from_secs(10)));
+        std::thread::sleep(Duration::from_millis(40));
+        assert!(l.release());
+        assert!(h.join().unwrap(), "the waiter must be woken by the release");
+        assert!(!l.try_acquire(), "and now the waiter holds it");
+    }
+
+    #[test]
+    fn s1g_c4_releasing_a_latch_that_is_not_held_says_so() {
+        let l = TimedLatch::new();
+        assert!(!l.release());
+        assert!(l.try_acquire());
+    }
+
+    #[test]
+    fn s1g_c4_each_release_lets_exactly_one_of_many_waiters_in() {
+        let l = Arc::new(TimedLatch::new());
+        l.try_acquire();
+        let got = Arc::new(AtomicUsize::new(0));
+        let hs: Vec<_> = (0..4)
+            .map(|_| {
+                let (l, got) = (l.clone(), got.clone());
+                std::thread::spawn(move || {
+                    if l.acquire_timeout(Duration::from_millis(600)) {
+                        got.fetch_add(1, Ordering::SeqCst);
+                    }
+                })
+            })
+            .collect();
+        std::thread::sleep(Duration::from_millis(80));
+        l.release();
+        for h in hs {
+            h.join().unwrap();
+        }
+        assert_eq!(got.load(Ordering::SeqCst), 1, "one release, one grant; the others timed out");
+    }
+}
+// @@ challenge 1g-c4 end
+
+// @@ challenge 1g-c5 begin
+mod ch_1g_c5 {
+    use proptest::prelude::*;
+
+    use bustub::common::slot_pair::{Slots, TransferError};
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    /// Runs `f` on its own thread and fails the test if it has not returned in `secs` seconds (a deadlock would otherwise hang the run).
+    fn finish_within<T: Send + 'static>(secs: u64, f: impl FnOnce() -> T + Send + 'static) -> T {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(f());
+        });
+        rx.recv_timeout(Duration::from_secs(secs)).expect("did not finish: a deadlock?")
+    }
+
+    #[test]
+    fn s1g_c5_a_transfer_moves_the_amount_and_failures_change_nothing() {
+        let s = Slots::new(&[10, 5]);
+        assert_eq!(s.transfer(0, 1, 4), Ok(()));
+        assert_eq!((s.balance(0), s.balance(1)), (Some(6), Some(9)));
+        assert_eq!(s.transfer(1, 0, 20), Err(TransferError::Insufficient));
+        assert_eq!(s.transfer(0, 7, 1), Err(TransferError::NoSuchSlot(7)));
+        assert_eq!(s.transfer(9, 1, 1), Err(TransferError::NoSuchSlot(9)));
+        assert_eq!((s.balance(0), s.balance(1), s.total()), (Some(6), Some(9), 15));
+        assert_eq!(s.balance(2), None);
+    }
+
+    #[test]
+    fn s1g_c5_a_transfer_to_the_same_slot_succeeds_and_does_not_lock_twice() {
+        let s = Arc::new(Slots::new(&[3, 3]));
+        let s2 = s.clone();
+        let r = finish_within(5, move || s2.transfer(1, 1, 2));
+        assert_eq!(r, Ok(()));
+        assert_eq!(s.balance(1), Some(3));
+    }
+
+    #[test]
+    fn s1g_c5_opposite_directions_between_the_same_two_slots_both_finish() {
+        let s = Arc::new(Slots::new(&[100, 100]));
+        let (a, b) = (s.clone(), s.clone());
+        finish_within(20, move || {
+            let t1 = std::thread::spawn(move || {
+                for _ in 0..5000 {
+                    let _ = a.transfer(0, 1, 1);
+                }
+            });
+            let t2 = std::thread::spawn(move || {
+                for _ in 0..5000 {
+                    let _ = b.transfer(1, 0, 1);
+                }
+            });
+            t1.join().unwrap();
+            t2.join().unwrap();
+        });
+        assert_eq!(s.total(), 200);
+    }
+
+    #[test]
+    fn s1g_c5_many_threads_on_random_pairs_conserve_the_total() {
+        let s = Arc::new(Slots::new(&[50; 6]));
+        let s2 = s.clone();
+        finish_within(30, move || {
+            let hs: Vec<_> = (0..6u64)
+                .map(|t| {
+                    let s = s2.clone();
+                    std::thread::spawn(move || {
+                        let mut x = t * 7919 + 1;
+                        for _ in 0..3000 {
+                            x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                            let (f, to) = ((x >> 33) as usize % 6, (x >> 17) as usize % 6);
+                            let _ = s.transfer(f, to, ((x >> 8) % 20) as i64);
+                        }
+                    })
+                })
+                .collect();
+            for h in hs {
+                h.join().unwrap();
+            }
+        });
+        assert_eq!(s.total(), 300);
+        assert!((0..6).all(|i| s.balance(i).unwrap() >= 0));
+    }
+
+    #[test]
+    fn s1g_c5_total_is_a_consistent_snapshot_while_transfers_run() {
+        let s = Arc::new(Slots::new(&[100, 100, 100]));
+        let mover = {
+            let s = s.clone();
+            std::thread::spawn(move || {
+                for i in 0..4000usize {
+                    let _ = s.transfer(i % 3, (i + 1) % 3, 1);
+                }
+            })
+        };
+        let s2 = s.clone();
+        finish_within(20, move || {
+            for _ in 0..500 {
+                assert_eq!(s2.total(), 300, "a total taken in the middle of a transfer saw the amount in neither slot");
+            }
+        });
+        mover.join().unwrap();
+    }
+}
+// @@ challenge 1g-c5 end

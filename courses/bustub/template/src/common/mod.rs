@@ -1,10 +1,15 @@
 pub mod bustub_instance;
 pub mod channel;
 pub mod config;
+pub mod defer;
 pub mod exception;
 pub mod gate;
 pub mod index_list;
+pub mod pin_handle;
 pub mod promise;
+pub mod result_writer;
 pub mod rid;
 pub mod rwlatch;
-pub mod result_writer;
+pub mod scoped_pin;
+pub mod timed_latch;
+pub mod slot_pair;

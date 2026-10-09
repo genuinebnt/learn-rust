@@ -1015,3 +1015,349 @@ proptest! {
         }
     }
 }
+
+// @@ challenge 3e-c1 begin
+mod ch_3e_c1 {
+    use proptest::prelude::*;
+
+    use bustub::execution::adapters::{Concat, Executor, Filter, Limit, Project, Row, VecScan};
+
+    fn rows(n: i64) -> Vec<Row> {
+        (1..=n).map(|i| vec![i, i * 10]).collect()
+    }
+
+    fn drain(mut e: Box<dyn Executor>) -> Vec<Row> {
+        let mut out = Vec::new();
+        while let Some(r) = e.next() {
+            out.push(r);
+        }
+        assert!(e.next().is_none(), "an exhausted executor stays exhausted");
+        out
+    }
+
+    #[test]
+    fn s3e_c1_filter_and_project() {
+        let (scan, _) = VecScan::new(rows(6));
+        let f = Filter::new(Box::new(scan), |r| r[0] % 2 == 0);
+        let p = Project::new(Box::new(f), vec![1, 0]);
+        assert_eq!(drain(Box::new(p)), vec![vec![20, 2], vec![40, 4], vec![60, 6]]);
+    }
+
+    #[test]
+    fn s3e_c1_limit_with_an_offset_and_the_rows_it_pulled() {
+        let (scan, pulled) = VecScan::new(rows(10));
+        let f = Filter::new(Box::new(scan), |r| r[0] % 2 == 0);
+        let l = Limit::new(Box::new(f), 2, 1);
+        assert_eq!(drain(Box::new(l)), vec![vec![4, 40], vec![6, 60]]);
+        assert_eq!(pulled.get(), 6, "rows 1..=6 were enough: nothing may be read ahead");
+    }
+
+    #[test]
+    fn s3e_c1_a_limit_of_zero_pulls_nothing() {
+        let (scan, pulled) = VecScan::new(rows(5));
+        assert_eq!(drain(Box::new(Limit::new(Box::new(scan), 0, 3))), Vec::<Row>::new());
+        assert_eq!(pulled.get(), 0);
+    }
+
+    #[test]
+    fn s3e_c1_a_limit_past_the_end_just_ends() {
+        let (scan, pulled) = VecScan::new(rows(3));
+        assert_eq!(drain(Box::new(Limit::new(Box::new(scan), 10, 2))), vec![vec![3, 30]]);
+        assert_eq!(pulled.get(), 3);
+    }
+
+    #[test]
+    fn s3e_c1_concat_reads_the_second_only_after_the_first() {
+        let (a, pa) = VecScan::new(rows(2));
+        let (b, pb) = VecScan::new(rows(2));
+        let mut c = Concat::new(Box::new(a), Box::new(b));
+        assert_eq!(c.next(), Some(vec![1, 10]));
+        assert_eq!((pa.get(), pb.get()), (1, 0));
+        c.next();
+        assert_eq!(pb.get(), 0, "the first child is not exhausted until it says None");
+        assert_eq!(c.next(), Some(vec![1, 10]));
+        assert_eq!(pb.get(), 1);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: a tree of operators equals the matching iterator chain, and the scan is pulled `min(len, needed)` times.
+        #[test]
+        fn s3e_c1_property_operators_equal_an_iterator_chain(n in 0i64..30, modulus in 1i64..5, limit in 0usize..8, offset in 0usize..8) {
+            let (scan, pulled) = VecScan::new(rows(n));
+            let f = Filter::new(Box::new(scan), move |r| r[0] % modulus == 0);
+            let l = Limit::new(Box::new(f), limit, offset);
+            let got = drain(Box::new(l));
+            let want: Vec<Row> = rows(n).into_iter().filter(|r| r[0] % modulus == 0).skip(offset).take(limit).collect();
+            prop_assert_eq!(got, want.clone());
+            if limit > 0 {
+                let needed = offset + limit;
+                let all: Vec<i64> = (1..=n).filter(|i| i % modulus == 0).collect();
+                let want_pulled = if all.len() >= needed { all[needed - 1] as usize } else { n as usize };
+                prop_assert_eq!(pulled.get(), want_pulled);
+            } else {
+                prop_assert_eq!(pulled.get(), 0);
+            }
+        }
+    }
+}
+// @@ challenge 3e-c1 end
+
+// @@ challenge 3e-c2 begin
+mod ch_3e_c2 {
+    use proptest::prelude::*;
+
+    use bustub::execution::upsert::{upsert, Conflict, Counts};
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn s3e_c2_add_sums_conflicting_values_and_counts_each_row() {
+        let mut t = BTreeMap::from([(1, 10)]);
+        let c = upsert(&mut t, &[(1, 5), (2, 7), (2, 1)], Conflict::Add);
+        assert_eq!(t, BTreeMap::from([(1, 15), (2, 8)]));
+        assert_eq!(c, Counts { inserted: 1, updated: 2, ignored: 0 });
+    }
+
+    #[test]
+    fn s3e_c2_do_nothing_keeps_the_first_row_for_a_key() {
+        let mut t = BTreeMap::from([(1, 10)]);
+        let c = upsert(&mut t, &[(1, 5), (2, 7), (2, 1)], Conflict::DoNothing);
+        assert_eq!(t, BTreeMap::from([(1, 10), (2, 7)]));
+        assert_eq!(c, Counts { inserted: 1, updated: 0, ignored: 2 });
+    }
+
+    #[test]
+    fn s3e_c2_replace_keeps_the_last_row_for_a_key() {
+        let mut t = BTreeMap::new();
+        let c = upsert(&mut t, &[(1, 1), (1, 2), (1, 3)], Conflict::Replace);
+        assert_eq!(t, BTreeMap::from([(1, 3)]));
+        assert_eq!(c, Counts { inserted: 1, updated: 2, ignored: 0 });
+    }
+
+    #[test]
+    fn s3e_c2_an_empty_batch_changes_nothing() {
+        let mut t = BTreeMap::from([(1, 1)]);
+        assert_eq!(upsert(&mut t, &[], Conflict::Add), Counts::default());
+        assert_eq!(t.len(), 1);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: each policy against its one-line description, and the counts add up.
+        #[test]
+        fn s3e_c2_property_policies_match_their_definitions(init in proptest::collection::btree_map(0i64..5, -9i64..9, 0..5), rows in proptest::collection::vec((0i64..5, -9i64..9), 0..12)) {
+            let mut a = init.clone();
+            let c = upsert(&mut a, &rows, Conflict::DoNothing);
+            let mut want = init.clone();
+            for &(k, v) in &rows { want.entry(k).or_insert(v); }
+            prop_assert_eq!(&a, &want);
+            prop_assert_eq!(c.inserted + c.updated + c.ignored, rows.len());
+            let mut r = init.clone();
+            upsert(&mut r, &rows, Conflict::Replace);
+            let mut want = init.clone();
+            for &(k, v) in &rows { want.insert(k, v); }
+            prop_assert_eq!(&r, &want);
+            let mut s = init.clone();
+            upsert(&mut s, &rows, Conflict::Add);
+            let mut want = init;
+            for &(k, v) in &rows { *want.entry(k).or_insert(0) += v; }
+            prop_assert_eq!(&s, &want);
+        }
+    }
+}
+// @@ challenge 3e-c2 end
+
+// @@ challenge 3e-c3 begin
+mod ch_3e_c3 {
+    use proptest::prelude::*;
+
+    use bustub::execution::limit_offset::limit_offset;
+
+    #[test]
+    fn s3e_c3_limit_zero_returns_no_rows() {
+        assert_eq!(limit_offset(&[1, 2, 3], Some(0), 0), Vec::<i64>::new());
+        assert_eq!(limit_offset(&[1, 2, 3], Some(0), 2), Vec::<i64>::new());
+    }
+
+    #[test]
+    fn s3e_c3_limit_and_offset() {
+        assert_eq!(limit_offset(&[1, 2, 3], Some(2), 1), vec![2, 3]);
+        assert_eq!(limit_offset(&[1, 2, 3], Some(1), 0), vec![1]);
+        assert_eq!(limit_offset(&[1, 2, 3], None, 1), vec![2, 3]);
+    }
+
+    #[test]
+    fn s3e_c3_offsets_at_and_past_the_end() {
+        assert_eq!(limit_offset(&[1, 2, 3], None, 3), Vec::<i64>::new());
+        assert_eq!(limit_offset(&[1, 2, 3], Some(5), 5), Vec::<i64>::new());
+        assert_eq!(limit_offset(&[], Some(3), 0), Vec::<i64>::new());
+    }
+
+    #[test]
+    fn s3e_c3_a_limit_larger_than_what_is_left_returns_what_is_left() {
+        assert_eq!(limit_offset(&[1, 2, 3, 4], Some(10), 2), vec![3, 4]);
+        assert_eq!(limit_offset(&[1, 2, 3, 4], Some(2), 2), vec![3, 4]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: a contiguous slice of the input with the right length, and a bigger limit extends a smaller one.
+        #[test]
+        fn s3e_c3_property_the_result_is_a_slice(rows in proptest::collection::vec(any::<i64>(), 0..10), limit in proptest::option::of(0usize..12), offset in 0usize..12, extra in 0usize..5) {
+            let got = limit_offset(&rows, limit, offset);
+            let start = offset.min(rows.len());
+            let end = match limit { Some(n) => (start + n).min(rows.len()), None => rows.len() };
+            prop_assert_eq!(&got[..], &rows[start..end]);
+            if let Some(n) = limit {
+                let more = limit_offset(&rows, Some(n + extra), offset);
+                prop_assert!(more.starts_with(&got));
+            }
+        }
+    }
+}
+// @@ challenge 3e-c3 end
+
+// @@ challenge 3e-c4 begin
+mod ch_3e_c4 {
+    use proptest::prelude::*;
+
+    use bustub::execution::rid_sets::{difference_sorted, intersect_sorted, union_sorted};
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn s3e_c4_the_three_operations_on_a_small_example() {
+        let (a, b) = ([1, 3, 5], [3, 4, 5, 6]);
+        assert_eq!(union_sorted(&a, &b), vec![1, 3, 4, 5, 6]);
+        assert_eq!(intersect_sorted(&a, &b), vec![3, 5]);
+        assert_eq!(difference_sorted(&a, &b), vec![1]);
+        assert_eq!(difference_sorted(&b, &a), vec![4, 6]);
+    }
+
+    #[test]
+    fn s3e_c4_an_id_in_both_lists_appears_once_in_the_union() {
+        assert_eq!(union_sorted(&[4, 4 + 1], &[4, 5]), vec![4, 5], "v1 = 4 OR v1 = 4 returns each row once");
+        assert_eq!(union_sorted(&[7], &[7]), vec![7]);
+    }
+
+    #[test]
+    fn s3e_c4_empty_inputs() {
+        assert_eq!(union_sorted(&[], &[1, 2]), vec![1, 2]);
+        assert_eq!(intersect_sorted(&[], &[1, 2]), Vec::<u64>::new());
+        assert_eq!(difference_sorted(&[1, 2], &[]), vec![1, 2]);
+        assert_eq!(difference_sorted(&[], &[1]), Vec::<u64>::new());
+    }
+
+    #[test]
+    fn s3e_c4_a_list_combined_with_itself() {
+        let a = [2, 4, 6, 8];
+        assert_eq!(union_sorted(&a, &a), a.to_vec());
+        assert_eq!(intersect_sorted(&a, &a), a.to_vec());
+        assert_eq!(difference_sorted(&a, &a), Vec::<u64>::new());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: each equals the `BTreeSet` operation, and the laws between them hold.
+        #[test]
+        fn s3e_c4_property_set_operations_match_btreeset(a in proptest::collection::btree_set(0u64..30, 0..12), b in proptest::collection::btree_set(0u64..30, 0..12)) {
+            let (av, bv): (Vec<u64>, Vec<u64>) = (a.iter().copied().collect(), b.iter().copied().collect());
+            prop_assert_eq!(union_sorted(&av, &bv), a.union(&b).copied().collect::<Vec<_>>());
+            prop_assert_eq!(intersect_sorted(&av, &bv), a.intersection(&b).copied().collect::<Vec<_>>());
+            prop_assert_eq!(difference_sorted(&av, &bv), a.difference(&b).copied().collect::<Vec<_>>());
+            prop_assert_eq!(union_sorted(&av, &bv).len() + intersect_sorted(&av, &bv).len(), av.len() + bv.len());
+        }
+    }
+}
+// @@ challenge 3e-c4 end
+
+// @@ challenge 3e-c5 begin
+mod ch_3e_c5 {
+    use proptest::prelude::*;
+
+    use bustub::execution::rewindable::Rewindable;
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    fn counted(n: u32) -> (impl Iterator<Item = u32>, Rc<Cell<usize>>) {
+        let pulls = Rc::new(Cell::new(0));
+        let p = pulls.clone();
+        ((1..=n).inspect(move |_| p.set(p.get() + 1)), pulls)
+    }
+
+    #[test]
+    fn s3e_c5_reset_replays_what_was_read_since_the_mark() {
+        let (it, pulls) = counted(5);
+        let mut r = Rewindable::new(it);
+        r.mark();
+        assert_eq!((r.next(), r.next()), (Some(1), Some(2)));
+        r.reset();
+        assert_eq!((r.next(), r.next(), r.next()), (Some(1), Some(2), Some(3)));
+        assert_eq!(pulls.get(), 3, "the source is pulled once per item, ever");
+    }
+
+    #[test]
+    fn s3e_c5_nothing_is_kept_without_a_mark() {
+        let (it, _) = counted(5);
+        let mut r = Rewindable::new(it);
+        r.next();
+        r.next();
+        assert_eq!(r.buffered(), 0);
+        r.reset();
+        assert_eq!(r.next(), Some(3), "reset without a mark goes nowhere");
+    }
+
+    #[test]
+    fn s3e_c5_a_later_mark_drops_the_older_items() {
+        let (it, _) = counted(6);
+        let mut r = Rewindable::new(it);
+        r.mark();
+        r.next();
+        r.next();
+        r.mark();
+        assert_eq!(r.buffered(), 0);
+        r.next();
+        r.reset();
+        assert_eq!(r.next(), Some(3));
+    }
+
+    #[test]
+    fn s3e_c5_several_resets_replay_the_same_items() {
+        let (it, _) = counted(4);
+        let mut r = Rewindable::new(it);
+        r.mark();
+        r.next();
+        r.next();
+        for _ in 0..3 {
+            r.reset();
+            assert_eq!((r.next(), r.next()), (Some(1), Some(2)));
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a vector with a cursor and a mark.
+        #[test]
+        fn s3e_c5_property_rewinding_matches_a_cursor(n in 0u32..12, ops in proptest::collection::vec(0u8..3, 0..40)) {
+            let (it, pulls) = counted(n);
+            let mut r = Rewindable::new(it);
+            let all: Vec<u32> = (1..=n).collect();
+            let (mut pos, mut mark) = (0usize, None::<usize>);
+            let mut high = 0usize;
+            for op in ops {
+                match op {
+                    0 => { let got = r.next(); prop_assert_eq!(got, all.get(pos).copied()); if got.is_some() { pos += 1; high = high.max(pos); } }
+                    1 => { r.mark(); mark = Some(pos); }
+                    _ => { r.reset(); if let Some(m) = mark { pos = m; } }
+                }
+                prop_assert_eq!(pulls.get(), high, "the source is pulled once per distinct item");
+                if let Some(m) = mark { prop_assert!(r.buffered() <= high - m); } else { prop_assert_eq!(r.buffered(), 0); }
+            }
+        }
+    }
+}
+// @@ challenge 3e-c5 end

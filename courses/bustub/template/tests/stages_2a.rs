@@ -565,3 +565,240 @@ proptest! {
         prop_assert_eq!(count_of(&v, key), v.iter().filter(|&&x| x == key).count());
     }
 }
+
+// @@ challenge 2a-c3 begin
+mod ch_2a_c3 {
+    use proptest::prelude::*;
+
+    use bustub::storage::page::slotted_page::SlottedPage;
+
+    #[test]
+    fn s2a_c3_records_come_back_and_space_is_accounted() {
+        let mut p = SlottedPage::new(20);
+        assert_eq!(p.insert(b"abcd"), Some(0));
+        assert_eq!(p.free_space(), 12);
+        assert_eq!(p.insert(b"wxyz"), Some(1));
+        assert_eq!(p.free_space(), 4);
+        assert_eq!(p.insert(b"q"), None, "1 byte + 4 does not fit in 4... it needs 5");
+        assert_eq!((p.get(0), p.get(1), p.get(2)), (Some(&b"abcd"[..]), Some(&b"wxyz"[..]), None));
+    }
+
+    #[test]
+    fn s2a_c3_a_deleted_record_gives_its_space_and_its_slot_back() {
+        let mut p = SlottedPage::new(20);
+        p.insert(b"abcd");
+        p.insert(b"wxyz");
+        assert!(p.delete(0));
+        assert!(!p.delete(0), "already free");
+        assert_eq!(p.free_space(), 12);
+        assert_eq!(p.insert(b"1234"), Some(0), "the lowest free slot is reused");
+        assert_eq!(p.get(0), Some(&b"1234"[..]));
+    }
+
+    #[test]
+    fn s2a_c3_scattered_free_space_is_usable_for_one_bigger_record() {
+        let mut p = SlottedPage::new(100);
+        let slots: Vec<_> = (0..4).map(|i| p.insert(&[i as u8; 20]).unwrap()).collect(); // 4 * 24 = 96 bytes
+        assert_eq!(p.insert(&[9; 5]), None);
+        p.delete(slots[0]);
+        p.delete(slots[2]);
+        assert_eq!(p.free_space(), 52);
+        assert!(p.insert(&[7; 48]).is_some(), "48 + 4 = 52: two holes of 24 make room for one record of 48");
+        assert_eq!(p.get(slots[1]), Some(&[1u8; 20][..]));
+        assert_eq!(p.get(slots[3]), Some(&[3u8; 20][..]), "the records that stayed are intact");
+    }
+
+    #[test]
+    fn s2a_c3_empty_records_cost_only_their_slot_entry() {
+        let mut p = SlottedPage::new(8);
+        assert_eq!(p.insert(b""), Some(0));
+        assert_eq!(p.insert(b""), Some(1));
+        assert_eq!(p.insert(b""), None);
+        assert_eq!(p.get(0), Some(&b""[..]));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a model of slots with a byte budget: lowest free slot, fit by total free space, records intact.
+        #[test]
+        fn s2a_c3_property_a_page_matches_a_model(size in 8usize..120, ops in proptest::collection::vec((any::<bool>(), 0usize..24, any::<u8>()), 0..60)) {
+            let mut p = SlottedPage::new(size);
+            let mut m: Vec<Option<Vec<u8>>> = Vec::new();
+            for (ins, n, byte) in ops {
+                if ins {
+                    let rec = vec![byte; n];
+                    let used: usize = m.iter().flatten().map(|r| r.len() + 4).sum();
+                    let want = if n + 4 > size - used { None } else {
+                        let slot = m.iter().position(|s| s.is_none()).unwrap_or_else(|| { m.push(None); m.len() - 1 });
+                        m[slot] = Some(rec.clone());
+                        Some(slot)
+                    };
+                    prop_assert_eq!(p.insert(&rec), want);
+                } else {
+                    let slot = n % (m.len() + 1);
+                    let want = m.get_mut(slot).is_some_and(|s| s.take().is_some());
+                    prop_assert_eq!(p.delete(slot), want);
+                }
+                let used: usize = m.iter().flatten().map(|r| r.len() + 4).sum();
+                prop_assert_eq!(p.free_space(), size - used);
+                for (i, s) in m.iter().enumerate() {
+                    prop_assert_eq!(p.get(i), s.as_deref());
+                }
+            }
+        }
+    }
+}
+// @@ challenge 2a-c3 end
+
+// @@ challenge 2a-c4 begin
+mod ch_2a_c4 {
+    use proptest::prelude::*;
+
+    use bustub::storage::page::key_block::{decode_keys, encode_keys};
+
+    fn k(s: &str) -> Vec<u8> {
+        s.as_bytes().to_vec()
+    }
+
+    #[test]
+    fn s2a_c4_the_exact_bytes_of_a_small_block() {
+        let block = encode_keys(&[k("apple"), k("apply"), k("banana")]);
+        let mut want = vec![3, 0, 5];
+        want.extend_from_slice(b"apple");
+        want.extend_from_slice(&[4, 1]);
+        want.extend_from_slice(b"y");
+        want.extend_from_slice(&[0, 6]);
+        want.extend_from_slice(b"banana");
+        assert_eq!(block, want);
+    }
+
+    #[test]
+    fn s2a_c4_blocks_round_trip_including_empty_ones_and_equal_keys() {
+        for keys in [vec![], vec![k("")], vec![k("a"), k("a"), k("ab")], vec![k("x"); 5]] {
+            assert_eq!(decode_keys(&encode_keys(&keys)), Some(keys.clone()), "{keys:?}");
+        }
+    }
+
+    #[test]
+    fn s2a_c4_alike_keys_take_less_room_than_unlike_ones() {
+        let alike: Vec<_> = (0..20).map(|i| k(&format!("/users/42/orders/{i:03}"))).collect();
+        let plain: usize = alike.iter().map(|x| x.len()).sum();
+        assert!(encode_keys(&alike).len() < plain / 2, "20 keys sharing 16 bytes should be well under half their plain size");
+    }
+
+    #[test]
+    fn s2a_c4_malformed_blocks_are_rejected_not_panicked_on() {
+        assert_eq!(decode_keys(&[]), None, "no count");
+        assert_eq!(decode_keys(&[2, 0, 1, b'a']), None, "the second key is missing");
+        assert_eq!(decode_keys(&[1, 3, 1, b'a']), None, "shared is longer than the (empty) previous key");
+        assert_eq!(decode_keys(&[1, 0, 5, b'a']), None, "truncated rest");
+        assert_eq!(decode_keys(&[1, 0, 1, b'a', 9]), None, "trailing byte");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: round trip and the size formula, for any sorted keys.
+        #[test]
+        fn s2a_c4_property_round_trip_and_size(mut keys in proptest::collection::vec(proptest::collection::vec(0u8..4, 0..12), 0..20)) {
+            keys.sort();
+            let block = encode_keys(&keys);
+            prop_assert_eq!(decode_keys(&block), Some(keys.clone()));
+            let mut want = 1;
+            let mut prev: &[u8] = &[];
+            for key in &keys {
+                let shared = prev.iter().zip(key).take_while(|(a, b)| a == b).count();
+                want += 2 + key.len() - shared;
+                prev = key;
+            }
+            prop_assert_eq!(block.len(), want);
+            for cut in 0..block.len() {
+                prop_assert_eq!(decode_keys(&block[..cut]), None, "a block cut at {} must be rejected", cut);
+            }
+        }
+
+        /// Property: decoding any bytes never panics, and what it accepts re-encodes to the same bytes.
+        #[test]
+        fn s2a_c4_property_arbitrary_bytes_decode_or_fail_cleanly(bytes in proptest::collection::vec(any::<u8>(), 0..40)) {
+            if let Some(keys) = decode_keys(&bytes) {
+                prop_assert_eq!(encode_keys(&keys), bytes);
+            }
+        }
+    }
+}
+// @@ challenge 2a-c4 end
+
+// @@ challenge 2a-c5 begin
+mod ch_2a_c5 {
+    use proptest::prelude::*;
+
+    use bustub::storage::page::shift_array::{insert_at, remove_at};
+
+    #[test]
+    fn s2a_c5_inserting_in_the_middle_shifts_the_tail_without_smearing() {
+        let mut a = [1, 2, 3, 0];
+        assert_eq!(insert_at(&mut a, 3, 1, 9), 4);
+        assert_eq!(a, [1, 9, 2, 3]);
+    }
+
+    #[test]
+    fn s2a_c5_inserting_at_the_front_and_at_the_end() {
+        let mut a = [5, 6, 7, 0, 0];
+        assert_eq!(insert_at(&mut a, 3, 0, 1), 4);
+        assert_eq!(a, [1, 5, 6, 7, 0]);
+        assert_eq!(insert_at(&mut a, 4, 4, 8), 5);
+        assert_eq!(a, [1, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn s2a_c5_removing_closes_the_gap() {
+        let mut a = [1, 9, 2, 3];
+        assert_eq!(remove_at(&mut a, 4, 1), 3);
+        assert_eq!(&a[..3], &[1, 2, 3]);
+        assert_eq!(remove_at(&mut a, 3, 0), 2);
+        assert_eq!(&a[..2], &[2, 3]);
+        assert_eq!(remove_at(&mut a, 2, 1), 1);
+        assert_eq!(&a[..1], &[2]);
+    }
+
+    #[test]
+    fn s2a_c5_inserting_into_a_full_prefix_up_to_capacity_and_removing_everything() {
+        let mut a = [0u32; 6];
+        let mut len = 0;
+        for v in (1..=6).rev() {
+            len = insert_at(&mut a, len, 0, v);
+        }
+        assert_eq!(a, [1, 2, 3, 4, 5, 6], "each insert at the front shifts everything");
+        while len > 0 {
+            len = remove_at(&mut a, len, 0);
+        }
+        assert_eq!(len, 0);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against `Vec::insert` and `Vec::remove` on the live prefix.
+        #[test]
+        fn s2a_c5_property_shifting_matches_a_vec(init in proptest::collection::vec(any::<u32>(), 0..12), ops in proptest::collection::vec((any::<bool>(), 0usize..14, any::<u32>()), 0..30)) {
+            let mut arr = [0u32; 16];
+            arr[..init.len()].copy_from_slice(&init);
+            let mut len = init.len();
+            let mut model = init;
+            for (ins, i, v) in ops {
+                if ins && len < arr.len() {
+                    let at = i % (len + 1);
+                    len = insert_at(&mut arr, len, at, v);
+                    model.insert(at, v);
+                } else if !ins && len > 0 {
+                    let at = i % len;
+                    len = remove_at(&mut arr, len, at);
+                    model.remove(at);
+                }
+                prop_assert_eq!(&arr[..len], &model[..]);
+            }
+        }
+    }
+}
+// @@ challenge 2a-c5 end

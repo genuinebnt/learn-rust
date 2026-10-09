@@ -1,0 +1,8 @@
+id = "3e-c5"
+title = "Challenge: rewinding an input"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3e::s3e_c5"]
+learn = ["replaying part of a one-pass stream without buffering all of it", "the inner side of a nested loop join"]
+concepts = []
+concepts_optional = ["iterators-and-closures", "join-algorithms"]

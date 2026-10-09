@@ -1,0 +1,8 @@
+id = "3f-c2"
+title = "Challenge: NOT IN and the NULL"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3f::s3f_c2"]
+learn = ["semi and anti joins", "the NULL trap of NOT IN, against NOT EXISTS"]
+concepts = []
+concepts_optional = ["sql-types-and-three-valued-logic", "join-algorithms", "model-based-testing"]

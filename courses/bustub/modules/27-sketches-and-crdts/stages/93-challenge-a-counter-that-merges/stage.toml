@@ -1,0 +1,8 @@
+id = "0d-c4"
+title = "Challenge: a counter that merges"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_0d::s0d_c4"]
+learn = ["a CRDT counter that supports decrements", "the three laws that make merging order-independent"]
+concepts = []
+concepts_optional = ["crdts-and-observed-remove-sets", "property-testing-and-fuzzing"]

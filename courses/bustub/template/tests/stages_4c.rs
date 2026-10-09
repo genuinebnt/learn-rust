@@ -1331,3 +1331,324 @@ proptest! {
         prop_assert_eq!(contents(&w3.store(1)), want);
     }
 }
+
+// @@ challenge 4c-c1 begin
+mod ch_4c_c1 {
+    use proptest::prelude::*;
+
+    use bustub::recovery::truncation::truncation_lsn;
+
+    #[test]
+    fn s4c_c1_each_bound_can_be_the_one_that_matters() {
+        assert_eq!(truncation_lsn(100, &[], &[]), 100);
+        assert_eq!(truncation_lsn(100, &[90, 120], &[110]), 90, "a page dirty since 90 needs redo from 90");
+        assert_eq!(truncation_lsn(100, &[150], &[95]), 95, "an active transaction may need undo back to 95");
+        assert_eq!(truncation_lsn(100, &[150], &[180]), 100, "the checkpoint start itself");
+    }
+
+    #[test]
+    fn s4c_c1_a_checkpoint_at_zero_keeps_everything() {
+        assert_eq!(truncation_lsn(0, &[5], &[7]), 0);
+    }
+
+    #[test]
+    fn s4c_c1_removing_the_oldest_dirty_page_raises_the_bound() {
+        assert_eq!(truncation_lsn(100, &[40, 60], &[]), 40);
+        assert_eq!(truncation_lsn(100, &[60], &[]), 60);
+        assert_eq!(truncation_lsn(100, &[], &[]), 100);
+    }
+
+    #[test]
+    fn s4c_c1_the_smallest_of_all_three_wins_whatever_the_order_of_the_lists() {
+        assert_eq!(truncation_lsn(100, &[70, 90], &[80, 60]), 60);
+        assert_eq!(truncation_lsn(100, &[90, 70], &[60, 80]), 60);
+        assert_eq!(truncation_lsn(50, &[70, 90], &[80, 60]), 50);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the minimum of all, never above any input, and adding an element only lowers it.
+        #[test]
+        fn s4c_c1_property_it_is_the_minimum_of_everything(cp in 0u64..100, dirty in proptest::collection::vec(0u64..200, 0..5), active in proptest::collection::vec(0u64..200, 0..5), extra in 0u64..200) {
+            let r = truncation_lsn(cp, &dirty, &active);
+            prop_assert_eq!(r, dirty.iter().chain(&active).copied().chain(Some(cp)).min().unwrap());
+            let mut more = dirty.clone();
+            more.push(extra);
+            prop_assert!(truncation_lsn(cp, &more, &active) <= r);
+            prop_assert!(truncation_lsn(cp + 1, &dirty, &active) >= r);
+        }
+    }
+}
+// @@ challenge 4c-c1 end
+
+// @@ challenge 4c-c2 begin
+mod ch_4c_c2 {
+    use proptest::prelude::*;
+
+    use bustub::recovery::group_commit::GroupCommit;
+
+    #[test]
+    fn s4c_c2_a_full_queue_is_flushed_at_once() {
+        let mut g = GroupCommit::new(3, 10);
+        g.submit(1, 0);
+        g.submit(2, 1);
+        assert_eq!(g.poll(2), None);
+        g.submit(3, 2);
+        assert_eq!(g.poll(2), Some(vec![1, 2, 3]));
+        assert_eq!(g.pending(), 0);
+    }
+
+    #[test]
+    fn s4c_c2_the_oldest_commit_never_waits_longer_than_the_limit() {
+        let mut g = GroupCommit::new(10, 10);
+        g.submit(4, 5);
+        assert_eq!(g.poll(14), None);
+        assert_eq!(g.poll(15), Some(vec![4]));
+    }
+
+    #[test]
+    fn s4c_c2_a_newer_commit_rides_with_an_older_one_that_timed_out() {
+        let mut g = GroupCommit::new(10, 10);
+        g.submit(1, 0);
+        g.submit(2, 9);
+        assert_eq!(g.poll(10), Some(vec![1, 2]), "the oldest has waited 10: the whole queue goes");
+    }
+
+    #[test]
+    fn s4c_c2_polling_an_empty_queue_and_polling_twice() {
+        let mut g = GroupCommit::new(2, 5);
+        assert_eq!(g.poll(100), None);
+        g.submit(1, 0);
+        g.submit(2, 0);
+        assert!(g.poll(0).is_some());
+        assert_eq!(g.poll(0), None);
+    }
+
+    #[test]
+    fn s4c_c2_flush_all_returns_everything_in_order() {
+        let mut g = GroupCommit::new(100, 100);
+        for l in [5, 6, 7] {
+            g.submit(l, 0);
+        }
+        assert_eq!(g.flush_all(), vec![5, 6, 7]);
+        assert_eq!(g.flush_all(), Vec::<u64>::new());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: every submission is acknowledged exactly once and in order, and only when a trigger held.
+        #[test]
+        fn s4c_c2_property_everything_is_acknowledged_once_in_order(max_batch in 1usize..5, max_wait in 0u64..8, steps in proptest::collection::vec((0u64..4, 0u8..3), 0..40)) {
+            let mut g = GroupCommit::new(max_batch, max_wait);
+            let (mut now, mut next_lsn) = (0u64, 1u64);
+            let mut submitted: Vec<(u64, u64)> = Vec::new();
+            let mut acked: Vec<u64> = Vec::new();
+            for (dt, op) in steps {
+                now += dt;
+                if op < 2 {
+                    g.submit(next_lsn, now);
+                    submitted.push((next_lsn, now));
+                    next_lsn += 1;
+                }
+                if let Some(batch) = g.poll(now) {
+                    let waiting = &submitted[acked.len()..];
+                    prop_assert!(!batch.is_empty());
+                    prop_assert!(waiting.len() >= max_batch || now - waiting[0].1 >= max_wait, "flushed with no trigger");
+                    acked.extend(batch);
+                }
+                prop_assert_eq!(g.pending(), submitted.len() - acked.len());
+            }
+            acked.extend(g.flush_all());
+            prop_assert_eq!(acked, submitted.iter().map(|s| s.0).collect::<Vec<_>>());
+        }
+    }
+}
+// @@ challenge 4c-c2 end
+
+// @@ challenge 4c-c3 begin
+mod ch_4c_c3 {
+    use proptest::prelude::*;
+
+    use bustub::recovery::redo_pass::redo;
+
+    #[test]
+    fn s4c_c3_a_page_that_is_ahead_of_a_record_is_left_alone() {
+        let mut pages = vec![(5, 100)];
+        redo(&mut pages, &[(3, 0, 1), (7, 0, 2)]);
+        assert_eq!(pages, vec![(7, 2)]);
+    }
+
+    #[test]
+    fn s4c_c3_redo_twice_is_the_same_as_once() {
+        let log = [(1, 0, 10), (2, 1, 20), (3, 0, 30)];
+        let mut once = vec![(0, 0), (0, 0)];
+        redo(&mut once, &log);
+        let mut twice = once.clone();
+        redo(&mut twice, &log);
+        assert_eq!(once, twice);
+        assert_eq!(once, vec![(3, 30), (2, 20)]);
+    }
+
+    #[test]
+    fn s4c_c3_a_page_flushed_at_the_record_is_not_applied_again() {
+        let mut pages = vec![(4, 40)];
+        redo(&mut pages, &[(4, 0, 999)]);
+        assert_eq!(pages, vec![(4, 40)], "the same LSN has already been applied");
+    }
+
+    #[test]
+    fn s4c_c3_unrelated_pages_are_independent() {
+        let mut pages = vec![(10, 1), (0, 0)];
+        redo(&mut pages, &[(2, 0, 7), (3, 1, 8)]);
+        assert_eq!(pages, vec![(10, 1), (3, 8)]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: starting from pages that already reflect a prefix of the log gives the same result as redoing the whole log from empty pages.
+        #[test]
+        fn s4c_c3_property_a_prefix_already_applied_changes_nothing(recs in proptest::collection::vec((0usize..3, -9i64..9), 0..20), cut in 0usize..21) {
+            let log: Vec<(u64, usize, i64)> = recs.iter().enumerate().map(|(i, &(p, v))| (i as u64 + 1, p, v)).collect();
+            let mut full = vec![(0u64, 0i64); 3];
+            redo(&mut full, &log);
+            let cut = cut.min(log.len());
+            let mut partial = vec![(0u64, 0i64); 3];
+            redo(&mut partial, &log[..cut]);
+            redo(&mut partial, &log);
+            prop_assert_eq!(&partial, &full);
+            let before = full.clone();
+            redo(&mut full, &log);
+            prop_assert_eq!(full, before);
+        }
+    }
+}
+// @@ challenge 4c-c3 end
+
+// @@ challenge 4c-c4 begin
+mod ch_4c_c4 {
+    use proptest::prelude::*;
+
+    use bustub::recovery::pitr::{recover_until, Rec::*};
+    use std::collections::BTreeMap;
+
+    fn log() -> Vec<(u64, bustub::recovery::pitr::Rec)> {
+        vec![(1, Begin(1)), (2, Set(1, 7, 1)), (4, Commit(1)), (5, Begin(2)), (6, Set(2, 7, 2)), (7, Set(2, 8, 5)), (8, Commit(2))]
+    }
+
+    #[test]
+    fn s4c_c4_a_commit_after_the_point_does_not_count() {
+        assert_eq!(recover_until(&log(), 5), BTreeMap::from([(7, 1)]));
+        assert_eq!(recover_until(&log(), 7), BTreeMap::from([(7, 1)]), "writes of an uncommitted transaction are not applied");
+    }
+
+    #[test]
+    fn s4c_c4_the_whole_log_gives_the_full_recovery() {
+        assert_eq!(recover_until(&log(), 8), BTreeMap::from([(7, 2), (8, 5)]));
+        assert_eq!(recover_until(&log(), u64::MAX), BTreeMap::from([(7, 2), (8, 5)]));
+    }
+
+    #[test]
+    fn s4c_c4_before_the_first_commit_nothing_is_there() {
+        assert_eq!(recover_until(&log(), 3), BTreeMap::new());
+        assert_eq!(recover_until(&[], 100), BTreeMap::new());
+    }
+
+    #[test]
+    fn s4c_c4_aborted_transactions_never_appear() {
+        let l = vec![(1, Begin(1)), (2, Set(1, 1, 1)), (3, Abort(1)), (4, Begin(2)), (5, Set(2, 2, 2)), (6, Commit(2))];
+        assert_eq!(recover_until(&l, 100), BTreeMap::from([(2, 2)]));
+    }
+
+    #[test]
+    fn s4c_c4_interleaved_transactions_apply_in_log_order() {
+        let l = vec![(1, Set(2, 5, 20)), (2, Set(1, 5, 10)), (3, Commit(1)), (4, Commit(2))];
+        assert_eq!(recover_until(&l, 100), BTreeMap::from([(5, 10)]), "the writes are applied in log order: transaction 1 wrote last, though transaction 2 committed last");
+        assert_eq!(recover_until(&l, 3), BTreeMap::from([(5, 10)]));
+        assert_eq!(recover_until(&l, 2), BTreeMap::new());
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the state as of a point equals recovering a log cut at that point, and raising the point only adds committed transactions.
+        #[test]
+        fn s4c_c4_property_recovery_depends_only_on_the_prefix(events in proptest::collection::vec((0u32..3, 0u8..4, 0i64..3, 0i64..9), 0..20), cut in 0u64..25) {
+            let mut log = Vec::new();
+            let mut finished = std::collections::BTreeSet::new();
+            for (i, (t, kind, k, v)) in events.into_iter().enumerate() {
+                let lsn = i as u64 + 1;
+                if finished.contains(&t) { continue; }
+                match kind {
+                    0 | 1 => log.push((lsn, Set(t, k, v))),
+                    2 => { log.push((lsn, Commit(t))); finished.insert(t); }
+                    _ => { log.push((lsn, Abort(t))); finished.insert(t); }
+                }
+            }
+            let prefix: Vec<_> = log.iter().filter(|(l, _)| *l <= cut).cloned().collect();
+            prop_assert_eq!(recover_until(&log, cut), recover_until(&prefix, cut));
+            prop_assert_eq!(recover_until(&log, 1000), recover_until(&log, u64::MAX));
+        }
+    }
+}
+// @@ challenge 4c-c4 end
+
+// @@ challenge 4c-c5 begin
+mod ch_4c_c5 {
+    use proptest::prelude::*;
+
+    use bustub::recovery::analysis::{analyze, Analysis, LogRec::*};
+    use std::collections::{BTreeMap, BTreeSet};
+
+    fn a(active: &[u32], dirty: &[(u32, u64)]) -> Analysis {
+        Analysis { active: active.iter().copied().collect::<BTreeSet<_>>(), dirty: dirty.iter().copied().collect::<BTreeMap<_, _>>() }
+    }
+
+    #[test]
+    fn s4c_c5_the_checkpoint_state_is_carried_forward() {
+        let cp = a(&[1], &[(0, 10)]);
+        let after = vec![(12, Update(1, 0)), (13, Begin(2)), (14, Update(2, 5)), (15, Commit(1))];
+        assert_eq!(analyze(&cp, &after), a(&[2], &[(0, 10), (5, 14)]));
+    }
+
+    #[test]
+    fn s4c_c5_a_page_keeps_the_lsn_of_its_first_dirtying() {
+        let after = vec![(1, Update(1, 7)), (2, Update(1, 7)), (3, Update(2, 7))];
+        assert_eq!(analyze(&Analysis::default(), &after).dirty, BTreeMap::from([(7, 1)]));
+    }
+
+    #[test]
+    fn s4c_c5_a_transaction_first_seen_in_an_update_is_active() {
+        let after = vec![(5, Update(9, 1))];
+        assert_eq!(analyze(&Analysis::default(), &after).active, BTreeSet::from([9]));
+    }
+
+    #[test]
+    fn s4c_c5_commit_and_abort_both_end_a_transaction() {
+        let after = vec![(1, Begin(1)), (2, Begin(2)), (3, Commit(1)), (4, Abort(2))];
+        assert_eq!(analyze(&Analysis::default(), &after).active, BTreeSet::new());
+    }
+
+    #[test]
+    fn s4c_c5_no_records_after_the_checkpoint_gives_the_checkpoint() {
+        let cp = a(&[3], &[(1, 2)]);
+        assert_eq!(analyze(&cp, &[]), cp);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: analysing a whole log equals analysing the part after a checkpoint taken in the middle of it.
+        #[test]
+        fn s4c_c5_property_a_checkpoint_in_the_middle_changes_nothing(events in proptest::collection::vec((0u8..4, 0u32..3, 0u32..3), 0..20), cut in 0usize..21) {
+            let log: Vec<(u64, bustub::recovery::analysis::LogRec)> = events.iter().enumerate().map(|(i, &(k, t, p))| (i as u64 + 1, match k { 0 => Begin(t), 1 | 2 => Update(t, p), _ => Commit(t) })).collect();
+            let cut = cut.min(log.len());
+            let whole = analyze(&Analysis::default(), &log);
+            let checkpoint = analyze(&Analysis::default(), &log[..cut]);
+            prop_assert_eq!(analyze(&checkpoint, &log[cut..]), whole);
+        }
+    }
+}
+// @@ challenge 4c-c5 end

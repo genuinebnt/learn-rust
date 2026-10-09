@@ -1,0 +1,8 @@
+id = "3d-c2"
+title = "Challenge: printing expressions"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3d::s3d_c2"]
+learn = ["printing a tree with only the parentheses it needs", "precedence and associativity, from the printing side"]
+concepts = []
+concepts_optional = ["lexers-and-precedence-climbing", "expression-trees"]

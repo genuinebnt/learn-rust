@@ -1,0 +1,8 @@
+id = "4a-c4"
+title = "Challenge: undoing a partial update"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4a::s4a_c4"]
+learn = ["storing only the columns that changed as an undo record", "reconstructing older versions by applying undo records newest first"]
+concepts = []
+concepts_optional = ["rolling-back-with-undo-logs", "multi-version-concurrency-control"]

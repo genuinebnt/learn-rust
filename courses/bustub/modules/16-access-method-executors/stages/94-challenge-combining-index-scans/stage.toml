@@ -1,0 +1,8 @@
+id = "3e-c4"
+title = "Challenge: combining index scans"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3e::s3e_c4"]
+learn = ["union, intersection and difference of sorted row-id lists in one pass", "why an OR of two index conditions must not return a row twice"]
+concepts = []
+concepts_optional = ["access-paths-index-vs-seq-scan", "conjunctive-predicates", "model-based-testing"]

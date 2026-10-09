@@ -1,0 +1,8 @@
+id = "0b-c3"
+title = "Challenge: counting a range"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_0b::s0b_c3"]
+learn = ["answering a range query through the bottom level of an ordered structure", "where a plain skip list stops and an indexable one begins"]
+concepts = []
+concepts_optional = ["skip-lists", "ordered-sets-as-priority-queues"]

@@ -1,0 +1,8 @@
+id = "0c-c3"
+title = "Challenge: the distance that wraps"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_0c::s0c_c3"]
+learn = ["finding a modular-distance bug that only shows when a probe run wraps around the end of the table"]
+concepts = []
+concepts_optional = ["robin-hood-hashing-and-open-addressing", "overflow-and-checked-arithmetic", "property-testing-and-fuzzing"]

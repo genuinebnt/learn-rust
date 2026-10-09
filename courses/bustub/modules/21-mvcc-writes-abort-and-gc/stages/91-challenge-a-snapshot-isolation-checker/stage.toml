@@ -1,0 +1,8 @@
+id = "4b-c2"
+title = "Challenge: a snapshot-isolation checker"
+kind = "challenge"
+difficulty = "hard"
+tests = ["stages_4b::s4b_c2"]
+learn = ["checking a recorded history against the definition of snapshot isolation", "separating a wrong read from a lost update"]
+concepts = []
+concepts_optional = ["snapshot-isolation", "serializable-validation-by-predicates", "model-based-testing"]

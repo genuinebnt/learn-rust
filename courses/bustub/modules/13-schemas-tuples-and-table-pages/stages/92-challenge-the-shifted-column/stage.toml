@@ -1,0 +1,8 @@
+id = "3b-c3"
+title = "Challenge: the shifted column"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3b::s3b_c3"]
+learn = ["finding an off-by-one in an offsets array", "reading the boundaries of variable-length columns"]
+concepts = []
+concepts_optional = ["slices-copy-within-and-binary-search", "property-testing-and-fuzzing"]

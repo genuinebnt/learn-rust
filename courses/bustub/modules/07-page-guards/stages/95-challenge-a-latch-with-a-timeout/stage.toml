@@ -1,0 +1,8 @@
+id = "1g-c4"
+title = "Challenge: a latch with a timeout"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_1g::s1g_c4"]
+learn = ["waiting for a resource for a bounded time", "telling 'timed out' from 'woken'"]
+concepts = []
+concepts_optional = ["condvars-and-blocking-queues", "deadlock-and-lock-ordering", "raii-guards-and-lifetimes"]

@@ -1,0 +1,8 @@
+id = "2b-c3"
+title = "Challenge: consistent hashing"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_2b::s2b_c3"]
+learn = ["placing keys on nodes so that adding or removing a node moves few keys", "virtual nodes for balance"]
+concepts = []
+concepts_optional = ["hash-functions-and-murmur3", "extendible-hashing", "model-based-testing"]

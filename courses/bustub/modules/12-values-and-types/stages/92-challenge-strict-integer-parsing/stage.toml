@@ -1,0 +1,8 @@
+id = "3a-c3"
+title = "Challenge: strict integer parsing"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3a::s3a_c3"]
+learn = ["parsing text into an integer with every failure named", "detecting overflow without parsing into a wider type"]
+concepts = []
+concepts_optional = ["parsing-numbers-from-text", "overflow-and-checked-arithmetic", "errors-as-values-with-result"]

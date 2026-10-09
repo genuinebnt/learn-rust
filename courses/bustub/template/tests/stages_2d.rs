@@ -415,3 +415,301 @@ proptest! {
         prop_assert_eq!(LiveKeys::new(&leaves).collect::<Vec<_>>(), want);
     }
 }
+
+// @@ challenge 2d-c2 begin
+mod ch_2d_c2 {
+    use proptest::prelude::*;
+
+    use bustub::storage::index::tombstone_leaf::TombstoneLeaf;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn s2d_c2_removing_leaves_a_tombstone_and_inserting_revives_it_in_place() {
+        let mut l = TombstoneLeaf::new();
+        for k in [3, 1, 2] {
+            assert_eq!(l.insert(k, k as u64 * 10), None);
+        }
+        assert_eq!(l.remove(2), Some(20));
+        assert_eq!((l.slots(), l.live_len(), l.tombstones()), (3, 2, 1));
+        assert_eq!(l.get(2), None);
+        assert_eq!(l.insert(2, 99), None, "the key was dead, so there is no old value");
+        assert_eq!((l.slots(), l.live_len(), l.tombstones()), (3, 3, 0), "revived in its own slot, no new slot");
+        assert_eq!(l.get(2), Some(99));
+        assert_eq!(l.keys(), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn s2d_c2_inserting_a_live_key_replaces_and_returns_the_old_value() {
+        let mut l = TombstoneLeaf::new();
+        l.insert(5, 1);
+        assert_eq!(l.insert(5, 2), Some(1));
+        assert_eq!((l.get(5), l.slots()), (Some(2), 1));
+    }
+
+    #[test]
+    fn s2d_c2_removing_a_missing_or_dead_key_says_none() {
+        let mut l = TombstoneLeaf::new();
+        l.insert(1, 1);
+        assert_eq!(l.remove(9), None);
+        assert_eq!(l.remove(1), Some(1));
+        assert_eq!(l.remove(1), None);
+    }
+
+    #[test]
+    fn s2d_c2_compaction_rule_and_effect() {
+        let mut l = TombstoneLeaf::new();
+        for k in 0..6 {
+            l.insert(k, k as u64);
+        }
+        for k in 0..3 {
+            l.remove(k);
+        }
+        assert!(!l.should_compact(), "3 of 6 is exactly half, not more than half");
+        l.remove(3);
+        assert!(l.should_compact());
+        l.compact();
+        assert_eq!((l.slots(), l.tombstones(), l.should_compact()), (2, 0, false));
+        assert_eq!(l.keys(), vec![4, 5]);
+        assert_eq!(l.get(4), Some(4));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a `BTreeMap`, with a key never occupying two slots, and compaction changing no answer.
+        #[test]
+        fn s2d_c2_property_a_leaf_matches_a_map(ops in proptest::collection::vec((0u8..4, 0i64..8, any::<u64>()), 0..80)) {
+            let mut l = TombstoneLeaf::new();
+            let mut m: BTreeMap<i64, u64> = BTreeMap::new();
+            let mut ever: std::collections::BTreeSet<i64> = Default::default();
+            for (op, k, v) in ops {
+                match op {
+                    0 | 1 => { prop_assert_eq!(l.insert(k, v), m.insert(k, v)); ever.insert(k); }
+                    2 => prop_assert_eq!(l.remove(k), m.remove(&k)),
+                    _ => { l.compact(); ever = m.keys().copied().collect(); }
+                }
+                prop_assert_eq!(l.live_len(), m.len());
+                prop_assert_eq!(l.slots(), ever.len(), "a key must never occupy two slots");
+                prop_assert_eq!(l.keys(), m.keys().copied().collect::<Vec<_>>());
+                for key in 0..8 { prop_assert_eq!(l.get(key), m.get(&key).copied()); }
+            }
+        }
+    }
+}
+// @@ challenge 2d-c2 end
+
+// @@ challenge 2d-c3 begin
+mod ch_2d_c3 {
+    use proptest::prelude::*;
+
+    use bustub::storage::index::live_counts::LiveCounts;
+
+    #[test]
+    fn s2d_c3_prefix_sums_and_ranges() {
+        let c = LiveCounts::new(&[2, 0, 3, 1]);
+        assert_eq!((c.prefix(0), c.prefix(1), c.prefix(2), c.prefix(3), c.prefix(4)), (0, 2, 2, 5, 6));
+        assert_eq!((c.range(1, 3), c.range(2, 2), c.range(3, 1), c.total()), (3, 0, 0, 6));
+        assert_eq!(c.prefix(100), 6, "past the end is the total");
+    }
+
+    #[test]
+    fn s2d_c3_find_the_leaf_of_the_kth_live_key_skipping_empty_leaves() {
+        let c = LiveCounts::new(&[2, 0, 3]);
+        assert_eq!(c.find(0), Some((0, 0)));
+        assert_eq!(c.find(1), Some((0, 1)));
+        assert_eq!(c.find(2), Some((2, 0)), "leaf 1 is empty and is skipped");
+        assert_eq!(c.find(4), Some((2, 2)));
+        assert_eq!(c.find(5), None);
+    }
+
+    #[test]
+    fn s2d_c3_updates_change_later_prefixes_only() {
+        let mut c = LiveCounts::new(&[2, 0, 3]);
+        c.add(1, 2);
+        assert_eq!((c.prefix(1), c.prefix(2), c.prefix(3)), (2, 4, 7));
+        assert_eq!(c.find(2), Some((1, 0)));
+        c.add(0, -5);
+        assert_eq!(c.count(0), 0, "a count never goes below zero");
+        assert_eq!(c.total(), 5);
+    }
+
+    #[test]
+    fn s2d_c3_no_leaves_and_all_empty_leaves() {
+        let c = LiveCounts::new(&[]);
+        assert_eq!((c.total(), c.find(0), c.leaves()), (0, None, 0));
+        let c = LiveCounts::new(&[0, 0, 0]);
+        assert_eq!(c.find(0), None);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against sums recomputed from scratch, after any updates; `find` is the inverse of `prefix`.
+        #[test]
+        fn s2d_c3_property_counts_match_recomputed_sums(init in proptest::collection::vec(0usize..5, 0..12), ops in proptest::collection::vec((0usize..12, -4i64..5), 0..40)) {
+            let mut c = LiveCounts::new(&init);
+            let mut m: Vec<i64> = init.iter().map(|&x| x as i64).collect();
+            for (i, d) in ops {
+                if m.is_empty() { break; }
+                let i = i % m.len();
+                c.add(i, d);
+                m[i] = (m[i] + d).max(0);
+                for j in 0..=m.len() {
+                    prop_assert_eq!(c.prefix(j) as i64, m[..j].iter().sum::<i64>());
+                }
+                let total: i64 = m.iter().sum();
+                for k in 0..total as usize + 1 {
+                    let want = { let mut rem = k as i64; m.iter().position(|&n| { if rem < n { true } else { rem -= n; false } }).map(|leaf| (leaf, (k as i64 - m[..leaf].iter().sum::<i64>()) as usize)) };
+                    prop_assert_eq!(c.find(k), want, "find({})", k);
+                }
+            }
+        }
+    }
+}
+// @@ challenge 2d-c3 end
+
+// @@ challenge 2d-c4 begin
+mod ch_2d_c4 {
+    use proptest::prelude::*;
+
+    use bustub::storage::index::dead_slots::DeadSlots;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn s2d_c4_a_removed_key_can_be_inserted_again_and_is_found_once() {
+        let mut d = DeadSlots::new();
+        assert!(d.insert(5));
+        assert!(d.remove(5));
+        assert!(d.insert(5));
+        assert!(d.contains(5));
+        assert_eq!((d.len(), d.keys()), (1, vec![5]));
+    }
+
+    #[test]
+    fn s2d_c4_reviving_repeatedly_never_duplicates() {
+        let mut d = DeadSlots::new();
+        for _ in 0..5 {
+            assert!(d.insert(1));
+            assert!(d.remove(1));
+        }
+        assert!(d.insert(1));
+        assert_eq!((d.len(), d.keys()), (1, vec![1]));
+        assert!(!d.insert(1), "already live");
+    }
+
+    #[test]
+    fn s2d_c4_other_keys_are_not_disturbed() {
+        let mut d = DeadSlots::new();
+        for k in [3, 1, 2] {
+            d.insert(k);
+        }
+        d.remove(2);
+        d.insert(2);
+        d.remove(1);
+        assert_eq!(d.keys(), vec![2, 3]);
+        assert!(!d.contains(1));
+    }
+
+    #[test]
+    fn s2d_c4_removing_what_is_not_live_is_false() {
+        let mut d = DeadSlots::new();
+        assert!(!d.remove(9));
+        d.insert(9);
+        d.remove(9);
+        assert!(!d.remove(9));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a `BTreeSet`, with `len` and `keys` agreeing.
+        #[test]
+        fn s2d_c4_property_a_dead_slot_list_is_a_set(ops in proptest::collection::vec((any::<bool>(), 0i64..6), 0..60)) {
+            let mut d = DeadSlots::new();
+            let mut m = BTreeSet::new();
+            for (ins, k) in ops {
+                if ins { prop_assert_eq!(d.insert(k), m.insert(k)); } else { prop_assert_eq!(d.remove(k), m.remove(&k)); }
+                prop_assert_eq!(d.len(), m.len());
+                prop_assert_eq!(d.keys(), m.iter().copied().collect::<Vec<_>>());
+                for key in 0..6 { prop_assert_eq!(d.contains(key), m.contains(&key)); }
+            }
+        }
+    }
+}
+// @@ challenge 2d-c4 end
+
+// @@ challenge 2d-c5 begin
+mod ch_2d_c5 {
+    use proptest::prelude::*;
+
+    use bustub::storage::index::leaf_reclaim::{insert_into_leaf, Entry, Inserted};
+    use std::collections::BTreeSet;
+
+    fn live(v: &[Entry]) -> BTreeSet<i32> {
+        v.iter().filter(|e| e.1).map(|e| e.0).collect()
+    }
+
+    #[test]
+    fn s2d_c5_an_existing_key_becomes_live_and_nothing_else_changes() {
+        let leaf = vec![(1, true), (2, false), (3, true)];
+        assert_eq!(insert_into_leaf(&leaf, 3, 2), Inserted::Done(vec![(1, true), (2, true), (3, true)]));
+        assert_eq!(insert_into_leaf(&leaf, 3, 3), Inserted::Done(leaf.clone()), "already live: unchanged, and no split though full");
+    }
+
+    #[test]
+    fn s2d_c5_a_leaf_with_room_takes_the_key_in_order() {
+        let leaf = vec![(1, true), (5, false)];
+        assert_eq!(insert_into_leaf(&leaf, 4, 3), Inserted::Done(vec![(1, true), (3, true), (5, false)]), "tombstones stay while there is room");
+        assert_eq!(insert_into_leaf(&[], 2, 9), Inserted::Done(vec![(9, true)]));
+    }
+
+    #[test]
+    fn s2d_c5_a_full_leaf_with_tombstones_is_cleaned_not_split() {
+        let leaf = vec![(1, true), (2, false), (3, true)];
+        assert_eq!(insert_into_leaf(&leaf, 3, 4), Inserted::Done(vec![(1, true), (3, true), (4, true)]));
+        let all_dead = vec![(1, false), (2, false)];
+        assert_eq!(insert_into_leaf(&all_dead, 2, 0), Inserted::Done(vec![(0, true)]));
+    }
+
+    #[test]
+    fn s2d_c5_a_full_clean_leaf_splits_in_the_middle() {
+        let leaf = vec![(1, true), (2, true), (3, true)];
+        assert_eq!(insert_into_leaf(&leaf, 3, 4), Inserted::Split(vec![(1, true), (2, true)], vec![(3, true), (4, true)]));
+        let leaf = vec![(10, true), (20, true), (30, true), (40, true)];
+        match insert_into_leaf(&leaf, 4, 25) {
+            Inserted::Split(l, r) => assert_eq!((l.len(), r.len()), (3, 2), "capacity + 1 entries, (capacity + 2) / 2 on the left"),
+            other => panic!("expected a split, got {other:?}"),
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: live keys are conserved plus the new one; halves are sorted and ordered; a split only for a full clean leaf.
+        #[test]
+        fn s2d_c5_property_live_keys_are_conserved(raw in proptest::collection::btree_map(0i32..30, any::<bool>(), 0..8), extra in 0usize..3, key in 0i32..30) {
+            let leaf: Vec<Entry> = raw.into_iter().collect();
+            let capacity = leaf.len() + extra;
+            prop_assume!(capacity >= 1);
+            let mut want = live(&leaf);
+            want.insert(key);
+            match insert_into_leaf(&leaf, capacity, key) {
+                Inserted::Done(v) => {
+                    prop_assert!(v.len() <= capacity);
+                    prop_assert!(v.windows(2).all(|w| w[0].0 < w[1].0));
+                    prop_assert_eq!(live(&v), want);
+                }
+                Inserted::Split(l, r) => {
+                    prop_assert!(leaf.len() == capacity && leaf.iter().all(|e| e.1) && !leaf.iter().any(|e| e.0 == key));
+                    prop_assert!(l.windows(2).all(|w| w[0].0 < w[1].0) && r.windows(2).all(|w| w[0].0 < w[1].0));
+                    prop_assert!(l.last().unwrap().0 < r[0].0);
+                    prop_assert_eq!(l.len() + r.len(), capacity + 1);
+                    let mut both = live(&l);
+                    both.extend(live(&r));
+                    prop_assert_eq!(both, want);
+                }
+            }
+        }
+    }
+}
+// @@ challenge 2d-c5 end

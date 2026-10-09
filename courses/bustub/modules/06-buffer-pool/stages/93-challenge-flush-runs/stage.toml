@@ -1,0 +1,8 @@
+id = "1f-c2"
+title = "Challenge: flush runs"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1f::s1f_c2"]
+learn = ["turning a set of dirty pages into the fewest sequential writes", "bounding a run's length"]
+concepts = []
+concepts_optional = ["eviction-and-write-back-ordering", "performance-tests-and-measuring"]

@@ -1,0 +1,8 @@
+id = "0a-c5"
+title = "Challenge: wildcard keys"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_0a::s0a_c5"]
+learn = ["searching a trie with a pattern, pruning by the first mismatch", "a bounded branching search that never revisits"]
+concepts = []
+concepts_optional = ["tries", "iterators-and-closures"]

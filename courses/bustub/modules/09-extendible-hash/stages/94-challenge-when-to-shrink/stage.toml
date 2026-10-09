@@ -1,0 +1,8 @@
+id = "2b-c5"
+title = "Challenge: when to shrink"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_2b::s2b_c5"]
+learn = ["finding a wrong quantifier in a structural precondition", "stating when a directory may be halved"]
+concepts = []
+concepts_optional = ["extendible-hashing", "checking-invariants"]

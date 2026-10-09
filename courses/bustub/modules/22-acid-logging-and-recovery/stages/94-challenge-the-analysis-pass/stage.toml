@@ -1,0 +1,8 @@
+id = "4c-c5"
+title = "Challenge: the analysis pass"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4c::s4c_c5"]
+learn = ["rebuilding the active-transaction table and the dirty-page table from a checkpoint and the log after it", "what each record type changes"]
+concepts = []
+concepts_optional = ["aries-recovery", "write-ahead-logging", "checking-invariants"]

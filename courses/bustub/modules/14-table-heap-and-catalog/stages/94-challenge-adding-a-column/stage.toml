@@ -1,0 +1,8 @@
+id = "3c-c5"
+title = "Challenge: adding a column"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3c::s3c_c5"]
+learn = ["schema change without rewriting the table", "reading old rows through the current schema"]
+concepts = []
+concepts_optional = ["structs-and-accessors", "option-and-result-combinators", "model-based-testing"]

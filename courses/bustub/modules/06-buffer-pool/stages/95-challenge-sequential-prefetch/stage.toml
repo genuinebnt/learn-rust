@@ -1,0 +1,8 @@
+id = "1f-c4"
+title = "Challenge: sequential prefetch"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_1f::s1f_c4"]
+learn = ["detecting a sequential access pattern from a stream of page numbers", "suggesting work ahead of demand without suggesting the same page twice"]
+concepts = []
+concepts_optional = ["performance-tests-and-measuring", "range-scans-and-the-leaf-chain"]

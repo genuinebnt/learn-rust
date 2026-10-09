@@ -1,0 +1,8 @@
+id = "2c-c3"
+title = "Challenge: prefix scans"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_2c::s2c_c3"]
+learn = ["turning a prefix match into a half-open key range", "the one case where no upper bound exists"]
+concepts = []
+concepts_optional = ["range-scans-and-the-leaf-chain", "routing-with-separator-keys"]

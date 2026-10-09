@@ -1,0 +1,8 @@
+id = "3h-c1"
+title = "Challenge: constant folding"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3h::s3h_c1"]
+learn = ["evaluating the parts of an expression that do not depend on the row", "algebraic identities that are always safe"]
+concepts = []
+concepts_optional = ["rule-based-query-optimization", "expression-trees", "property-testing-and-fuzzing"]

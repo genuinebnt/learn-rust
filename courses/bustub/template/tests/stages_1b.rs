@@ -856,3 +856,235 @@ fn s1b_c2_gates_are_independent() {
     rx.recv_timeout(WAIT).unwrap();
     h.join().unwrap();
 }
+
+// @@ challenge 1b-c3 begin
+mod ch_1b_c3 {
+    use proptest::prelude::*;
+
+    use bustub::storage::disk::request_queue::RequestQueue;
+
+    #[test]
+    fn s1b_c3_the_most_urgent_goes_first_and_ties_go_in_arrival_order() {
+        let mut q = RequestQueue::new();
+        for (p, x) in [(1, 'a'), (3, 'b'), (3, 'c'), (2, 'd')] {
+            q.push(p, x);
+        }
+        assert_eq!(q.peek_priority(), Some(3));
+        assert_eq!((q.pop(), q.pop(), q.pop(), q.pop(), q.pop()), (Some('b'), Some('c'), Some('d'), Some('a'), None));
+    }
+
+    #[test]
+    fn s1b_c3_a_late_urgent_request_overtakes_older_ones() {
+        let mut q = RequestQueue::new();
+        q.push(1, "old1");
+        q.push(1, "old2");
+        q.push(9, "urgent");
+        assert_eq!(q.pop(), Some("urgent"));
+        assert_eq!(q.pop(), Some("old1"), "equals keep their arrival order");
+    }
+
+    #[test]
+    fn s1b_c3_an_empty_queue_has_nothing() {
+        let mut q: RequestQueue<u8> = RequestQueue::new();
+        assert!(q.is_empty());
+        assert_eq!((q.pop(), q.peek_priority(), q.len()), (None, None, 0));
+    }
+
+    #[test]
+    fn s1b_c3_items_need_no_ordering_of_their_own() {
+        struct NoOrd(u32);
+        let mut q = RequestQueue::new();
+        q.push(2, NoOrd(10));
+        q.push(2, NoOrd(20));
+        assert_eq!(q.pop().map(|x| x.0), Some(10));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 128, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the pop order is the push order stably sorted by descending priority, with pops mixed between pushes.
+        #[test]
+        fn s1b_c3_property_pops_equal_a_stable_sort(ops in proptest::collection::vec(prop_oneof![(0u8..4, any::<u16>()).prop_map(Some), Just(None)], 0..60)) {
+            let mut q = RequestQueue::new();
+            let mut model: Vec<(u8, u16)> = Vec::new(); // in arrival order
+            for op in ops {
+                match op {
+                    Some((p, x)) => { q.push(p, x); model.push((p, x)); }
+                    None => {
+                        let best = model.iter().enumerate().max_by_key(|&(i, &(p, _))| (p, std::cmp::Reverse(i))).map(|(i, _)| i);
+                        prop_assert_eq!(q.peek_priority(), best.map(|i| model[i].0));
+                        prop_assert_eq!(q.pop(), best.map(|i| model.remove(i).1));
+                    }
+                }
+                prop_assert_eq!(q.len(), model.len());
+            }
+        }
+    }
+}
+// @@ challenge 1b-c3 end
+
+// @@ challenge 1b-c4 begin
+mod ch_1b_c4 {
+    use proptest::prelude::*;
+
+    use bustub::storage::disk::coalesce::{coalesce, Op};
+    use std::collections::HashMap;
+
+    use Op::{Read as R, Write as W};
+
+    /// Replays operations on a disk and returns what the reads saw, and the final contents.
+    fn replay(ops: &[Op]) -> (Vec<Option<u8>>, Vec<(u32, u8)>) {
+        let mut disk: HashMap<u32, u8> = HashMap::new();
+        let mut seen = Vec::new();
+        for op in ops {
+            match *op {
+                W(p, v) => {
+                    disk.insert(p, v);
+                }
+                R(p) => seen.push(disk.get(&p).copied()),
+            }
+        }
+        let mut fin: Vec<_> = disk.into_iter().collect();
+        fin.sort();
+        (seen, fin)
+    }
+
+    #[test]
+    fn s1b_c4_repeated_writes_to_one_page_become_the_last_one() {
+        assert_eq!(coalesce(&[W(1, 1), W(1, 2), W(1, 3)]), vec![W(1, 3)]);
+    }
+
+    #[test]
+    fn s1b_c4_a_read_in_between_protects_the_write_it_would_see() {
+        assert_eq!(coalesce(&[W(1, 1), R(1), W(1, 2)]), vec![W(1, 1), R(1), W(1, 2)]);
+    }
+
+    #[test]
+    fn s1b_c4_writes_to_other_pages_in_between_do_not_matter() {
+        assert_eq!(coalesce(&[W(1, 1), W(2, 9), W(1, 2)]), vec![W(2, 9), W(1, 2)]);
+    }
+
+    #[test]
+    fn s1b_c4_a_read_of_another_page_does_not_protect_a_write() {
+        assert_eq!(coalesce(&[W(1, 1), R(2), W(1, 2)]), vec![R(2), W(1, 2)]);
+    }
+
+    #[test]
+    fn s1b_c4_empty_and_single_operations() {
+        assert_eq!(coalesce(&[]), vec![]);
+        assert_eq!(coalesce(&[R(5)]), vec![R(5)]);
+        assert_eq!(coalesce(&[W(5, 1)]), vec![W(5, 1)]);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: same read results and final contents, idempotent, never longer, and minimal (no two writes to a page without a read between).
+        #[test]
+        fn s1b_c4_property_coalescing_changes_no_read_and_is_minimal(raw in proptest::collection::vec((any::<bool>(), 0u32..4, 0u8..5), 0..40)) {
+            let ops: Vec<Op> = raw.into_iter().map(|(w, p, v)| if w { W(p, v) } else { R(p) }).collect();
+            let out = coalesce(&ops);
+            prop_assert_eq!(replay(&out), replay(&ops));
+            prop_assert!(out.len() <= ops.len());
+            prop_assert_eq!(coalesce(&out), out.clone());
+            prop_assert_eq!(out.iter().filter(|o| matches!(o, R(_))).count(), ops.iter().filter(|o| matches!(o, R(_))).count());
+            for page in 0..4 {
+                let mut since_write = false; // a write is pending with no read since
+                for op in &out {
+                    match *op {
+                        W(p, _) if p == page => {
+                            prop_assert!(!since_write, "two writes to page {} with no read between them in {:?}", page, out);
+                            since_write = true;
+                        }
+                        R(p) if p == page => since_write = false,
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+}
+// @@ challenge 1b-c4 end
+
+// @@ challenge 1b-c5 begin
+mod ch_1b_c5 {
+    use proptest::prelude::*;
+
+    use bustub::storage::disk::job_pool::JobPool;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    fn run(workers: usize, jobs: usize) -> usize {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let mut pool = JobPool::new(workers);
+        let mut accepted = 0;
+        for _ in 0..jobs {
+            let c = Arc::clone(&counter);
+            if pool.submit(move || {
+                std::thread::yield_now();
+                c.fetch_add(1, Ordering::SeqCst);
+            }) {
+                accepted += 1;
+            }
+        }
+        pool.shutdown();
+        assert_eq!(accepted, jobs);
+        counter.load(Ordering::SeqCst)
+    }
+
+    #[test]
+    fn s1b_c5_every_submitted_job_runs_before_shutdown_returns() {
+        assert_eq!(run(4, 200), 200, "jobs were still queued when the workers stopped");
+    }
+
+    #[test]
+    fn s1b_c5_one_worker_and_many_workers() {
+        assert_eq!(run(1, 100), 100);
+        assert_eq!(run(8, 300), 300);
+    }
+
+    #[test]
+    fn s1b_c5_a_job_submitted_after_shutdown_is_refused_and_does_not_run() {
+        let ran = Arc::new(AtomicUsize::new(0));
+        let mut pool = JobPool::new(2);
+        pool.shutdown();
+        let r = Arc::clone(&ran);
+        assert!(!pool.submit(move || {
+            r.fetch_add(1, Ordering::SeqCst);
+        }));
+        assert_eq!(ran.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn s1b_c5_shutting_down_twice_and_dropping_are_fine() {
+        let c = Arc::new(AtomicUsize::new(0));
+        let mut pool = JobPool::new(2);
+        for _ in 0..20 {
+            let c = Arc::clone(&c);
+            pool.submit(move || {
+                c.fetch_add(1, Ordering::SeqCst);
+            });
+        }
+        pool.shutdown();
+        pool.shutdown();
+        drop(pool);
+        assert_eq!(c.load(Ordering::SeqCst), 20);
+    }
+
+    #[test]
+    fn s1b_c5_dropping_the_pool_also_finishes_the_queue() {
+        let c = Arc::new(AtomicUsize::new(0));
+        {
+            let pool = JobPool::new(3);
+            for _ in 0..150 {
+                let c = Arc::clone(&c);
+                pool.submit(move || {
+                    std::thread::yield_now();
+                    c.fetch_add(1, Ordering::SeqCst);
+                });
+            }
+        }
+        assert_eq!(c.load(Ordering::SeqCst), 150);
+    }
+}
+// @@ challenge 1b-c5 end

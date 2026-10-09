@@ -840,3 +840,225 @@ proptest! {
         }
     }
 }
+
+// @@ challenge 2b-c3 begin
+mod ch_2b_c3 {
+    use proptest::prelude::*;
+
+    use bustub::container::hash::hash_ring::HashRing;
+    use std::collections::HashMap;
+
+    fn owners(r: &HashRing, n: u64) -> Vec<String> {
+        (0..n).map(|k| r.node_for(k).unwrap().to_owned()).collect()
+    }
+
+    #[test]
+    fn s2b_c3_an_empty_ring_owns_nothing_and_one_node_owns_everything() {
+        let mut r = HashRing::new(8);
+        assert_eq!(r.node_for(5), None);
+        assert!(r.add_node("a"));
+        assert!(!r.add_node("a"));
+        assert!((0..200).all(|k| r.node_for(k) == Some("a")));
+        assert_eq!(r.node_count(), 1);
+    }
+
+    #[test]
+    fn s2b_c3_adding_a_node_moves_keys_only_to_the_new_node() {
+        let mut r = HashRing::new(32);
+        for n in ["a", "b", "c"] {
+            r.add_node(n);
+        }
+        let before = owners(&r, 2000);
+        r.add_node("d");
+        let after = owners(&r, 2000);
+        let moved = before.iter().zip(&after).filter(|(b, a)| b != a).count();
+        assert!(before.iter().zip(&after).all(|(b, a)| b == a || a == "d"), "a key moved between two old nodes");
+        assert!(moved > 0 && moved < 1000, "the new node takes a slice, not everything: {moved} of 2000 moved");
+    }
+
+    #[test]
+    fn s2b_c3_removing_a_node_moves_only_its_keys_and_adding_it_back_restores_them() {
+        let mut r = HashRing::new(32);
+        for n in ["a", "b", "c", "d"] {
+            r.add_node(n);
+        }
+        let before = owners(&r, 2000);
+        assert!(r.remove_node("c"));
+        assert!(!r.remove_node("c"));
+        let during = owners(&r, 2000);
+        for (b, d) in before.iter().zip(&during) {
+            assert!(b == d || b == "c", "key moved although its node stayed");
+            assert_ne!(d, "c");
+        }
+        r.add_node("c");
+        assert_eq!(owners(&r, 2000), before, "the ring is a function of its nodes, not of the order they were added in");
+    }
+
+    #[test]
+    fn s2b_c3_many_virtual_nodes_spread_the_keys() {
+        let mut r = HashRing::new(100);
+        for n in ["a", "b", "c", "d"] {
+            r.add_node(n);
+        }
+        let mut count: HashMap<String, usize> = HashMap::new();
+        for o in owners(&r, 10_000) {
+            *count.entry(o).or_default() += 1;
+        }
+        assert_eq!(count.len(), 4);
+        assert!(count.values().all(|&c| c > 1250 && c < 5000), "uneven spread: {count:?}");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: for any sequence of joins and leaves, only the keys of the node that changed move, and every key has an owner on the ring.
+        #[test]
+        fn s2b_c3_property_membership_changes_move_only_their_keys(ops in proptest::collection::vec((any::<bool>(), 0u8..5), 1..15)) {
+            let mut r = HashRing::new(16);
+            let mut members: Vec<String> = Vec::new();
+            for (add, n) in ops {
+                let name = format!("n{n}");
+                let before: Vec<Option<String>> = (0..300).map(|k| r.node_for(k).map(str::to_owned)).collect();
+                let changed = if add { let c = r.add_node(&name); if c { members.push(name.clone()); } c } else { let c = r.remove_node(&name); if c { members.retain(|m| m != &name); } c };
+                let after: Vec<Option<String>> = (0..300).map(|k| r.node_for(k).map(str::to_owned)).collect();
+                prop_assert_eq!(r.node_count(), members.len());
+                for (b, a) in before.iter().zip(&after) {
+                    if let Some(a) = a { prop_assert!(members.contains(a)); }
+                    if !changed { prop_assert_eq!(b, a); }
+                    else if add { if let (Some(b), Some(a)) = (b, a) { prop_assert!(a == b || a == &name, "moved from {} to {} on adding {}", b, a, name); } }
+                    else if let Some(b) = b { if b != &name { prop_assert_eq!(Some(b), a.as_ref(), "a key of a node that stayed moved"); } }
+                }
+            }
+        }
+    }
+}
+// @@ challenge 2b-c3 end
+
+// @@ challenge 2b-c4 begin
+mod ch_2b_c4 {
+    use proptest::prelude::*;
+
+    use bustub::container::hash::cuckoo_set::CuckooSet;
+    use std::collections::HashSet;
+
+    #[test]
+    fn s2b_c4_inserted_keys_are_found_and_sit_at_one_of_their_two_homes() {
+        let mut s = CuckooSet::new();
+        for k in 0..1000u64 {
+            assert!(s.insert(k * 7919));
+        }
+        assert_eq!(s.len(), 1000);
+        for k in 0..1000u64 {
+            let key = k * 7919;
+            assert!(s.contains(key));
+            let pos = s.position(key).unwrap();
+            assert!(s.homes(key).contains(&pos), "key {key} is not at one of its homes");
+        }
+        assert!(!s.contains(1));
+    }
+
+    #[test]
+    fn s2b_c4_duplicates_and_removals() {
+        let mut s = CuckooSet::new();
+        assert!(s.insert(5));
+        assert!(!s.insert(5));
+        assert!(s.remove(5));
+        assert!(!s.remove(5));
+        assert!(s.is_empty() && !s.contains(5));
+    }
+
+    #[test]
+    fn s2b_c4_growing_never_loses_a_key() {
+        let mut s = CuckooSet::new();
+        let keys: Vec<u64> = (0..3000).map(|i| i * 2_654_435_761).collect();
+        for (n, &k) in keys.iter().enumerate() {
+            s.insert(k);
+            if n % 211 == 0 {
+                assert!(keys[..=n].iter().all(|&x| s.contains(x)), "a key went missing after insert {n}");
+            }
+        }
+    }
+
+    #[test]
+    fn s2b_c4_keys_that_collide_in_a_small_table_are_displaced_not_dropped() {
+        let mut s = CuckooSet::new();
+        for k in 0..40u64 {
+            s.insert(k);
+        }
+        assert_eq!(s.len(), 40);
+        assert!((0..40).all(|k| s.contains(k)));
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: against a `HashSet`, and every key always at one of its homes.
+        #[test]
+        fn s2b_c4_property_a_cuckoo_set_is_a_set(ops in proptest::collection::vec((any::<bool>(), 0u64..120), 0..200)) {
+            let mut s = CuckooSet::new();
+            let mut m = HashSet::new();
+            for (ins, k) in ops {
+                if ins { prop_assert_eq!(s.insert(k), m.insert(k)); } else { prop_assert_eq!(s.remove(k), m.remove(&k)); }
+                prop_assert_eq!(s.len(), m.len());
+            }
+            for k in 0..120u64 {
+                prop_assert_eq!(s.contains(k), m.contains(&k));
+                if let Some(p) = s.position(k) { prop_assert!(s.homes(k).contains(&p)); }
+            }
+        }
+    }
+}
+// @@ challenge 2b-c4 end
+
+// @@ challenge 2b-c5 begin
+mod ch_2b_c5 {
+    use proptest::prelude::*;
+
+    use bustub::container::hash::directory_shrink::{can_shrink, shrink_slots};
+
+    #[test]
+    fn s2b_c5_a_directory_shrinks_only_when_no_bucket_uses_the_full_depth() {
+        assert!(can_shrink(&[1, 1, 0], 2));
+        assert!(!can_shrink(&[2, 1], 2), "one bucket at full depth needs the whole directory");
+        assert!(!can_shrink(&[1, 1, 2], 2));
+    }
+
+    #[test]
+    fn s2b_c5_a_depth_zero_directory_cannot_shrink() {
+        assert!(!can_shrink(&[0], 0));
+        assert!(!can_shrink(&[], 0));
+    }
+
+    #[test]
+    fn s2b_c5_all_buckets_shallow_is_enough() {
+        assert!(can_shrink(&[0, 0, 0, 0], 3));
+        assert!(can_shrink(&[2, 2, 2], 3));
+    }
+
+    #[test]
+    fn s2b_c5_shrink_slots_halves_a_mirrored_directory_and_refuses_others() {
+        assert_eq!(shrink_slots(&[0, 1, 0, 1]), Some(vec![0, 1]));
+        assert_eq!(shrink_slots(&[0, 1, 2, 3]), None);
+        assert_eq!(shrink_slots(&[0, 1, 0]), None);
+        assert_eq!(shrink_slots(&[]), None);
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: the rule is exactly 'the global depth is above 0 and every local depth is below it'.
+        #[test]
+        fn s2b_c5_property_the_shrink_rule(depths in proptest::collection::vec(0u32..5, 0..8), global in 0u32..5) {
+            prop_assert_eq!(can_shrink(&depths, global), global > 0 && depths.iter().all(|&d| d < global));
+        }
+
+        /// Property: doubling a directory and shrinking it gives it back.
+        #[test]
+        fn s2b_c5_property_shrink_undoes_doubling(slots in proptest::collection::vec(0usize..6, 1..10)) {
+            let mut doubled = slots.clone();
+            doubled.extend(&slots);
+            prop_assert_eq!(shrink_slots(&doubled), Some(slots));
+        }
+    }
+}
+// @@ challenge 2b-c5 end

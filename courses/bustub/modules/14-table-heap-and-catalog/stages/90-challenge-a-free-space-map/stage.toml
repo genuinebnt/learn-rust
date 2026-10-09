@@ -1,0 +1,8 @@
+id = "3c-c1"
+title = "Challenge: a free space map"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3c::s3c_c1"]
+learn = ["finding the first page with enough room without scanning", "a segment tree of maxima"]
+concepts = []
+concepts_optional = ["heap-files", "slot-allocation-and-invariants", "model-based-testing"]

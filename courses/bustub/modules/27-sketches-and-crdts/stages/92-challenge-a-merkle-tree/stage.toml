@@ -1,0 +1,8 @@
+id = "0d-c3"
+title = "Challenge: a Merkle tree"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_0d::s0d_c3"]
+learn = ["a hash tree whose root commits to every leaf", "an inclusion proof that a verifier checks without the other leaves"]
+concepts = []
+concepts_optional = ["hashing-values-and-keys", "property-testing-and-fuzzing"]

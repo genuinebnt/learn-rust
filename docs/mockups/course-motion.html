@@ -177,7 +177,7 @@ h2.ttl{margin:8px 0 12px;font-size:clamp(28px,4vw,46px);line-height:1.05;letter-
 .pn a:hover{transform:translateY(-2px);border-color:var(--grn);background:var(--raise)}.pn small{display:block;font:500 10.5px var(--mono);letter-spacing:.16em;color:var(--dim)}.pn a:last-child{text-align:right}
 .toc{position:sticky;top:46px;align-self:start;padding:40px 18px 0 6px;height:calc(100vh - 46px - 62px)}
 .toc h6{margin:0 0 10px;font:500 10px var(--mono);letter-spacing:.2em;color:var(--dim)}
-.toc div{position:relative;border-left:1px solid var(--line2)}
+.toc #toc{position:relative;border-left:1px solid var(--line2)}
 .toc a{display:block;padding:5px 0 5px 14px;font-size:13px;color:var(--dim);transition:color .2s}.toc a:hover,.toc a.on{color:var(--fg)}
 .mk{position:absolute;left:-1px;width:2px;height:24px;background:var(--grn);transition:transform .35s var(--ease)}
 /* run strip */
@@ -571,6 +571,16 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .toc{display:flex;flex-direction:column;gap:0;padding:22px 0 0 14px;overflow:hidden}
 .tscroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:14px;padding:0 20px 16px 0;scrollbar-width:none}.tscroll::-webkit-scrollbar{display:none}
 .toc .rcard.focus{position:static;flex:none;margin:0 20px 16px 0;box-shadow:0 -10px 24px -16px var(--shadow)}
+
+/* focus card spacing */
+.toc .rcard.focus{padding:16px 18px 14px}
+.focus h6{margin:0 0 16px}
+.fbody{gap:18px;align-items:center}
+.fctl{gap:10px;align-self:center}
+.fdots{margin-top:16px}
+.fsum{margin-top:12px;padding-top:12px;border-top:1px solid var(--line2);display:flex;justify-content:space-between;gap:10px;font:500 10.5px var(--mono);white-space:nowrap}
+.fsum span{color:var(--dim)}.fsum b{color:var(--fg)}
+.fset .rng{margin-top:12px}
 </style>
 </head>
 <body>
@@ -1086,7 +1096,7 @@ drawRuns();
     GO.querySelector('.lbl').textContent=st.run?'Pause':(st.mode==='pom'&&st.left===st.total||st.mode==='timer'&&st.left===st.total||st.mode==='sw'&&!st.sw)?'Start':'Resume';
     $('#fdots').style.display=st.mode==='pom'?'flex':'none';$('#fdots').innerHTML=[1,2,3,4].map(i=>`<i class="${i<=st.done?'done':i===st.cyc&&st.phase==='focus'?'cur':''}"></i>`).join('');
     $('#tmw').style.display=st.mode==='timer'?'grid':'none';
-    $('#fsum').innerHTML=`on this stage today · <b>${18+Math.floor(st.sw/60)+st.done*st.mins.f} min</b> · <b>${st.done}</b> pomodoro${st.done===1?'':'s'}`;
+    $('#fsum').innerHTML=`<span>today <b>${18+Math.floor(st.sw/60)+st.done*st.mins.f} min</b></span><span><b>${st.done}</b> pomodoro${st.done===1?'':'s'}</span>`;
     document.title='';}
   function end(){if(st.mode==='pom'){if(st.phase==='focus'){st.done++;const longb=st.done%4===0;setPhase(longb?'long':'break');if(longb)st.mins.b0=st.mins.b;toast(longb?'Four done. Take a long break.':'Focus session done. Break time.','ok')}else{if(st.phase==='long'){st.done=0;st.cyc=1}else st.cyc=Math.min(4,st.cyc+1);setPhase('focus');toast('Break over. Back to it.','')}}
     else{st.run=false;toast('Time is up','er')}draw()}

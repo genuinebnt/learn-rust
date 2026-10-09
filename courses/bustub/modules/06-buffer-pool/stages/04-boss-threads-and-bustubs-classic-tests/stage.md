@@ -80,4 +80,4 @@ The classic tests are `BinaryDataTest` and `SampleTest` from the older `buffer_p
 
 ## Learn more
 
-- [`AtomicUsize`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html) · [`thread::spawn`](https://doc.rust-lang.org/std/thread/fn.spawn.html)
+- [`AtomicUsize`](https://doc.rust-lang.org/std/sync/atomic/type.AtomicUsize.html) · [`thread::spawn`](https://doc.rust-lang.org/std/thread/fn.spawn.html)

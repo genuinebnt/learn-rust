@@ -39,20 +39,20 @@ impl<'e> InsertExecutor<'e> {
     /// Adds the tuple stored at `rid` to every index of the table. A key that is already in an index is ignored (BusTub's indexes keep
     /// unique keys and the catalog "silently ignores the error").
     fn insert_into_indexes(&self, tuple: &Tuple, rid: Rid) {
-        // 3e-04: for every index, the key of the tuple (Tuple::key_from_tuple with the table's schema, the index's key schema and its key attributes) maps to rid
+        // 3e-02: for every index, the key of the tuple (Tuple::key_from_tuple with the table's schema, the index's key schema and its key attributes) maps to rid
     }
 }
 
 impl Executor for InsertExecutor<'_> {
     fn init(&mut self) -> Result<()> {
-        todo!("3e-03: forget that the count was produced and initialise the child")
+        todo!("3e-02: forget that the count was produced and initialise the child")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, _batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
         // 4b-01: when self.txn is Some: as below, but insert each tuple with insert_mvcc (in execution_common.rs) instead of the heap and the indexes directly
-        todo!("3e-03: once: pull every batch from the child, insert each tuple into the heap (a TupleMeta with ts 0 and is_deleted false), call insert_into_indexes with the new rid, count them; answer with one tuple holding the count; every later call returns false")
+        todo!("3e-02: once: pull every batch from the child, insert each tuple into the heap (a TupleMeta with ts 0 and is_deleted false), call insert_into_indexes with the new rid, count them; answer with one tuple holding the count; every later call returns false")
     }
 
     fn output_schema(&self) -> &Schema {

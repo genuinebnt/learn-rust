@@ -1,8 +1,0 @@
-id = "3e-08"
-title = "Index scan: point lookups"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3e::s3e_08"]
-learn = ["turning WHERE col = constant into index probes", "keys evaluated from expressions", "combining a probe with a filter"]
-concepts = ["access-paths-index-vs-seq-scan", "predicate-pushdown", "trait-objects-and-the-disk-seam"]
-concepts_optional = ["the-iterator-model"]

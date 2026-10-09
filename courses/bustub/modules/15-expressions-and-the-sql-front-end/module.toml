@@ -1,6 +1,6 @@
 code = "3d"
 title = "Expressions and the SQL front end"
-summary = "How a SQL string becomes values: the parser, binder, planner and optimizer BusTub gives you (so you can type SQL from the first minute), and the expression tree you write: constants, columns, comparisons, arithmetic, AND/OR with NULLs, lower and upper. BusTub Project 3 starts here."
+summary = "How a SQL string becomes values: the expression nodes you write (constants, columns, comparisons, arithmetic, AND/OR with NULLs, lower and upper), the lexer and the expression parser at the front of the pipeline, and the function factory that joins them to the binder and planner BusTub gives you. BusTub Project 3 starts here."
 lectures = ["queryexecution1", "modernsql", "relationalmodel"]
 bustub = ["src/include/execution/expressions/abstract_expression.h", "src/include/execution/expressions/constant_value_expression.h", "src/include/execution/expressions/column_value_expression.h", "src/include/execution/expressions/comparison_expression.h", "src/include/execution/expressions/arithmetic_expression.h", "src/include/execution/expressions/logic_expression.h", "src/include/execution/expressions/string_expression.h", "src/planner/plan_func_call.cpp", "src/planner/expression_factory.cpp", "test/sql/p0.01-lower-upper.slt", "test/sql/p0.02-function-error.slt", "test/sql/p0.03-string-scan.slt", "test/sql/baby_arithmetic.slt"]
 files = [

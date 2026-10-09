@@ -1,8 +1,0 @@
-id = "3e-09"
-title = "Boss: BusTub's SQL tests for access methods"
-kind = "boss"
-difficulty = "hard"
-tests = ["sql_access_methods_test"]
-learn = ["running BusTub's own p3 test files", "reading a failing diff to find the executor at fault"]
-concepts = ["the-sql-pipeline", "model-based-testing"]
-retest = true

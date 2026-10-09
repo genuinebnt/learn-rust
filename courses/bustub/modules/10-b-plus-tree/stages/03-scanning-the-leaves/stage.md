@@ -60,6 +60,10 @@ For `begin`: descend always taking the first child. For `begin_at(k)`: descend a
 
 A leaf can be empty in a tombstone tree (module 2d) or momentarily under concurrency. The walk must skip it, not stop there.
 
+### A scan that starts at a leaf you still hold
+
+If `begin` finds the leaf with a read guard and then builds an iterator that reads the same leaf, you take two read latches on one page in one thread. With a writer waiting for the first, the second one queues behind it and nobody moves: a deadlock that shows up one run in twenty. Drop the guard (keep only the page id) before the iterator latches the leaf. The reader-writer latches concept has the whole story.
+
 ### The end
 
 Choose a representation for "at the end" (no leaf) and make `==`, `is_end` and `next` all agree on it.

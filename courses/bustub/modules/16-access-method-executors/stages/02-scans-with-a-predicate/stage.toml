@@ -1,8 +1,0 @@
-id = "3e-02"
-title = "Scans with a predicate"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_3e::s3e_02"]
-learn = ["a filter evaluated inside the scan", "only TRUE passes: FALSE and NULL are dropped", "batches are filled with matches, not with scanned rows"]
-concepts = ["predicate-pushdown", "sql-types-and-three-valued-logic", "expression-trees", "iterators-and-closures"]
-concepts_optional = ["the-iterator-model"]

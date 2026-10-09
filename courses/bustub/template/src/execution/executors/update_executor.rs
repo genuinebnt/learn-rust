@@ -43,7 +43,7 @@ impl<'e> UpdateExecutor<'e> {
 
     /// The new tuple for `old`: every target expression evaluated on the old tuple, laid out with the table's schema.
     fn make_new_tuple(&self, old: &Tuple) -> Result<Tuple> {
-        todo!("3e-06: evaluate each target expression on the old tuple (with the child's output schema) and build a tuple of those values with the table's schema")
+        todo!("3e-03: evaluate each target expression on the old tuple (with the child's output schema) and build a tuple of those values with the table's schema")
     }
 
     /// Does any change give a tuple another primary key? Then the statement is a delete and an insert, not an in-place update.
@@ -69,14 +69,14 @@ impl<'e> UpdateExecutor<'e> {
 
 impl Executor for UpdateExecutor<'_> {
     fn init(&mut self) -> Result<()> {
-        todo!("3e-06: forget that the count was produced and initialise the child")
+        todo!("3e-03: forget that the count was produced and initialise the child")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, _batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
         // 4b-03: when self.txn is Some: collect (rid, make_new_tuple(old)) for every child tuple first; if changes_primary_key(..)? call update_by_delete_and_insert, else modify_tuple(.., Some(new)) for each; answer with one tuple holding the count
-        todo!("3e-06: once: for every tuple of the child build the new tuple (make_new_tuple), mark the old heap tuple deleted and delete its index entries, insert the new tuple into the heap and its index entries under the new rid, count; answer with one tuple holding the count; later calls return false")
+        todo!("3e-03: once: for every tuple of the child build the new tuple (make_new_tuple), mark the old heap tuple deleted and delete its index entries, insert the new tuple into the heap and its index entries under the new rid, count; answer with one tuple holding the count; later calls return false")
     }
 
     fn output_schema(&self) -> &Schema {

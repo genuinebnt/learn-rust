@@ -29,7 +29,7 @@ pub struct SeqScanExecutor<'e> {
 /// Does `tuple` pass the scan's filter predicate? No predicate keeps everything; otherwise only the rows for which the predicate is
 /// TRUE (FALSE and NULL are dropped). `schema` is the layout of the scan's tuples.
 fn passes_filter(filter: &Option<ExprRef>, schema: &Schema, tuple: &Tuple) -> Result<bool> {
-    Ok(true) // 3e-02: evaluate the predicate on the tuple; keep the row only if the answer is TRUE
+    Ok(true) // 3e-01: evaluate the predicate on the tuple; keep the row only if the answer is TRUE
 }
 
 impl<'e> SeqScanExecutor<'e> {

@@ -97,8 +97,8 @@ fn a_rid_in_the_index_can_name_a_row_that_is_gone() {
 
 ### In the exercises
 
-- **3e-07:** the ordered index scan: `scan_all`, fetch each tuple, skip deleted ones.
-- **3e-08:** point lookups: `pred_keys` → `scan_key`; combining with the plan's filter.
+- **3e-04:** the ordered index scan: `scan_all`, fetch each tuple, skip deleted ones.
+- **3e-04:** point lookups: `pred_keys` → `scan_key`; combining with the plan's filter.
 - **Module 3h:** the optimizer rules that *choose* the index scan (`order by` on an indexed column, `where col = constant`).
 
 ### Where it is used

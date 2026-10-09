@@ -127,8 +127,8 @@ fn init_starts_the_whole_pipeline_over() {
 ### In the exercises
 
 - **3e-01:** the sequential scan is the leaf: it owns a table iterator and fills batches from it.
-- **3e-02 to 3e-06:** the scan with a predicate, and the insert, delete and update executors, which are pipeline breakers over a child.
-- **3e-07, 3e-08:** the index scan is another leaf.
+- **3e-02, 3e-03:** the insert, delete and update executors, which are pipeline breakers over a child.
+- **3e-04:** the index scan is another leaf.
 - **Module 3f onwards:** joins call `init` on their inner child once per outer row; aggregation and sort drain their child first.
 
 ### Where it is used

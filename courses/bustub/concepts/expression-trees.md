@@ -137,8 +137,9 @@ fn a_downcast_tells_node_types_apart() {
 ### In the exercises
 
 - **3d-01:** `ConstantValueExpression` and `ColumnValueExpression` are the two leaves; `evaluate_join` adds the second input.
-- **3d-02, 3d-03, 3d-04, 3d-05:** each node evaluates its children and combines them, exactly like `Plus` above.
-- **3d-06:** the planner (given) builds the tree; the factory you write adds the `lower`/`upper` nodes.
+- **3d-02, 3d-03:** each node evaluates its children and combines them, exactly like `Plus` above.
+- **3d-05:** the parser you write builds the tree of the *syntax* (`Expr`); the planner (given) turns it into these nodes.
+- **3d-06:** the factory you write adds the `lower`/`upper` nodes.
 - **Module 3h (optimizer):** `rewrite_expression_for_join` is `shift_columns` with a twist; `as_any().downcast_ref` is how rules recognise patterns.
 
 ### Where it is used

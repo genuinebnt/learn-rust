@@ -1,76 +1,100 @@
-You have built the nodes; now the planner has to know when to *make* them. The binder (given) turns `lower(name)` into "a call of a function named `lower` with one argument"; the planner turns that into an expression node through a **function factory**. The factory is empty: every call is an error ("func call lower not supported in planner yet"). After this stage `select lower('ABC');` works end to end.
+You have built the nodes and the front of the pipeline; now the planner has to know when to *make* them. The binder (given) turns `lower(name)` into "a call of a function named `lower` with one argument"; the planner turns that into an expression node through a **function factory**. The factory is empty: every call is an error ("func call lower not supported in planner yet"). After this stage `select lower('ABC');` works end to end, from the text you now lex and parse to the value your nodes compute.
+
+> [!CHECK] `select upper(day_of_week) from __mock_table_schedule` reaches the factory with the name `upper` and one argument: which expression is that argument by then, and what is its position and type? What should happen for `select upper(1)`, for `select upper('a', 'b')` and for `select shout('a')`: at which layer does each of the three errors belong?
+> ||The argument is already a `ColumnValueExpression` `#0.0` with the column's type: the binder resolved the name and the planner looked it up in the child's output schema. `upper(1)` is a type error (the `StringExpression` constructor reports it, the factory passes it on); `upper('a', 'b')` is an arity error (only the factory knows how many arguments each name takes); `shout` is a name error (no such function). All three are reported before any row is read.||
+>
+> - Who lower-cases `UPPER` in `select UPPER('x')`?
+> - What does `explain` print for the plan, and where do you see your expression?
+> - Why is the factory a function from names to nodes and not a `match` inside `StringExpression`?
 
 ## The task
 
 In `src/planner/planner.rs`, `Planner::get_func_call_from_factory(func_name, args) -> Result<ExprRef>`:
+
 - `"lower"` and `"upper"` with exactly one argument build a `StringExpression` of that kind over the argument;
 - any other function name is an error (`func call {name} not supported in planner yet`);
 - the wrong number of arguments is an error;
 - an argument that is not a VARCHAR is an error (the `StringExpression` constructor already says so; pass its error on).
 
-(Names reach the factory lower-cased by the binder: `UPPER(x)` is `upper`.)
+(The binder lower-cases names: `UPPER(x)` arrives as `upper`.)
+
+The tests: the factory builds working `lower` and `upper`, refuses other names, argument counts and non-string arguments; and end to end through SQL: `select lower('MiXeD')`, both functions in one select list, nested calls, upper-case function names, wrong calls are errors, and over a mock table `explain` shows `upper(#0.0)` over a `MockScan`.
+
+## Your freedom
+
+How you look up the function (a `match`, a table of constructors) and how you check the arity.
+
+## The Rust toolbox
+
+**`match` on a string slice.** `match func_name { "lower" => .., "upper" => .., _ => return Err(..) }`: string literals are patterns.
+
+**`Vec::remove`.** `args.remove(0)` takes the single argument out of the vector by value (so you can wrap it in an `Arc` without cloning).
+
+**`Arc::new` into a trait object.** `Ok(Arc::new(StringExpression::new(arg, kind)?))`: the coercion from `Arc<StringExpression>` to `Arc<dyn Expression>` (`ExprRef`) happens at the `Ok`.
+
+**`explain`.** `explain (o) select ...` prints the plan with each expression's `to_string`: if the text is not what you expect, the tree is not what you built.
+
+## If this is new
+
+- [L4 Traits & dispatch](/t/l4-traits-dispatch): coercing `Arc<T>` to `Arc<dyn Trait>`.
+- [S1 Option & Result](/t/s1-option-result): returning `Err` early, passing on a constructor's error with `?`.
 
 ## Tests
 
-- The factory builds working `lower` and `upper` expressions and refuses other names and other argument counts.
-- It refuses non-string arguments.
-- End to end through SQL: `select lower('MiXeD')`, both functions in one select list, nested calls, upper-case function names.
+- The factory builds `lower` and `upper` and refuses other names and other argument counts; it refuses non-string arguments.
+- End to end through SQL, with the lexer and parser you wrote: `select lower('MiXeD')`, both functions, nested calls and upper-case names.
 - Wrong calls (`upper(1)`, `lower('a', 'b')`, an unknown function, `lower()`) are errors.
-- Over a table: the function is planned over a column of a mock table, and `explain` shows `upper(#0.0)` over a `MockScan`.
+- Over a mock table: the function is planned over a column and shows in `explain`.
 
-## Syntax and methods
+## Hints
 
-```rust
-match func_name {
-    "lower" => StringExpressionType::Lower,
-    _ => return Err(Exception::new(ExceptionType::Invalid, format!("..."))),
-}
-if args.len() != 1 { return Err(..) }
-Ok(Arc::new(StringExpression::new(args.remove(0), kind)?))     // Vec::remove(0) moves the argument out
-```
+### Where is the arity checked?
 
-## Notes
+Before you build anything: `args.len() != 1` is an error naming the function and the count it got.
 
-**The pipeline, once.** `execute_sql` (given, `src/common/bustub_instance.rs`) runs: the **parser** turns text into a syntax tree; the **binder** turns names into catalog objects and column references into `[table, column]` paths, producing a "bound" tree; the **planner** turns that into a tree of plan nodes with expressions in them (this is where your factory is called); the **optimizer** rewrites the plan; the **engine** builds an executor per node and pulls tuples through them. `explain` prints the plan between the planner and the engine. Type `explain select ...;` in the shell and read it from the bottom: the leaf scans first, then what is computed over them.
+### The error you do not write
 
-**Names are resolved before the planner.** The planner sees `upper(__mock_table_schedule.day_of_week)` and turns the column reference into `#0.0` by looking at the *output schema of the child plan*: "the column called `__mock_table_schedule.day_of_week` is the 0th of the MockScan's output". That is why plan schemas carry qualified names.
+`upper(1)`: the constructor refuses an INTEGER argument with a type error. Pass it on with `?`; do not write a second check.
 
-**Why a factory, not a `match` at the call site.** One table, one place, so a new function is a one-line change: BusTub's `GetBinaryExpressionFromFactory` (given) maps `=`, `<`, `+`, `and`, ... the same way, and `GetFuncCallFromFactory` is the one left for you.
+## Performance
+
+The factory runs once per call site per query, at planning time; it never runs per row. A planner that looked functions up by string for every row would waste the work: resolve once, evaluate many times.
+
+**Measure it.** Plan a query with a hundred calls of `lower` and time the planning; compare with evaluating the plan over a thousand rows.
+
+## Experiment
+
+Optional. Predict first, then run.
+
+1. **A third function.** Add `length(x)` returning an INTEGER. Which three places change (a new expression type, the factory, `explain` text)?
+2. **Case.** Make the factory case-sensitive and the binder not lower-case names: which tests catch the split of responsibility?
+
+## Other designs
+
+- **A match in the planner (ours, BusTub's).**
+- **A function registry** (`HashMap<&str, fn(Vec<ExprRef>) -> Result<ExprRef>>`) filled at start-up, so extensions can add functions.
+- **Overload resolution by argument types** (PostgreSQL): the same name picks different implementations.
+- **Binding functions in the binder**, so the planner receives resolved functions.
 
 ## In BusTub
 
-`src/planner/plan_func_call.cpp` (`auto Planner::GetFuncCallFromFactory(const std::string &func_name, std::vector<AbstractExpressionRef> args) -> AbstractExpressionRef { throw Exception(fmt::format("func call {} not supported in planner yet", func_name)); }`), `expression_factory.cpp` (`GetBinaryExpressionFromFactory`), and `planner.cpp` (`PlanQuery`).
+`Planner::GetFuncCallFromFactory` in `src/planner/plan_func_call.cpp`:
+
+```cpp
+if (func_name == "lower" || func_name == "upper") { ... return std::make_shared<StringExpression>(args[0], ...); }
+throw Exception(fmt::format("func call {} not supported in planner yet", func_name));
+```
 
 ## The C/C++ way
 
 | C / C++ | Rust |
 |---|---|
-| `if (func_name == "lower") { return std::make_shared<StringExpression>(args[0], StringExpressionType::Lower); }` | `match func_name { "lower" => .., "upper" => .., _ => return Err(..) }` |
-| `args[0]` with no bounds check (UB for `lower()`) | check `args.len()`, then `args.remove(0)` moves the value out |
-| `throw Exception(...)` caught by the SQL driver | `Err(Exception)` returned up to `execute_sql` |
-| `std::make_shared<T>(...)` converted to `shared_ptr<Base>` | `Arc::new(T)` coerced to `Arc<dyn Expression>` |
+| `if (func_name == "lower" \|\| func_name == "upper")` | `match func_name { "lower" => .., "upper" => .., _ => .. }` |
+| `std::make_shared<StringExpression>(args[0], kind)` | `Arc::new(StringExpression::new(arg, kind)?)` |
+| `throw Exception(...)` | `return Err(exception(..))` |
 
-**Port rule:** an unchecked `args[i]` in C++ is a length check and an error in Rust; a function table is a `match` on the name.
+**Port rule:** a chain of string comparisons becomes a `match` on the string slice; `make_shared` becomes `Arc::new`.
 
 ## Learn more
-- [`Vec::remove`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.remove) · [PostgreSQL: EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html) · [BusTub's planner](https://github.com/cmu-db/bustub/blob/master/src/planner/planner.cpp)
 
-## Performance
-
-The factory runs once per query, at plan time, so it costs nothing per row. What matters is what it builds: a tree whose depth is the number of nested function calls, each evaluated once per row.
-
-**Measure it.** Time `select lower(upper(lower(upper(github_id)))) from __mock_table_tas_2022` repeated 10,000 times (use `generate_mock_table`) against `select github_id`, to see the per-row cost of four string nodes.
-
-## Hints
-
-### Check the count before indexing
-
-`args[0]` on an empty vector panics, and `lower()` is a test. Check `args.len() != 1` first.
-
-### `?` does the type check
-
-`StringExpression::new(arg, kind)?` already returns the error for a non-string argument. Do not write a second check.
-
-### `explain` is your debugger
-
-If the result is wrong, `explain` the same query in the shell (`cargo run --bin bustub_shell`): the plan shows the expression the factory built (`upper(#0.0)`), which tells you whether the factory or the evaluation is at fault.
+- PostgreSQL's [`EXPLAIN`](https://www.postgresql.org/docs/current/sql-explain.html) · BusTub's [expression factory](https://github.com/cmu-db/bustub/blob/master/src/planner/plan_func_call.cpp)

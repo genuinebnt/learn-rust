@@ -135,9 +135,9 @@ fn a_duplicate_key_keeps_the_first_row() {
 
 ### In the exercises
 
-- **3e-04:** `insert_into_indexes` builds a key per index and adds it.
-- **3e-05:** `delete_from_indexes` removes the entries of a deleted row.
-- **3e-06:** the update executor does both, old key out first, new key in under the new rid.
+- **3e-02:** `insert_into_indexes` builds a key per index and adds it.
+- **3e-03:** `delete_from_indexes` removes the entries of a deleted row.
+- **3e-03:** the update executor does both, old key out first, new key in under the new rid.
 
 ### Where it is used
 

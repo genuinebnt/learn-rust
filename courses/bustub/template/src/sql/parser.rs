@@ -1,4 +1,4 @@
-//! A recursive-descent parser for the SQL that BusTub's shell understands. Given code.
+//! A recursive-descent parser for the SQL that BusTub's shell understands. The expression grammar (3d-05) is yours; the rest is given.
 
 use super::ast::*;
 use super::lexer::{parse_error, tokenize, Token};
@@ -26,6 +26,16 @@ pub fn parse(sql: &str) -> Result<Vec<Statement>> {
         }
     }
     Ok(statements)
+}
+
+/// Parses one expression and nothing else: `1 + 2 * 3`, `lower(name) = 'x' and not b`.
+pub fn parse_expr(sql: &str) -> Result<Expr> {
+    let mut parser = Parser { tokens: tokenize(sql)?, pos: 0 };
+    let e = parser.expr()?;
+    if parser.peek().is_some() {
+        return Err(parser.unexpected());
+    }
+    Ok(e)
 }
 
 struct Parser {
@@ -550,98 +560,7 @@ impl Parser {
     // ---- expressions --------------------------------------------------------------------------------------------------------
 
     pub fn expr(&mut self) -> P<Expr> {
-        self.or_expr()
-    }
-
-    fn or_expr(&mut self) -> P<Expr> {
-        let mut left = self.and_expr()?;
-        while self.eat_word("or") {
-            let right = self.and_expr()?;
-            left = Expr::Binary { op: "or".into(), left: Box::new(left), right: Box::new(right) };
-        }
-        Ok(left)
-    }
-
-    fn and_expr(&mut self) -> P<Expr> {
-        let mut left = self.not_expr()?;
-        while self.eat_word("and") {
-            let right = self.not_expr()?;
-            left = Expr::Binary { op: "and".into(), left: Box::new(left), right: Box::new(right) };
-        }
-        Ok(left)
-    }
-
-    fn not_expr(&mut self) -> P<Expr> {
-        if self.eat_word("not") {
-            return Ok(Expr::Unary { op: "not".into(), expr: Box::new(self.not_expr()?) });
-        }
-        self.comparison()
-    }
-
-    fn comparison(&mut self) -> P<Expr> {
-        let mut left = self.additive()?;
-        loop {
-            if self.at_word("is") {
-                self.pos += 1;
-                let negated = self.eat_word("not");
-                self.expect_word("null")?;
-                left = Expr::IsNull { expr: Box::new(left), negated };
-                continue;
-            }
-            let op = match self.peek() {
-                Some(Token::Symbol(s)) if ["=", "==", "<", ">", "<=", ">=", "<>", "!="].contains(s) => *s,
-                _ => break,
-            };
-            self.pos += 1;
-            let right = self.additive()?;
-            left = Expr::Binary { op: op.into(), left: Box::new(left), right: Box::new(right) };
-        }
-        Ok(left)
-    }
-
-    fn additive(&mut self) -> P<Expr> {
-        let mut left = self.multiplicative()?;
-        loop {
-            let op = match self.peek() {
-                Some(Token::Symbol(s)) if ["+", "-", "||"].contains(s) => *s,
-                _ => break,
-            };
-            self.pos += 1;
-            let right = self.multiplicative()?;
-            left = Expr::Binary { op: op.into(), left: Box::new(left), right: Box::new(right) };
-        }
-        Ok(left)
-    }
-
-    fn multiplicative(&mut self) -> P<Expr> {
-        let mut left = self.unary()?;
-        loop {
-            let op = match self.peek() {
-                Some(Token::Symbol(s)) if ["*", "/", "%"].contains(s) => *s,
-                _ => break,
-            };
-            self.pos += 1;
-            let right = self.unary()?;
-            left = Expr::Binary { op: op.into(), left: Box::new(left), right: Box::new(right) };
-        }
-        Ok(left)
-    }
-
-    fn unary(&mut self) -> P<Expr> {
-        if self.at_symbol("-") {
-            self.pos += 1;
-            // like PostgreSQL's parser, a minus sign in front of a number is part of the number
-            return Ok(match self.unary()? {
-                Expr::Integer(v) => Expr::Integer(-v),
-                Expr::Float(s) => Expr::Float(if let Some(rest) = s.strip_prefix('-') { rest.to_string() } else { format!("-{s}") }),
-                other => Expr::Unary { op: "-".into(), expr: Box::new(other) },
-            });
-        }
-        if self.at_symbol("+") {
-            self.pos += 1;
-            return self.unary();
-        }
-        self.primary()
+        todo!("3d-05: or, and, not, comparison and IS [NOT] NULL, + - ||, * / %, unary minus; atoms come from self.primary()")
     }
 
     fn primary(&mut self) -> P<Expr> {
@@ -754,7 +673,7 @@ impl Parser {
             self.expect_word("row")?;
             return Ok(FrameBound::CurrentRow);
         }
-        let e = self.additive()?;
+        let e = self.expr()?;
         if self.eat_word("preceding") {
             Ok(FrameBound::Preceding(Box::new(e)))
         } else {

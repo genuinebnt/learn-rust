@@ -1,7 +1,0 @@
-id = "3e-01"
-title = "The sequential scan"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3e::s3e_01"]
-learn = ["the init/next batch protocol every executor speaks", "holding a cursor in a struct across calls", "skipping tombstoned rows"]
-concepts = ["the-iterator-model", "lifetimes-in-structs", "heap-files", "iterators-and-closures", "generics-and-static-dispatch"]

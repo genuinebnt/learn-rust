@@ -1,7 +1,0 @@
-id = "3e-05"
-title = "Delete"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3e::s3e_05"]
-learn = ["deleting is marking, not erasing", "removing exactly the entries of the deleted rows", "reading rids from the child as well as tuples"]
-concepts = ["maintaining-indexes-on-writes", "tombstones-and-lazy-deletion", "heap-files"]

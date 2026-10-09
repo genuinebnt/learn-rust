@@ -1,0 +1,8 @@
+id = "3e-05"
+title = "Boss: whole sessions against a model"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_3e::s3e_05", "sql_access_methods_test"]
+retest = true
+concepts = []
+concepts_optional = ["model-based-testing", "property-testing-and-fuzzing", "the-sql-pipeline"]

@@ -37,20 +37,20 @@ impl<'e> DeleteExecutor<'e> {
 
     /// Removes the entries of `tuple` from every index of the table.
     fn delete_from_indexes(&self, tuple: &Tuple) {
-        // 3e-05: for every index, delete the entry for the key of the tuple (Tuple::key_from_tuple, as in the insert executor)
+        // 3e-03: for every index, delete the entry for the key of the tuple (Tuple::key_from_tuple, as in the insert executor)
     }
 }
 
 impl Executor for DeleteExecutor<'_> {
     fn init(&mut self) -> Result<()> {
-        todo!("3e-05: forget that the count was produced and initialise the child")
+        todo!("3e-03: forget that the count was produced and initialise the child")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, _batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
         // 4b-02: when self.txn is Some: once, for every rid of the child call modify_tuple(.., None) (index entries stay), count, and answer with one tuple holding the count
-        todo!("3e-05: once: for every tuple (and rid) of the child mark the heap tuple deleted (update_tuple_meta with is_deleted: true), remove its index entries (delete_from_indexes) and count it; answer with one tuple holding the count; every later call returns false")
+        todo!("3e-03: once: for every tuple (and rid) of the child mark the heap tuple deleted (update_tuple_meta with is_deleted: true), remove its index entries (delete_from_indexes) and count it; answer with one tuple holding the count; every later call returns false")
     }
 
     fn output_schema(&self) -> &Schema {

@@ -78,8 +78,8 @@ fn pushing_a_filter_into_the_scan_gives_the_same_rows() {
 
 ### In the exercises
 
-- **3e-02:** `passes_filter` is the predicate check inside the scan; `explain` shows `SeqScan { table=t, filter=... }` after the optimizer's merge rule.
-- **3e-08:** the index scan applies its `filter_predicate` to what the index found.
+- **3e-01:** `passes_filter` is the predicate check inside the scan; `explain` shows `SeqScan { table=t, filter=... }` after the optimizer's merge rule.
+- **3e-04:** the index scan applies its `filter_predicate` to what the index found.
 - **Module 3h:** the rule that turns a pushed predicate `col = constant` into an index scan.
 
 ### Where it is used

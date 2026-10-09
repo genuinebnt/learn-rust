@@ -1,16 +1,26 @@
-BusTub's own SQL tests for this part of the system, run by a port of its `sqllogictest` runner. They are the files `p0.01-lower-upper.slt`, `p0.02-function-error.slt`, `p0.03-string-scan.slt`, `baby_arithmetic.slt` and `intro.slt` from `test/sql/`: expressions on constants (`select 1 + 2 + 3 + null;`), `lower`/`upper` with right and wrong arguments, and scans of the built-in `__mock_*` tables with expressions over their columns.
+**Where this fits.** Your lexer, your parser, your expression nodes and your function factory, joined by the given binder and planner, are a SQL calculator. This stage checks the whole path against two judges: an **oracle** written for the occasion (random integer and boolean expressions against a 64-bit and a three-valued model) and **BusTub's own SQL tests**, run by a port of its `sqllogictest` runner.
+
+> [!CHECK] A random expression like `3 - -2 + null > 4 or true` goes through five layers. If the answer is wrong, how do you tell whether the lexer, the parser, the planner or an expression node is at fault, without a debugger? What would you print, and at which layer?
+> ||Bisect by layer, outside in: tokenize the text and read the tokens; `parse_expr` it and read the tree (wrong precedence shows here); `explain` the statement to see the planned nodes (a wrong operator or type shows here); evaluate the planned expression alone with constants (a wrong value shows here). The first layer whose output disagrees with what you expect from the layer before is the culprit.||
+>
+> - Which layer owns `3 - -2`: is the second minus an operator or a sign?
+> - Where does `null > 4` become a BOOLEAN NULL?
+> - Which layer reports an overflow?
 
 ## The task
 
-Make `slt_expressions_test` pass (`cargo test --test slt_expressions_test`): five tests, one per file. Each starts a fresh database (`tests/slt/mod.rs`, given), creates the mock tables and runs the file's records in order.
+Nothing new to write. Make both pass:
 
-## Tests
+- **`stages_3d::s3d_07`**: for random integer expressions over `+`, `-`, constants, NULLs and large numbers, `select <expr>` answers what a 64-bit oracle does (the value, `integer_null`, or an overflow error); for random boolean expressions (comparisons of such integers combined with `and`/`or`) it answers what Kleene's logic does; a syntax error is reported as a parse error; comments, case and white space do not matter.
+- **`slt_expressions_test`** (`cargo test --test slt_expressions_test`): five tests, one per BusTub file (`p0.01-lower-upper.slt`, `p0.02-function-error.slt`, `p0.03-string-scan.slt`, `baby_arithmetic.slt`, `intro.slt`): expressions on constants (`select 1 + 2 + 3 + null;`), `lower`/`upper` with right and wrong arguments, and scans of the built-in `__mock_*` tables with expressions over their columns. Each starts a fresh database (`tests/slt/mod.rs`, given), creates the mock tables and runs the file's records in order.
 
-- `slt_expressions_test.rs`: 5 tests (the five `.slt` files).
+## Your freedom
 
-## Syntax and methods
+None new: if a test fails, the fix belongs in one of your earlier stages.
 
-A `.slt` file is a list of records separated by blank lines:
+## The Rust toolbox
+
+**A `.slt` file is a list of records separated by blank lines:**
 
 ```text
 statement ok                      # must run without an error  ("statement error": must fail)
@@ -25,47 +35,60 @@ select a + 1 from t;
 
 Cells are separated by one space; NULLs print as `integer_null`, `varlen_null`, ...; a decimal has six digits (`3.140000`).
 
-## Notes
+**Reading a failure.** The runner stops at the first failing record and prints `file:line`, the SQL, and the first rows you produced and expected. Run the same SQL in the shell (`cargo run --bin bustub_shell`), put `explain` in front, and compare.
 
-**Reading a failure.** The runner stops at the first failing record and prints `file:line`, the SQL, and the first rows you produced and expected. Start there: run the same SQL in the shell (`cargo run --bin bustub_shell`), put `explain` in front, and compare the plan with what you expect.
+**A proptest counterexample** prints the SQL text of the shrunk expression: paste it into the shell and bisect by layer as in the question above.
 
-**What the files cover.** `baby_arithmetic.slt` is `+`, `-`, comparisons and `and`/`or` with NULLs (your three-valued logic and your overflow behaviour). The `p0.*` files are `lower`/`upper`: valid calls, the error cases that must fail at plan time, and calls over a mock table's VARCHAR columns. `intro.slt` only checks that the mock tables can be scanned with `where` and expressions.
+## If this is new
 
-**The mock tables.** `__mock_table_1` has `colA = 0..99` and `colB = colA * 100`; `__mock_table_3` has NULLs in `colE` on odd rows; `__mock_table_schedule` has the days of the week. They have no storage: the *mock scan* (given) makes row `i` on demand. Real tables arrive with the next module.
+- Everything is in the earlier stages of this module.
+- [Y5 Testing & verification](/t/y5-testing-verification): Build it: a model for three-valued logic; print-then-parse round trips; fuzzing a lexer and a parser.
+
+## Tests
+
+- Random integer expressions against a 64-bit oracle (values, NULL, overflow).
+- Random boolean expressions against three-valued logic.
+- A syntax error is a parse error; comments and case do not matter.
+- BusTub's five `.slt` files.
+
+## Hints
+
+### The oracle disagrees only for large numbers
+
+The generator mixes small and near-`i32::MAX` literals. A wrong answer only for big ones is an overflow rule (stage 02), not a parse problem.
+
+### Everything is a bit off by one
+
+Check unary minus (`1 - -5`, `-5 * 2`): it is the lexer or the parser's treatment of the sign, not the arithmetic.
+
+## Performance
+
+Each query parses, binds, plans and executes in well under a millisecond for these inputs; the oracle test runs sixty-four of them. The fresh database (`BusTubInstance::new`) dominates.
+
+## Experiment
+
+Optional. Predict first, then run.
+
+1. **Another operator.** Make the planner accept `*` for integers (`ArithmeticType::Multiply`). Which stage's tests, and which oracle, would you extend?
+2. **Fuzz the shell.** Feed random token soup to `execute_sql`. Does anything panic, and in which layer?
+
+## Other designs
+
+None for this stage. The *Other designs* sections of 3d-01 to 3d-06 list the alternatives to compare with yours.
 
 ## In BusTub
 
-`tools/sqllogictest/sqllogictest.cpp` and `parser.cpp` (the runner: `ResultCompare`, `ProcessExtraOptions`), and `test/sql/*.slt`. BusTub's runner compares output line by line after trimming trailing spaces, with `rowsort` sorting both sides first.
+The `.slt` files are BusTub's own (`test/sql/`), run by its `sqllogictest` runner (`tools/sqllogictest`). The oracle tests are new: BusTub has no property tests for expressions.
 
 ## The C/C++ way
 
 | C / C++ | Rust |
 |---|---|
-| a `bustub-sqllogictest` binary run by a script | a test function per file that calls `run_slt("file.slt", 128)` |
-| `exit(1)` on the first mismatch | `panic!` with the diff, which `cargo test` shows |
-| `std::stringstream` + `SimpleStreamWriter` | a `String` + `SimpleStreamWriter` |
+| `make sqllogictest && ./bin/bustub-sqllogictest ../test/sql/p0.01-lower-upper.slt --verbose` | `cargo test --test slt_expressions_test` |
+| `ExecuteSql(sql, writer, ...)` | `BusTubInstance::execute_sql` |
 
-**Port rule:** a test driver binary becomes a library function plus `#[test]`s that call it.
+**Port rule:** the test runner is the same idea (records of statements and expected rows) in Rust.
 
 ## Learn more
-- [sqllogictest format](https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki) · [BusTub's runner](https://github.com/cmu-db/bustub/blob/master/tools/sqllogictest/sqllogictest.cpp)
 
-## Performance
-
-These files are tiny: the whole boss runs in milliseconds, and a mock table of 100 rows is scanned in microseconds. Larger `.slt` files in the next modules run thousands of rows through the same path, so keep an eye on `cargo test --release` when you get there.
-
-**Measure it.** Time `slt_expressions_test` with `cargo test --release -- --nocapture` and see how much of it is building the 27 mock tables (each creates a table heap page).
-
-## Hints
-
-### If `baby_arithmetic` fails on a NULL line
-
-The expected text `integer_null` is how a NULL INTEGER prints. `select 1 + 2 + 3 + null;` is `((1+2)+3)+NULL`: your arithmetic must produce the INTEGER NULL, not an error and not 0.
-
-### If a `statement error` record fails with "statement should error"
-
-Some errors must happen at **plan time**: `select upper(1);` has no rows to fail on. Check that the `StringExpression` constructor (given) is reached: your factory must call it, not build the node some other way.
-
-### If a mock table query fails with "column not found"
-
-Column names are case-insensitive in SQL but stored as declared: `colA` is the column's real name. The binder (given) matches case-insensitively, then the plan uses the declared name. If you changed names in your expressions, the planner cannot find them again.
+- [sqllogictest: the test file format](https://www.sqlite.org/sqllogictest/doc/trunk/about.wiki) · BusTub's [sqllogictest runner](https://github.com/cmu-db/bustub/blob/master/tools/sqllogictest/sqllogictest.cpp)

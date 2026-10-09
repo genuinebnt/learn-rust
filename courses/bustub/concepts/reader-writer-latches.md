@@ -47,6 +47,16 @@ caption: Readers overlap with each other; the writer waits for all of them and t
 - **Upgrades.** There is no "turn my read latch into a write latch". Releasing the read latch and then taking the write latch leaves a gap in which another writer may have changed the data, so everything you read earlier must be re-checked. Trying to take the write latch *while holding* the read latch deadlocks: you are waiting for readers to leave, and you are one of them.
 - **Recursive reads.** A thread that holds a read latch and takes another read latch on the same lock may deadlock if a writer is waiting in between (the writer blocks the second read, the first read blocks the writer). Take a lock once, pass the guard down.
 
+## Never take a read latch you already hold
+
+Two readers can share a page, so taking a read latch twice on the same page in one thread looks harmless. It is not. Most implementations queue a waiting writer ahead of new readers (otherwise a steady stream of readers would starve it). Then:
+
+1. thread A holds a read latch on page P;
+2. thread W asks for a write latch on P and waits for A to leave;
+3. thread A asks for a read latch on P again: it queues behind W, which waits for A.
+
+Nobody can move. The bug shows once in a few hundred runs, only under contention, and only if the writer arrives between the two read latches, which is why a test that passes ten times proves nothing. The usual place is a helper that returns a guard to a caller who then calls another method that latches the same page again (a scan that starts at a leaf it still holds). The rule: **drop the first guard before latching the page again**, or pass the guard down instead of the page id.
+
 ## Poisoning, again
 
 If a thread panics holding the *write* guard, the lock is poisoned, as with a mutex. A panic holding a read guard does not poison it (the data cannot have been changed). The reference `ReaderWriterLatch` uses `unwrap_or_else(PoisonError::into_inner)` to ignore the poison flag: a deliberate choice for a latch whose protected data is plain bytes, made explicit in code.

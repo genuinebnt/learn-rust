@@ -42,21 +42,21 @@ impl<'e> IndexScanExecutor<'e> {
     /// The rids this scan visits: with `pred_keys`, the rid under each key (in the order of the keys); without, every rid of the index in
     /// key order.
     fn collect_rids(&self) -> Result<Vec<Rid>> {
-        Ok(self.index_info.index.scan_all()) // 3e-08: with pred_keys: evaluate each key (a constant), make a one-column key tuple with the index's key schema and look it up (Index::scan_key)
+        Ok(self.index_info.index.scan_all()) // 3e-04: with pred_keys: evaluate each key (a constant), make a one-column key tuple with the index's key schema and look it up (Index::scan_key)
     }
 }
 
 impl Executor for IndexScanExecutor<'_> {
     fn init(&mut self) -> Result<()> {
         // 4b-08: a serializable transaction remembers what it scans with: append_scan_predicate(table oid, the filter predicate, or true_predicate())
-        todo!("3e-07: remember the rids to visit (collect_rids) and start at the first")
+        todo!("3e-04: remember the rids to visit (collect_rids) and start at the first")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
         // 4b-06: when self.txn is Some: for each rid use read_visible_version (given) instead of the heap's tuple, skip None, apply the filter as below
-        todo!("3e-07: fill the batch from the rids: fetch each tuple from the heap (get_tuple), skip deleted ones and those for which the filter predicate (if any) is not TRUE; true if the batch is not empty")
+        todo!("3e-04: fill the batch from the rids: fetch each tuple from the heap (get_tuple), skip deleted ones and those for which the filter predicate (if any) is not TRUE; true if the batch is not empty")
     }
 
     fn output_schema(&self) -> &Schema {

@@ -1,0 +1,7 @@
+id = "3f-04"
+title = "Nested loop join"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_3f::s3f_04"]
+learn = ["a join as two nested iterators over two children", "restarting the inner side for each outer tuple", "output that outgrows a batch"]
+concepts = ["join-algorithms", "the-iterator-model", "expression-trees"]

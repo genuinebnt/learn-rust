@@ -1,0 +1,666 @@
+//! Tests for module 3f: aggregation and joins.
+
+mod slt;
+
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
+
+use bustub::catalog::column::Column;
+use bustub::catalog::schema::Schema;
+use bustub::common::bustub_instance::BusTubInstance;
+use bustub::common::exception::ExceptionType;
+use bustub::common::result_writer::SimpleStreamWriter;
+use bustub::execution::executors::aggregation_executor::{AggregateKey, AggregateValue, SimpleAggregationHashTable};
+use bustub::execution::execution_engine::ExecutionEngine;
+use bustub::execution::executor_context::ExecutorContext;
+use bustub::execution::expressions::abstract_expression::ExprRef;
+use bustub::execution::expressions::column_value_expression::ColumnValueExpression;
+use bustub::execution::plans::plan_node::{AggregationType, JoinType, PlanKind, PlanNode, PlanRef};
+use bustub::types::type_id::TypeId;
+use bustub::types::value::Value;
+
+fn int(v: i32) -> Value {
+    Value::integer(v)
+}
+
+fn null() -> Value {
+    Value::null(TypeId::Integer)
+}
+
+fn new_db() -> BusTubInstance {
+    BusTubInstance::new(128)
+}
+
+fn sql(db: &BusTubInstance, sql: &str) -> Vec<String> {
+    let mut out = String::new();
+    db.execute_sql(sql, &mut SimpleStreamWriter::new(&mut out, true, " "), None).unwrap_or_else(|e| panic!("{sql}: {e}"));
+    out.lines().map(|l| l.trim_end().to_string()).collect()
+}
+
+fn sorted(mut v: Vec<String>) -> Vec<String> {
+    v.sort();
+    v
+}
+
+fn sql_err(db: &BusTubInstance, sql: &str) -> bool {
+    let mut out = String::new();
+    db.execute_sql(sql, &mut SimpleStreamWriter::new(&mut out, true, " "), None).is_err()
+}
+
+fn insert_rows(db: &BusTubInstance, table: &str, rows: &[&str]) {
+    if !rows.is_empty() {
+        sql(db, &format!("insert into {table} values {}", rows.join(", ")));
+    }
+}
+
+fn key(vs: Vec<Value>) -> AggregateKey {
+    AggregateKey { group_bys: vs }
+}
+
+fn hash_of(k: &AggregateKey) -> u64 {
+    let mut h = DefaultHasher::new();
+    k.hash(&mut h);
+    h.finish()
+}
+
+// ---- 3f-01 · group keys ---------------------------------------------------------------------------------------------------------
+
+#[test]
+fn s3f_01_equal_keys_are_equal_and_hash_alike() {
+    let a = key(vec![int(1), Value::varchar("x")]);
+    let b = key(vec![int(1), Value::varchar("x")]);
+    assert_eq!(a, b);
+    assert_eq!(hash_of(&a), hash_of(&b));
+    assert_ne!(a, key(vec![int(1), Value::varchar("y")]));
+    assert_ne!(a, key(vec![int(2), Value::varchar("x")]));
+}
+
+#[test]
+fn s3f_01_two_nulls_are_the_same_group() {
+    assert_eq!(key(vec![null()]), key(vec![null()]));
+    assert_eq!(hash_of(&key(vec![null()])), hash_of(&key(vec![null()])));
+    assert_eq!(key(vec![null()]), key(vec![Value::null(TypeId::Varchar)]), "a NULL is a NULL whatever its type");
+    assert_ne!(key(vec![null()]), key(vec![int(0)]), "NULL is not zero");
+}
+
+#[test]
+fn s3f_01_equal_integers_of_different_widths_are_the_same_group() {
+    assert_eq!(key(vec![Value::tinyint(5)]), key(vec![Value::bigint(5)]));
+    assert_eq!(hash_of(&key(vec![Value::tinyint(5)])), hash_of(&key(vec![Value::bigint(5)])));
+    assert_ne!(key(vec![Value::smallint(5)]), key(vec![Value::smallint(6)]));
+}
+
+#[test]
+fn s3f_01_the_number_of_values_matters() {
+    assert_ne!(key(vec![int(1)]), key(vec![int(1), int(1)]));
+    assert_ne!(key(vec![]), key(vec![null()]));
+    assert_eq!(key(vec![]), key(vec![]), "the key of 'no GROUP BY' is the empty key");
+}
+
+#[test]
+fn s3f_01_decimal_zero_and_negative_zero_are_one_group() {
+    assert_eq!(key(vec![Value::decimal(0.0)]), key(vec![Value::decimal(-0.0)]));
+    assert_eq!(hash_of(&key(vec![Value::decimal(0.0)])), hash_of(&key(vec![Value::decimal(-0.0)])));
+    assert_ne!(key(vec![Value::decimal(1.5)]), key(vec![Value::decimal(2.5)]));
+}
+
+#[test]
+fn s3f_01_keys_work_in_a_hash_map() {
+    let mut counts: HashMap<AggregateKey, u32> = HashMap::new();
+    for v in [int(1), null(), int(1), null(), int(2), Value::bigint(1)] {
+        *counts.entry(key(vec![v])).or_insert(0) += 1;
+    }
+    assert_eq!(counts.len(), 3);
+    assert_eq!(counts[&key(vec![int(1)])], 3);
+    assert_eq!(counts[&key(vec![null()])], 2);
+}
+
+// ---- 3f-02 · combining aggregate values ----------------------------------------------------------------------------------------
+
+fn table(types: &[AggregationType]) -> SimpleAggregationHashTable {
+    SimpleAggregationHashTable::new(types.to_vec())
+}
+
+fn input(vs: Vec<Value>) -> AggregateValue {
+    AggregateValue { aggregates: vs }
+}
+
+/// Folds `inputs` (one value per aggregate in each) and returns the final values.
+fn fold(types: &[AggregationType], inputs: &[Vec<Value>]) -> Vec<Value> {
+    let t = table(types);
+    let mut running = t.generate_initial_aggregate_value();
+    for i in inputs {
+        t.combine_aggregate_values(&mut running, &input(i.clone())).unwrap();
+    }
+    running.aggregates
+}
+
+use AggregationType::*;
+
+#[test]
+fn s3f_02_the_initial_values() {
+    let t = table(&[CountStarAggregate, CountAggregate, SumAggregate, MinAggregate, MaxAggregate]);
+    assert_eq!(t.generate_initial_aggregate_value().aggregates, vec![int(0), null(), null(), null(), null()]);
+}
+
+#[test]
+fn s3f_02_each_aggregate_over_a_few_values() {
+    let all = [CountStarAggregate, CountAggregate, SumAggregate, MinAggregate, MaxAggregate];
+    let rows: Vec<Vec<Value>> = [5, -2, 9].iter().map(|v| vec![int(1), int(*v), int(*v), int(*v), int(*v)]).collect();
+    assert_eq!(fold(&all, &rows), vec![int(3), int(3), int(12), int(-2), int(9)]);
+}
+
+#[test]
+fn s3f_02_null_inputs_are_ignored_except_by_count_star() {
+    let all = [CountStarAggregate, CountAggregate, SumAggregate, MinAggregate, MaxAggregate];
+    let rows = vec![
+        vec![int(1), null(), null(), null(), null()],
+        vec![int(1), int(4), int(4), int(4), int(4)],
+        vec![int(1), null(), null(), null(), null()],
+    ];
+    assert_eq!(fold(&all, &rows), vec![int(3), int(1), int(4), int(4), int(4)]);
+}
+
+#[test]
+fn s3f_02_a_group_of_only_nulls_stays_null() {
+    let all = [CountAggregate, SumAggregate, MinAggregate, MaxAggregate];
+    let rows = vec![vec![null(); 4], vec![null(); 4]];
+    assert_eq!(fold(&all, &rows), vec![null(); 4], "nothing non-NULL was seen: not 0");
+}
+
+#[test]
+fn s3f_02_the_first_value_seeds_the_running_value() {
+    assert_eq!(fold(&[MinAggregate], &[vec![int(7)]]), vec![int(7)]);
+    assert_eq!(fold(&[MaxAggregate], &[vec![int(-7)]]), vec![int(-7)], "max of one negative number is that number, not 0");
+    assert_eq!(fold(&[SumAggregate], &[vec![int(-7)]]), vec![int(-7)]);
+}
+
+#[test]
+fn s3f_02_sum_overflow_is_an_error() {
+    let t = table(&[SumAggregate]);
+    let mut running = t.generate_initial_aggregate_value();
+    t.combine_aggregate_values(&mut running, &input(vec![int(i32::MAX)])).unwrap();
+    let e = t.combine_aggregate_values(&mut running, &input(vec![int(1)])).unwrap_err();
+    assert_eq!(e.kind, ExceptionType::OutOfRange);
+}
+
+#[test]
+fn s3f_02_insert_combine_keeps_one_running_value_per_group() {
+    let mut t = table(&[CountStarAggregate, SumAggregate]);
+    for (k, v) in [(1, 10), (2, 20), (1, 5), (2, 1), (1, 1)] {
+        t.insert_combine(key(vec![int(k)]), &input(vec![int(1), int(v)])).unwrap();
+    }
+    let mut groups: Vec<(i64, Vec<Value>)> = t.entries().map(|(k, v)| (k.group_bys[0].as_i64().unwrap(), v.aggregates.clone())).collect();
+    groups.sort_by_key(|(k, _)| *k);
+    assert_eq!(groups, vec![(1, vec![int(3), int(16)]), (2, vec![int(2), int(21)])]);
+}
+
+// ---- 3f-03 · the aggregation executor --------------------------------------------------------------------------------------------
+
+fn agg_db() -> BusTubInstance {
+    let db = new_db();
+    sql(&db, "create table t(g int, h int, v int)");
+    insert_rows(&db, "t", &["(1, 1, 10)", "(1, 2, 20)", "(2, 1, 30)", "(2, 1, null)", "(null, 1, 40)", "(null, 2, 50)"]);
+    db
+}
+
+#[test]
+fn s3f_03_group_by_one_column() {
+    let db = agg_db();
+    assert_eq!(
+        sorted(sql(&db, "select g, count(*), sum(v), min(v), max(v), count(v) from t group by g")),
+        vec!["1 2 30 10 20 2", "2 2 30 30 30 1", "integer_null 2 90 40 50 2"]
+    );
+}
+
+#[test]
+fn s3f_03_group_by_several_columns_and_expressions() {
+    let db = agg_db();
+    assert_eq!(
+        sorted(sql(&db, "select g, h, count(*) from t group by g, h")),
+        vec!["1 1 1", "1 2 1", "2 1 2", "integer_null 1 1", "integer_null 2 1"]
+    );
+    assert_eq!(sorted(sql(&db, "select h + 100, sum(v) from t group by h")), vec!["101 80", "102 70"]);
+}
+
+#[test]
+fn s3f_03_aggregates_without_group_by_are_one_row() {
+    let db = agg_db();
+    assert_eq!(sql(&db, "select count(*), count(v), sum(v), min(v), max(v) from t"), vec!["6 5 150 10 50"]);
+    assert_eq!(sql(&db, "select sum(v + 1), count(*) + 0 from t").len(), 1);
+}
+
+#[test]
+fn s3f_03_an_empty_input_has_one_group_without_group_by_and_none_with_it() {
+    let db = new_db();
+    sql(&db, "create table e(g int, v int)");
+    assert_eq!(sql(&db, "select count(*), count(v), sum(v), min(v), max(v) from e"), vec!["0 integer_null integer_null integer_null integer_null"]);
+    assert!(sql(&db, "select g, count(*) from e group by g").is_empty());
+}
+
+#[test]
+fn s3f_03_having_filters_the_groups() {
+    let db = agg_db();
+    assert_eq!(sorted(sql(&db, "select g, count(*) from t group by g having count(*) >= 2 and sum(v) > 50")), vec!["integer_null 2"]);
+    assert_eq!(sql(&db, "select g from t group by g having sum(v) < 0").len(), 0);
+}
+
+#[test]
+fn s3f_03_more_groups_than_a_batch() {
+    let db = new_db();
+    sql(&db, "create table big(a int)");
+    let rows: Vec<String> = (0..500).map(|i| format!("({})", i % 100)).collect();
+    insert_rows(&db, "big", &rows.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+    let out = sql(&db, "select a, count(*) from big group by a");
+    assert_eq!(out.len(), 100);
+    assert!(out.iter().all(|l| l.ends_with(" 5")));
+}
+
+#[test]
+fn s3f_03_select_distinct_is_a_group_by_without_aggregates() {
+    let db = agg_db();
+    assert_eq!(sorted(sql(&db, "select distinct g from t")), vec!["1", "2", "integer_null"]);
+    assert_eq!(sql(&db, "select distinct h from t").len(), 2);
+}
+
+#[test]
+fn s3f_03_init_can_be_repeated() {
+    let db = agg_db();
+    let first = sorted(sql(&db, "select g, sum(v) from t group by g"));
+    let second = sorted(sql(&db, "select g, sum(v) from t group by g"));
+    assert_eq!(first, second);
+    let out = sql(&db, "select * from (select g, sum(v) from t group by g)");
+    assert_eq!(out.len(), 3, "an aggregation as the input of another operator");
+}
+
+// ---- 3f-04 · nested loop join --------------------------------------------------------------------------------------------------
+
+fn join_db() -> BusTubInstance {
+    let db = new_db();
+    sql(&db, "create table a(x int, s varchar(10))");
+    sql(&db, "create table b(y int, z int)");
+    insert_rows(&db, "a", &["(1, 'one')", "(2, 'two')", "(3, 'three')", "(null, 'nil')"]);
+    insert_rows(&db, "b", &["(1, 100)", "(1, 101)", "(3, 300)", "(4, 400)", "(null, 0)"]);
+    db
+}
+
+#[test]
+fn s3f_04_an_inner_join_outputs_the_matching_pairs() {
+    let db = join_db();
+    assert_eq!(
+        sorted(sql(&db, "select * from a inner join b on a.x = b.y")),
+        vec!["1 one 1 100", "1 one 1 101", "3 three 3 300"]
+    );
+    assert_eq!(sql(&db, "select * from a join b on a.x = b.y and b.z > 200"), vec!["3 three 3 300"]);
+}
+
+#[test]
+fn s3f_04_the_predicate_can_be_anything_not_only_equality() {
+    let db = join_db();
+    let lt = sql(&db, "select a.x, b.y from a inner join b on a.x < b.y");
+    assert_eq!(sorted(lt), vec!["1 3", "1 4", "2 3", "2 4", "3 4"]);
+    let arithmetic = sql(&db, "select * from a inner join b on a.x + 1 = b.y");
+    assert_eq!(sorted(arithmetic), vec!["2 two 3 300", "3 three 4 400"]);
+}
+
+#[test]
+fn s3f_04_null_never_matches() {
+    let db = join_db();
+    let rows = sql(&db, "select * from a inner join b on a.x = b.y");
+    assert!(rows.iter().all(|r| !r.contains("nil")), "NULL = NULL is not true");
+}
+
+#[test]
+fn s3f_04_a_cross_join_has_every_pair() {
+    let db = join_db();
+    assert_eq!(sql(&db, "select * from a, b").len(), 20);
+    assert_eq!(sql(&db, "select * from a, b where a.x = b.y").len(), 3);
+}
+
+#[test]
+fn s3f_04_one_left_row_with_more_matches_than_a_batch() {
+    let db = new_db();
+    sql(&db, "create table l(x int)");
+    sql(&db, "create table r(y int)");
+    insert_rows(&db, "l", &["(1)", "(2)"]);
+    let rows: Vec<String> = (0..70).map(|_| "(1)".to_string()).collect();
+    insert_rows(&db, "r", &rows.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+    assert_eq!(sql(&db, "select * from l join r on l.x = r.y").len(), 70);
+}
+
+#[test]
+fn s3f_04_an_empty_side_gives_no_rows() {
+    let db = join_db();
+    sql(&db, "create table empty(q int)");
+    assert!(sql(&db, "select * from a join empty on a.x = empty.q").is_empty());
+    assert!(sql(&db, "select * from empty join a on a.x = empty.q").is_empty());
+}
+
+#[test]
+fn s3f_04_three_tables_and_a_table_joined_with_itself() {
+    let db = join_db();
+    sql(&db, "create table c(w int)");
+    insert_rows(&db, "c", &["(1)", "(3)"]);
+    assert_eq!(sorted(sql(&db, "select a.x, b.z, c.w from a join b on a.x = b.y join c on c.w = a.x")), vec!["1 100 1", "1 101 1", "3 300 3"]);
+    assert_eq!(sorted(sql(&db, "select p.x, q.x from a p join a q on p.x = q.x")), vec!["1 1", "2 2", "3 3"]);
+}
+
+#[test]
+fn s3f_04_the_right_side_is_initialised_again_for_each_left_tuple() {
+    let db = join_db();
+    let script = "
+query rowsort +ensure:nlj_init_check
+select * from a inner join b on a.x = b.y;
+----
+1 one 1 100
+1 one 1 101
+3 three 3 300
+";
+    slt::run_script(&db, "init-check", script).unwrap_or_else(|e| panic!("{e}"));
+}
+
+// ---- 3f-05 · left join ----------------------------------------------------------------------------------------------------------
+
+#[test]
+fn s3f_05_a_left_join_keeps_unmatched_left_rows_with_nulls() {
+    let db = join_db();
+    assert_eq!(
+        sorted(sql(&db, "select * from a left join b on a.x = b.y")),
+        vec!["1 one 1 100", "1 one 1 101", "2 two integer_null integer_null", "3 three 3 300", "integer_null nil integer_null integer_null"]
+    );
+}
+
+#[test]
+fn s3f_05_the_padding_has_the_type_of_the_right_columns() {
+    let db = join_db();
+    sql(&db, "create table r2(k int, name varchar(10))");
+    insert_rows(&db, "r2", &["(1, 'x')"]);
+    assert_eq!(sorted(sql(&db, "select * from a left join r2 on a.x = r2.k")), vec!["1 one 1 x", "2 two integer_null varlen_null", "3 three integer_null varlen_null", "integer_null nil integer_null varlen_null"]);
+}
+
+#[test]
+fn s3f_05_a_left_row_is_unmatched_if_no_pair_is_true_even_with_null_answers() {
+    let db = join_db();
+    // a.x < b.y is NULL for the NULL rows: they are unmatched, not errors
+    let rows = sql(&db, "select a.s, b.y from a left join b on a.x < 2 and a.x < b.y");
+    let sorted_rows = sorted(rows);
+    assert_eq!(sorted_rows, vec!["nil integer_null", "one 3", "one 4", "three integer_null", "two integer_null"]);
+}
+
+#[test]
+fn s3f_05_with_an_empty_right_side_every_left_row_is_unmatched() {
+    let db = join_db();
+    sql(&db, "create table empty(q int, w int)");
+    assert_eq!(sql(&db, "select * from a left join empty on a.x = empty.q").len(), 4);
+    assert!(sql(&db, "select * from empty left join a on a.x = empty.q").is_empty());
+}
+
+#[test]
+fn s3f_05_a_left_row_that_matches_many_appears_for_each_and_never_unmatched() {
+    let db = join_db();
+    let rows = sql(&db, "select a.x, b.z from a left join b on a.x = b.y where a.x = 1");
+    assert_eq!(sorted(rows), vec!["1 100", "1 101"]);
+}
+
+#[test]
+fn s3f_05_left_joins_chained_and_with_a_filter_on_the_result() {
+    let db = join_db();
+    sql(&db, "create table c(w int, label varchar(5))");
+    insert_rows(&db, "c", &["(100, 'hundred')"]);
+    let rows = sql(&db, "select a.x, c.label from (a left join b on a.x = b.y) left join c on b.z = c.w where a.x = 1");
+    assert_eq!(sorted(rows), vec!["1 hundred", "1 varlen_null"]);
+}
+
+#[test]
+fn s3f_05_the_left_join_passes_the_init_check_too() {
+    let db = join_db();
+    let script = "
+query rowsort +ensure:nlj_init_check
+select * from a left join b on a.x = b.y;
+----
+1 one 1 100
+1 one 1 101
+2 two integer_null integer_null
+3 three 3 300
+integer_null nil integer_null integer_null
+";
+    slt::run_script(&db, "init-check-left", script).unwrap_or_else(|e| panic!("{e}"));
+}
+
+// ---- 3f-06 · hash join: inner ---------------------------------------------------------------------------------------------------
+
+fn scan(db: &BusTubInstance, name: &str) -> PlanRef {
+    let catalog = db.catalog.read().unwrap();
+    let info = catalog.get_table(name).unwrap();
+    let schema = Schema::new(info.schema.columns().iter().map(|c| c.with_column_name(&format!("{name}.{}", c.name()))).collect());
+    PlanNode::new(Arc::new(schema), vec![], PlanKind::SeqScan { table_oid: info.oid, table_name: name.to_string(), filter_predicate: None })
+}
+
+fn col(idx: u32, type_id: TypeId) -> ExprRef {
+    Arc::new(ColumnValueExpression::new(0, idx, Column::new("c", type_id)))
+}
+
+/// A hash join plan of two tables on `left_keys[i] = right_keys[i]`; the output has all columns of both.
+fn hash_join_plan(db: &BusTubInstance, l: &str, r: &str, left_keys: Vec<ExprRef>, right_keys: Vec<ExprRef>, join_type: JoinType) -> PlanRef {
+    let (lp, rp) = (scan(db, l), scan(db, r));
+    let mut cols: Vec<Column> = lp.output_schema.columns().to_vec();
+    cols.extend(rp.output_schema.columns().iter().cloned());
+    PlanNode::new(
+        Arc::new(Schema::new(cols)),
+        vec![lp, rp],
+        PlanKind::HashJoin { left_key_expressions: left_keys, right_key_expressions: right_keys, join_type },
+    )
+}
+
+fn run_plan(db: &BusTubInstance, plan: &PlanRef) -> Vec<String> {
+    let catalog = db.catalog.read().unwrap();
+    let ctx = ExecutorContext::new(&catalog, db.buffer_pool_manager, false);
+    let (ok, tuples) = ExecutionEngine::execute(plan, &ctx).unwrap();
+    assert!(ok);
+    let schema = &plan.output_schema;
+    tuples.iter().map(|t| (0..schema.column_count()).map(|i| t.get_value(schema, i).to_string()).collect::<Vec<_>>().join(" ")).collect()
+}
+
+#[test]
+fn s3f_06_matching_pairs_by_hashing() {
+    let db = join_db();
+    let plan = hash_join_plan(&db, "a", "b", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Inner);
+    assert_eq!(sorted(run_plan(&db, &plan)), vec!["1 one 1 100", "1 one 1 101", "3 three 3 300"]);
+}
+
+#[test]
+fn s3f_06_it_gives_the_same_rows_as_the_nested_loop_join() {
+    let db = join_db();
+    let plan = hash_join_plan(&db, "a", "b", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Inner);
+    assert_eq!(sorted(run_plan(&db, &plan)), sorted(sql(&db, "select * from a join b on a.x = b.y")));
+}
+
+#[test]
+fn s3f_06_null_keys_match_nothing_not_even_each_other() {
+    let db = join_db();
+    let plan = hash_join_plan(&db, "a", "b", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Inner);
+    let rows = run_plan(&db, &plan);
+    assert!(rows.iter().all(|r| !r.contains("nil") && !r.contains("integer_null")), "{rows:?}");
+}
+
+#[test]
+fn s3f_06_duplicates_on_both_sides_give_every_pair() {
+    let db = new_db();
+    sql(&db, "create table l(x int, tag int)");
+    sql(&db, "create table r(y int, tag int)");
+    insert_rows(&db, "l", &["(1, 1)", "(1, 2)", "(2, 3)"]);
+    insert_rows(&db, "r", &["(1, 10)", "(1, 20)", "(1, 30)", "(3, 40)"]);
+    let plan = hash_join_plan(&db, "l", "r", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Inner);
+    assert_eq!(run_plan(&db, &plan).len(), 6, "2 left rows × 3 right rows with key 1");
+}
+
+#[test]
+fn s3f_06_several_key_columns_must_all_match() {
+    let db = new_db();
+    sql(&db, "create table l(a int, b int)");
+    sql(&db, "create table r(c int, d int)");
+    insert_rows(&db, "l", &["(1, 1)", "(1, 2)", "(2, 2)"]);
+    insert_rows(&db, "r", &["(1, 2)", "(2, 2)", "(2, 1)"]);
+    let plan = hash_join_plan(&db, "l", "r", vec![col(0, TypeId::Integer), col(1, TypeId::Integer)], vec![col(0, TypeId::Integer), col(1, TypeId::Integer)], JoinType::Inner);
+    assert_eq!(sorted(run_plan(&db, &plan)), vec!["1 2 1 2", "2 2 2 2"]);
+    let swapped = hash_join_plan(&db, "l", "r", vec![col(0, TypeId::Integer), col(1, TypeId::Integer)], vec![col(1, TypeId::Integer), col(0, TypeId::Integer)], JoinType::Inner);
+    assert_eq!(sorted(run_plan(&db, &swapped)), vec!["1 2 2 1", "2 2 2 2"], "keys are compared position by position: l.a = r.d and l.b = r.c");
+}
+
+#[test]
+fn s3f_06_an_empty_side_and_a_large_join() {
+    let db = new_db();
+    sql(&db, "create table l(x int)");
+    sql(&db, "create table r(y int)");
+    let plan = hash_join_plan(&db, "l", "r", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Inner);
+    assert!(run_plan(&db, &plan).is_empty());
+    let rows: Vec<String> = (0..2000).map(|i| format!("({i})")).collect();
+    let refs: Vec<&str> = rows.iter().map(|s| s.as_str()).collect();
+    insert_rows(&db, "l", &refs);
+    insert_rows(&db, "r", &refs[500..1500]);
+    assert_eq!(run_plan(&db, &plan).len(), 1000);
+}
+
+#[test]
+fn s3f_06_the_join_can_be_run_twice() {
+    let db = join_db();
+    let plan = hash_join_plan(&db, "a", "b", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Inner);
+    assert_eq!(sorted(run_plan(&db, &plan)), sorted(run_plan(&db, &plan)));
+}
+
+// ---- 3f-07 · hash join: left ----------------------------------------------------------------------------------------------------
+
+#[test]
+fn s3f_07_unmatched_left_rows_are_padded_with_nulls() {
+    let db = join_db();
+    let plan = hash_join_plan(&db, "a", "b", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Left);
+    assert_eq!(
+        sorted(run_plan(&db, &plan)),
+        vec!["1 one 1 100", "1 one 1 101", "2 two integer_null integer_null", "3 three 3 300", "integer_null nil integer_null integer_null"]
+    );
+}
+
+#[test]
+fn s3f_07_a_null_key_row_is_unmatched_but_still_output() {
+    let db = join_db();
+    let plan = hash_join_plan(&db, "a", "b", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Left);
+    let rows = run_plan(&db, &plan);
+    assert!(rows.contains(&"integer_null nil integer_null integer_null".to_string()));
+    assert_eq!(rows.iter().filter(|r| r.contains("nil")).count(), 1);
+}
+
+#[test]
+fn s3f_07_it_gives_the_same_rows_as_the_nested_loop_left_join() {
+    let db = join_db();
+    let plan = hash_join_plan(&db, "a", "b", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Left);
+    assert_eq!(sorted(run_plan(&db, &plan)), sorted(sql(&db, "select * from a left join b on a.x = b.y")));
+}
+
+#[test]
+fn s3f_07_padding_columns_have_the_right_types() {
+    let db = new_db();
+    sql(&db, "create table l(x int)");
+    sql(&db, "create table r(y int, name varchar(10))");
+    insert_rows(&db, "l", &["(5)"]);
+    let plan = hash_join_plan(&db, "l", "r", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Left);
+    assert_eq!(run_plan(&db, &plan), vec!["5 integer_null varlen_null"]);
+}
+
+#[test]
+fn s3f_07_with_an_empty_right_side_every_left_row_is_output() {
+    let db = new_db();
+    sql(&db, "create table l(x int)");
+    sql(&db, "create table r(y int)");
+    let rows: Vec<String> = (0..100).map(|i| format!("({i})")).collect();
+    insert_rows(&db, "l", &rows.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+    let plan = hash_join_plan(&db, "l", "r", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Left);
+    assert_eq!(run_plan(&db, &plan).len(), 100);
+}
+
+#[test]
+fn s3f_07_only_inner_and_left_joins_are_supported() {
+    let db = join_db();
+    let plan = hash_join_plan(&db, "a", "b", vec![col(0, TypeId::Integer)], vec![col(0, TypeId::Integer)], JoinType::Right);
+    let catalog = db.catalog.read().unwrap();
+    let ctx = ExecutorContext::new(&catalog, db.buffer_pool_manager, false);
+    let e = ExecutionEngine::execute(&plan, &ctx).unwrap_err();
+    assert_eq!(e.kind, ExceptionType::NotImplemented);
+}
+
+// ---- 3f-08 · nested index join --------------------------------------------------------------------------------------------------
+
+fn index_join_db() -> BusTubInstance {
+    let db = new_db();
+    sql(&db, "create table outer_t(x int, s varchar(10))");
+    sql(&db, "create table inner_t(y int, z int)");
+    insert_rows(&db, "outer_t", &["(1, 'one')", "(2, 'two')", "(3, 'three')", "(null, 'nil')"]);
+    insert_rows(&db, "inner_t", &["(1, 100)", "(3, 300)", "(4, 400)"]);
+    sql(&db, "create index inner_y on inner_t(y)");
+    sql(&db, "set force_optimizer_starter_rule=yes");
+    db
+}
+
+#[test]
+fn s3f_08_the_optimizer_turns_an_equality_join_on_an_indexed_column_into_an_index_join() {
+    let db = index_join_db();
+    let plan = sql(&db, "explain (o) select * from outer_t join inner_t on outer_t.x = inner_t.y").join("\n");
+    assert!(plan.contains("NestedIndexJoin"), "{plan}");
+}
+
+#[test]
+fn s3f_08_inner_join_through_the_index() {
+    let db = index_join_db();
+    assert_eq!(sorted(sql(&db, "select * from outer_t join inner_t on outer_t.x = inner_t.y")), vec!["1 one 1 100", "3 three 3 300"]);
+    assert_eq!(sorted(sql(&db, "select * from outer_t join inner_t on inner_t.y = outer_t.x")), vec!["1 one 1 100", "3 three 3 300"], "either side of the = may be written first");
+}
+
+#[test]
+fn s3f_08_left_join_pads_the_unmatched_outer_rows() {
+    let db = index_join_db();
+    assert_eq!(
+        sorted(sql(&db, "select * from outer_t left join inner_t on outer_t.x = inner_t.y")),
+        vec!["1 one 1 100", "2 two integer_null integer_null", "3 three 3 300", "integer_null nil integer_null integer_null"]
+    );
+}
+
+#[test]
+fn s3f_08_a_deleted_inner_row_is_not_joined() {
+    let db = index_join_db();
+    sql(&db, "delete from inner_t where y = 3");
+    assert_eq!(sql(&db, "select * from outer_t join inner_t on outer_t.x = inner_t.y"), vec!["1 one 1 100"]);
+    assert_eq!(sql(&db, "select * from outer_t left join inner_t on outer_t.x = inner_t.y where outer_t.x = 3"), vec!["3 three integer_null integer_null"]);
+}
+
+#[test]
+fn s3f_08_rows_inserted_after_the_index_was_made_are_found() {
+    let db = index_join_db();
+    sql(&db, "insert into inner_t values (2, 200)");
+    assert_eq!(sorted(sql(&db, "select * from outer_t join inner_t on outer_t.x = inner_t.y")), vec!["1 one 1 100", "2 two 2 200", "3 three 3 300"]);
+}
+
+#[test]
+fn s3f_08_it_agrees_with_the_nested_loop_join_on_a_bigger_table() {
+    let db = index_join_db();
+    sql(&db, "create table o2(x int)");
+    sql(&db, "create table i2(y int, z int)");
+    let outer: Vec<String> = (0..300).map(|i| format!("({})", i % 120)).collect();
+    let inner: Vec<String> = (0..100).map(|i| format!("({i}, {})", i * 10)).collect();
+    insert_rows(&db, "o2", &outer.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+    insert_rows(&db, "i2", &inner.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+    sql(&db, "create index i2y on i2(y)");
+    let with_index = sorted(sql(&db, "select * from o2 left join i2 on o2.x = i2.y"));
+    sql(&db, "set force_optimizer_starter_rule=no");
+    let without = sorted(sql(&db, "select * from o2 left join i2 on o2.x = i2.y"));
+    assert_eq!(with_index, without);
+    assert_eq!(with_index.len(), 300);
+}
+
+#[test]
+fn s3f_08_without_an_index_the_join_stays_a_nested_loop() {
+    let db = index_join_db();
+    let plan = sql(&db, "explain (o) select * from inner_t join outer_t on inner_t.z = outer_t.x").join("\n");
+    assert!(!plan.contains("NestedIndexJoin"), "{plan}");
+    assert!(sql_err(&db, "select * from inner_t join nosuch on inner_t.z = nosuch.x"));
+}

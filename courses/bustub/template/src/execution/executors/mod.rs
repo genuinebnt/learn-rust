@@ -1,10 +1,14 @@
 pub mod abstract_executor;
+pub mod aggregation_executor;
 pub mod delete_executor;
 pub mod filter_executor;
+pub mod hash_join_executor;
 pub mod index_scan_executor;
 pub mod init_check_executor;
 pub mod insert_executor;
 pub mod mock_scan_executor;
+pub mod nested_index_join_executor;
+pub mod nested_loop_join_executor;
 pub mod projection_executor;
 pub mod seq_scan_executor;
 pub mod update_executor;

@@ -1,0 +1,64 @@
+code = "3f"
+title = "Aggregation and joins"
+summary = "The operators that combine rows: GROUP BY with a hash table and the five aggregate functions, and joins three ways: a nested loop (any predicate), a hash join (equality) and an index join (equality through an index), each inner and left. BusTub Project 3, task 2."
+lectures = ["queryexecution2", "joins", "sorting"]
+bustub = ["src/include/execution/executors/aggregation_executor.h", "src/execution/aggregation_executor.cpp", "src/execution/nested_loop_join_executor.cpp", "src/execution/hash_join_executor.cpp", "src/execution/nested_index_join_executor.cpp", "src/include/execution/plans/aggregation_plan.h", "src/include/execution/plans/hash_join_plan.h", "src/include/execution/plans/nested_loop_join_plan.h", "src/include/execution/plans/nested_index_join_plan.h", "test/sql/p3.07-simple-agg.slt", "test/sql/p3.08-group-agg-1.slt", "test/sql/p3.09-group-agg-2.slt", "test/sql/p3.10-simple-join.slt", "test/sql/p3.11-multi-way-join.slt", "test/sql/p3.12-repeat-execute.slt", "test/sql/p3.13-nested-index-join.slt"]
+files = [
+    "tests/sql/p3.07-simple-agg.slt",
+    "tests/sql/p3.08-group-agg-1.slt",
+    "tests/sql/p3.09-group-agg-2.slt",
+    "tests/sql/p3.10-simple-join.slt",
+    "tests/sql/p3.11-multi-way-join.slt",
+    "tests/sql/p3.12-repeat-execute.slt",
+    "tests/sql/p3.13-nested-index-join.slt",
+]
+
+[[resources]]
+kind = "docs"
+title = "std::collections::HashMap and the entry API"
+url = "https://doc.rust-lang.org/std/collections/struct.HashMap.html"
+
+[[resources]]
+kind = "docs"
+title = "std::hash::Hash"
+url = "https://doc.rust-lang.org/std/hash/trait.Hash.html"
+
+[[resources]]
+kind = "docs"
+title = "std::collections::VecDeque"
+url = "https://doc.rust-lang.org/std/collections/struct.VecDeque.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: aggregate functions"
+url = "https://www.postgresql.org/docs/current/functions-aggregate.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: table expressions and joins"
+url = "https://www.postgresql.org/docs/current/queries-table-expressions.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: how the planner picks a join"
+url = "https://www.postgresql.org/docs/current/planner-optimizer.html"
+
+[[resources]]
+kind = "docs"
+title = "SQLite: the query planner and automatic indexes"
+url = "https://www.sqlite.org/optoverview.html"
+
+[[resources]]
+kind = "code"
+title = "BusTub's aggregation executor"
+url = "https://github.com/cmu-db/bustub/blob/master/src/include/execution/executors/aggregation_executor.h"
+
+[[resources]]
+kind = "code"
+title = "BusTub's nested loop join executor"
+url = "https://github.com/cmu-db/bustub/blob/master/src/execution/nested_loop_join_executor.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub's hash join executor"
+url = "https://github.com/cmu-db/bustub/blob/master/src/execution/hash_join_executor.cpp"

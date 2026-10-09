@@ -1,0 +1,8 @@
+id = "3f-09"
+title = "Boss: BusTub's SQL tests for aggregation and joins"
+kind = "boss"
+difficulty = "hard"
+tests = ["sql_aggregation_and_joins_test"]
+learn = ["running BusTub's own p3 aggregation and join files", "reading a diff to find the operator at fault"]
+concepts = ["the-sql-pipeline", "model-based-testing"]
+retest = true

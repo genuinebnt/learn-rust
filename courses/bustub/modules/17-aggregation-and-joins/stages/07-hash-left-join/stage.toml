@@ -1,0 +1,7 @@
+id = "3f-07"
+title = "Hash join: left"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3f::s3f_07"]
+learn = ["unmatched probes in a hash join", "sharing padding logic between join algorithms", "testing two algorithms against each other"]
+concepts = ["join-algorithms", "model-based-testing"]

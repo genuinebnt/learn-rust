@@ -24,3 +24,43 @@ pub trait Executor {
 
 /// A boxed executor. The lifetime is the executor context's: executors borrow the catalog.
 pub type ExecutorBox<'e> = Box<dyn Executor + 'e>;
+
+/// One tuple at a time from an executor that produces batches. Executors that combine two inputs (joins) think in single tuples ("the
+/// next left tuple", "the next right tuple"); this wraps a child, keeps its current batch and refills it when it is used up. Given code.
+pub struct TupleStream<'e> {
+    child: ExecutorBox<'e>,
+    batch: Vec<Tuple>,
+    rids: Vec<Rid>,
+    pos: usize,
+}
+
+impl<'e> TupleStream<'e> {
+    pub fn new(child: ExecutorBox<'e>) -> TupleStream<'e> {
+        TupleStream { child, batch: vec![], rids: vec![], pos: 0 }
+    }
+
+    /// Restarts the child (and forgets the rest of its current batch).
+    pub fn init(&mut self) -> Result<()> {
+        self.batch.clear();
+        self.rids.clear();
+        self.pos = 0;
+        self.child.init()
+    }
+
+    /// The next tuple of the child and its rid, or `None` when the child is exhausted.
+    pub fn next(&mut self) -> Result<Option<(Tuple, Rid)>> {
+        if self.pos == self.batch.len() {
+            if !self.child.next(&mut self.batch, &mut self.rids, BUSTUB_BATCH_SIZE)? {
+                self.pos = 0;
+                return Ok(None);
+            }
+            self.pos = 0;
+        }
+        self.pos += 1;
+        Ok(Some((self.batch[self.pos - 1].clone(), self.rids[self.pos - 1])))
+    }
+
+    pub fn output_schema(&self) -> &Schema {
+        self.child.output_schema()
+    }
+}

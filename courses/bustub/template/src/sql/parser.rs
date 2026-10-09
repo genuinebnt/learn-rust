@@ -282,7 +282,11 @@ impl Parser {
         let table = self.ident()?;
         let mut columns = None;
         // `insert into t (select ...)` has a query in the parentheses, `insert into t (a, b) values ...` has a column list.
-        if self.at_symbol("(") && !(self.at_word_n(1, "select") || self.at_word_n(1, "values") || self.at_word_n(1, "with") || matches!(self.peek_at(1), Some(Token::Symbol("(")))) {
+        let mut n = 1;
+        while matches!(self.peek_at(n), Some(Token::Symbol("("))) {
+            n += 1;
+        }
+        if self.at_symbol("(") && !(self.at_word_n(n, "select") || self.at_word_n(n, "values") || self.at_word_n(n, "with")) {
             self.pos += 1;
             let mut cols = vec![self.ident()?];
             while self.eat_symbol(",") {
@@ -515,7 +519,11 @@ impl Parser {
     fn table_primary(&mut self) -> P<TableRef> {
         if self.at_symbol("(") {
             // a derived table `(select ...) alias`, or a parenthesised join `(a join b on ...)`
-            let is_query = self.at_word_n(1, "select") || self.at_word_n(1, "values") || self.at_word_n(1, "with") || matches!(self.peek_at(1), Some(Token::Symbol("(")));
+            let mut n = 1;
+            while matches!(self.peek_at(n), Some(Token::Symbol("("))) {
+                n += 1;
+            }
+            let is_query = self.at_word_n(n, "select") || self.at_word_n(n, "values") || self.at_word_n(n, "with");
             self.pos += 1;
             if is_query {
                 let query = self.query()?;

@@ -14,4 +14,3 @@ scripts
 **/.DS_Store
 **/__pycache__
 courses/*/reference
-courses/*/template

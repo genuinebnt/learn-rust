@@ -1642,3 +1642,16 @@ async fn concepts_can_be_marked_read_and_unread(db: PgPool) {
     assert_eq!(call(&app, Method::PUT, "/api/courses/bustub/concepts/nope/read", Some(json!({ "read": true }))).await.0, StatusCode::NOT_FOUND);
     assert_eq!(call(&app, Method::PUT, "/api/courses/nope/concepts/x/read", Some(json!({ "read": true }))).await.0, StatusCode::NOT_FOUND);
 }
+
+/// The stage page shows a test's code, cut from `courses/<id>/template/tests`. The production image is built from the repo minus
+/// `.dockerignore`: if the template is ignored there, the server has no test code and the page shows none (it happened once).
+#[test]
+fn the_production_image_keeps_the_template_tests() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let ignore = std::fs::read_to_string(root.join(".dockerignore")).unwrap();
+    let hidden: Vec<&str> = ignore.lines().map(str::trim).filter(|l| l.starts_with("courses/") && l.contains("template")).collect();
+    assert!(hidden.is_empty(), ".dockerignore hides the course template, so the server cannot show test code: {hidden:?}");
+    let course = anneal_content::course::Course::load(&root.join("courses/bustub")).unwrap();
+    let stage = course.stages().find(|s| s.id == "1a-01").unwrap();
+    assert!(stage.test_sources.len() >= 5, "1a-01 has its tests' source: {:?}", stage.test_sources.keys().collect::<Vec<_>>());
+}

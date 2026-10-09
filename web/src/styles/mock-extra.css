@@ -7,6 +7,9 @@
 .k-root .k-tact{margin-top:6px;display:inline-block;font:600 11px var(--mono);letter-spacing:.08em;color:var(--grn)}
 .k-root .k-tstack{pointer-events:none}.k-root .k-tstack>*{pointer-events:auto}
 .k-root .k-sol pre .k-l,.k-root .k-cb pre .k-l{display:block}
+/* The line numbers: one per line, in a column that is exactly as tall as the code beside it. */
+.k-root .k-cb .k-ln span{display:block}
+.k-root .k-cb pre,.k-root .k-cb pre code{white-space:pre}
 .k-root .k-sol pre .k-l.k-add{background:color-mix(in oklab,var(--grn) 14%,transparent);color:var(--fg)}
 .k-root .k-sol pre .k-l.k-del{background:color-mix(in oklab,var(--bad) 14%,transparent);color:var(--mut)}
 .k-root .k-sol .k-solf{font:500 11px var(--mono);letter-spacing:.08em;color:var(--dim);margin:-4px 0 10px}
@@ -57,3 +60,5 @@
 .s-root .s-seg .vn{margin-left:6px;font:500 10.5px var(--mono);color:var(--dim)}
 .s-root .s-rail{position:static}
 .s-root .s-trk .tc-doors{margin-top:2px}
+
+.k-root .k-planned{margin-left:10px;font:600 9.5px var(--mono);letter-spacing:.14em;padding:3px 8px;border-radius:4px;border:1px solid var(--line2);color:var(--dim);vertical-align:2px}

@@ -14,6 +14,14 @@ test.beforeEach(async ({ page }) => {
     await expect(page.locator(".k-map")).toBeVisible();
 });
 
+test("modules that are being rewritten carry a PLANNED tag and the finished ones do not", async ({ page }) => {
+    await page.goto("/courses/bustub");
+    await expect(page.locator("#mod-2b .k-planned")).toHaveText("PLANNED");
+    await expect(page.locator("#mod-3a .k-planned")).toHaveText("PLANNED");
+    await expect(page.locator("#mod-1a .k-planned")).toHaveCount(0);
+    await expect(page.locator("#mod-1g .k-planned")).toHaveCount(0);
+});
+
 test("the map has a button for every module and opens the one you click", async ({ page }) => {
     const n = await page.locator(".k-node").count();
     expect(n).toBeGreaterThanOrEqual(25);

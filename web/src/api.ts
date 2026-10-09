@@ -777,6 +777,8 @@ export interface CourseStageRow {
 
 export interface CourseModuleRow {
   code: string;
+  /** Not (re)written yet: the stages are the old ones and will change. */
+  planned?: boolean;
   title: string;
   summary: string;
   stages: CourseStageRow[];

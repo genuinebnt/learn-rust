@@ -183,7 +183,7 @@ function htmlLines(html: string): string[] {
 function codeLines(code: string, info: Info, extra = ""): string {
     const spec = specFor(info, code);
     const lines = htmlLines(spec ? spec.fn(code) : esc(code));
-    const gutter = lines.map((_, i) => i + 1).join("\n");
+    const gutter = lines.map((_, i) => `<span>${i + 1}</span>`).join("");
     const pre = lines.map((l, i) => `<span class="k-${info.hl.has(i + 1) ? "hl" : "l"}">${l || " "}</span>`).join("");
     return `<div class="k-cb${extra}"><div class="k-ln" aria-hidden="true">${gutter}</div><pre><code>${pre}</code></pre></div>`;
 }

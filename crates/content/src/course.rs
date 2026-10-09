@@ -29,6 +29,9 @@ struct CourseToml {
     /// Modules the web app shows. Unset: all of them. Modules ship one at a time, so a half-written one stays hidden.
     #[serde(default)]
     published_modules: Option<Vec<String>>,
+    /// Modules still to be (re)written: shown with a "planned" tag and skipped when picking the next stage.
+    #[serde(default)]
+    planned_modules: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -137,6 +140,8 @@ pub struct Stage {
 #[derive(Debug, Clone, Serialize)]
 pub struct Module {
     pub code: String,
+    /// Not (re)written yet: the stages shown are the old ones and will change.
+    pub planned: bool,
     pub title: String,
     pub summary: String,
     pub project: u32,
@@ -243,6 +248,7 @@ impl Course {
                 });
             }
             modules.push(Module {
+                planned: meta.planned_modules.contains(&mt.code),
                 code: mt.code,
                 title: mt.title,
                 summary: mt.summary,

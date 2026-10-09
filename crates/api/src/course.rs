@@ -81,7 +81,7 @@ pub async fn overview(State(s): State<AppState>, Path(course): Path<String>) -> 
                                     "state": state, "runs": runs.get(&x.id).copied().unwrap_or(0) })
                         })
                         .collect();
-                    json!({ "code": m.code, "title": m.title, "summary": m.summary, "stages": stages })
+                    json!({ "code": m.code, "title": m.title, "summary": m.summary, "planned": m.planned, "stages": stages })
                 })
                 .collect();
             json!({ "number": p.number, "title": p.title, "planned": p.planned, "modules": modules })
@@ -89,7 +89,7 @@ pub async fn overview(State(s): State<AppState>, Path(course): Path<String>) -> 
         .collect();
     let total = c.stages().count();
     // the next stage is the first undone one in the course's own order (the optional primer, project 0, comes last in it)
-    let current: Option<&str> = c.modules.iter().flat_map(|m| m.stages.iter()).find(|x| status(st.get(&x.id)) == "todo").map(|x| x.id.as_str());
+    let current: Option<&str> = c.modules.iter().filter(|m| !m.planned).flat_map(|m| m.stages.iter()).find(|x| status(st.get(&x.id)) == "todo").map(|x| x.id.as_str());
     Ok(Json(json!({ "id": c.id, "title": c.title, "total": total, "done": done, "current": current, "projects": projects })))
 }
 

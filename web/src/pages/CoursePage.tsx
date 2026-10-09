@@ -207,7 +207,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                                 <button key={m.code} className={`k-node${done === m.stages.length ? " k-done" : ""}${m.code === here?.code ? " k-cur" : ""}`} onClick={() => jump(m.code)} aria-label={`${m.code.toUpperCase()} ${m.title}: ${done} of ${m.stages.length} passed`}>
                                                                     {m.code.toUpperCase()}
                                                                     <span className="k-tip" aria-hidden="true">
-                                                                        {m.title} · {done}/{m.stages.length}
+                                                                        {m.title} · {m.planned ? "planned" : `${done}/${m.stages.length}`}
                                                                     </span>
                                                                 </button>
                                                             );
@@ -257,6 +257,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                         <span>
                                                             <b>
                                                                 {m.code.toUpperCase()} · {m.title}
+                                                                {m.planned && <span className="k-planned" title="This module is being rewritten. Its stages are the old ones and will change.">PLANNED</span>}
                                                             </b>
                                                             {m.summary && <p>{m.summary}</p>}
                                                         </span>

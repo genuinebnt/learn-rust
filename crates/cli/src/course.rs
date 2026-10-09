@@ -161,6 +161,9 @@ struct CourseToml {
     id: String,
     title: String,
     repo_name: String,
+    /// Modules still to be (re)written: a learner's copy never contains their stages or their code.
+    #[serde(default)]
+    planned_modules: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -782,6 +785,41 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
     }
 }
 
+/// Copies the course definition into a learner's `.anneal/course`, leaving out the planned modules (their stages will change).
+fn copy_definition(root: &Path, defs: &Path, planned: &[String]) -> anyhow::Result<()> {
+    fs::create_dir_all(defs)?;
+    fs::copy(root.join("course.toml"), defs.join("course.toml"))?;
+    if root.join("lectures.toml").exists() {
+        fs::copy(root.join("lectures.toml"), defs.join("lectures.toml"))?;
+    }
+    copy_dir(&root.join("modules"), &defs.join("modules"))?;
+    for dir in sorted_dirs(&defs.join("modules"))? {
+        let module: ModuleToml = read_toml(&dir.join("module.toml"))?;
+        if planned.contains(&module.code) {
+            fs::remove_dir_all(&dir)?;
+        }
+    }
+    Ok(())
+}
+
+/// Copies the template into a learner's `.anneal/template` without the files that belong to planned modules, so their code never
+/// reaches the learner's machine, not even in the hidden copy.
+fn copy_template(template: &Path, kept: &Path, planned: &[String]) -> anyhow::Result<()> {
+    copy_dir(template, kept)?;
+    let map = load_files_map(kept);
+    let mut left = map.clone();
+    for (file, module) in &map {
+        if planned.contains(module) {
+            let _ = fs::remove_file(kept.join(file));
+            left.remove(file);
+        }
+    }
+    if left.len() != map.len() {
+        fs::write(kept.join(course_unlock::FILES_JSON), serde_json::to_string_pretty(&left)?)?;
+    }
+    Ok(())
+}
+
 fn copy_dir(from: &Path, to: &Path) -> anyhow::Result<()> {
     fs::create_dir_all(to)?;
     for e in fs::read_dir(from)? {
@@ -948,16 +986,10 @@ fn init(course_id: &str, dir: Option<PathBuf>, courses: &Path) -> anyhow::Result
         bail!("{} already exists and isn't empty", dir.display());
     }
     // The whole template stays in .anneal/template; only the modules reached so far are in the working tree.
-    copy_dir(&template, &dir.join(STATE_DIR).join("template"))?;
+    copy_template(&template, &dir.join(STATE_DIR).join("template"), &course.meta.planned_modules)?;
     sync_files(&dir, &dir.join(STATE_DIR).join("template"), &unlocked_modules(&course, &Progress::default()))?;
     // The learner's copy of the stage definitions, so the CLI works without the anneal checkout.
-    let defs = dir.join(STATE_DIR).join("course");
-    fs::create_dir_all(&defs)?;
-    fs::copy(root.join("course.toml"), defs.join("course.toml"))?;
-    if root.join("lectures.toml").exists() {
-        fs::copy(root.join("lectures.toml"), defs.join("lectures.toml"))?;
-    }
-    copy_dir(&root.join("modules"), &defs.join("modules"))?;
+    copy_definition(&root, &dir.join(STATE_DIR).join("course"), &course.meta.planned_modules)?;
     fs::write(
         state_path(&dir, "course.toml"),
         format!("course = \"{course_id}\"\n# Set to true to stop `git push` when the current stage's tests fail.\nblock_on_fail = false\n"),
@@ -970,7 +1002,8 @@ fn init(course_id: &str, dir: Option<PathBuf>, courses: &Path) -> anyhow::Result
     install_hooks(&dir)?;
     git(&["add", "-A"])?;
     let committed = git(&["commit", "-q", "-m", "Start the course"]).map(|s| s.success()).unwrap_or(false);
-    println!("Created {} ({} stages in {} modules).", dir.display(), course.stages.len(), count_modules(&course));
+    let shipped = learner_course(&dir)?;
+    println!("Created {} ({} stages in {} modules).", dir.display(), shipped.stages.len(), count_modules(&shipped));
     if !committed {
         println!("(The first commit didn't happen: set git user.name and user.email, then `git commit -am start`.)");
     }
@@ -1008,18 +1041,14 @@ fn update(course_id: &str, courses: &Path) -> anyhow::Result<ExitCode> {
     if kept.exists() {
         fs::remove_dir_all(&kept)?;
     }
-    copy_dir(&template, &kept)?;
+    let planned = read_toml::<CourseToml>(&root.join("course.toml"))?.planned_modules;
+    copy_template(&template, &kept, &planned)?;
     // The stage definitions and the base snapshot move forward.
     let defs = repo.join(STATE_DIR).join("course");
     if defs.exists() {
         fs::remove_dir_all(&defs)?;
     }
-    fs::create_dir_all(&defs)?;
-    fs::copy(root.join("course.toml"), defs.join("course.toml"))?;
-    if root.join("lectures.toml").exists() {
-        fs::copy(root.join("lectures.toml"), defs.join("lectures.toml"))?;
-    }
-    copy_dir(&root.join("modules"), &defs.join("modules"))?;
+    copy_definition(&root, &defs, &planned)?;
     let course = learner_course(&repo)?;
     let progress = load_progress(&repo);
     let Sync { added, updated, conflicts } = sync_files(&repo, &kept, &unlocked_modules(&course, &progress))?;

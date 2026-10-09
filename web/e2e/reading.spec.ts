@@ -135,6 +135,20 @@ test.describe("code blocks", () => {
         await expect(fig.locator(".k-cb")).toHaveClass(/k-fold/);
     });
 
+    test("line numbers are a column next to the code, one number per line", async ({ page }) => {
+        await page.goto("/courses/bustub/concept/durability-and-fsync");
+        const cb = page.locator(".k-cb").first();
+        const [numbers, lines, gutter, code] = await cb.evaluate((el) => [
+            el.querySelectorAll(".k-ln span").length,
+            el.querySelectorAll("pre .k-l, pre .k-hl, pre .k-del").length,
+            el.querySelector(".k-ln")!.getBoundingClientRect().height,
+            el.querySelector("pre")!.getBoundingClientRect().height,
+        ]);
+        expect(numbers).toBe(lines);
+        expect(numbers).toBeGreaterThan(2);
+        expect(Math.abs(gutter - code)).toBeLessThan(30); // the same height: the numbers do not run together in one line
+    });
+
     test("a short example is not folded", async ({ page }) => {
         await expect(page.locator(".k-code:not(.k-folded)").first()).toBeVisible();
         expect(await page.locator(".k-more").count()).toBe(0);

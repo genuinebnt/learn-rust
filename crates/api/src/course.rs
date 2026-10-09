@@ -59,7 +59,6 @@ pub async fn overview(State(s): State<AppState>, Path(course): Path<String>) -> 
         .fetch_all(&s.db)
         .await?;
     let runs: HashMap<String, i64> = runs.into_iter().collect();
-    let mut current: Option<&str> = None;
     let mut done = 0;
     let projects: Vec<Value> = c
         .projects
@@ -75,9 +74,6 @@ pub async fn overview(State(s): State<AppState>, Path(course): Path<String>) -> 
                         .iter()
                         .map(|x| {
                             let state = status(st.get(&x.id));
-                            if state == "todo" && current.is_none() {
-                                current = Some(&x.id);
-                            }
                             if state != "todo" {
                                 done += 1;
                             }
@@ -92,6 +88,8 @@ pub async fn overview(State(s): State<AppState>, Path(course): Path<String>) -> 
         })
         .collect();
     let total = c.stages().count();
+    // the next stage is the first undone one in the course's own order (the optional primer, project 0, comes last in it)
+    let current: Option<&str> = c.modules.iter().flat_map(|m| m.stages.iter()).find(|x| status(st.get(&x.id)) == "todo").map(|x| x.id.as_str());
     Ok(Json(json!({ "id": c.id, "title": c.title, "total": total, "done": done, "current": current, "projects": projects })))
 }
 

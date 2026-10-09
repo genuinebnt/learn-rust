@@ -8,10 +8,12 @@ import { api, type CourseStagePage as Page } from "../../api";
 import { getPref, setPref } from "../../prefs";
 import { Resizer, type PanelsApi } from "../stagePanels";
 import { Bars, STAGE_MINUTES } from "./shared";
+import { useShowPlanned, withoutPlanned } from "../plannedModules";
 
 export function Tree({ course, page, panels }: { course: string; page: Page; panels: PanelsApi }) {
     const overview = useQuery({ queryKey: ["course", course], queryFn: () => api.course(course) });
-    const o = overview.data;
+    const [showPlanned] = useShowPlanned();
+    const o = withoutPlanned(overview.data, showPlanned);
     const here = page.module.code;
     const [open, setOpen] = useState<Set<string>>(() => new Set([here]));
     useEffect(() => setOpen((prev) => (prev.has(here) ? prev : new Set(prev).add(here))), [here]);

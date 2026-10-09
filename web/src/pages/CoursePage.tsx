@@ -6,6 +6,7 @@ import { Header } from "../components/Header";
 import { CountUp } from "../components/kit";
 import { MockCopy, MockRoot, reducedMotion, useReady } from "../components/mock";
 import { getPref, setPref } from "../prefs";
+import { plannedCount, useShowPlanned, withoutPlanned } from "./plannedModules";
 
 /** The course the Courses nav item opens. */
 export const COURSE_ID = "bustub";
@@ -97,7 +98,9 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
         return () => window.removeEventListener("keydown", onKey);
     }, []);
     const q = useQuery({ queryKey: ["course", course], queryFn: () => api.course(course) });
-    const c: CourseOverview | undefined = q.data;
+    const [showPlanned, setShowPlanned] = useShowPlanned();
+    const c: CourseOverview | undefined = withoutPlanned(q.data, showPlanned);
+    const planned = plannedCount(q.data);
     const allModules = c?.projects.flatMap((p) => p.modules) ?? [];
     const modules = allModules.length;
     const current = allModules.flatMap((m) => m.stages).find((s) => s.id === c?.current);
@@ -235,6 +238,11 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                     <button className="k-ea" onClick={() => choose(allOpen ? [] : allModules.map((m) => m.code))} disabled={active}>
                                         {allOpen ? "COLLAPSE ALL" : "EXPAND ALL"}
                                     </button>
+                                    {planned > 0 && (
+                                        <button className="k-ea" aria-pressed={showPlanned} onClick={() => setShowPlanned(!showPlanned)} title="Modules that are being rewritten are hidden until they are done">
+                                            {showPlanned ? "HIDE PLANNED" : `SHOW PLANNED (${planned})`}
+                                        </button>
+                                    )}
                                 </div>
                                 {active && !allModules.some((m) => m.stages.some((x) => matches(x, m))) && (
                                     <div className="k-none" role="status">

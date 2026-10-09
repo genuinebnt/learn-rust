@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
 const passing = (n: number) => ({
-    stage_id: "4a-06",
+    stage_id: "4a-05",
     tests: Array.from({ length: n }, (_, i) => ({ name: `case_${i}`, ok: true, detail: "" })),
     commit: "abc1234f",
     duration_ms: 1500,
@@ -10,7 +10,7 @@ const passing = (n: number) => ({
 const report = (request: APIRequestContext, n = 4) => request.post("/api/courses/bustub/runs", { data: passing(n) });
 
 test("a passing run opens the popup with the stats and the next stage; Stay here closes it", async ({ page, request }) => {
-    await page.goto("/courses/bustub/4a-06");
+    await page.goto("/courses/bustub/4a-05");
     await expect(page.locator(".k-tabs")).toBeVisible();
     await report(request);
     const dialog = page.getByRole("dialog", { name: "Stage passed" });
@@ -20,11 +20,11 @@ test("a passing run opens the popup with the stats and the next stage; Stay here
     await expect(dialog.getByRole("button", { name: /Go to next stage/ })).toBeFocused();
     await dialog.getByRole("button", { name: "Stay here" }).click();
     await expect(dialog).toBeHidden();
-    await expect(page).toHaveURL(/\/courses\/bustub\/4a-06/);
+    await expect(page).toHaveURL(/\/courses\/bustub\/4a-05/);
 });
 
 test("Escape and a click outside close it, and focus returns to the page", async ({ page, request }) => {
-    await page.goto("/courses/bustub/4a-06");
+    await page.goto("/courses/bustub/4a-05");
     await report(request, 5);
     const dialog = page.getByRole("dialog", { name: "Stage passed" });
     await expect(dialog).toBeVisible({ timeout: 15_000 });
@@ -37,16 +37,16 @@ test("Escape and a click outside close it, and focus returns to the page", async
 });
 
 test("Go to next stage moves on", async ({ page, request }) => {
-    await page.goto("/courses/bustub/4a-06");
+    await page.goto("/courses/bustub/4a-05");
     await report(request, 7);
     const dialog = page.getByRole("dialog", { name: "Stage passed" });
     await expect(dialog).toBeVisible({ timeout: 15_000 });
     await dialog.getByRole("button", { name: /Go to next stage/ }).click();
-    await expect(page).toHaveURL(/\/courses\/bustub\/4a-07/);
+    await expect(page).toHaveURL(/\/courses\/bustub\/4a-06/);
 });
 
 test("Tab stays inside the popup", async ({ page, request }) => {
-    await page.goto("/courses/bustub/4a-06");
+    await page.goto("/courses/bustub/4a-05");
     await report(request, 8);
     const dialog = page.getByRole("dialog", { name: "Stage passed" });
     await expect(dialog).toBeVisible({ timeout: 15_000 });
@@ -57,7 +57,7 @@ test("Tab stays inside the popup", async ({ page, request }) => {
 });
 
 test("with \"don't show again\" on, the next pass is a toast and the choice survives a reload", async ({ page, request }) => {
-    await page.goto("/courses/bustub/4a-06");
+    await page.goto("/courses/bustub/4a-05");
     await report(request, 9);
     const dialog = page.getByRole("dialog", { name: "Stage passed" });
     await expect(dialog).toBeVisible({ timeout: 15_000 });
@@ -71,8 +71,8 @@ test("with \"don't show again\" on, the next pass is a toast and the choice surv
 });
 
 test("a failing run does not open the popup", async ({ page, request }) => {
-    await page.goto("/courses/bustub/4a-04");
-    await request.post("/api/courses/bustub/runs", { data: { stage_id: "4a-04", tests: [{ name: "x", ok: false, detail: "no" }], commit: "f00", duration_ms: 100 } });
+    await page.goto("/courses/bustub/4a-03");
+    await request.post("/api/courses/bustub/runs", { data: { stage_id: "4a-03", tests: [{ name: "x", ok: false, detail: "no" }], commit: "f00", duration_ms: 100 } });
     await expect(page.locator(".k-tt.k-er")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("dialog")).toHaveCount(0);
 });

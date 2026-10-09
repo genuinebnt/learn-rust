@@ -83,35 +83,39 @@ test.describe("Last run", () => {
 });
 
 test.describe("Concepts", () => {
-    const stage = "4a-04";
+    // a stage with required reading (the rewritten modules make every concept optional, so this uses an older one and skips when none is left)
+    const stage = "4b-02";
+    let required = 0;
     // Read state lives on the server: start each test from "nothing read".
     test.beforeEach(async ({ page, request }) => {
         const st = await (await request.get(`/api/courses/bustub/stages/${stage}`)).json();
+        required = st.concepts.filter((k: { required: boolean }) => k.required).length;
+        test.skip(required === 0, "no stage with required concepts is left");
         for (const k of st.concepts) await request.put(`/api/courses/bustub/concepts/${k.id}/read`, { data: { read: false } });
         await page.goto(`/courses/bustub/${stage}#concepts`);
         await expect(page.locator(".k-chdr")).toBeVisible();
     });
 
     test("the header counts the required reading and each concept has a card", async ({ page }) => {
-        await expect(page.locator(".k-chdr")).toContainText("Required reading: 0 of 3 done");
-        await expect(page.locator(".k-ccard")).toHaveCount(3);
-        await expect(page.locator(".k-badge2.k-req")).toHaveCount(3);
-        await expect(page.getByRole("tab", { name: /^Concepts/ })).toContainText("0/3");
+        await expect(page.locator(".k-chdr")).toContainText(`Required reading: 0 of ${required} done`);
+        await expect(page.locator(".k-ccard")).toHaveCount(required);
+        await expect(page.locator(".k-badge2.k-req")).toHaveCount(required);
+        await expect(page.getByRole("tab", { name: /^Concepts/ })).toContainText(`0/${required}`);
     });
 
     test("marking one as read updates the header, the tab and the page panel, and it is kept", async ({ page }) => {
         await page.locator(".k-ccard").first().getByRole("button", { name: /Preview/ }).click();
         await page.locator(".k-ccard").first().getByRole("switch").click();
-        await expect(page.locator(".k-chdr")).toContainText("1 of 3 done");
-        await expect(page.getByRole("tab", { name: /^Concepts/ })).toContainText("1/3");
+        await expect(page.locator(".k-chdr")).toContainText(`1 of ${required} done`);
+        await expect(page.getByRole("tab", { name: /^Concepts/ })).toContainText(`1/${required}`);
         await expect(page.locator(".k-toc .k-cc2:not(.k-todo)")).toHaveCount(1);
         await expect(page.locator(".k-ccard.k-isread")).toHaveCount(1);
         await page.reload();
-        await expect(page.locator(".k-chdr")).toContainText("1 of 3 done");
+        await expect(page.locator(".k-chdr")).toContainText(`1 of ${required} done`);
         // and it can be undone
         await page.locator(".k-ccard").first().getByRole("button", { name: /Preview/ }).click();
         await page.locator(".k-ccard").first().getByRole("switch").click();
-        await expect(page.locator(".k-chdr")).toContainText("0 of 3 done");
+        await expect(page.locator(".k-chdr")).toContainText(`0 of ${required} done`);
     });
 
     test("Preview opens a card and Read opens the article", async ({ page }) => {
@@ -125,7 +129,7 @@ test.describe("Concepts", () => {
     });
 
     test("marking all the required ones read says so", async ({ page }) => {
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < required; i++) {
             const c = page.locator(".k-ccard").nth(i);
             await c.getByRole("button", { name: /Preview/ }).click();
             await c.getByRole("switch").click();

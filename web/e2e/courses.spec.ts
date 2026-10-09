@@ -14,23 +14,26 @@ test.beforeEach(async ({ page }) => {
     await expect(page.locator(".k-map")).toBeVisible();
 });
 
-test("modules that are being rewritten carry a PLANNED tag and the finished ones do not", async ({ page }) => {
+test("planned modules are hidden until you ask, and then they carry a PLANNED tag", async ({ page }) => {
     const course = await (await page.request.get("/api/courses/bustub")).json();
     const modules: { code: string; planned: boolean }[] = course.projects.flatMap((p: { modules: { code: string; planned: boolean }[] }) => p.modules);
+    const planned = modules.filter((m) => m.planned);
     await page.goto("/courses/bustub");
     await expect(page.locator(".k-mod").first()).toBeVisible();
-    for (const m of modules) {
-        const tag = page.locator(`#mod-${m.code} .k-planned`);
-        if (m.planned) await expect(tag).toHaveText("PLANNED");
-        else await expect(tag).toHaveCount(0);
-    }
-    // the first module is finished and stays untagged
+    // finished modules are listed, planned ones are not
+    for (const m of modules) await expect(page.locator(`#mod-${m.code}`)).toHaveCount(m.planned ? 0 : 1);
+    await expect(page.locator(".k-planned")).toHaveCount(0);
+    if (planned.length === 0) return;
+    await page.getByRole("button", { name: `SHOW PLANNED (${planned.length})` }).click();
+    for (const m of planned) await expect(page.locator(`#mod-${m.code} .k-planned`)).toHaveText("PLANNED");
     await expect(page.locator("#mod-1a .k-planned")).toHaveCount(0);
+    await page.getByRole("button", { name: "HIDE PLANNED" }).click();
+    await expect(page.locator(`#mod-${planned[0].code}`)).toHaveCount(0);
 });
 
 test("the map has a button for every module and opens the one you click", async ({ page }) => {
     const n = await page.locator(".k-node").count();
-    expect(n).toBeGreaterThanOrEqual(25);
+    expect(n).toBeGreaterThanOrEqual(18);
     const header = page.locator("#mod-4a .k-mh");
     await expect(header).toHaveAttribute("aria-expanded", "false");
     await page.locator(".k-node", { hasText: "4A" }).click();
@@ -92,8 +95,10 @@ test("the to-do and passed filters split the stages", async ({ page }) => {
     const todo = await page.locator(rows).count();
     await page.getByRole("button", { name: "passed", exact: true }).click();
     const done = await page.locator(rows).count().catch(() => 0);
-    expect(todo).toBeGreaterThan(100);
-    const total = (await (await page.request.get("/api/courses/bustub")).json()).total;
+    expect(todo).toBeGreaterThan(50);
+    // planned modules are hidden, so only the stages of the others are listed
+    const course = await (await page.request.get("/api/courses/bustub")).json();
+    const total = course.projects.flatMap((p: { modules: { planned: boolean; stages: unknown[] }[] }) => p.modules).filter((m: { planned: boolean }) => !m.planned).reduce((n: number, m: { stages: unknown[] }) => n + m.stages.length, 0);
     expect(todo + done).toBe(total);
 });
 

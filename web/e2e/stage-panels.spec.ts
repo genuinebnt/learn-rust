@@ -48,7 +48,7 @@ test("the course panel collapses to a rail of stage dots and comes back; the cho
     await page.getByRole("button", { name: "Collapse the course panel" }).click();
     await expect(page.locator(".k-stage.k-lc")).toBeVisible();
     await expect.poll(() => width(page, ".k-tree")).toBeLessThan(90);
-    await expect(page.locator(".k-rail .k-tl")).toHaveCount(9);
+    await expect(page.locator(".k-rail .k-tl")).toHaveCount(6);
     await page.reload();
     await expect(page.locator(".k-stage.k-lc")).toBeVisible();
     await page.getByRole("button", { name: "Expand the course panel" }).click();
@@ -120,8 +120,8 @@ test.describe("on a phone", () => {
 
     test("choosing a stage in the drawer goes there and closes it", async ({ page }) => {
         await page.getByRole("button", { name: /Stages/ }).click();
-        await page.locator(".k-tlist .k-tl", { hasText: "Scanning with versions" }).click();
-        await expect(page).toHaveURL(/4a-08/);
+        await page.locator(".k-tlist .k-tl", { hasText: "The snapshot scan" }).click();
+        await expect(page).toHaveURL(/4a-05/);
         await expect(page.locator(".k-tree.k-open")).toHaveCount(0);
     });
 

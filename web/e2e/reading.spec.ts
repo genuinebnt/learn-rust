@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-const stage = "/courses/bustub/4a-04";
+// a stage page that has sidenotes, an aside with code and the optional sections; re-point it if the module is rewritten
+const stage = "/courses/bustub/4a-03";
 
 test.beforeEach(async ({ page }) => {
     await page.goto(stage);
@@ -82,8 +83,8 @@ test.describe("asides", () => {
 });
 
 test.describe("optional sections", () => {
-    test("Performance and Learn more are marked optional and shown by default", async ({ page }) => {
-        await expect(page.locator(".k-opt .k-oh")).toHaveCount(2);
+    test("Performance, Experiment, Other designs and Learn more are marked optional and shown by default", async ({ page }) => {
+        await expect(page.locator(".k-opt .k-oh")).toHaveCount(4);
         await expect(page.locator(".k-opt.k-hid")).toHaveCount(0);
     });
 
@@ -98,14 +99,14 @@ test.describe("optional sections", () => {
     });
 
     test("hide all optional sections is remembered, and going to a hidden one opens it", async ({ page }) => {
-        await page.getByRole("button", { name: "Hide optional sections" }).click();
-        await expect(page.locator(".k-opt.k-hid")).toHaveCount(2);
+        await page.getByRole("button", { name: "Hide optional sections" }).first().click();
+        await expect(page.locator(".k-opt.k-hid")).toHaveCount(4);
         await page.reload();
-        await expect(page.locator(".k-opt.k-hid")).toHaveCount(2);
+        await expect(page.locator(".k-opt.k-hid")).toHaveCount(4);
         await page.locator("#toc a", { hasText: "Performance" }).click();
         await expect(page.locator("#sec-performance")).not.toHaveClass(/k-hid/);
         await expect(page.locator("#sec-performance")).toHaveClass(/k-open/);
-        await page.getByRole("button", { name: "Show optional sections" }).click();
+        await page.getByRole("button", { name: "Show optional sections" }).first().click();
         await expect(page.locator(".k-opt.k-hid")).toHaveCount(0);
     });
 

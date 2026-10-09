@@ -44,7 +44,7 @@ test("hints open in order: a later one is locked and says so", async ({ page }) 
     const h3 = page.locator("#h3");
     await expect(h3).toContainText("open after hint 2");
     await h3.locator(".k-hh").click();
-    await expect(page.locator(".k-tt")).toContainText("Open the previous hint first");
+    await expect(page.locator(".k-tt", { hasText: "Open the previous hint first" })).toBeVisible();
 });
 
 test("the solution is blurred behind a gate until it is revealed", async ({ page }) => {
@@ -71,8 +71,8 @@ test("Run tests copies the command and says so in a toast", async ({ page, conte
 });
 
 test("the outline marker follows the section you are in", async ({ page }) => {
-    await page.locator("#toc a", { hasText: "Notes" }).click();
-    await expect(page.locator("#toc a.k-on")).toHaveText("Notes");
+    await page.locator("#toc a", { hasText: "Tests" }).click();
+    await expect(page.locator("#toc a.k-on")).toHaveText("Tests");
 });
 
 test("the pages are centred and have no grid behind them", async ({ page }) => {

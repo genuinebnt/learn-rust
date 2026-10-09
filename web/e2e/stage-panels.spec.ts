@@ -45,10 +45,13 @@ test("a panel never gets narrower than its minimum", async ({ page }) => {
 });
 
 test("the course panel collapses to a rail of stage dots and comes back; the choice survives a reload", async ({ page }) => {
+    // one dot per stage of the current module, challenges included: count its rows in the open tree first
+    const rows = await page.locator(".k-tlist section:has(.k-tl.k-cur) .k-tl").count();
+    expect(rows).toBeGreaterThan(5);
     await page.getByRole("button", { name: "Collapse the course panel" }).click();
     await expect(page.locator(".k-stage.k-lc")).toBeVisible();
     await expect.poll(() => width(page, ".k-tree")).toBeLessThan(90);
-    await expect(page.locator(".k-rail .k-tl")).toHaveCount(6);
+    await expect(page.locator(".k-rail .k-tl")).toHaveCount(rows);
     await page.reload();
     await expect(page.locator(".k-stage.k-lc")).toBeVisible();
     await page.getByRole("button", { name: "Expand the course panel" }).click();

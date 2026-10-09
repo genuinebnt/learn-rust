@@ -3,21 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type CSSProperties } from "react";
 import { api } from "../api";
 import { Header } from "../components/Header";
-import { renderMd } from "./courseMd";
-
-function copyFromBlock(e: React.MouseEvent) {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".cx-copy");
-    if (!b) return;
-    const done = () => {
-        b.textContent = "copied";
-        setTimeout(() => (b.textContent = "copy"), 1200);
-    };
-    try {
-        navigator.clipboard.writeText(b.dataset.code ?? "").then(done, done);
-    } catch {
-        done();
-    }
-}
+import { handleCodeClick, renderMd } from "./courseMd";
 
 /** A concept: a short article that teaches one idea a stage needs. */
 export function CourseConceptPage({ course, id }: { course: string; id: string }) {
@@ -93,7 +79,7 @@ export function CourseConceptPage({ course, id }: { course: string; id: string }
                             </div>
                             <h1 className="cx-h1">{p.concept.title}</h1>
                             <p className="cx-lead">{p.concept.summary}</p>
-                            <div className="cx-prose" onClick={copyFromBlock}>
+                            <div className="cx-prose" onClick={handleCodeClick}>
                                 {p.concept.sections.map((s, i) => (
                                     <section key={s.id} id={`c-${s.id}`}>
                                         <div className="cx-part">

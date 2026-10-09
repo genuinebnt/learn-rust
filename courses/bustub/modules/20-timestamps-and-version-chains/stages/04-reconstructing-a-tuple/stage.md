@@ -1,4 +1,4 @@
-The table holds the newest version of a tuple. Older versions exist only as **undo logs**: each says how to turn a version into the previous one. This stage writes the function that does the turning: given the tuple in the table and a list of undo logs, produce the version they lead to.
+The table holds the newest version of a tuple. Older versions exist only as **undo logs**^[An undo log is stored next to the table, not inside it, so the table page stays one tuple per slot and a reader that wants the newest version never touches the logs.]: each says how to turn a version into the previous one. This stage writes the function that does the turning: given the tuple in the table and a list of undo logs, produce the version they lead to^["The version they lead to" is the version a transaction with a given read timestamp would see; picking *which* logs to apply is the next stage, so here the logs are simply given.].
 
 ## The task
 
@@ -37,6 +37,23 @@ Tuple::new(&values, schema)
 **The partial index.** Walk the columns once with a counter `next` that advances only for modified columns. Looking up "position of column i in the partial schema" separately for each column costs a scan each time and is easy to get off by one.
 
 **Why start from NULLs.** After a delete, the table's old bytes are meaningless for the next older version: a log that says "version before this was (1, 2.0, false)" is always a full log (a deletion's log restores every column), so the starting values are overwritten anyway. Starting from NULLs makes the function correct even if a test gives a partial log after a delete, instead of leaking the deleted tuple's data.
+
+> [!ASIDE] Why not rebuild the tuple after every log?
+> It is tempting to write `base = apply(base, log)` in a loop: each step returns a new `Tuple`. That allocates and re-serialises for every log, and a chain of ten logs does ten times the work for the same answer.
+>
+> ```rust
+> // one pass: keep the values in a Vec and build the Tuple once, at the end
+> let mut values: Vec<Value> = base_tuple.values(schema);
+> let mut deleted = base_meta.is_deleted;
+> for log in undo_logs {
+>     if log.is_deleted { deleted = true; continue; }
+>     deleted = false;
+>     // ... copy the modified columns into `values` ...
+> }
+> if deleted { None } else { Some(Tuple::new(values, schema)) }
+> ```
+>
+> The loop touches each log once and each column at most once per log.
 
 ## In BusTub
 

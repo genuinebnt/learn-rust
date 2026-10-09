@@ -7,6 +7,8 @@ use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, T
 
 /// Renders `md` in lines of at most `width` columns (a long unbreakable word or a code line may be longer).
 pub fn render(md: &str, width: usize, color: bool) -> String {
+    let (md, notes) = prepare(md);
+    let md = md.as_str();
     let mut r = Renderer { width: width.max(30), color, ..Renderer::default() };
     let mut opts = Options::empty();
     opts.insert(Options::ENABLE_TABLES);
@@ -14,7 +16,93 @@ pub fn render(md: &str, width: usize, color: bool) -> String {
     for ev in Parser::new_ext(md, opts) {
         r.event(ev);
     }
-    r.finish()
+    let body = r.finish();
+    if notes.is_empty() {
+        return body;
+    }
+    // The website shows sidenotes in a panel; in the terminal they follow the text, numbered like their markers.
+    let mut list = String::new();
+    for (i, n) in notes.iter().enumerate() {
+        list.push_str(&format!("{}. {n}\n", i + 1));
+    }
+    let mut r2 = Renderer { width: width.max(30), color, ..Renderer::default() };
+    for ev in Parser::new_ext(&list, opts) {
+        r2.event(ev);
+    }
+    let heading = if color { "\x1b[1mNotes\x1b[0m" } else { "Notes" };
+    format!("{body}\n{heading}\n{}", r2.finish())
+}
+
+/// Rewrites what only the website draws: `^[a sidenote]` becomes a numbered marker `[n]` (the notes are returned in order), and a
+/// `> [!KIND] Title` opening of a quote becomes a bold lead. Code fences are left alone.
+fn prepare(md: &str) -> (String, Vec<String>) {
+    let mut out = String::with_capacity(md.len());
+    let mut notes = Vec::new();
+    let mut fence = false;
+    for line in md.split_inclusive('\n') {
+        if line.trim_start().starts_with("```") || line.trim_start().starts_with("> ```") {
+            fence = !fence;
+            out.push_str(line);
+            continue;
+        }
+        if fence {
+            out.push_str(line);
+            continue;
+        }
+        let line = match alert_lead(line) {
+            Some(l) => l,
+            None => line.to_owned(),
+        };
+        let mut rest = line.as_str();
+        while let Some(at) = rest.find("^[") {
+            out.push_str(&rest[..at]);
+            let tail = &rest[at + 2..];
+            // the matching ] allows one level of [..] inside, for links
+            let (mut depth, mut end) = (0usize, None);
+            for (i, c) in tail.char_indices() {
+                match c {
+                    '[' => depth += 1,
+                    ']' if depth == 0 => {
+                        end = Some(i);
+                        break;
+                    }
+                    ']' => depth -= 1,
+                    _ => {}
+                }
+            }
+            match end {
+                Some(e) => {
+                    notes.push(tail[..e].to_owned());
+                    out.push_str(&format!("[{}]", notes.len()));
+                    rest = &tail[e + 1..];
+                }
+                None => {
+                    out.push_str("^[");
+                    rest = tail;
+                }
+            }
+        }
+        out.push_str(rest);
+    }
+    (out, notes)
+}
+
+/// `> [!ASIDE] Why a stack?` -> `> **Aside: Why a stack?**` (and the same for the other alert kinds).
+fn alert_lead(line: &str) -> Option<String> {
+    let body = line.strip_prefix("> [!")?;
+    let (kind, rest) = body.split_once(']')?;
+    let label = match kind.to_ascii_uppercase().as_str() {
+        "ASIDE" => "Aside",
+        "TIP" | "TRICK" => "Tip",
+        "NOTE" => "Note",
+        "WARNING" | "PITFALL" => "Watch out",
+        "PORT" => "Porting note",
+        "WHY" => "Why",
+        "BUSTUB" => "In BusTub",
+        _ => return None,
+    };
+    let title = rest.trim();
+    Some(if title.is_empty() { format!("> **{label}.**\n") } else { format!("> **{label}: {title}**\n") })
 }
 
 /// A stage's markdown split at its `## Hints` section: (everything before it, the hints as (title, markdown)).
@@ -562,6 +650,32 @@ mod tests {
         let out = plain("| name | description |\n|---|---|\n| `x` | a description that is much too long to fit next to its name |", 30);
         assert!(out.contains("name: `x`"), "{out}");
         assert!(out.contains("description: a description"), "{out}");
+    }
+
+    #[test]
+    fn sidenotes_become_numbered_markers_with_the_notes_listed_after() {
+        let out = plain("A tuple^[the row] has values^[and a [link](https://example.com/x)].\n\nMore text.", 80);
+        assert!(out.contains("A tuple[1] has values[2]."), "{out}");
+        let tail = out.split("Notes").nth(1).expect("a notes list");
+        assert!(tail.contains("1. the row"), "{tail}");
+        assert!(tail.contains("2. and a link (https://example.com/x)"), "{tail}");
+        assert!(!out.contains("^["));
+    }
+
+    #[test]
+    fn a_caret_bracket_inside_code_is_left_alone() {
+        let out = plain("```text\nlet x = ^[not a note];\n```", 80);
+        assert!(out.contains("^[not a note]"), "{out}");
+        assert!(!out.contains("Notes"));
+    }
+
+    #[test]
+    fn an_aside_becomes_a_quote_with_a_bold_title_and_keeps_its_code() {
+        let out = plain("> [!ASIDE] Why a stack?\n> Because of reuse.\n>\n> ```rust\n> v.pop();\n> ```\n", 60);
+        assert!(out.contains("Aside: Why a stack?"), "{out}");
+        assert!(out.contains("Because of reuse."));
+        assert!(out.contains("v.pop();"), "{out}");
+        assert!(!out.contains("[!ASIDE]"));
     }
 
     #[test]

@@ -4,32 +4,18 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, type CourseRun, type CourseStagePage as Page, type CourseStageRow, type SolutionFile, type StageDifficulty } from "../api";
 import { Header } from "../components/Header";
 import { DIFFICULTY_COLOR, SplitTitle } from "./CoursePage";
-import { renderMd } from "./courseMd";
+import { handleCodeClick, renderMd } from "./courseMd";
 import { Celebration, CopyButton, celebrateOff } from "../components/kit";
 import { FocusTimer } from "../components/FocusTimer";
 import { Resizer, usePanels, type PanelsApi } from "./stagePanels";
+import { getPref, setPref } from "../prefs";
 
 const md = renderMd;
 type Tab = "instructions" | "hints" | "solution" | "concepts" | "run";
 const DIFFICULTY_LABEL = { "very-easy": "VERY EASY", easy: "EASY", medium: "MEDIUM", hard: "HARD" } as const;
 
-/** Copies a code block when its copy button is clicked (the HTML is static, so the click is caught here). */
-function copyFromBlock(e: React.MouseEvent) {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".cx-copy");
-    if (!b) return;
-    const done = () => {
-        b.textContent = "copied";
-        setTimeout(() => (b.textContent = "copy"), 1200);
-    };
-    try {
-        navigator.clipboard.writeText(b.dataset.code ?? "").then(done, done);
-    } catch {
-        done();
-    }
-}
-
 function Prose({ text }: { text: string }) {
-    return <div onClick={copyFromBlock} dangerouslySetInnerHTML={{ __html: md(text) }} />;
+    return <div onClick={handleCodeClick} dangerouslySetInnerHTML={{ __html: md(text) }} />;
 }
 
 /** Splits markdown at its `### ` headings (not inside code fences): [title | null, body]. */
@@ -539,6 +525,9 @@ function Sidebar({ course, page, panels }: { course: string; page: Page; panels:
     );
 }
 
+/** Sections that go beyond what passing the stage needs; they can be hidden. */
+const OPTIONAL_SECTIONS = new Set(["performance", "learn-more"]);
+
 /** Three small bars for the difficulty: one lit for easy, two for medium, three for hard. */
 function DifficultyBars({ d }: { d: StageDifficulty }) {
     const n = d === "hard" ? 3 : d === "medium" ? 2 : 1;
@@ -569,6 +558,13 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
     // The tests-passed popup (unless "don't show again" is on, then the toast below says it).
     const [win, setWin] = useState(false);
+    // Sidenotes written in the text (`^[...]`): shown in the page panel, numbered in the order they appear.
+    const [notes, setNotes] = useState<{ n: number; html: string }[]>([]);
+    const [selNote, setSelNote] = useState<number | null>(null);
+    const [curNote, setCurNote] = useState<number | null>(null);
+    // Optional sections (Performance, Learn more): shown unless you chose to hide them; each can be flipped on its own.
+    const [optHidden, setOptHidden] = useState<boolean>(() => getPref("optional.hidden", false));
+    const [flipped, setFlipped] = useState<Set<string>>(() => new Set());
     const seenRun = useRef<number | null>(null);
     const tabFromHash = (): Tab => {
         const h = location.hash.slice(1);
@@ -643,6 +639,64 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
         return () => window.removeEventListener("scroll", onScroll);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [p?.stage.id]);
+
+    // Number the sidenote markers on the page and collect their text for the panel.
+    useEffect(() => {
+        const found: { n: number; html: string }[] = [];
+        document.querySelectorAll<HTMLElement>(".cx-col .cx-snm").forEach((m, i) => {
+            m.textContent = String(i + 1);
+            m.dataset.sn = String(i + 1);
+            const body = m.nextElementSibling;
+            if (body instanceof HTMLElement && body.classList.contains("cx-snb")) {
+                body.dataset.sn = String(i + 1);
+                found.push({ n: i + 1, html: body.innerHTML });
+            }
+        });
+        setNotes((prev) => (JSON.stringify(prev) === JSON.stringify(found) ? prev : found));
+    });
+    // A marker opens its note in the panel, or under the paragraph when the panel is not on screen.
+    useEffect(() => {
+        const open = (m: HTMLElement) => {
+            const n = Number(m.dataset.sn);
+            if (window.innerWidth > 1100 && !panels.p.rc) {
+                setSelNote((cur) => (cur === n ? null : n));
+                document.querySelector(`.cx-pnote[data-sn="${n}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            } else {
+                const on = m.nextElementSibling?.classList.toggle("open");
+                m.setAttribute("aria-expanded", String(!!on));
+            }
+        };
+        const onClick = (e: MouseEvent) => {
+            const m = (e.target as HTMLElement).closest<HTMLElement>(".cx-snm");
+            if (m) open(m);
+        };
+        const onKey = (e: KeyboardEvent) => {
+            const m = (e.target as HTMLElement).closest<HTMLElement>(".cx-snm");
+            if (m && (e.key === "Enter" || e.key === " ")) (e.preventDefault(), open(m));
+        };
+        document.addEventListener("click", onClick);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("click", onClick);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [panels.p.rc]);
+    // The note for the text you are reading stands out in the panel.
+    useEffect(() => {
+        if (notes.length === 0) return;
+        const onScroll = () => {
+            let cur: number | null = null;
+            for (const m of document.querySelectorAll<HTMLElement>(".cx-col .cx-snm")) {
+                const top = m.getBoundingClientRect().top;
+                if (top < window.innerHeight * 0.55) cur = Number(m.dataset.sn);
+                if (top >= window.innerHeight * 0.55) break;
+            }
+            setCurNote(cur);
+        };
+        window.addEventListener("scroll", onScroll, { passive: true });
+        onScroll();
+        return () => window.removeEventListener("scroll", onScroll);
+    }, [notes.length]);
 
     if (q.isError) {
         return (
@@ -843,6 +897,8 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                     )}
                                     {p.stage.sections.map((s, i) => {
                                         const part = /^Part (\d+) · (.*)$/.exec(s.title);
+                                        const optional = OPTIONAL_SECTIONS.has(s.id);
+                                        const shut = optional && optHidden !== flipped.has(s.id);
                                         return (
                                             <section key={s.id} id={`sec-${s.id}`}>
                                                 <div className="cx-part">
@@ -850,7 +906,21 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                                     {part ? "" : s.title.toUpperCase()}
                                                 </div>
                                                 {part && <h2>{part[2]}</h2>}
-                                                {s.title === "The task" ? (
+                                                {optional && (
+                                                    <div className="cx-oh">
+                                                        <span className="cx-obadge">OPTIONAL</span>
+                                                        <button aria-expanded={!shut} onClick={() => setFlipped((f) => { const n = new Set(f); if (!n.delete(s.id)) n.add(s.id); return n; })}>
+                                                            {shut ? "SHOW" : "HIDE"}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                {optional ? (
+                                                    <div className={`cx-obody${shut ? " shut" : ""}`}>
+                                                        <div inert={shut}>
+                                                            <Body text={s.md} />
+                                                        </div>
+                                                    </div>
+                                                ) : s.title === "The task" ? (
                                                     <div className="cx-task">
                                                         <div className="cx-th">
                                                             <b>YOUR TURN</b>
@@ -1044,11 +1114,54 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                                 </h4>
                                 <div className="cx-outline">
                                     {toc.map(([id, label]) => (
-                                        <a key={id} href={`#${id}`} className={active === id ? "on" : ""} onClick={(e) => { e.preventDefault(); panels.setDrawer(null); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+                                        <a
+                                            key={id}
+                                            href={`#${id}`}
+                                            className={active === id ? "on" : ""}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                panels.setDrawer(null);
+                                                // a hidden optional section opens when you go to it
+                                                const sid = id.replace(/^sec-/, "");
+                                                if (OPTIONAL_SECTIONS.has(sid) && optHidden !== flipped.has(sid)) setFlipped((f) => { const n = new Set(f); if (!n.delete(sid)) n.add(sid); return n; });
+                                                setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+                                            }}
+                                        >
                                             {label}
                                         </a>
                                     ))}
                                 </div>
+                                {p.stage.sections.some((x) => OPTIONAL_SECTIONS.has(x.id)) && (
+                                    <button className="cx-ocontrol" onClick={() => { setOptHidden(!optHidden); setPref("optional.hidden", !optHidden); setFlipped(new Set()); }}>
+                                        {optHidden ? "SHOW OPTIONAL SECTIONS" : "HIDE OPTIONAL SECTIONS"}
+                                    </button>
+                                )}
+                            </section>
+                        )}
+                        {notes.length > 0 && tab === "instructions" && (
+                            <section className="cx-card" aria-label="Notes">
+                                <h4>
+                                    <span>NOTES</span>
+                                    <span className="cx-count">{notes.length}</span>
+                                </h4>
+                                {notes.map((n) => (
+                                    <div
+                                        key={n.n}
+                                        role="button"
+                                        tabIndex={0}
+                                        data-sn={n.n}
+                                        className={`cx-pnote${curNote === n.n ? " cur" : ""}${selNote === n.n ? " sel" : ""}`}
+                                        onClick={(e) => {
+                                            if ((e.target as HTMLElement).closest("a")) return;
+                                            setSelNote((cur) => (cur === n.n ? null : n.n));
+                                            document.querySelector(`.cx-snm[data-sn="${n.n}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                        }}
+                                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), (e.currentTarget as HTMLElement).click())}
+                                    >
+                                        <b>{n.n}</b>
+                                        <span dangerouslySetInnerHTML={{ __html: n.html }} />
+                                    </div>
+                                ))}
                             </section>
                         )}
                         {p.concepts.length > 0 && (

@@ -9,7 +9,7 @@
 
 import { rust } from "@codemirror/lang-rust";
 import { highlightTree, tagHighlighter, tags as t } from "@lezer/highlight";
-import { Lexer, Marked, type Tokens } from "marked";
+import { Lexer, Marked, type Tokens, type TokenizerAndRendererExtension } from "marked";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const span = (cls: string, text: string) => `<span class="${cls}">${esc(text)}</span>`;
@@ -122,6 +122,9 @@ function diagram(text: string): string {
     return `<figure class="cx-diagram">${svg}${m ? `<figcaption>${esc(m[1] ?? "")}</figcaption>` : ""}</figure>`;
 }
 
+/** A code block longer than this many lines starts folded. */
+const FOLD_LINES = 18;
+
 function codeBlock(text: string, lang: string | undefined): string {
     if (lang?.toLowerCase() === "svg") return diagram(text);
     const code = text.replace(/\n$/, "");
@@ -131,12 +134,15 @@ function codeBlock(text: string, lang: string | undefined): string {
     const label = spec ? `<span class="cx-lang">${spec.label}</span>` : "";
     const body = spec ? spec.fn(code) : esc(code);
     const kind = spec?.kind ?? "plain";
-    return `<figure class="cx-hl ${kind}"><div class="cx-hl-h">${label}<button class="cx-copy" type="button" data-code="${esc(code)}">copy</button></div><pre><code>${body}</code></pre></figure>`;
+    // A long example starts folded: the first lines, and a button for the rest.
+    const lines = code.split("\n").length;
+    const fold = lines > FOLD_LINES;
+    return `<figure class="cx-hl ${kind}${fold ? " cx-fold" : ""}"><div class="cx-hl-h">${label}<button class="cx-copy" type="button" data-code="${esc(code)}">copy</button></div><pre><code>${body}</code></pre>${fold ? `<button class="cx-more" type="button" data-lines="${lines}" aria-expanded="false">show all ${lines} lines</button>` : ""}</figure>`;
 }
 
 // ---------- callouts ----------
 
-type CalloutKind = "tip" | "note" | "warn" | "port" | "why" | "bustub" | "fit";
+type CalloutKind = "tip" | "note" | "warn" | "port" | "why" | "bustub" | "fit" | "aside";
 
 const ALERTS: Record<string, [CalloutKind, string]> = {
     TIP: ["tip", "TIP"],
@@ -147,6 +153,7 @@ const ALERTS: Record<string, [CalloutKind, string]> = {
     PORT: ["port", "PORTING NOTE"],
     WHY: ["why", "WHY"],
     BUSTUB: ["bustub", "IN BUSTUB"],
+    ASIDE: ["aside", "ASIDE"],
 };
 
 /** Bold leads at the start of a paragraph that turn it into a callout. */
@@ -162,6 +169,11 @@ function callout(kind: CalloutKind, title: string, body: string): string {
     return `<aside class="cx-co cx-k-${kind}"><div class="cx-co-t">${esc(title)}</div><div class="cx-co-b">${body}</div></aside>`;
 }
 
+/** An aside: a longer tangent (prose, code, a table) that opens when asked. `> [!ASIDE] Its title`, then the body. */
+function aside(title: string, body: string): string {
+    return `<details class="cx-co cx-k-aside"><summary><span class="cx-co-t">ASIDE</span><b>${esc(title || "More on this")}</b><i aria-hidden="true">›</i></summary><div class="cx-co-b">${body}</div></details>`;
+}
+
 // ---------- tables ----------
 
 type Col = "c" | "rust" | "other";
@@ -173,7 +185,25 @@ function columnKind(head: string): Col {
     return "other";
 }
 
+
+/** `^[a short note]` in a paragraph: a numbered marker in the text and the note itself, which the stage page shows in its side panel (or under the
+ *  paragraph on a narrow screen). The numbers are given after rendering, in the order the markers appear on the page. */
+const sidenote: TokenizerAndRendererExtension = {
+    name: "sidenote",
+    level: "inline",
+    start: (src: string) => src.indexOf("^["),
+    tokenizer(this, src: string) {
+        const m = /^\^\[((?:[^\[\]\\]|\\.|\[[^\]]*\](?:\([^)]*\))?)+)\]/.exec(src);
+        if (!m) return undefined;
+        return { type: "sidenote", raw: m[0], text: m[1] ?? "", tokens: this.lexer.inlineTokens(m[1] ?? "") };
+    },
+    renderer(this, token) {
+        return `<sup class="cx-snm" tabindex="0" role="button" aria-expanded="false" aria-label="Show the note">•</sup><span class="cx-snb">${this.parser.parseInline(token.tokens ?? [])}</span>`;
+    },
+};
+
 const marked: Marked = new Marked({
+    extensions: [sidenote],
     gfm: true,
     renderer: {
         code({ text, lang }: Tokens.Code) {
@@ -185,6 +215,10 @@ const marked: Marked = new Marked({
             const alert = m ? ALERTS[(m[1] ?? "").toUpperCase()] : undefined;
             if (m && alert && first) {
                 const rest = (first as Tokens.Paragraph).text.slice(m[0].length).trim();
+                if (alert[0] === "aside") {
+                    const inner = (rest ? [{ type: "paragraph", raw: rest, text: rest, tokens: Lexer.lexInline(rest) } as Tokens.Paragraph] : []).concat(tokens.slice(1) as Tokens.Paragraph[]);
+                    return aside(m[2] ?? "", this.parser.parse(inner));
+                }
                 const body: string = (m[2] ? `<p><strong>${esc(m[2])}</strong></p>` : "") + this.parser.parse(rest ? [{ type: "paragraph", raw: rest, text: rest, tokens: Lexer.lexInline(rest) } as Tokens.Paragraph, ...tokens.slice(1)] : tokens.slice(1));
                 return callout(alert[0], alert[1], body);
             }
@@ -232,4 +266,28 @@ const marked: Marked = new Marked({
 /** Renders stage markdown to HTML (trusted content: it comes from the repo, like the rest of the app's markdown). */
 export function renderMd(md: string): string {
     return marked.parse(md, { async: false });
+}
+
+/** A click inside rendered course markdown: the COPY button of a code block, or the button that unfolds a long one (the HTML is static, so
+ *  the click is caught by the element that holds it). */
+export function handleCodeClick(e: { target: EventTarget | null }) {
+    const el = e.target as HTMLElement | null;
+    const more = el?.closest<HTMLButtonElement>(".cx-more");
+    if (more) {
+        const open = more.closest(".cx-hl")?.classList.toggle("cx-fold") === false;
+        more.setAttribute("aria-expanded", String(open));
+        more.textContent = open ? "show less" : `show all ${more.dataset.lines} lines`;
+        return;
+    }
+    const b = el?.closest<HTMLButtonElement>(".cx-copy");
+    if (!b) return;
+    const done = () => {
+        b.textContent = "copied";
+        setTimeout(() => (b.textContent = "copy"), 1200);
+    };
+    try {
+        navigator.clipboard.writeText(b.dataset.code ?? "").then(done, done);
+    } catch {
+        done();
+    }
 }

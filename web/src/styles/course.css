@@ -595,3 +595,49 @@
 .cx-rtick{color:var(--grn)}
 @media (max-width:760px){.cx-cch{grid-template-columns:36px minmax(0,1fr)}.cx-cact{grid-column:1/-1}.cx-hist{gap:6px;padding:12px}.cx-rcmp{margin-left:0}}
 @media (prefers-reduced-motion:reduce){.cx-ccard,.cx-cprev,.cx-hbar .bar i{transition:none}}
+
+/* ---- reading: folded long code, asides, callout icons, sidenotes (docs/mockups/course-motion.html) ---- */
+.cx-hl.cx-fold pre{max-height:320px;overflow:hidden;position:relative}
+.cx-hl.cx-fold::after{content:"";position:absolute;left:0;right:0;bottom:38px;height:70px;background:linear-gradient(transparent,var(--panel));pointer-events:none}
+.cx-hl{position:relative}
+.cx-more{display:block;width:100%;padding:9px;border-top:1px solid var(--line2);font:500 11px var(--mono);letter-spacing:.08em;color:var(--dim);transition:color .2s,background .2s}
+.cx-more:hover{color:var(--fg);background:var(--raise)}
+.cx-co{transition:transform .25s var(--kease,ease)}.cx-co:hover{transform:translateX(2px)}
+.cx-co-t::before{display:inline-grid;place-items:center;width:18px;height:18px;margin-right:8px;border-radius:5px;background:color-mix(in oklab,var(--c) 18%,transparent);font:700 11px var(--mono);vertical-align:-3px;letter-spacing:0}
+.cx-k-tip .cx-co-t::before{content:"✓"}.cx-k-note .cx-co-t::before{content:"i"}.cx-k-fit .cx-co-t::before{content:"◎"}.cx-k-warn .cx-co-t::before{content:"!"}
+.cx-k-port .cx-co-t::before{content:"⇄"}.cx-k-why .cx-co-t::before{content:"?"}.cx-k-bustub .cx-co-t::before{content:"B"}
+.cx-co.cx-k-aside{--c:var(--fn);padding:0}
+.cx-k-aside summary{display:flex;align-items:center;gap:12px;padding:13px 18px;cursor:pointer;list-style:none}
+.cx-k-aside summary::-webkit-details-marker{display:none}
+.cx-k-aside summary .cx-co-t{margin:0;padding:2px 8px;border-radius:4px;background:color-mix(in oklab,var(--c) 14%,transparent)}
+.cx-k-aside summary b{flex:1;font-size:15px}
+.cx-k-aside summary i{font:500 14px var(--mono);color:var(--dim);font-style:normal;transition:transform .3s var(--kease,ease)}
+.cx-k-aside[open] summary i{transform:rotate(90deg);color:var(--c)}
+.cx-k-aside .cx-co-b{padding:2px 18px 16px;border-top:1px solid var(--line2);margin-top:0}
+.cx-k-aside[open] .cx-co-b{animation:cx-fadein .35s var(--kease,ease)}
+@keyframes cx-fadein{from{opacity:0;transform:translateY(6px)}}
+@media (prefers-reduced-motion:reduce){.cx-k-aside[open] .cx-co-b{animation:none}.cx-co{transition:none}}
+.cx-snm{display:inline-grid;place-items:center;min-width:17px;height:17px;margin:0 2px 0 3px;padding:0 4px;border-radius:9px;background:var(--grn-bg);color:var(--grn);font:700 10px var(--mono);vertical-align:super;cursor:pointer;transition:background .2s,color .2s,transform .25s var(--kease,ease)}
+.cx-snm:hover,.cx-snm.on,.cx-snm:focus-visible{background:var(--grn);color:var(--on-acc);transform:scale(1.15)}
+.cx-snb{display:none}
+.cx-snb.open{display:block;margin:8px 0 12px;padding:12px 14px;border:1px solid var(--line2);border-left:3px solid var(--grn);border-radius:10px;background:color-mix(in oklab,var(--grn) 5%,var(--panel));font-size:14px;color:var(--mut);animation:cx-fadein .3s var(--kease,ease)}
+.cx-snb code{font-size:.92em}
+/* the notes card in the page panel */
+.cx-pnote{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;width:100%;padding:10px 10px 10px 8px;margin:0 -8px 2px;border:1px solid transparent;border-radius:10px;text-align:left;cursor:pointer;transition:background .25s,border-color .25s;width:calc(100% + 16px)}
+.cx-pnote:hover{background:var(--raise)}
+.cx-pnote>b{display:grid;place-items:center;width:20px;height:20px;border-radius:10px;background:var(--raise);color:var(--mut);font:700 10px var(--mono);transition:background .25s,color .25s}
+.cx-pnote>span{font-size:13px;line-height:1.55;color:var(--dim);max-height:1.55em;overflow:hidden;transition:max-height .45s var(--kease,ease),color .25s}
+.cx-pnote>span code{font-size:12px;color:var(--fg)}
+.cx-pnote.cur,.cx-pnote.sel{background:color-mix(in oklab,var(--grn) 7%,var(--panel));border-color:color-mix(in oklab,var(--grn) 35%,var(--line2))}
+.cx-pnote.cur>b,.cx-pnote.sel>b{background:var(--grn);color:var(--on-acc)}
+.cx-pnote.cur>span,.cx-pnote.sel>span{max-height:400px;color:var(--mut)}
+.cx-pnote:not(.cur):not(.sel)>span{white-space:nowrap;text-overflow:ellipsis}
+@media (prefers-reduced-motion:reduce){.cx-pnote>span{transition:none}}
+/* optional sections */
+.cx-oh{display:flex;align-items:center;gap:10px;margin:-6px 0 10px;font:500 11px var(--mono);color:var(--dim)}
+.cx-oh button{height:26px;padding:0 10px;border:1px solid var(--line2);border-radius:6px;letter-spacing:.08em;color:var(--mut);transition:color .2s,border-color .2s}.cx-oh button:hover{color:var(--fg);border-color:var(--line)}
+.cx-obadge{font:600 9.5px var(--mono);letter-spacing:.12em;padding:2px 8px;border-radius:4px;border:1px solid var(--line);color:var(--dim)}
+.cx-obody{display:grid;grid-template-rows:1fr;transition:grid-template-rows .4s var(--kease,ease)}.cx-obody.shut{grid-template-rows:0fr}.cx-obody>div{overflow:hidden}
+@media (prefers-reduced-motion:reduce){.cx-obody{transition:none}}
+.cx-ocontrol{margin-top:10px;font:500 11px var(--mono);letter-spacing:.08em;color:var(--dim);border:1px solid var(--line2);border-radius:6px;padding:6px 10px;transition:color .2s,border-color .2s}.cx-ocontrol:hover{color:var(--fg);border-color:var(--line)}
+.cx-count{font:600 10.5px var(--mono);color:var(--dim);padding:1px 7px;border:1px solid var(--line2);border-radius:9px}

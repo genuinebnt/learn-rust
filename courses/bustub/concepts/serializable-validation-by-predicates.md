@@ -110,8 +110,8 @@ fn an_insert_is_seen_through_its_after_image_a_delete_through_its_before_image()
 
 ### In the exercises
 
-- **4b-08:** `verify_txn` and the scan predicates recorded by the scans.
-- **4b-09:** BusTub's `SerializableTest` and the concurrent variant (exactly one of two conflicting commits succeeds).
+- **4b-07:** `verify_txn` and the scan predicates recorded by the scans.
+- **4b-08:** BusTub's `SerializableTest` and the concurrent variant (exactly one of two conflicting commits succeeds).
 
 ### Where it is used
 

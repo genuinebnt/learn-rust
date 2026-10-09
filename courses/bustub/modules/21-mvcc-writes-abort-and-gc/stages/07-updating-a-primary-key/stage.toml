@@ -1,7 +1,0 @@
-id = "4b-07"
-title = "Updating a primary key"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_4b::s4b_07"]
-learn = ["why a key change is a delete plus an insert", "ordering two phases to reuse tombstones", "detecting a key change"]
-concepts = ["unique-indexes-and-tombstone-reuse", "halloween-problem"]

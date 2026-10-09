@@ -26,15 +26,19 @@ In `src/execution/execution_common.rs`:
 
 In `src/execution/executors/delete_executor.rs`, the region marked `4b-02`: when `self.txn` is `Some`, call `modify_tuple(.., None)` for every rid the child produces and answer the count. Index entries are **not** removed.
 
-## Tests
+The tests: exact scenarios (the conflict rule for old, current, future and own timestamps; a delete hides the tuple from its deleter only; one full undo log for a deleted committed tuple; none for a tuple the transaction inserted; a second deleter and a deleter that began before a commit conflict and are tainted; a tainted transaction cannot commit or run more statements). The first-updater-wins rule is checked over random interleavings in stage 3.
 
-- `is_write_write_conflict` for old, current, future and own timestamps.
-- A delete hides the tuple from its transaction only, until commit; readers that began earlier never lose it.
-- Deleting a committed tuple leaves one undo log covering every column, with the timestamp of the deleted version, and the tuple's link points at it.
-- Deleting a tuple the transaction inserted itself creates no log.
-- A second deleter, or one that began before a commit that deleted the tuple, fails with a conflict and is tainted; a tainted transaction cannot commit or run further statements.
+## Your freedom
 
-## Syntax and methods
+How you order the steps inside `modify_tuple` (the check before or after building the log) and how you structure the check closure; the visible behaviour is fixed by the rule above.
+
+## The Rust toolbox
+
+**A closure that runs under a latch.** `update_tuple_and_undo_link(.., Some(&|meta, _, _, _| !is_write_write_conflict(meta, txn)))` passes a closure the page runs while it holds the write latch.
+
+**Early return with a custom error.** `return Err(write_write_conflict(txn))` (taints, then builds the error).
+
+**`Option` chains for the link.** `link.filter(|l| l.is_valid() && l.prev_txn == txn.id())` is 'my own log, if there is one'.
 
 ```rust
 let (meta, base_tuple, link) = get_tuple_and_undo_link(txn_mgr, table, rid)?;   // given, above the region
@@ -44,7 +48,7 @@ update_tuple_and_undo_link(txn_mgr, table, rid, new_link, &new_meta, new_tuple,
     Some(&|m, _tuple, _rid, _link| !is_write_write_conflict(m, txn)))?                // Result<bool>
 ```
 
-## Notes
+## Design notes
 
 **Why check twice.** The first check, on what you read, lets you skip building a log for a doomed write. It is not enough: between your read and your write another transaction can take the tuple. `update_tuple_and_undo_link` runs your `check` under the page's **write latch**, where nothing can change, so the second check is the one that decides. (A log built and then abandoned stays in the transaction: harmless, the transaction is tainted and will abort.)
 
@@ -53,6 +57,50 @@ update_tuple_and_undo_link(txn_mgr, table, rid, new_link, &new_meta, new_tuple,
 **The link points to the newest log.** `prev_version` of the new log is the old head (`link`), so the chain stays newest-first. For a tuple with no history the previous link is `UndoLink::default()` (invalid), which ends the chain.
 
 **Deleting keeps the bytes.** A tombstone's bytes are never read as data (reconstruction ignores them when it applies a restoring log). Keeping them avoids a length mismatch with the in-place update, which requires the same length.
+
+## If this is new
+
+- [C1 Threads & shared state](/t/c1-threads-shared-state): why a check must be repeated under the lock that makes it true.
+- [L8 Error design](/t/l8-error-design): errors that also change state (taint).
+- [L4 Traits & dispatch](/t/l4-traits-dispatch): closures passed as `&dyn Fn`.
+- The optional *snapshot isolation* concept.
+
+## Tests
+
+- The conflict rule; delete visibility; one full undo log; none for own inserts; conflicts taint; tainted transactions cannot proceed.
+
+## Hints
+
+### The check closure sees the tuple as it is *now*
+
+It receives the current metadata. Use that, not the `meta` you read earlier, and do not hold any other lock inside it.
+
+### A delete of a tuple this transaction inserted has no log
+
+`meta.ts == txn.temp_ts()` and no link of its own: skip the log, mark the tuple deleted, keep the link as it is (none).
+
+### `prev_version` is the old head, not "nothing"
+
+Passing the default link for every first change makes the chain forget older versions: readers with older snapshots would find "did not exist". `link.unwrap_or_default()` is `None` only for a tuple with no history.
+
+## Performance
+
+A delete takes the page's read latch to read, builds a log (a tuple copy), and takes the write latch once to write. Two writers of different tuples on one page contend only for the latch, held for the duration of one tuple update. A writer that loses a conflict has done work (a log) that is thrown away: conflicts are cheap but not free, and tests such as `IndexConcurrentUpdateAbortTest` expect a modest abort rate.
+
+**Measure it.** Delete 10 000 distinct rows from 8 threads in 8 transactions and compare with 1 thread; then make all 8 target the same row and count how many fail.
+
+## Experiment
+
+Optional. Predict first, then run.
+
+1. **Check once.** Drop the check under the latch. Which test needs two threads to fail, and can you write it?
+2. **Fail without tainting.** Return the error but do not taint. What can the client then do wrong?
+
+## Other designs
+
+- **First updater wins (ours, BusTub's, PostgreSQL's repeatable read).**
+- **First committer wins:** check at commit instead of at write (Oracle's older mode); more wasted work, fewer blocked writers.
+- **Locks:** a writer waits for the other to finish (two-phase locking).
 
 ## In BusTub
 
@@ -69,24 +117,5 @@ update_tuple_and_undo_link(txn_mgr, table, rid, new_link, &new_meta, new_tuple,
 **Port rule:** an exception that ends a statement is an `Err`; the extra side effect (tainting) is done where the error is made, not by the caller.
 
 ## Learn more
+
 - [A Critique of ANSI SQL Isolation Levels](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-95-51.pdf) (lost update, first-committer/first-updater wins) · [PostgreSQL: concurrent updates under repeatable read](https://www.postgresql.org/docs/current/transaction-iso.html#XACT-REPEATABLE-READ)
-
-## Performance
-
-A delete takes the page's read latch to read, builds a log (a tuple copy), and takes the write latch once to write. Two writers of different tuples on one page contend only for the latch, held for the duration of one tuple update. A writer that loses a conflict has done work (a log) that is thrown away: conflicts are cheap but not free, and tests such as `IndexConcurrentUpdateAbortTest` expect a modest abort rate.
-
-**Measure it.** Delete 10 000 distinct rows from 8 threads in 8 transactions and compare with 1 thread; then make all 8 target the same row and count how many fail.
-
-## Hints
-
-### The check closure sees the tuple as it is *now*
-
-It receives the current metadata. Use that, not the `meta` you read earlier, and do not hold any other lock inside it.
-
-### A delete of a tuple this transaction inserted has no log
-
-`meta.ts == txn.temp_ts()` and no link of its own: skip the log, mark the tuple deleted, keep the link as it is (none).
-
-### `prev_version` is the old head, not "nothing"
-
-Passing the default link for every first change makes the chain forget older versions: readers with older snapshots would find "did not exist". `link.unwrap_or_default()` is `None` only for a tuple with no history.

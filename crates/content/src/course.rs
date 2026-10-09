@@ -135,6 +135,9 @@ pub struct Stage {
     pub intro: String,
     pub sections: Vec<Section>,
     pub hints: Vec<Hint>,
+    /// The source of this stage's tests by test name, from the template's test files (shown next to the results of a run).
+    #[serde(skip)]
+    pub test_sources: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -231,6 +234,7 @@ impl Course {
                     Some(i) => split_hints(&sections.remove(i).md),
                     None => Vec::new(),
                 };
+                let test_sources = crate::test_source::stage_test_sources(&root.join("template"), &def.tests);
                 stages.push(Stage {
                     concepts: def.concepts,
                     concepts_optional: def.concepts_optional,
@@ -245,6 +249,7 @@ impl Course {
                     intro,
                     sections,
                     hints,
+                    test_sources,
                 });
             }
             modules.push(Module {

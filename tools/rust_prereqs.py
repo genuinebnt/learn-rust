@@ -273,10 +273,12 @@ MODULES = [
         ("Y5", "Build it", "a model of versions; random histories and sessions", ["4a-01", "4a-02", "4a-03", "4a-04", "4a-05", "4a-06"]),
     ]),
     ("4b", "MVCC writes, abort, garbage collection and serializability", [
-        ("C1", "Understand it", "lock ordering and deadlock", None),
-        ("S4", "Understand it", "version chains in maps", None),
-        ("L8", "Custom errors", "write-write conflicts as errors", None),
-        ("Y5", "Build it", "an anomaly finder as a property", None),
+        ("C1", "Understand it", "a check repeated under the lock that makes it true; latch order and deadlock", ["4b-02", "4b-04", "4b-08"]),
+        ("L8", "Custom errors", "a conflict as an error that also taints the transaction", ["4b-02", "4b-03"]),
+        ("L4", "Static vs dynamic", "closures passed as `&dyn Fn` into a latched update; `Box<dyn Index>`", ["4b-02", "4b-06"]),
+        ("S4", "Understand it", "`HashSet` and `retain` for garbage collection; a `BTreeMap` as the model", ["4b-05", "4b-06"]),
+        ("S1", "Understand it", "`Option` chains for links and logs", ["4b-03", "4b-04", "4b-07"]),
+        ("Y5", "Build it", "sessions of interleaved transactions against a model; an oracle that tries every serial order", ["4b-03", "4b-04", "4b-05", "4b-06", "4b-07", "4b-08"]),
     ]),
     ("4c", "ACID, logging and recovery (new, planned)", [
         ("S9", "Understand", "append-only files, `fsync`", None),

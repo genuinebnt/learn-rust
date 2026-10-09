@@ -1,0 +1,9 @@
+id = "4b-08"
+title = "Boss: sessions and the classic concurrency tests"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_4b::s4b_08"]
+learn = ["testing a transactional engine under real concurrency", "reading a failing multi-transaction scenario"]
+concepts = []
+concepts_optional = ["snapshot-isolation", "rolling-back-with-undo-logs", "unique-indexes-and-tombstone-reuse", "serializable-validation-by-predicates"]
+retest = true

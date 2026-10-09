@@ -150,7 +150,7 @@ pub async fn stage(State(s): State<AppState>, Path((course, id)): Path<(String, 
     Ok(Json(json!({
         "course": { "id": c.id, "title": c.title, "total": all.len() },
         "stage": { "id": x.id, "title": x.title, "learn": x.learn, "kind": x.kind, "difficulty": x.difficulty, "tests": x.tests, "rank": x.rank,
-                   "intro": x.intro, "sections": x.sections },
+                   "intro": x.intro, "sections": x.sections, "test_sources": x.test_sources },
         "module": { "code": m.code, "title": m.title, "summary": m.summary, "project": m.project, "stages": module_stages,
                     "lectures": m.lectures, "bustub": m.bustub, "resources": m.resources },
         "concepts": x.concepts.iter().map(|id| (id, true)).chain(x.concepts_optional.iter().map(|id| (id, false)))

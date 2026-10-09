@@ -96,7 +96,7 @@ impl TransactionManager {
 
     /// Serializable validation (module 4b); until then every transaction passes.
     fn verify_txn(&self, txn: &Arc<Transaction>) -> bool {
-        true // 4b-08: a transaction with no writes or no scans passes. Otherwise for every transaction that committed after txn.read_ts(), for each tuple in its write set, rebuild the tuple as of commit_ts - 1 and as of commit_ts (a throwaway Transaction with that read ts and collect_undo_logs + reconstruct_tuple); if one of txn's predicates on that table is true for either version, fail
+        true // 4b-07: a transaction with no writes or no scans passes. Otherwise for every transaction that committed after txn.read_ts(), for each tuple in its write set, rebuild the tuple as of commit_ts - 1 and as of commit_ts (a throwaway Transaction with that read ts and collect_undo_logs + reconstruct_tuple); if one of txn's predicates on that table is true for either version, fail
     }
 
     /// Stop-the-world garbage collection: call it when no transaction is executing. Forgets every finished transaction whose undo logs no

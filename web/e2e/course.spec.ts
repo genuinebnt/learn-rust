@@ -90,3 +90,27 @@ test("the course page's continue card shows the module ring", async ({ page }) =
     await expect(page.locator(".k-cont .k-ring")).toBeVisible();
     await expect(page.locator(".k-cont .k-grow small")).toContainText("·");
 });
+
+test("a test's code opens under its result, for failed and for passed tests", async ({ page, request }) => {
+    const stage = "3d-02";
+    const st = await (await request.get(`/api/courses/bustub/stages/${stage}`)).json();
+    const names = Object.keys(st.stage.test_sources);
+    expect(names.length).toBeGreaterThan(4);
+    const [bad, good] = [names[0], names[1]];
+    await request.post("/api/courses/bustub/runs", {
+        data: { stage_id: stage, tests: [{ name: bad, ok: false, detail: "assertion failed" }, { name: good, ok: true, detail: "" }], commit: "abc1234", duration_ms: 900 },
+    });
+    await page.goto(`/courses/bustub/${stage}#run`);
+    const failedRow = page.locator(".k-rt.k-bad", { hasText: bad });
+    await expect(failedRow).toBeVisible();
+    await expect(failedRow.getByTestId("test-code")).toHaveCount(0);
+    await failedRow.getByRole("button", { name: "show test code" }).click();
+    await expect(failedRow.getByTestId("test-code")).toContainText(`fn ${bad}(`);
+    await failedRow.getByRole("button", { name: "hide test code" }).click();
+    await expect(failedRow.getByTestId("test-code")).toHaveCount(0);
+    // passed tests are folded under a summary row: open it, then a test's code
+    await page.locator(".k-rph").click();
+    const row = page.locator(".k-rwrap", { hasText: good });
+    await row.getByRole("button", { name: "show test code" }).click();
+    await expect(row.getByTestId("test-code")).toContainText(`fn ${good}(`);
+});

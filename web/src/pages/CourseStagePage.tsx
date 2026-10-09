@@ -573,7 +573,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                             {tab === "concepts" && <ConceptsTab course={course} page={p} queryKey={key} />}
                             {tab === "run" &&
                                 (run ? (
-                                    <RunTab runs={p.runs.length ? p.runs : [run]} stageId={p.stage.id} />
+                                    <RunTab runs={p.runs.length ? p.runs : [run]} stageId={p.stage.id} sources={p.stage.test_sources ?? {}} />
                                 ) : (
                                     <div className="k-empty">
                                         No run yet. In your repo, run <code>anneal course test</code>, or commit and push: each run is reported here.

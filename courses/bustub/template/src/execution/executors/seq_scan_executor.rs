@@ -44,7 +44,7 @@ impl<'e> SeqScanExecutor<'e> {
 
 impl Executor for SeqScanExecutor<'_> {
     fn init(&mut self) -> Result<()> {
-        // 4b-08: a serializable transaction remembers what it scans with: txn.append_scan_predicate(table oid, the filter predicate, or true_predicate() if the scan has none)
+        // 4b-07: a serializable transaction remembers what it scans with: txn.append_scan_predicate(table oid, the filter predicate, or true_predicate() if the scan has none)
         todo!("3e-01: start a table iterator (module 3c: the one that stops where the table ended when the scan began)")
     }
 

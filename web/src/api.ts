@@ -851,7 +851,7 @@ export interface CourseConceptPage {
 
 export interface CourseStagePage {
   course: { id: string; title: string; total: number };
-  stage: { id: string; title: string; learn: string[]; kind: StageKind; difficulty: StageDifficulty; tests: string[]; rank: number; intro: string; sections: CourseSection[] };
+  stage: { id: string; title: string; learn: string[]; kind: StageKind; difficulty: StageDifficulty; tests: string[]; rank: number; intro: string; sections: CourseSection[]; test_sources?: Record<string, string> };
   module: {
     code: string;
     title: string;

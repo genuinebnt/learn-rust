@@ -48,7 +48,7 @@ impl<'e> IndexScanExecutor<'e> {
 
 impl Executor for IndexScanExecutor<'_> {
     fn init(&mut self) -> Result<()> {
-        // 4b-08: a serializable transaction remembers what it scans with: append_scan_predicate(table oid, the filter predicate, or true_predicate())
+        // 4b-07: a serializable transaction remembers what it scans with: append_scan_predicate(table oid, the filter predicate, or true_predicate())
         todo!("3e-04: remember the rids to visit (collect_rids) and start at the first")
     }
 

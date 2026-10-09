@@ -11,12 +11,12 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | L1 Ownership & moves | `l1-ownership-moves` | written | core | R, 1a, 1b, 1g, 0a |
 | L2 Borrowing | `l2-borrowing` | written | core | R, 1e, 1f, 1g |
 | L3 Lifetimes | `l3-lifetimes` | written | core | 1g, 2c, 3c, 3e, 3g |
-| L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3c, 3d, 3e, 3f, 3h |
+| L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3c, 3d, 3e, 3f, 3h, 4b |
 | L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b, 2c, 2d |
 | L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
 | L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 0a |
 | L8 Error design | `l8-error-design` | planned | core | R, 1a, 1b, 3a, 3d, 3e, 4b, 4c |
-| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e, 3h, 4a |
+| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e, 3h, 4a, 4b |
 | S2 Strings & text | `s2-strings-text` | written | core | 3a, 3b, 3d |
 | S3 Vec & slices | `s3-vec-slices` | written | core | R, 1a, 1c, 2a, 2c, 2d, 3b, 3g, 0c |
 | S4 Maps & sets | `s4-maps-sets` | written | core | 1a, 1c, 1d, 1e, 3c, 3f, 3g, 4a, 4b, 0a, 0d |
@@ -316,10 +316,12 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | lock ordering and deadlock | the module |
-| [S4 Maps & sets](/t/s4-maps-sets) | Understand it | version chains in maps | the module |
-| [L8 Error design](/t/l8-error-design) *(planned)* | Custom errors | write-write conflicts as errors | the module |
-| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | an anomaly finder as a property | the module |
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | a check repeated under the lock that makes it true; latch order and deadlock | 4b-02, 4b-04, 4b-08 |
+| [L8 Error design](/t/l8-error-design) *(planned)* | Custom errors | a conflict as an error that also taints the transaction | 4b-02, 4b-03 |
+| [L4 Traits & dispatch](/t/l4-traits-dispatch) | Static vs dynamic | closures passed as `&dyn Fn` into a latched update; `Box<dyn Index>` | 4b-02, 4b-06 |
+| [S4 Maps & sets](/t/s4-maps-sets) | Understand it | `HashSet` and `retain` for garbage collection; a `BTreeMap` as the model | 4b-05, 4b-06 |
+| [S1 Option & Result](/t/s1-option-result) | Understand it | `Option` chains for links and logs | 4b-03, 4b-04, 4b-07 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | sessions of interleaved transactions against a model; an oracle that tries every serial order | 4b-03, 4b-04, 4b-05, 4b-06, 4b-07, 4b-08 |
 
 ### 4C · ACID, logging and recovery (new, planned)
 

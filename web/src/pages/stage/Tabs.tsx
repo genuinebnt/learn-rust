@@ -231,7 +231,23 @@ export function ConceptsTab({ course, page, queryKey }: { course: string; page: 
 
 /* -------------------------------------------------------------- last run */
 
-export function RunTab({ runs, stageId }: { runs: CourseRun[]; stageId: string }) {
+/** A test's source, folded: the result row's own button opens it. Looked up by the full name, then by its last path segment. */
+function sourceOf(sources: Record<string, string>, name: string): string | undefined {
+    return sources[name] ?? sources[name.split("::").pop() ?? name];
+}
+
+function TestCode({ src }: { src: string }) {
+    return (
+        <div className="k-tcode" data-testid="test-code">
+            <Prose text={"```rust\n" + src + "\n```"} />
+        </div>
+    );
+}
+
+export function RunTab({ runs, stageId, sources = {} }: { runs: CourseRun[]; stageId: string; sources?: Record<string, string> }) {
+    // which tests have their code open (by name)
+    const [codeOpen, setCodeOpen] = useState<Set<string>>(new Set());
+    const toggleCode = (name: string) => setCodeOpen((prev) => (prev.has(name) ? new Set([...prev].filter((x) => x !== name)) : new Set(prev).add(name)));
     const [sel, setSel] = useState<number | null>(null);
     const newest = runs[0];
     // A run that arrives while the tab is open brings you back to the newest.
@@ -365,6 +381,11 @@ export function RunTab({ runs, stageId }: { runs: CourseRun[]; stageId: string }
                                         <span className="k-ico k-bad">✕</span>
                                         <b>{t.name}</b>
                                         {cmp && ch ? <span className={`k-cm2 k-${ch}`}>{ch === "new" ? "NEWLY FAILING" : "STILL FAILING"}</span> : <span className="k-rmeta">test {t.i + 1} of {run.tests.length}</span>}
+                                        {sourceOf(sources, t.name) && (
+                                            <button type="button" className="k-tcb" aria-expanded={codeOpen.has(t.name)} onClick={() => toggleCode(t.name)}>
+                                                {codeOpen.has(t.name) ? "hide test code" : "show test code"}
+                                            </button>
+                                        )}
                                     </div>
                                     {t.detail && (
                                         <div className="k-rtb">
@@ -376,6 +397,7 @@ export function RunTab({ runs, stageId }: { runs: CourseRun[]; stageId: string }
                                             <pre>{t.detail}</pre>
                                         </div>
                                     )}
+                                    {codeOpen.has(t.name) && sourceOf(sources, t.name) && <TestCode src={sourceOf(sources, t.name)!} />}
                                 </div>
                             );
                         })}
@@ -402,10 +424,18 @@ export function RunTab({ runs, stageId }: { runs: CourseRun[]; stageId: string }
                             <div className="k-rpl">
                                 <div inert={!(passOpen || flt === "ok")}>
                                     {passed.map((t) => (
-                                        <div className="k-rrow" key={t.name}>
-                                            <span className="k-ico k-ok">✓</span>
-                                            <span>{t.name}</span>
-                                            {cmp && change(t.name, true) === "fix" && <span className="k-cm2 k-fix">FIXED SINCE THE RUN BEFORE</span>}
+                                        <div className="k-rwrap" key={t.name}>
+                                            <div className="k-rrow">
+                                                <span className="k-ico k-ok">✓</span>
+                                                <span>{t.name}</span>
+                                                {cmp && change(t.name, true) === "fix" ? <span className="k-cm2 k-fix">FIXED SINCE THE RUN BEFORE</span> : <span />}
+                                                {sourceOf(sources, t.name) && (
+                                                    <button type="button" className="k-tcb" aria-expanded={codeOpen.has(t.name)} onClick={() => toggleCode(t.name)}>
+                                                        {codeOpen.has(t.name) ? "hide test code" : "show test code"}
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {codeOpen.has(t.name) && sourceOf(sources, t.name) && <TestCode src={sourceOf(sources, t.name)!} />}
                                         </div>
                                     ))}
                                 </div>

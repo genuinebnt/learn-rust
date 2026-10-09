@@ -1,6 +1,9 @@
 //! Tests for module 4b: MVCC writes, abort, garbage collection, the primary-key index and serializable validation.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
+
+use proptest::prelude::*;
 
 use bustub::catalog::catalog::TableInfo;
 use bustub::common::bustub_instance::BusTubInstance;
@@ -710,10 +713,10 @@ fn s4b_06_delete_then_insert_in_one_transaction_reuses_the_tuple() {
     assert_eq!(heap_entries(&info), 1, "delete then insert in one transaction reuses the tuple");
 }
 
-// ---- 4b-07: updating a primary key ---------------------------------------------------------------------------------------------------------
+// ---- 4b-06: updating a primary key ---------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s4b_07_updating_the_key_moves_the_row_to_the_new_key() {
+fn s4b_06_updating_the_key_moves_the_row_to_the_new_key() {
     let db = new_db();
     ensure_index_scan(&db);
     exec(&db, "CREATE TABLE maintable(col1 int primary key, col2 int)");
@@ -729,7 +732,7 @@ fn s4b_07_updating_the_key_moves_the_row_to_the_new_key() {
 }
 
 #[test]
-fn s4b_07_shifting_every_key_reuses_the_tombstones_it_just_made() {
+fn s4b_06_shifting_every_key_reuses_the_tombstones_it_just_made() {
     let db = new_db();
     exec(&db, "CREATE TABLE maintable(col1 int primary key, col2 int)");
     let info = table(&db, "maintable");
@@ -748,7 +751,7 @@ fn s4b_07_shifting_every_key_reuses_the_tombstones_it_just_made() {
 }
 
 #[test]
-fn s4b_07_older_snapshots_still_see_the_old_keys() {
+fn s4b_06_older_snapshots_still_see_the_old_keys() {
     let db = new_db();
     ensure_index_scan(&db);
     exec(&db, "CREATE TABLE maintable(col1 int primary key, col2 int)");
@@ -767,7 +770,7 @@ fn s4b_07_older_snapshots_still_see_the_old_keys() {
 }
 
 #[test]
-fn s4b_07_a_non_key_update_of_a_table_with_a_key_stays_in_place() {
+fn s4b_06_a_non_key_update_of_a_table_with_a_key_stays_in_place() {
     let db = new_db();
     exec(&db, "CREATE TABLE maintable(col1 int primary key, col2 int)");
     let info = table(&db, "maintable");
@@ -783,7 +786,7 @@ fn s4b_07_a_non_key_update_of_a_table_with_a_key_stays_in_place() {
 }
 
 #[test]
-fn s4b_07_updating_a_key_onto_an_existing_live_key_fails() {
+fn s4b_06_updating_a_key_onto_an_existing_live_key_fails() {
     let db = new_db();
     exec(&db, "CREATE TABLE maintable(col1 int primary key, col2 int)");
     let t1 = begin(&db);
@@ -793,10 +796,28 @@ fn s4b_07_updating_a_key_onto_an_existing_live_key_fails() {
     run_tainted(&db, &t2, "UPDATE maintable SET col1 = 2 WHERE col1 = 1");
 }
 
-// ---- 4b-08: serializable -------------------------------------------------------------------------------------------------------------------
+// ---- 4b-07: serializable -------------------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s4b_08_a_serializable_transaction_whose_reads_changed_fails_to_commit() {
+fn s4b_07_a_row_deleted_after_it_was_read_still_fails_the_reader() {
+    // after the delete the row no longer matches anything; the version just before it did, and that is the one that counts
+    let db = new_db();
+    exec(&db, "CREATE TABLE s(k int, v int)");
+    exec(&db, "CREATE TABLE other(x int)");
+    let setup = begin_serializable(&db);
+    run(&db, &setup, "INSERT INTO s VALUES (1, 10), (2, 20)");
+    commit(&db, &setup);
+    let (reader, deleter) = (begin_serializable(&db), begin_serializable(&db));
+    expect(&db, &reader, "SELECT k FROM s WHERE v = 20", &["2"]);
+    run(&db, &reader, "INSERT INTO other VALUES (1)");
+    run(&db, &deleter, "DELETE FROM s WHERE k = 2");
+    commit(&db, &deleter);
+    assert!(!db.txn_manager.commit(&reader).unwrap(), "the reader saw the row that was deleted since");
+    assert_eq!(reader.state(), TransactionState::Aborted, "a row deleted after it was read still fails the reader");
+}
+
+#[test]
+fn s4b_07_a_serializable_transaction_whose_reads_changed_fails_to_commit() {
     let db = new_db();
     ensure_index_scan(&db);
     exec(&db, "CREATE TABLE maintable(a int, b int primary key)");
@@ -814,7 +835,7 @@ fn s4b_08_a_serializable_transaction_whose_reads_changed_fails_to_commit() {
 }
 
 #[test]
-fn s4b_08_a_failed_validation_undoes_the_transactions_writes() {
+fn s4b_07_a_failed_validation_undoes_the_transactions_writes() {
     let db = new_db();
     exec(&db, "CREATE TABLE maintable(a int, b int)");
     let t1 = begin_serializable(&db);
@@ -829,7 +850,7 @@ fn s4b_08_a_failed_validation_undoes_the_transactions_writes() {
 }
 
 #[test]
-fn s4b_08_transactions_that_read_different_things_both_commit() {
+fn s4b_07_transactions_that_read_different_things_both_commit() {
     let db = new_db();
     exec(&db, "CREATE TABLE maintable(a int, b int)");
     let t1 = begin_serializable(&db);
@@ -843,7 +864,7 @@ fn s4b_08_transactions_that_read_different_things_both_commit() {
 }
 
 #[test]
-fn s4b_08_snapshot_isolation_does_not_validate() {
+fn s4b_07_snapshot_isolation_does_not_validate() {
     let db = new_db();
     exec(&db, "CREATE TABLE maintable(a int, b int)");
     let t1 = begin(&db);
@@ -858,7 +879,7 @@ fn s4b_08_snapshot_isolation_does_not_validate() {
 }
 
 #[test]
-fn s4b_08_a_full_scan_conflicts_with_any_change_in_the_table() {
+fn s4b_07_a_full_scan_conflicts_with_any_change_in_the_table() {
     let db = new_db();
     exec(&db, "CREATE TABLE maintable(a int, b int)");
     let t1 = begin_serializable(&db);
@@ -874,7 +895,7 @@ fn s4b_08_a_full_scan_conflicts_with_any_change_in_the_table() {
 }
 
 #[test]
-fn s4b_08_of_two_concurrent_swaps_exactly_one_commits() {
+fn s4b_07_of_two_concurrent_swaps_exactly_one_commits() {
     for _ in 0..10 {
         let db = new_db();
         exec(&db, "CREATE TABLE maintable(a int, b int primary key)");
@@ -898,10 +919,10 @@ fn s4b_08_of_two_concurrent_swaps_exactly_one_commits() {
     }
 }
 
-// ---- 4b-09: BusTub's tests ------------------------------------------------------------------------------------------------------------------
+// ---- 4b-08: BusTub's tests ------------------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s4b_09_insert_delete_conflict_test() {
+fn s4b_08_insert_delete_conflict_test() {
     let db = new_db();
     exec(&db, "CREATE TABLE maintable(a int)");
     let q = "SELECT a FROM maintable";
@@ -945,7 +966,7 @@ fn s4b_09_insert_delete_conflict_test() {
 }
 
 #[test]
-fn s4b_09_garbage_collection() {
+fn s4b_08_garbage_collection() {
     let db = new_db();
     exec(&db, "CREATE TABLE table1(a int, b int, c int)");
     let q = "SELECT * FROM table1";
@@ -1031,7 +1052,7 @@ fn s4b_09_garbage_collection() {
 }
 
 #[test]
-fn s4b_09_garbage_collection_with_tainted_transactions() {
+fn s4b_08_garbage_collection_with_tainted_transactions() {
     let db = new_db();
     exec(&db, "CREATE TABLE table1(a int, b int, c int)");
     let q = "SELECT * FROM table1";
@@ -1100,7 +1121,7 @@ fn s4b_09_garbage_collection_with_tainted_transactions() {
 }
 
 #[test]
-fn s4b_09_index_update_conflict_test() {
+fn s4b_08_index_update_conflict_test() {
     let db = new_db();
     ensure_index_scan(&db);
     exec(&db, "CREATE TABLE maintable(col1 int primary key, col2 int)");
@@ -1117,7 +1138,7 @@ fn s4b_09_index_update_conflict_test() {
 }
 
 #[test]
-fn s4b_09_index_concurrent_insert_test() {
+fn s4b_08_index_concurrent_insert_test() {
     for _ in 0..10 {
         let db = Arc::new(new_db());
         exec(&db, "CREATE TABLE maintable(a int primary key, b int)");
@@ -1156,7 +1177,7 @@ fn s4b_09_index_concurrent_insert_test() {
 }
 
 #[test]
-fn s4b_09_index_concurrent_update_test() {
+fn s4b_08_index_concurrent_update_test() {
     for trial in 0..10 {
         let db = Arc::new(new_db());
         ensure_index_scan(&db);
@@ -1205,7 +1226,7 @@ fn s4b_09_index_concurrent_update_test() {
 }
 
 #[test]
-fn s4b_09_index_concurrent_update_abort_test() {
+fn s4b_08_index_concurrent_update_abort_test() {
     for _ in 0..5 {
         let db = Arc::new(new_db());
         ensure_index_scan(&db);
@@ -1256,7 +1277,7 @@ fn s4b_09_index_concurrent_update_abort_test() {
 }
 
 #[test]
-fn s4b_09_simple_abort_with_ordered_queries_and_a_duplicate_heavy_commit() {
+fn s4b_08_simple_abort_with_ordered_queries_and_a_duplicate_heavy_commit() {
     let db = new_db();
     exec(&db, "CREATE TABLE maintable(a int, b int)");
     let q = "SELECT a, b FROM maintable ORDER BY a, b";
@@ -1278,4 +1299,375 @@ fn s4b_09_simple_abort_with_ordered_queries_and_a_duplicate_heavy_commit() {
     let fin = begin(&db);
     let (_, out) = try_run(&db, &fin, q);
     assert_eq!(out.lines().map(|l| l.trim_end()).collect::<Vec<_>>(), vec!["1 10", "1 999", "1 1000", "2 200", "3 301"], "simple abort with ordered queries and a duplicate heavy commit");
+}
+
+// ---- properties: sessions of interleaved transactions against a model of versions --------------------------------------------------
+
+#[derive(Clone, Debug)]
+enum Step {
+    Begin,
+    Insert(usize),
+    Update(usize, usize, i32),
+    Delete(usize, usize),
+    Commit(usize),
+    Abort(usize),
+    Collect,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Phase {
+    Running,
+    Tainted,
+    Done,
+}
+
+/// A row of the model: its key, the committed versions (commit timestamp, value; `None` is a delete) and the one uncommitted version.
+#[derive(Clone, Debug)]
+struct MRow {
+    key: i32,
+    committed: Vec<(i64, Option<i32>)>,
+    pending: Option<(usize, Option<i32>)>,
+}
+
+impl MRow {
+    /// What transaction number `t` (reading at `read_ts`) sees of the row: its own pending version, else the newest committed one at its timestamp.
+    fn seen_by(&self, t: usize, read_ts: i64) -> Option<i32> {
+        match self.pending {
+            Some((owner, v)) if owner == t => v,
+            _ => self.committed.iter().rev().find(|(ts, _)| *ts <= read_ts).and_then(|(_, v)| *v),
+        }
+    }
+
+    /// Writing the row conflicts if somebody else has an uncommitted version of it or a version newer than the writer's snapshot is committed.
+    fn conflicts_for(&self, t: usize, read_ts: i64) -> bool {
+        match self.pending {
+            Some((owner, _)) if owner == t => false,
+            Some(_) => true,
+            None => self.committed.last().is_some_and(|(ts, _)| *ts > read_ts),
+        }
+    }
+}
+
+fn step_strategy(aborts: bool, collects: bool) -> impl Strategy<Value = Step> {
+    prop_oneof![
+        3 => Just(Step::Begin),
+        3 => any::<usize>().prop_map(Step::Insert),
+        5 => (any::<usize>(), any::<usize>(), 1..4i32).prop_map(|(t, r, d)| Step::Update(t, r, d)),
+        3 => (any::<usize>(), any::<usize>()).prop_map(|(t, r)| Step::Delete(t, r)),
+        3 => any::<usize>().prop_map(Step::Commit),
+        if aborts { 2 } else { 0 } => any::<usize>().prop_map(Step::Abort),
+        if collects { 2 } else { 0 } => Just(Step::Collect),
+    ]
+}
+
+/// Runs a session of interleaved snapshot-isolation transactions (inserts, updates that add a number, deletes, commits, aborts, garbage
+/// collections) and checks, after every step, that every running transaction sees exactly what the model says.
+fn run_session(steps: &[Step]) -> Result<(), TestCaseError> {
+    let db = new_db();
+    exec(&db, "CREATE TABLE t(k int, v int)");
+    let (mut txns, mut phase): (Vec<Arc<Transaction>>, Vec<Phase>) = (vec![], vec![]);
+    let (mut model, mut next_key): (Vec<MRow>, i32) = (vec![], 0);
+    for (n, step) in steps.iter().enumerate() {
+        let open: Vec<usize> = (0..txns.len()).filter(|i| phase[*i] == Phase::Running).collect();
+        let live: Vec<usize> = (0..txns.len()).filter(|i| phase[*i] != Phase::Done).collect();
+        match step {
+            Step::Begin => {
+                txns.push(begin(&db));
+                phase.push(Phase::Running);
+            }
+            Step::Insert(t) if !open.is_empty() => {
+                let ti = open[t % open.len()];
+                let (k, v) = (next_key, next_key * 10);
+                next_key += 1;
+                run(&db, &txns[ti], &format!("INSERT INTO t VALUES ({k}, {v})"));
+                model.push(MRow { key: k, committed: vec![], pending: Some((ti, Some(v))) });
+            }
+            Step::Update(t, r, delta) if !open.is_empty() && !model.is_empty() => {
+                let (ti, ri) = (open[t % open.len()], r % model.len());
+                let txn = &txns[ti];
+                let Some(v) = model[ri].seen_by(ti, txn.read_ts()) else { continue };
+                let sql = format!("UPDATE t SET v = v + {delta} WHERE k = {}", model[ri].key);
+                if model[ri].conflicts_for(ti, txn.read_ts()) {
+                    run_tainted(&db, txn, &sql);
+                    phase[ti] = Phase::Tainted;
+                } else {
+                    run(&db, txn, &sql);
+                    model[ri].pending = Some((ti, Some(v + delta)));
+                }
+            }
+            Step::Delete(t, r) if !open.is_empty() && !model.is_empty() => {
+                let (ti, ri) = (open[t % open.len()], r % model.len());
+                let txn = &txns[ti];
+                if model[ri].seen_by(ti, txn.read_ts()).is_none() {
+                    continue;
+                }
+                let sql = format!("DELETE FROM t WHERE k = {}", model[ri].key);
+                if model[ri].conflicts_for(ti, txn.read_ts()) {
+                    run_tainted(&db, txn, &sql);
+                    phase[ti] = Phase::Tainted;
+                } else {
+                    run(&db, txn, &sql);
+                    model[ri].pending = Some((ti, None));
+                }
+            }
+            Step::Commit(t) if !open.is_empty() => {
+                let ti = open[t % open.len()];
+                commit(&db, &txns[ti]);
+                phase[ti] = Phase::Done;
+                let ts = txns[ti].commit_ts();
+                for row in model.iter_mut() {
+                    if let Some((owner, v)) = row.pending {
+                        if owner == ti {
+                            row.committed.push((ts, v));
+                            row.pending = None;
+                        }
+                    }
+                }
+            }
+            Step::Abort(t) if !live.is_empty() => {
+                let ti = live[t % live.len()];
+                abort(&db, &txns[ti]);
+                phase[ti] = Phase::Done;
+                for row in model.iter_mut() {
+                    if row.pending.is_some_and(|(owner, _)| owner == ti) {
+                        row.pending = None;
+                    }
+                }
+            }
+            Step::Collect => db.txn_manager.garbage_collection(),
+            _ => continue,
+        }
+        for &ti in &open.iter().copied().chain(txns.len().checked_sub(1).filter(|_| matches!(step, Step::Begin))).collect::<Vec<_>>() {
+            if phase[ti] != Phase::Running {
+                continue;
+            }
+            let mut want: Vec<String> = model.iter().filter_map(|row| row.seen_by(ti, txns[ti].read_ts()).map(|v| format!("{} {v}", row.key))).collect();
+            want.sort();
+            prop_assert_eq!(rows(&db, &txns[ti], "SELECT k, v FROM t"), want, "transaction {} (read ts {}) after step {}: {:?}", ti, txns[ti].read_ts(), n, step);
+        }
+    }
+    // a transaction that begins at the end sees every committed version at the latest timestamp
+    let last = begin(&db);
+    let mut want: Vec<String> = model.iter().filter_map(|row| row.committed.last().and_then(|(_, v)| *v).map(|v| format!("{} {v}", row.key))).collect();
+    want.sort();
+    prop_assert_eq!(rows(&db, &last, "SELECT k, v FROM t"), want, "a new transaction sees the latest committed state");
+    Ok(())
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 40, max_shrink_iters: 1500, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// Interleaved transactions insert, update and delete rows and commit: each sees its own writes and its snapshot, and a writer that
+    /// meets a newer or uncommitted version of a row is tainted (no lost updates).
+    #[test]
+    fn s4b_03_sessions_of_writers_match_a_model_of_versions(steps in prop::collection::vec(step_strategy(false, false), 1..40)) {
+        run_session(&steps)?;
+    }
+
+    /// The same sessions with aborts: an aborted transaction leaves no trace, whatever it did, and the tuples it touched can be written
+    /// again by others.
+    #[test]
+    fn s4b_04_sessions_with_aborts_match_the_model(steps in prop::collection::vec(step_strategy(true, false), 1..50)) {
+        run_session(&steps)?;
+    }
+
+    /// And with garbage collection at random moments: collecting never changes what any transaction sees.
+    #[test]
+    fn s4b_05_sessions_with_garbage_collection_match_the_model(steps in prop::collection::vec(step_strategy(true, true), 1..60)) {
+        run_session(&steps)?;
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 30, max_shrink_iters: 2000, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// A long session with everything at once: writers, conflicts, aborts and garbage collections.
+    #[test]
+    fn s4b_08_a_long_session_with_every_feature_matches_the_model(steps in prop::collection::vec(step_strategy(true, true), 40..90)) {
+        run_session(&steps)?;
+    }
+}
+
+// ---- 4b-06 · the primary key against a map ---------------------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+enum KeyOp {
+    Insert(i32, i32),
+    Delete(i32),
+    SetValue(i32, i32),
+    MoveKey(i32, i32),
+}
+
+fn key_op() -> impl Strategy<Value = KeyOp> {
+    prop_oneof![
+        4 => (0..6i32, 0..100i32).prop_map(|(k, v)| KeyOp::Insert(k, v)),
+        2 => (0..6i32).prop_map(KeyOp::Delete),
+        2 => (0..6i32, 0..100i32).prop_map(|(k, v)| KeyOp::SetValue(k, v)),
+        2 => (0..6i32, 0..6i32).prop_map(|(a, b)| KeyOp::MoveKey(a, b)),
+    ]
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 40, max_shrink_iters: 1500, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// Transactions one after another on a table with a primary key: a duplicate key fails and taints, deletes make the key free again
+    /// (a tombstone is reused, never a second tuple), updating the key moves the row, and aborts leave the map unchanged. After every
+    /// transaction the table, every point lookup and every snapshot taken before it equal the model, and the heap never holds more tuples
+    /// than there are different keys.
+    #[test]
+    fn s4b_06_a_primary_key_table_behaves_like_a_map_and_reuses_its_tombstones(txns in prop::collection::vec((prop::collection::vec(key_op(), 1..6), any::<bool>()), 1..14)) {
+        let db = new_db();
+        exec(&db, "CREATE TABLE p(pk int primary key, v int)");
+        exec(&db, "set force_optimizer_starter_rule=yes");
+        let info = table(&db, "p");
+        let mut committed: BTreeMap<i32, i32> = BTreeMap::new();
+        let mut snapshots: Vec<(Arc<Transaction>, BTreeMap<i32, i32>)> = vec![];
+        for (ops, commit_it) in &txns {
+            let txn = begin(&db);
+            let mut working = committed.clone();
+            let mut failed = false;
+            for op in ops {
+                let (sql, ok) = match op {
+                    KeyOp::Insert(k, v) => (format!("INSERT INTO p VALUES ({k}, {v})"), !working.contains_key(k)),
+                    KeyOp::Delete(k) => (format!("DELETE FROM p WHERE pk = {k}"), true),
+                    KeyOp::SetValue(k, v) => (format!("UPDATE p SET v = {v} WHERE pk = {k}"), true),
+                    KeyOp::MoveKey(a, b) => (format!("UPDATE p SET pk = {b} WHERE pk = {a}"), a == b || !working.contains_key(a) || !working.contains_key(b)),
+                };
+                let (done, _) = try_run(&db, &txn, &sql);
+                prop_assert_eq!(done, ok, "{} on {:?}", sql, working);
+                if !ok {
+                    prop_assert_eq!(txn.state(), TransactionState::Tainted, "a duplicate key taints");
+                    failed = true;
+                    break;
+                }
+                match op {
+                    KeyOp::Insert(k, v) => { working.insert(*k, *v); }
+                    KeyOp::Delete(k) => { working.remove(k); }
+                    KeyOp::SetValue(k, v) => { if let Some(x) = working.get_mut(k) { *x = *v; } }
+                    KeyOp::MoveKey(a, b) => { if a != b { if let Some(v) = working.remove(a) { working.insert(*b, v); } } }
+                }
+                let want: Vec<String> = working.iter().map(|(k, v)| format!("{k} {v}")).collect();
+                prop_assert_eq!(rows(&db, &txn, "SELECT pk, v FROM p"), want, "inside the transaction after {}", sql);
+            }
+            if failed || !commit_it {
+                abort(&db, &txn);
+            } else {
+                commit(&db, &txn);
+                committed = working;
+            }
+            let fresh = begin(&db);
+            let want: Vec<String> = committed.iter().map(|(k, v)| format!("{k} {v}")).collect();
+            prop_assert_eq!(rows(&db, &fresh, "SELECT pk, v FROM p"), want);
+            for k in 0..6 {
+                let want: Vec<String> = committed.get(&k).map(|v| format!("{k} {v}")).into_iter().collect();
+                prop_assert_eq!(rows(&db, &fresh, &format!("SELECT pk, v FROM p WHERE pk = {k}")), want, "point lookup of {}", k);
+            }
+            prop_assert!(heap_entries(&info) <= 6, "{} tuples for at most 6 different keys: a deleted key's tuple is reused", heap_entries(&info));
+            snapshots.push((fresh, committed.clone()));
+        }
+        // every snapshot still reads the state it was taken in
+        for (txn, state) in &snapshots {
+            let want: Vec<String> = state.iter().map(|(k, v)| format!("{k} {v}")).collect();
+            prop_assert_eq!(rows(&db, txn, "SELECT pk, v FROM p"), want, "snapshot at {}", txn.read_ts());
+        }
+    }
+}
+
+// ---- 4b-07 · serializable against every serial order ----------------------------------------------------------------------------------
+
+/// A transaction program: read the value of key `read`, then write `value read + add` to key `write`, then commit.
+#[derive(Clone, Copy, Debug)]
+struct Prog {
+    read: i32,
+    write: i32,
+    add: i32,
+}
+
+fn prog() -> impl Strategy<Value = Prog> {
+    (0..3i32, 0..3i32, 1..4i32).prop_map(|(read, write, add)| Prog { read, write, add })
+}
+
+fn serial_ok(initial: &BTreeMap<i32, i32>, order: &[(Prog, i32)], last: &BTreeMap<i32, i32>) -> bool {
+    let mut state = initial.clone();
+    for (p, seen) in order {
+        if state[&p.read] != *seen {
+            return false;
+        }
+        state.insert(p.write, seen + p.add);
+    }
+    state == *last
+}
+
+fn permutations(items: &[(Prog, i32)]) -> Vec<Vec<(Prog, i32)>> {
+    if items.len() <= 1 {
+        return vec![items.to_vec()];
+    }
+    let mut out = vec![];
+    for i in 0..items.len() {
+        let mut rest = items.to_vec();
+        let first = rest.remove(i);
+        for mut p in permutations(&rest) {
+            p.insert(0, first);
+            out.push(p);
+        }
+    }
+    out
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 60, max_shrink_iters: 1500, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// Serializable transactions that read a key and write another, interleaved at random: whichever ones commit (the others fail on a
+    /// write-write conflict or at validation) read what they read and leave the table in the state of **some serial order** of just
+    /// those transactions. The oracle tries every order.
+    #[test]
+    fn s4b_07_committed_serializable_transactions_are_equivalent_to_a_serial_order(progs in prop::collection::vec(prog(), 2..5), schedule in prop::collection::vec(any::<usize>(), 0..16)) {
+        let db = new_db();
+        exec(&db, "CREATE TABLE s(k int, v int)");
+        exec(&db, "INSERT INTO s VALUES (0, 10), (1, 20), (2, 30)");
+        let initial: BTreeMap<i32, i32> = BTreeMap::from([(0, 10), (1, 20), (2, 30)]);
+        let txns: Vec<Arc<Transaction>> = progs.iter().map(|_| begin_serializable(&db)).collect();
+        let mut next_step = vec![0usize; progs.len()];
+        let mut seen: Vec<Option<i32>> = vec![None; progs.len()];
+        let mut alive = vec![true; progs.len()];
+        let mut committed: Vec<usize> = vec![];
+        let order: Vec<usize> = schedule.iter().map(|i| i % progs.len()).chain((0..progs.len()).cycle().take(progs.len() * 3)).collect();
+        for i in order {
+            if !alive[i] || next_step[i] >= 3 {
+                continue;
+            }
+            let (p, txn) = (progs[i], &txns[i]);
+            match next_step[i] {
+                0 => {
+                    let r = rows(&db, txn, &format!("SELECT v FROM s WHERE k = {}", p.read));
+                    seen[i] = Some(r[0].trim().parse().unwrap());
+                }
+                1 => {
+                    let (ok, _) = try_run(&db, txn, &format!("UPDATE s SET v = {} WHERE k = {}", seen[i].unwrap() + p.add, p.write));
+                    if !ok {
+                        abort(&db, txn);
+                        alive[i] = false;
+                    }
+                }
+                _ => {
+                    if db.txn_manager.commit(txn).unwrap() {
+                        committed.push(i);
+                    } else {
+                        // a failed validation aborts the transaction itself; a tainted one is aborted by the caller
+                        if txn.state() != TransactionState::Aborted { abort(&db, txn); }
+                    }
+                    alive[i] = false;
+                }
+            }
+            next_step[i] += 1;
+        }
+        let fresh = begin(&db);
+        let last: BTreeMap<i32, i32> = rows(&db, &fresh, "SELECT k, v FROM s").iter().map(|l| { let mut it = l.split(' ').map(|x| x.parse::<i32>().unwrap()); (it.next().unwrap(), it.next().unwrap()) }).collect();
+        let done: Vec<(Prog, i32)> = committed.iter().map(|i| (progs[*i], seen[*i].unwrap())).collect();
+        prop_assert!(
+            permutations(&done).iter().any(|order| serial_ok(&initial, order, &last)),
+            "committed {:?} left {:?}, which no serial order of them gives",
+            done, last
+        );
+    }
 }

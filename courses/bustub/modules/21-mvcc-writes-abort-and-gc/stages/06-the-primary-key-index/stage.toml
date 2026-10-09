@@ -1,8 +1,0 @@
-id = "4b-06"
-title = "The primary-key index"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_4b::s4b_06"]
-learn = ["unique-key checks against tombstones", "reusing a rid instead of inserting a duplicate tuple", "arbitration by the index when two transactions race"]
-concepts = ["unique-indexes-and-tombstone-reuse", "maintaining-indexes-on-writes"]
-concepts_optional = ["rolling-back-with-undo-logs"]

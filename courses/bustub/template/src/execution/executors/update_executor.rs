@@ -63,7 +63,7 @@ impl<'e> UpdateExecutor<'e> {
     /// An update that changes a primary key: first delete every old tuple, then insert every new one, so that `SET k = k + 1` can reuse
     /// the tombstones it has just made.
     fn update_by_delete_and_insert(&self, txn: &Arc<Transaction>, txn_mgr: &TransactionManager, changes: &[(Rid, Tuple)]) -> Result<()> {
-        todo!("4b-07: modify_tuple(.., None) for every rid first; then insert_mvcc for every new tuple")
+        todo!("4b-06: modify_tuple(.., None) for every rid first; then insert_mvcc for every new tuple")
     }
 }
 

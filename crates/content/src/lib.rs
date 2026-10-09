@@ -7,6 +7,7 @@ mod catalog;
 pub mod course;
 mod dsa;
 pub mod model;
+pub mod test_source;
 
 pub use catalog::{Catalog, Issue, LoadError, Loaded, Problem, ProblemFiles, Track};
 pub use dsa::{Approach, Company, CompanyGroup, DsaCatalog, DsaProblem, Lesson, Page, Role, Technique};

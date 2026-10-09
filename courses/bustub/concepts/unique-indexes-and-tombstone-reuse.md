@@ -176,8 +176,8 @@ fn the_loser_buries_its_tuple() {
 ### In the exercises
 
 - **4b-06:** primary-key inserts: unique check, tombstone reuse, the race.
-- **4b-07:** an update of the primary key as deletes followed by inserts.
-- **4b-09:** BusTub's `txn_index_test` runs all of it.
+- **4b-06:** an update of the primary key as deletes followed by inserts.
+- **4b-08:** BusTub's `txn_index_test` runs all of it.
 
 ### Where it is used
 

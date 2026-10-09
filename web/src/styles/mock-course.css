@@ -781,7 +781,7 @@
 .k-root .k-rpl{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
 .k-root .k-rpass.k-open .k-rpl{grid-template-rows:1fr}
 .k-root .k-rpl>div{overflow:hidden}
-.k-root .k-rrow{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:12px;padding:9px 16px;border-top:1px solid var(--line2);font:500 12.5px var(--mono);color:var(--mut);align-items:center}
+.k-root .k-rrow{display:grid;grid-template-columns:20px minmax(0,1fr) auto auto;gap:12px;padding:9px 16px;border-top:1px solid var(--line2);font:500 12.5px var(--mono);color:var(--mut);align-items:center}
 .k-root .k-ico{width:16px;height:16px;display:grid;place-items:center;font:800 11px var(--mono)}
 .k-root .k-ico.k-ok{color:var(--grn)}
 .k-root .k-ico.k-bad{color:var(--bad)}

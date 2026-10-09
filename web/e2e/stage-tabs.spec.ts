@@ -83,8 +83,8 @@ test.describe("Last run", () => {
 });
 
 test.describe("Concepts", () => {
-    // a stage with required reading (the rewritten modules make every concept optional, so this uses an older one and skips when none is left)
-    const stage = "4b-02";
+    // a stage with required reading (the rewritten modules make every concept optional, so this uses a primer stage and skips when none is left)
+    const stage = "0a-01";
     let required = 0;
     // Read state lives on the server: start each test from "nothing read".
     test.beforeEach(async ({ page, request }) => {

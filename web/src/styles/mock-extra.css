@@ -66,3 +66,5 @@
 .k-root .k-sol pre{white-space:pre;overflow-x:auto;scrollbar-width:none;font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0;letter-spacing:0;tab-size:4}
 .k-root .k-sol pre::-webkit-scrollbar{display:none}
 .k-root .k-sol pre .k-l{min-width:max-content}
+/* Code, links and emphasis inside a hidden answer take the hidden colour too: they set their own, so they showed through. */
+.k-root .k-spoil:not(.k-on) :is(code,a,em,strong,b,i){color:transparent;background:transparent;border-color:transparent;text-shadow:none}

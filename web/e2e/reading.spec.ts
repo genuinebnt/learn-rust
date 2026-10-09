@@ -178,6 +178,15 @@ test.describe("check yourself and the steps aside", () => {
         await expect(spoil).toContainText("the file does not grow");
     });
 
+    test("code inside a hidden answer is hidden too", async ({ page }) => {
+        await page.goto("/courses/bustub/3h-02");
+        const code = page.locator(".k-rev2 .k-spoil code").first();
+        await expect(code).toBeVisible();
+        expect(await code.evaluate((e) => getComputedStyle(e).color)).toBe("rgba(0, 0, 0, 0)");
+        await page.locator(".k-rev2 .k-spoil").first().click();
+        expect(await code.evaluate((e) => getComputedStyle(e).color)).not.toBe("rgba(0, 0, 0, 0)");
+    });
+
     test("a task's steps are in a closed aside, with the contract above them", async ({ page }) => {
         // any stage page with a `> [!ASIDE]` block will do; re-point this when the module that holds it is rewritten
         await page.goto("/courses/bustub/4a-02");

@@ -352,6 +352,24 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* Company tags on the track page: a filter above the table and a column in it. */
 .tbl-co { min-width: 1040px; }
+/* Wide screens: the header row stays under the page header while the table scrolls with the page.
+   overflow: clip keeps the rounded corners without making the wrapper a scroll container, which would pin sticky to it. */
+@media (min-width: 1100px) {
+    .tblw:has(> .tbl-co) { overflow: clip; }
+    .tbl-co > .tr.th { position: sticky; top: calc(52px + env(safe-area-inset-top, 0px)); z-index: 5; background: var(--panel); }
+}
+/* Phones: one card per problem instead of a 1040px table to scroll sideways. */
+@media (max-width: 760px) {
+    .tbl-co { min-width: 0; }
+    .tbl-co > .tr.th, .tbl-co > .tr > :nth-child(2), .tbl-co > .tr > :nth-child(6), .tbl-co > .tr > :nth-child(7) { display: none; }
+    .tbl-co > .tr { grid-template-columns: 28px auto auto minmax(0, 1fr) !important; grid-template-areas: "st pt pt pt" ". mode lvl best"; gap: 6px 12px; padding: 12px 16px; }
+    .tbl-co > .tr > :nth-child(1) { grid-area: st; }
+    .tbl-co > .tr > :nth-child(3) { grid-area: pt; }
+    .tbl-co > .tr > :nth-child(4) { grid-area: mode; }
+    .tbl-co > .tr > :nth-child(5) { grid-area: lvl; }
+    .tbl-co > .tr > :nth-child(8) { grid-area: best; justify-self: end; }
+    .tbl-co > .tr-empty { display: block; }
+}
 .cofilter { display: grid; gap: 10px; margin-bottom: 16px; }
 .corow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .colabel { width: 84px; flex: none; font: 500 10.5px var(--mono); letter-spacing: 0.2em; color: var(--dim); }

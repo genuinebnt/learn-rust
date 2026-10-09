@@ -13,6 +13,8 @@ A concurrency test that passes ten thousand times can still hide a race that nee
 
 Miri needs the nightly toolchain: `rustup +nightly component add miri`, then `cargo +nightly miri test`. Loom is a crate: add `loom` under `[target.'cfg(loom)'.dependencies]` and run with `RUSTFLAGS="--cfg loom" cargo test --release`.
 
+**Floats under miri.** Miri deliberately adds a tiny random error to results of floating-point functions such as `ln`, `exp` and `powf`, because different CPUs differ in the last bits. A test that compares such a result with `assert_eq!` can fail under miri and pass natively; that is the interpreter, not undefined behaviour. Either compare with a tolerance or run with `MIRIFLAGS="-Zmiri-no-extra-rounding-error"`. (The HyperLogLog tests of this course hit exactly this.)
+
 ## What loom needs
 
 Loom explores your code only if the code uses *loom's* types, so you write the protocol against a small facade (`#[cfg(loom)] use loom::sync::{Arc, Mutex}; #[cfg(not(loom))] use std::sync::{Arc, Mutex};`) and wrap the test in `loom::model(|| { ... })`. Keep the model to two or three threads and a handful of operations; extract the part with the concurrency bug and model *that*.

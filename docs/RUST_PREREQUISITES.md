@@ -10,11 +10,11 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 |---|---|---|---|---|
 | L1 Ownership & moves | `l1-ownership-moves` | written | core | R, 1a, 1b, 1g, 0a |
 | L2 Borrowing | `l2-borrowing` | written | core | R, 1e, 1f, 1g |
-| L3 Lifetimes | `l3-lifetimes` | written | core | 1g, 2c, 3c, 3e, 3g |
+| L3 Lifetimes | `l3-lifetimes` | written | core | 1g, 2c, 3c, 3e, 3g, 4c |
 | L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3c, 3d, 3e, 3f, 3h, 4b |
 | L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b, 2c, 2d |
 | L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
-| L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 0a |
+| L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 4c, 0a |
 | L8 Error design | `l8-error-design` | planned | core | R, 1a, 1b, 3a, 3d, 3e, 4b, 4c |
 | S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e, 3h, 4a, 4b |
 | S2 Strings & text | `s2-strings-text` | written | core | 3a, 3b, 3d |
@@ -23,7 +23,7 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | S5 Queues & heaps | `s5-queues-heaps` | planned | core | 1b, 1c, 1d, 3f, 3g, 0b |
 | S6 Iterators | `s6-iterators` | planned | core | 1c, 1d, 2c, 3c, 3d, 3e, 3f, 3g |
 | S7 Smart pointers & interior mutability | `s7-smart-pointers` | planned | core | 1b, 1c, 1e, 1f, 1g, 2c, 3d, 3h, 4a, 0a, 0b |
-| S8 The core traits | `s8-core-traits` | planned | core | 1d, 1e, 1g, 2a, 2b, 2d, 3a, 3d, 3f, 3g, 4c, 0c, 0d |
+| S8 The core traits | `s8-core-traits` | planned | core | 1d, 1e, 1g, 2a, 2b, 2d, 3a, 3d, 3f, 3g, 0c, 0d |
 | S9 I/O & filesystem | `s9-io-filesystem` | planned | core | R, 1a, 3g, 4c |
 | S11 mem, ptr & alloc | `s11-mem-ptr-alloc` | planned | sde3 | 2a |
 | C1 Threads & shared state | `c1-threads-shared-state` | planned | core | 1a, 1b, 1f, 1g, 2b, 2c, 3c, 4a, 4b, 4c |
@@ -323,16 +323,17 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 | [S1 Option & Result](/t/s1-option-result) | Understand it | `Option` chains for links and logs | 4b-03, 4b-04, 4b-07 |
 | [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | sessions of interleaved transactions against a model; an oracle that tries every serial order | 4b-03, 4b-04, 4b-05, 4b-06, 4b-07, 4b-08 |
 
-### 4C · ACID, logging and recovery (new, planned)
+### 4C · ACID, logging and recovery
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [S9 I/O & filesystem](/t/s9-io-filesystem) *(planned)* | Understand | append-only files, `fsync` | the module |
-| [F7 I/O & serialization](/t/f7-io-serialization) *(planned)* | Storage formats | write-ahead-log records: length prefix, checksum, torn-write recovery | the module |
-| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | crash a disk at a random point, then recover | the module |
-| [L8 Error design](/t/l8-error-design) *(planned)* | Errors at scale | a recovery that never panics on a damaged log | the module |
-| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `Drop` order for durability | the module |
-| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | group commit | the module |
+| [F7 I/O & serialization](/t/f7-io-serialization) *(planned)* | Storage formats | write-ahead-log records: a length, a checksum, a body; a torn tail is the end of the log | 4c-01, 4c-02 |
+| [S9 I/O & filesystem](/t/s9-io-filesystem) *(planned)* | Understand | append-only files, `fsync`, what is durable when a call returns | 4c-02, 4c-04 |
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | a `Mutex` around bookkeeping; a checkpoint holds one lock for many steps; group commit | 4c-02, 4c-04, 4c-07 |
+| [L3 Lifetimes](/t/l3-lifetimes) | Structs holding refs | `Store<'a>` borrowing the pool and the log | 4c-03 |
+| [L8 Error design](/t/l8-error-design) *(planned)* | Errors at scale | a recovery that never panics on a damaged log; `io::Result` and `?` | 4c-02, 4c-05, 4c-06 |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums as design | a log record as an enum, matched in analysis, redo and undo | 4c-01, 4c-05, 4c-06 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | crash a disk at a random point, then recover; a model of the committed state | 4c-03, 4c-04, 4c-05, 4c-06, 4c-07, 4c-08 |
 
 ### 0A · A persistent trie
 
@@ -390,13 +391,13 @@ The planned tracks, sorted by the first module that needs them (then by how many
 | 10 | [S6 Iterators](/t/s6-iterators) | 1C | 8 modules |
 | 11 | [F3 Memory & allocation](/t/f3-memory-allocation) | 1C | 4 modules |
 | 12 | [D5 Linked lists](/t/d5-linked-lists) | 1C | 2 modules |
-| 13 | [S8 The core traits](/t/s8-core-traits) | 1D | 13 modules |
+| 13 | [S8 The core traits](/t/s8-core-traits) | 1D | 12 modules |
 | 14 | [F7 I/O & serialization](/t/f7-io-serialization) | 2A | 5 modules |
 | 15 | [S11 mem, ptr & alloc](/t/s11-mem-ptr-alloc) | 2A | 1 modules |
 | 16 | [D4 Binary search](/t/d4-binary-search) | 2A | 1 modules |
 | 17 | [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) | 2B | 4 modules |
 | 18 | [D13 Matrix, bits & math](/t/d13-matrix-bits-math) | 2B | 3 modules |
-| 19 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | 2C | 8 modules |
+| 19 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | 2C | 9 modules |
 | 20 | [D6 Trees & BSTs](/t/d6-trees-bsts) | 2C | 1 modules |
 | 21 | [C3 Atomics & lock-free](/t/c3-atomics-lock-free) | 4A | 1 modules |
 | 22 | [Y2 Unsafe Rust](/t/y2-unsafe-rust) | 0B | 1 modules |

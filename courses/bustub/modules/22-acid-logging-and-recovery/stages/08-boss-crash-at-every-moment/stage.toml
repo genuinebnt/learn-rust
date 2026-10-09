@@ -1,0 +1,8 @@
+id = "4c-08"
+title = "Boss: crash at every moment"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_4c::s4c_08"]
+retest = true
+concepts = []
+concepts_optional = ["aries-recovery", "write-ahead-logging", "testing-with-fakes", "property-testing-and-fuzzing"]

@@ -1,0 +1,8 @@
+id = "4c-07"
+title = "Checkpoints"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_4c::s4c_07"]
+learn = ["bounding the work of redo", "a sharp checkpoint: log, then pages, then a record of who is active", "losers that began before the checkpoint"]
+concepts = []
+concepts_optional = ["aries-recovery", "write-ahead-logging", "durability-and-fsync", "property-testing-and-fuzzing"]

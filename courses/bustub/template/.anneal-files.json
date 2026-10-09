@@ -71,6 +71,10 @@
   "src/primer/skiplist.rs": "0b",
   "src/primer/trie.rs": "0a",
   "src/primer/trie_store.rs": "0a",
+  "src/recovery/log_manager.rs": "4c",
+  "src/recovery/log_record.rs": "4c",
+  "src/recovery/recover.rs": "4c",
+  "src/recovery/store.rs": "4c",
   "src/sql/ast.rs": "3d",
   "src/sql/lexer.rs": "3d",
   "src/sql/parser.rs": "3d",
@@ -179,6 +183,7 @@
   "tests/stages_3h.rs": "3h",
   "tests/stages_4a.rs": "4a",
   "tests/stages_4b.rs": "4b",
+  "tests/stages_4c.rs": "4c",
   "tests/table_page_test.rs": "3b",
   "tests/tuple_test.rs": "3c",
   "tests/type_test.rs": "3a"

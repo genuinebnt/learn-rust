@@ -14,6 +14,7 @@ pub mod execution;
 pub mod optimizer;
 pub mod planner;
 pub mod primer;
+pub mod recovery;
 pub mod sql;
 pub mod storage;
 pub mod types;

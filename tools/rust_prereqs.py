@@ -280,13 +280,14 @@ MODULES = [
         ("S1", "Understand it", "`Option` chains for links and logs", ["4b-03", "4b-04", "4b-07"]),
         ("Y5", "Build it", "sessions of interleaved transactions against a model; an oracle that tries every serial order", ["4b-03", "4b-04", "4b-05", "4b-06", "4b-07", "4b-08"]),
     ]),
-    ("4c", "ACID, logging and recovery (new, planned)", [
-        ("S9", "Understand", "append-only files, `fsync`", None),
-        ("F7", "Storage formats", "write-ahead-log records: length prefix, checksum, torn-write recovery", None),
-        ("Y5", "Build it", "crash a disk at a random point, then recover", None),
-        ("L8", "Errors at scale", "a recovery that never panics on a damaged log", None),
-        ("S8", "Implement by hand", "`Drop` order for durability", None),
-        ("C1", "Understand it", "group commit", None),
+    ("4c", "ACID, logging and recovery", [
+        ("F7", "Storage formats", "write-ahead-log records: a length, a checksum, a body; a torn tail is the end of the log", ["4c-01", "4c-02"]),
+        ("S9", "Understand", "append-only files, `fsync`, what is durable when a call returns", ["4c-02", "4c-04"]),
+        ("C1", "Understand it", "a `Mutex` around bookkeeping; a checkpoint holds one lock for many steps; group commit", ["4c-02", "4c-04", "4c-07"]),
+        ("L3", "Structs holding refs", "`Store<'a>` borrowing the pool and the log", ["4c-03"]),
+        ("L8", "Errors at scale", "a recovery that never panics on a damaged log; `io::Result` and `?`", ["4c-02", "4c-05", "4c-06"]),
+        ("L7", "Enums as design", "a log record as an enum, matched in analysis, redo and undo", ["4c-01", "4c-05", "4c-06"]),
+        ("Y5", "Build it", "crash a disk at a random point, then recover; a model of the committed state", ["4c-03", "4c-04", "4c-05", "4c-06", "4c-07", "4c-08"]),
     ]),
     ("0a", "A persistent trie", [
         ("L1", "Clones & drops", "sharing structure instead of copying", None),

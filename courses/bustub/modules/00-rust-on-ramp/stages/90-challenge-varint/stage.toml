@@ -1,0 +1,8 @@
+id = "r-c1"
+title = "Challenge: a varint codec"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_r::sr_c1"]
+learn = ["designing a compact byte format and its decoder from a written description", "telling three kinds of bad input apart"]
+concepts = []
+concepts_optional = ["bytes-endianness-and-views", "errors-as-values-with-result"]

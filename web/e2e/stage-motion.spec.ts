@@ -85,11 +85,28 @@ test("the run strip names the last run and its logs slide open", async ({ page }
     await expect(page.locator("#logb")).toHaveText("HIDE LOGS");
 });
 
-test("Run tests copies the command and says so in a toast", async ({ page, context }) => {
+test("Copy test command copies it and says the page is listening", async ({ page, context }) => {
+    await expect(page.locator("#runbtn")).toContainText("Copy test command");
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.locator("#runbtn").click();
     await expect(page.locator(".k-tt.k-ok")).toContainText("Command copied");
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("anneal course test 4a-04");
+});
+
+test("the run strip says it is listening, shows a run in flight, then the result", async ({ page, request }) => {
+    const stage = "4c-08";
+    const bar = page.locator("#strip");
+    await page.goto(`/courses/bustub/${stage}`);
+    await expect(bar.locator("#stx")).toContainText("listening for your next run");
+    // the CLI starts a run: within a poll the strip says so and the button is busy
+    expect((await request.post("/api/courses/bustub/runs/start", { data: { stage_id: stage } })).ok()).toBe(true);
+    await expect(bar.locator("#stx")).toContainText("running tests", { timeout: 10_000 });
+    await expect(bar.locator("#runbtn")).toContainText("Running…");
+    // the report arrives: the strip shows the result and the running state is gone
+    const run = { stage_id: stage, tests: [{ name: "a", ok: true, detail: "" }, { name: "b", ok: false, detail: "left 1 right 2" }], commit: "abc1234", duration_ms: 300 };
+    expect((await request.post("/api/courses/bustub/runs", { data: run })).ok()).toBe(true);
+    await expect(bar.locator("#stx")).toContainText("1 / 2 passing", { timeout: 10_000 });
+    await expect(bar.locator("#runbtn")).toContainText("Copy test command");
 });
 
 test("the outline marker follows the section you are in", async ({ page }) => {

@@ -1,16 +1,68 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { api, type CourseOverview, type CourseStageRow, type StageDifficulty } from "../api";
+import { api, coreStages, type CourseOverview, type CourseStageRow, type StageDifficulty } from "../api";
 import { Header } from "../components/Header";
 import { CountUp } from "../components/kit";
 import { MockCopy, MockRoot, reducedMotion, useReady } from "../components/mock";
+import { toast } from "../components/toasts";
 import { getPref, setPref } from "../prefs";
 import { plannedCount, useShowPlanned, withoutPlanned } from "./plannedModules";
 
 /** "Project 3" for BusTub's four projects; the optional extras (the Rust on-ramp, the primer) are named by their title. */
 export function projectLabel(number: number, title: string): string {
     return number >= 1 && number <= 4 ? `Project ${number} · ${title}` : title;
+}
+
+/** "Reset progress": forgets the stages passed in the whole course, one project or one module. Asks for the word "reset" first. */
+function ResetPanel({ course, c, onDone }: { course: string; c: CourseOverview; onDone: () => void }) {
+    const qc = useQueryClient();
+    const [scope, setScope] = useState("all");
+    const [word, setWord] = useState("");
+    const [busy, setBusy] = useState(false);
+    const body = (): { all: true } | { project: number } | { module: string } =>
+        scope === "all" ? { all: true } : scope.startsWith("p:") ? { project: Number(scope.slice(2)) } : { module: scope.slice(2) };
+    const go = async () => {
+        setBusy(true);
+        try {
+            const r = await api.resetCourse(course, body());
+            toast("ok", "Progress reset", `${r.stage_states_removed} stage${r.stage_states_removed === 1 ? "" : "s"} and ${r.runs_removed} run${r.runs_removed === 1 ? "" : "s"} forgotten. Your code is untouched.`);
+            await qc.invalidateQueries({ queryKey: ["course", course] });
+            onDone();
+        } catch (e) {
+            toast("in", "Could not reset", e instanceof Error ? e.message : String(e));
+        } finally {
+            setBusy(false);
+        }
+    };
+    return (
+        <div className="k-reset" role="group" aria-label="Reset progress">
+            <label>
+                What to reset
+                <select value={scope} onChange={(e) => setScope(e.target.value)}>
+                    <option value="all">The whole course</option>
+                    {c.projects.map((p) => (
+                        <option key={`p${p.number}`} value={`p:${p.number}`}>
+                            {projectLabel(p.number, p.title)} (all its modules)
+                        </option>
+                    ))}
+                    {c.projects.flatMap((p) => p.modules).map((m) => (
+                        <option key={m.code} value={`m:${m.code}`}>
+                            Module {m.code.toUpperCase()} · {m.title}
+                        </option>
+                    ))}
+                </select>
+            </label>
+            <p>Forgets which stages you passed, the runs, and the hints and solutions you opened. Your code in your repo is not touched.</p>
+            <label>
+                Type <b>reset</b> to confirm
+                <input value={word} onChange={(e) => setWord(e.target.value)} placeholder="reset" autoComplete="off" />
+            </label>
+            <button className="k-del" disabled={word.trim() !== "reset" || busy} onClick={go}>
+                {busy ? "Resetting…" : "Reset progress"}
+            </button>
+        </div>
+    );
 }
 
 /** The course the Courses nav item opens. */
@@ -71,6 +123,7 @@ function StageRow({ course, s, current, index }: { course: string; s: CourseStag
             <span>
                 {s.title}
                 {s.kind === "boss" && <span className="k-boss">BUSTUB TEST</span>}
+                {s.kind === "challenge" && <span className="k-boss k-challenge" title="Extra practice: not part of the course, no solution">CHALLENGE</span>}
             </span>
             {current ? <span className="k-next">UP NEXT</span> : <span />}
             <span className={`k-dif k-${DIF_CLASS[s.difficulty]}`}>
@@ -104,13 +157,14 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
     }, []);
     const q = useQuery({ queryKey: ["course", course], queryFn: () => api.course(course) });
     const [showPlanned, setShowPlanned] = useShowPlanned();
+    const [resetOpen, setResetOpen] = useState(false);
     const c: CourseOverview | undefined = withoutPlanned(q.data, showPlanned);
     const planned = plannedCount(q.data);
     const allModules = c?.projects.flatMap((p) => p.modules) ?? [];
     const modules = allModules.length;
     const current = allModules.flatMap((m) => m.stages).find((s) => s.id === c?.current);
     const here = allModules.find((m) => m.stages.some((s) => s.id === c?.current));
-    const hereDone = here?.stages.filter((s) => s.state !== "todo").length ?? 0;
+    const hereDone = coreStages(here?.stages ?? []).filter((s) => s.state !== "todo").length ?? 0;
     const needle = find.trim().toLowerCase();
     // Searching or filtering shows every module that has a match, open; the module toggles rest meanwhile.
     const active = filter !== "all" || needle !== "";
@@ -176,13 +230,13 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                             <span className="k-pulse" />
                                             {c.done ? "CONTINUE" : "START HERE"} · STAGE {current.rank} OF {c.total}
                                         </div>
-                                        <div className="k-ring" aria-label={`${hereDone} of ${here.stages.length} stages in this module passed`}>
+                                        <div className="k-ring" aria-label={`${hereDone} of ${coreStages(here.stages).length} stages in this module passed`}>
                                             <svg viewBox="0 0 64 64">
                                                 <circle className="k-t" cx="32" cy="32" r="28" />
-                                                <circle className="k-v" cx="32" cy="32" r="28" style={{ strokeDashoffset: ready ? 176 * (1 - hereDone / here.stages.length) : 176 }} />
+                                                <circle className="k-v" cx="32" cy="32" r="28" style={{ strokeDashoffset: ready ? 176 * (1 - hereDone / coreStages(here.stages).length) : 176 }} />
                                             </svg>
                                             <span>
-                                                {hereDone}/{here.stages.length}
+                                                {hereDone}/{coreStages(here.stages).length}
                                             </span>
                                         </div>
                                         <div className="k-grow">
@@ -210,12 +264,12 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                     <span>{projectLabel(p.number, p.title)}</span>
                                                     <div className="k-nodes">
                                                         {p.modules.map((m) => {
-                                                            const done = m.stages.filter((x) => x.state !== "todo").length;
+                                                            const done = coreStages(m.stages).filter((x) => x.state !== "todo").length;
                                                             return (
-                                                                <button key={m.code} className={`k-node${done === m.stages.length ? " k-done" : ""}${m.code === here?.code ? " k-cur" : ""}`} onClick={() => jump(m.code)} aria-label={`${m.code.toUpperCase()} ${m.title}: ${done} of ${m.stages.length} passed`}>
+                                                                <button key={m.code} className={`k-node${done === coreStages(m.stages).length ? " k-done" : ""}${m.code === here?.code ? " k-cur" : ""}`} onClick={() => jump(m.code)} aria-label={`${m.code.toUpperCase()} ${m.title}: ${done} of ${coreStages(m.stages).length} passed`}>
                                                                     {m.code.toUpperCase()}
                                                                     <span className="k-tip" aria-hidden="true">
-                                                                        {m.title} · {m.planned ? "planned" : `${done}/${m.stages.length}`}
+                                                                        {m.title} · {m.planned ? "planned" : `${done}/${coreStages(m.stages).length}`}
                                                                     </span>
                                                                 </button>
                                                             );
@@ -243,12 +297,16 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                     <button className="k-ea" onClick={() => choose(allOpen ? [] : allModules.map((m) => m.code))} disabled={active}>
                                         {allOpen ? "COLLAPSE ALL" : "EXPAND ALL"}
                                     </button>
+                                    <button className="k-ea" aria-expanded={resetOpen} onClick={() => setResetOpen(!resetOpen)} title="Forget your progress for the whole course, a project or a module">
+                                        RESET PROGRESS
+                                    </button>
                                     {planned > 0 && (
                                         <button className="k-ea" aria-pressed={showPlanned} onClick={() => setShowPlanned(!showPlanned)} title="Modules that are being rewritten are hidden until they are done">
                                             {showPlanned ? "HIDE PLANNED" : `SHOW PLANNED (${planned})`}
                                         </button>
                                     )}
                                 </div>
+                                {resetOpen && <ResetPanel course={course} c={c} onDone={() => setResetOpen(false)} />}
                                 {active && !allModules.some((m) => m.stages.some((x) => matches(x, m))) && (
                                     <div className="k-none" role="status">
                                         No stage matches that. <button onClick={() => (setFind(""), setFilter("all"))}>Clear it</button>
@@ -260,7 +318,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                         .flatMap((p) => p.modules)
                                         .filter((m) => !active || m.stages.some((x) => matches(x, m)))
                                         .map((m) => {
-                                            const done = m.stages.filter((x) => x.state !== "todo").length;
+                                            const done = coreStages(m.stages).filter((x) => x.state !== "todo").length;
                                             const isOpen = active || openSet.has(m.code);
                                             const rows = active ? m.stages.filter((x) => matches(x, m)) : m.stages;
                                             return (
@@ -277,9 +335,9 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                         </span>
                                                         <span className="k-mp">
                                                             <span className="k-mini" aria-hidden="true">
-                                                                <i style={{ width: ready ? `${pct(done, m.stages.length)}%` : 0 }} />
+                                                                <i style={{ width: ready ? `${pct(done, coreStages(m.stages).length)}%` : 0 }} />
                                                             </span>
-                                                            {done} / {m.stages.length}
+                                                            {done} / {coreStages(m.stages).length}
                                                         </span>
                                                     </button>
                                                     <div className="k-body">
@@ -339,7 +397,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                     </h5>
                                     <div>
                                         {c.projects.map((p, i) => {
-                                            const st = p.modules.flatMap((m) => m.stages);
+                                            const st = coreStages(p.modules.flatMap((m) => m.stages));
                                             const done = st.filter((x) => x.state !== "todo").length;
                                             const v = st.length ? pct(done, st.length) : null;
                                             const first = p.modules[0];

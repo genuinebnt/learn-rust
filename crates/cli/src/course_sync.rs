@@ -33,8 +33,13 @@ fn load_session() -> Option<Session> {
 
 /// One `curl` call. Returns (status, headers, body).
 fn curl(method: &str, url: &str, token: Option<&str>, body: Option<&str>) -> anyhow::Result<(u16, String, String)> {
+    curl_within(60, method, url, token, body)
+}
+
+/// `curl` that gives up after `secs` seconds.
+fn curl_within(secs: u32, method: &str, url: &str, token: Option<&str>, body: Option<&str>) -> anyhow::Result<(u16, String, String)> {
     let mut cmd = Command::new("curl");
-    cmd.args(["-sS", "--max-time", "60", "-i", "-X", method, url, "-H", "content-type: application/json"]);
+    cmd.args(["-sS", "--max-time", &secs.to_string(), "-i", "-X", method, url, "-H", "content-type: application/json"]);
     if let Some(t) = token {
         cmd.args(["-H", &format!("Cookie: {COOKIE}={t}")]);
     }
@@ -167,6 +172,24 @@ fn flush(repo: &Path, s: &Session) -> (usize, usize, usize) {
     }
     save_queue(repo, &left);
     (sent, refused, left.len())
+}
+
+/// Tells the app a run is starting, so the stage page shows "Running…" until the report arrives. Quiet, quick and never fails the caller.
+pub fn report_start(course: &str, stage: &str) {
+    let Some(s) = load_session() else { return };
+    let body = serde_json::json!({ "stage_id": stage }).to_string();
+    let _ = curl_within(4, "POST", &format!("{}/api/courses/{course}/runs/start", s.url), Some(&s.token), Some(&body));
+}
+
+/// Asks the app to forget progress (`{"all": true}`, `{"module": "1a"}` or `{"project": 1}`). `None` when nobody is signed in.
+pub fn reset_remote(course: &str, scope: &serde_json::Value) -> Option<anyhow::Result<String>> {
+    let s = load_session()?;
+    Some(match curl("POST", &format!("{}/api/courses/{course}/reset", s.url), Some(&s.token), Some(&scope.to_string())) {
+        Ok((200, _, b)) => Ok(b),
+        Ok((401, ..)) => Err(anyhow::anyhow!("the session expired: run `anneal course login {}`", s.url)),
+        Ok((st, _, b)) => Err(anyhow::anyhow!("the app refused ({st}): {}", b.trim())),
+        Err(e) => Err(e),
+    })
 }
 
 /// Reports one stage run, if a session exists. Never fails the caller. A run that cannot be delivered now is queued in

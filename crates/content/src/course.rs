@@ -230,8 +230,8 @@ impl Course {
                 let def: StageToml = read_toml(&sdir.join("stage.toml"))?;
                 let md = fs::read_to_string(sdir.join("stage.md"))
                     .map_err(|e| CourseError::Invalid(format!("{}: reading stage.md: {e}", sdir.display())))?;
-                if !matches!(def.kind.as_str(), "learn" | "build" | "boss") {
-                    return bad(format!("{}: kind must be learn, build or boss", def.id));
+                if !matches!(def.kind.as_str(), "learn" | "build" | "boss" | "challenge") {
+                    return bad(format!("{}: kind must be learn, build, boss or challenge", def.id));
                 }
                 if !matches!(def.difficulty.as_str(), "very-easy" | "easy" | "medium" | "hard") {
                     return bad(format!("{}: difficulty must be very-easy, easy, medium or hard", def.id));

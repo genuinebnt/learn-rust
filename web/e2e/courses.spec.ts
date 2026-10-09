@@ -39,6 +39,26 @@ test("the optional Rust on-ramp is listed first and tagged OPTIONAL, not PLANNED
     expect(first).toBe("mod-r");
 });
 
+test("Reset progress forgets one module after you type reset, and leaves the others", async ({ page, request }) => {
+    const pass = (id: string) => request.post("/api/courses/bustub/runs", { data: { stage_id: id, tests: [{ name: "a", ok: true, detail: "" }] } });
+    await pass("4c-01");
+    await pass("4b-01");
+    const state = async (id: string) => (await (await request.get(`/api/courses/bustub/stages/${id}`)).json()).state;
+    expect(await state("4c-01")).not.toBe("todo");
+    await page.goto("/courses/bustub");
+    await page.getByRole("button", { name: "RESET PROGRESS" }).click();
+    const panel = page.getByRole("group", { name: "Reset progress" });
+    await panel.getByRole("combobox").selectOption("m:4c");
+    const go = panel.getByRole("button", { name: "Reset progress" });
+    await expect(go).toBeDisabled();
+    await panel.getByPlaceholder("reset").fill("reset");
+    await go.click();
+    await expect(page.locator(".k-tt.k-ok")).toContainText("Progress reset");
+    await expect(panel).toHaveCount(0);
+    expect(await state("4c-01")).toBe("todo");
+    expect(await state("4b-01")).not.toBe("todo");
+});
+
 test("the map has a button for every module and opens the one you click", async ({ page }) => {
     const n = await page.locator(".k-node").count();
     expect(n).toBeGreaterThanOrEqual(18);

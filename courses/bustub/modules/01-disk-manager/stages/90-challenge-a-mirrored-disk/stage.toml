@@ -1,0 +1,8 @@
+id = "1a-c1"
+title = "Challenge: a mirrored disk"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_1a::s1a_c1"]
+learn = ["building a component behind a trait from a behavioural description", "keeping two copies consistent when one of them fails and comes back"]
+concepts = []
+concepts_optional = ["ownership-of-files-and-raii", "rust-io-errors", "model-based-testing"]

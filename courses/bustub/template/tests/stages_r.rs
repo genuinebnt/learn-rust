@@ -724,3 +724,143 @@ proptest! {
         }
     }
 }
+
+// ---- r-c1: challenge, a varint codec ------------------------------------------------------------------------------------------------------
+
+use bustub::rust_primer::rle::{rle_decode, rle_encode, RleError};
+use bustub::rust_primer::varint::{decode_varint, encode_varint, VarintError};
+
+fn varint(v: u64) -> Vec<u8> {
+    let mut out = Vec::new();
+    encode_varint(v, &mut out);
+    out
+}
+
+#[test]
+fn sr_c1_small_numbers_take_one_byte_and_bigger_ones_follow_the_format() {
+    assert_eq!(varint(0), vec![0]);
+    assert_eq!(varint(1), vec![1]);
+    assert_eq!(varint(127), vec![0x7f]);
+    assert_eq!(varint(128), vec![0x80, 0x01], "128 needs a second byte: the low 7 bits first with the high bit set");
+    assert_eq!(varint(300), vec![0xac, 0x02]);
+    assert_eq!(varint(16_384), vec![0x80, 0x80, 0x01]);
+    assert_eq!(varint(u64::MAX).len(), 10);
+    let mut out = vec![9, 9];
+    encode_varint(5, &mut out);
+    assert_eq!(out, vec![9, 9, 5], "encoding appends; it does not clear");
+}
+
+#[test]
+fn sr_c1_decoding_reports_the_number_and_how_many_bytes_it_took() {
+    assert_eq!(decode_varint(&[0x7f]), Ok((127, 1)));
+    assert_eq!(decode_varint(&[0xac, 0x02]), Ok((300, 2)));
+    assert_eq!(decode_varint(&[0xac, 0x02, 0xff, 0xff]), Ok((300, 2)), "bytes after the number are not looked at");
+    assert_eq!(decode_varint(&[1, 2, 3]), Ok((1, 1)));
+    assert_eq!(decode_varint(&varint(u64::MAX)), Ok((u64::MAX, 10)));
+}
+
+#[test]
+fn sr_c1_bad_bytes_are_errors_not_panics() {
+    assert_eq!(decode_varint(&[]), Err(VarintError::Truncated));
+    assert_eq!(decode_varint(&[0x80]), Err(VarintError::Truncated), "a continuation bit with nothing after it");
+    assert_eq!(decode_varint(&[0x80, 0x00]), Err(VarintError::NonMinimal), "0 written with two bytes");
+    assert_eq!(decode_varint(&[0xac, 0x82, 0x00]), Err(VarintError::NonMinimal));
+    let too_big = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02];
+    assert_eq!(decode_varint(&too_big), Err(VarintError::Overflow), "needs 65 bits");
+    assert_eq!(decode_varint(&[0x80; 12]), Err(VarintError::Overflow), "more than ten bytes of continuation");
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 512, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// Property: every number round-trips, takes exactly as many bytes as its bits need, and nothing but its own bytes is consumed.
+    #[test]
+    fn sr_c1_property_numbers_round_trip_in_the_fewest_bytes(v in prop_oneof![any::<u64>(), 0u64..300, any::<u32>().prop_map(u64::from)], tail in proptest::collection::vec(any::<u8>(), 0..4)) {
+        let mut bytes = varint(v);
+        let bits = 64 - v.leading_zeros().min(63) as usize;
+        prop_assert_eq!(bytes.len(), bits.div_ceil(7).max(1), "the fewest bytes for {} bits", bits);
+        let n = bytes.len();
+        bytes.extend_from_slice(&tail);
+        prop_assert_eq!(decode_varint(&bytes), Ok((v, n)));
+    }
+
+    /// Property: a stream of varints decodes back in order, and cutting it inside a number is a Truncated error for that number.
+    #[test]
+    fn sr_c1_property_a_stream_decodes_number_by_number(values in proptest::collection::vec(any::<u64>(), 1..12), cut in any::<prop::sample::Index>()) {
+        let stream: Vec<u8> = values.iter().flat_map(|&v| varint(v)).collect();
+        let mut at = 0;
+        let mut starts = Vec::new();
+        for &v in &values {
+            let (got, n) = decode_varint(&stream[at..]).unwrap();
+            prop_assert_eq!(got, v);
+            starts.push(at);
+            at += n;
+        }
+        prop_assert_eq!(at, stream.len());
+        let cut = cut.index(stream.len());
+        if let Some(&s) = starts.iter().rev().find(|&&s| s <= cut) {
+            let piece = &stream[s..cut];
+            match decode_varint(piece) {
+                Ok((_, n)) => prop_assert!(n <= piece.len()),
+                Err(e) => prop_assert_eq!(e, VarintError::Truncated, "a prefix of a valid number can only be cut short"),
+            }
+        }
+    }
+
+    /// Property: whatever the bytes are, decoding never panics, and an Ok answer re-encodes to exactly the bytes it consumed.
+    #[test]
+    fn sr_c1_property_any_bytes_decode_or_fail_cleanly(bytes in proptest::collection::vec(any::<u8>(), 0..14)) {
+        if let Ok((v, n)) = decode_varint(&bytes) {
+            prop_assert_eq!(varint(v), bytes[..n].to_vec(), "decode then encode gives back the bytes read");
+        }
+    }
+}
+
+// ---- r-c2: challenge, a run-length codec with a bug ---------------------------------------------------------------------------------------
+
+#[test]
+fn sr_c2_runs_become_count_and_byte_pairs() {
+    assert_eq!(rle_encode(b""), Vec::<u8>::new());
+    assert_eq!(rle_encode(b"aaab"), vec![3, b'a', 1, b'b']);
+    assert_eq!(rle_encode(b"abc"), vec![1, b'a', 1, b'b', 1, b'c']);
+    assert_eq!(rle_encode(&[7; 255]), vec![255, 7], "255 is the longest run one pair can hold");
+}
+
+#[test]
+fn sr_c2_a_run_longer_than_a_pair_can_hold_is_split() {
+    assert_eq!(rle_encode(&[7; 256]), vec![255, 7, 1, 7]);
+    assert_eq!(rle_encode(&[7; 600]), vec![255, 7, 255, 7, 90, 7]);
+    assert_eq!(rle_decode(&rle_encode(&[1; 1000])).unwrap(), vec![1; 1000], "a long run of equal bytes comes back whole");
+}
+
+#[test]
+fn sr_c2_decoding_rejects_what_is_not_pairs() {
+    assert_eq!(rle_decode(&[3]), Err(RleError::Truncated));
+    assert_eq!(rle_decode(&[2, b'a', 1]), Err(RleError::Truncated));
+    assert_eq!(rle_decode(&[0, b'a']), Err(RleError::ZeroRun));
+    assert_eq!(rle_decode(&[]), Ok(vec![]));
+    assert_eq!(rle_decode(&[2, b'a', 1, b'b']), Ok(b"aab".to_vec()));
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// Property: whatever the data, decoding the encoding gives the data back.
+    #[test]
+    fn sr_c2_property_data_round_trips(data in prop_oneof![
+        proptest::collection::vec(any::<u8>(), 0..200),
+        proptest::collection::vec((0u8..3, 1usize..700), 0..6).prop_map(|runs| runs.into_iter().flat_map(|(b, n)| std::iter::repeat_n(b, n)).collect::<Vec<u8>>()),
+    ]) {
+        prop_assert_eq!(rle_decode(&rle_encode(&data)), Ok(data));
+    }
+
+    /// Property: the encoding is never more than twice the size of the data, and every count is between 1 and 255 with no two equal neighbours merged wrongly.
+    #[test]
+    fn sr_c2_property_the_encoding_is_compact_and_well_formed(data in proptest::collection::vec(0u8..3, 0..2000)) {
+        let enc = rle_encode(&data);
+        prop_assert!(enc.len() <= data.len() * 2);
+        prop_assert!(enc.chunks(2).all(|p| p.len() == 2 && p[0] >= 1));
+        let total: usize = enc.chunks(2).map(|p| p[0] as usize).sum();
+        prop_assert_eq!(total, data.len(), "the counts add up to the length of the data");
+    }
+}

@@ -1655,3 +1655,54 @@ fn the_production_image_keeps_the_template_tests() {
     let stage = course.stages().find(|s| s.id == "1a-01").unwrap();
     assert!(stage.test_sources.len() >= 5, "1a-01 has its tests' source: {:?}", stage.test_sources.keys().collect::<Vec<_>>());
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn a_started_run_shows_as_running_until_its_report_arrives(db: PgPool) {
+    let app = test_app(db);
+    let page = |app: &Router| {
+        let app = app.clone();
+        async move { call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await.1 }
+    };
+    assert!(page(&app).await["running"].is_null(), "nothing is running on a fresh stage");
+    let (status, _) = call(&app, Method::POST, "/api/courses/bustub/runs/start", Some(json!({ "stage_id": "1a-01" }))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(page(&app).await["running"].is_string(), "the page knows a run has started");
+    assert!(call(&app, Method::GET, "/api/courses/bustub/stages/1a-02", None).await.1["running"].is_null(), "only that stage");
+    assert_eq!(call(&app, Method::POST, "/api/courses/bustub/runs/start", Some(json!({ "stage_id": "nope" }))).await.0, StatusCode::NOT_FOUND);
+    let run = json!({ "stage_id": "1a-01", "tests": [{"name": "a", "ok": true}] });
+    call(&app, Method::POST, "/api/courses/bustub/runs", Some(run)).await;
+    assert!(page(&app).await["running"].is_null(), "a report ends the running state");
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn progress_resets_for_a_module_a_project_or_the_whole_course(db: PgPool) {
+    let app = test_app(db);
+    let pass = |id: &str| json!({ "stage_id": id, "tests": [{"name": "a", "ok": true}] });
+    for id in ["1a-01", "1a-02", "1b-01", "2a-01"] {
+        assert_eq!(call(&app, Method::POST, "/api/courses/bustub/runs", Some(pass(id))).await.0, StatusCode::OK);
+    }
+    let done = |app: &Router| {
+        let app = app.clone();
+        async move { call(&app, Method::GET, "/api/courses/bustub", None).await.1["done"].as_i64().unwrap() }
+    };
+    assert_eq!(done(&app).await, 4);
+    let reset = |body: Value| call(&app, Method::POST, "/api/courses/bustub/reset", Some(body));
+    // one module
+    let (status, r) = reset(json!({ "module": "1a" })).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(r["stage_states_removed"], 2);
+    assert_eq!(done(&app).await, 2);
+    // one project (project 1 holds 1b, project 2 holds 2a)
+    assert_eq!(reset(json!({ "project": 1 })).await.0, StatusCode::OK);
+    assert_eq!(done(&app).await, 1, "only 2a-01 is left");
+    // the whole course, and a body that says nothing, an unknown module and an unknown project
+    assert_eq!(reset(json!({})).await.0, StatusCode::BAD_REQUEST);
+    assert_eq!(reset(json!({ "module": "zz" })).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(reset(json!({ "project": 99 })).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(done(&app).await, 1, "refused requests change nothing");
+    assert_eq!(reset(json!({ "all": true })).await.0, StatusCode::OK);
+    assert_eq!(done(&app).await, 0);
+    let page = call(&app, Method::GET, "/api/courses/bustub/stages/2a-01", None).await.1;
+    assert_eq!(page["state"], "todo");
+    assert!(page["last_run"].is_null(), "the runs are gone too");
+}

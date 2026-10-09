@@ -1,0 +1,8 @@
+id = "1a-c2"
+title = "Challenge: the stale read"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_1a::s1a_c2"]
+learn = ["finding a caching bug from a shrunk counterexample"]
+concepts = []
+concepts_optional = ["property-testing-and-fuzzing", "checking-invariants"]

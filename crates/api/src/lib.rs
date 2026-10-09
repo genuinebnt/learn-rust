@@ -104,6 +104,8 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/courses/{course}/stages/{id}/hints", post(course::reveal_hint))
         .route("/courses/{course}/stages/{id}/solution", post(course::reveal_solution))
         .route("/courses/{course}/runs", post(course::post_run))
+        .route("/courses/{course}/runs/start", post(course::start_run))
+        .route("/courses/{course}/reset", post(course::reset_progress))
         .route("/courses/{course}/solutions", put(course::put_solutions))
         .route("/settings", get(settings::get))
         .route("/format", post(format::format))

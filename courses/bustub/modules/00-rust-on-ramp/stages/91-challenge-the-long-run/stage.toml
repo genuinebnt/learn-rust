@@ -1,0 +1,8 @@
+id = "r-c2"
+title = "Challenge: the long run"
+kind = "challenge"
+difficulty = "very-easy"
+tests = ["stages_r::sr_c2"]
+learn = ["finding a bug from a shrunk property-test counterexample"]
+concepts = []
+concepts_optional = ["property-testing-and-fuzzing", "checking-invariants"]

@@ -6,6 +6,12 @@ Written 2026-10-10 from the planning discussion. Status words: **built** (shippe
 
 The optional Rust on-ramp (r, 5 stages), modules 1a to 4c, and the optional primers 0a to 0d. See [BUSTUB_RESTRUCTURE.md](BUSTUB_RESTRUCTURE.md) §8.
 
+### Built since the first version of this list
+
+- **Challenges** (`kind = "challenge"`): optional extra exercises after a module. Own tally (`challenges`, `challenges_done`), never `current`, never block unlocking, no solution uploaded, CHALLENGE tag. Pages say what and why only. First four shipped: r-c1 (varint codec, Build), r-c2 (the long run, Debug), 1a-c1 (mirrored disk, Build), 1a-c2 (the stale read, Debug). Tests live in the module's own test file with the prefix `s<code>_c<n>` / `sr_c<n>`.
+- **Listening run strip:** the stage page shows "listening", "running tests…" (the CLI posts `runs/start`) and then the result; the button says "Copy test command".
+- **Reset progress:** the whole course, a project or a module (Courses page and `anneal course reset --module M | --all`).
+
 ## 2. Approved
 
 | # | Item | Size | Notes |

@@ -59,6 +59,18 @@ pub enum CourseCmd {
         /// Only these stage ids.
         stages: Vec<String>,
     },
+    /// Forget your progress for one module or the whole course (your code is not touched). The web app's progress is reset too when you are signed in.
+    Reset {
+        /// A module code, e.g. 1a.
+        #[arg(long, conflicts_with = "all")]
+        module: Option<String>,
+        /// The whole course.
+        #[arg(long)]
+        all: bool,
+        /// Do not ask for confirmation.
+        #[arg(long, short)]
+        yes: bool,
+    },
     /// Where you are: the current module and stage, and what's done.
     Status {
         /// Print the progress as JSON (for scripts and editors).
@@ -285,8 +297,8 @@ impl Course {
                 let def: StageToml = read_toml(&s.join("stage.toml"))?;
                 let readme = fs::read_to_string(s.join("stage.md"))
                     .with_context(|| format!("reading {}", s.join("stage.md").display()))?;
-                if !matches!(def.kind.as_str(), "learn" | "build" | "boss") {
-                    bail!("{}: kind must be learn, build or boss", def.id);
+                if !matches!(def.kind.as_str(), "learn" | "build" | "boss" | "challenge") {
+                    bail!("{}: kind must be learn, build, boss or challenge", def.id);
                 }
                 if !matches!(def.difficulty.as_str(), "very-easy" | "easy" | "medium" | "hard") {
                     bail!("{}: difficulty must be very-easy, easy, medium or hard", def.id);
@@ -294,10 +306,12 @@ impl Course {
                 if def.tests.is_empty() {
                     bail!("{}: a stage needs at least one test entry", def.id);
                 }
+                // a challenge is never on the main path: it does not block the next stage or module
+                let optional = mt.optional || def.kind == "challenge";
                 stages.push(Stage {
                     def,
                     module: mt.code.clone(),
-                    optional: mt.optional,
+                    optional,
                     module_title: mt.title.clone(),
                     resources: resources.clone(),
                     readme,
@@ -744,6 +758,7 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
         }
         CourseCmd::Lint { course, courses, all } => lint(&course, &courses, all),
         CourseCmd::Solutions { course, courses, out, stages } => solutions(&course, &courses, out, &stages),
+        CourseCmd::Reset { module, all, yes } => reset(module.as_deref(), all, yes),
         CourseCmd::Status { json } => status(json),
         CourseCmd::Show { stage, hint, no_pager } => show(stage.as_deref(), hint, no_pager),
         CourseCmd::Test { stage, all, only, verbose, filter, watch } => test_command(stage.as_deref(), TestOpts { all, only, verbose, hook: false }, filter.as_deref(), watch),
@@ -1090,6 +1105,55 @@ fn install_hooks(repo: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// `anneal course reset`: forgets which stages passed, for one module or for the whole course. The learner's code stays as it is.
+fn reset(module: Option<&str>, all: bool, yes: bool) -> anyhow::Result<ExitCode> {
+    use std::io::{BufRead, IsTerminal, Write};
+    let repo = find_repo()?;
+    let course = learner_course(&repo)?;
+    let mut progress = load_progress(&repo);
+    let (ids, what): (Vec<String>, String) = match (module, all) {
+        (Some(code), false) => {
+            let ids: Vec<String> = course.stages.iter().filter(|s| s.module == code).map(|s| s.def.id.clone()).collect();
+            if ids.is_empty() {
+                bail!("no module {code:?}; `anneal course status` lists them");
+            }
+            (ids, format!("module {code}"))
+        }
+        (None, true) => (course.stages.iter().map(|s| s.def.id.clone()).collect(), "the whole course".to_owned()),
+        _ => bail!("say what to reset: `--module 1a` or `--all`"),
+    };
+    let done = ids.iter().filter(|id| progress.passed.contains_key(*id)).count();
+    println!("This forgets {done} passed stage{} of {what}. Your code is not touched, and files already unlocked stay.", if done == 1 { "" } else { "s" });
+    if !yes {
+        if !std::io::stdin().is_terminal() {
+            bail!("not a terminal: add --yes to reset without asking");
+        }
+        print!("Type reset to go on: ");
+        std::io::stdout().flush()?;
+        let mut line = String::new();
+        std::io::stdin().lock().read_line(&mut line)?;
+        if line.trim() != "reset" {
+            println!("Nothing changed.");
+            return Ok(ExitCode::FAILURE);
+        }
+    }
+    for id in &ids {
+        progress.passed.remove(id);
+    }
+    save_progress(&repo, &progress)?;
+    println!("Reset {what}.");
+    let scope = match module {
+        Some(code) => serde_json::json!({ "module": code }),
+        None => serde_json::json!({ "all": true }),
+    };
+    match course_sync::reset_remote(&course.meta.id, &scope) {
+        Some(Ok(_)) => println!("The web app's progress is reset too."),
+        Some(Err(e)) => println!("The web app's progress was not reset: {e}"),
+        None => println!("Not signed in, so the web app's progress is unchanged (`anneal course login <url>`)."),
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
 /// A text bar of `width` cells, `done` of `total` filled.
 fn bar(done: usize, total: usize, width: usize) -> String {
     let filled = if total == 0 {
@@ -1182,8 +1246,14 @@ fn status(json: bool) -> anyhow::Result<ExitCode> {
     let course = learner_course(&repo)?;
     let progress = load_progress(&repo);
     let cur = current(&course, &progress).map(|s| s.def.id.clone());
-    let total = course.stages.len();
-    let done = course.stages.iter().filter(|s| progress.passed.contains_key(&s.def.id)).count();
+    // Challenges are extra practice: they have their own tally and never count towards the course.
+    fn core(s: &Stage) -> bool {
+        s.def.kind != "challenge"
+    }
+    let total = course.stages.iter().filter(|s| core(s)).count();
+    let done = course.stages.iter().filter(|s| core(s)).filter(|s| progress.passed.contains_key(&s.def.id)).count();
+    let challenges = course.stages.iter().filter(|s| s.def.kind == "challenge").count();
+    let challenges_done = course.stages.iter().filter(|s| s.def.kind == "challenge" && progress.passed.contains_key(&s.def.id)).count();
     let mut modules: Vec<(String, String, Vec<&Stage>)> = Vec::new();
     for s in &course.stages {
         match modules.last_mut() {
@@ -1195,9 +1265,9 @@ fn status(json: bool) -> anyhow::Result<ExitCode> {
         let mods: Vec<serde_json::Value> = modules
             .iter()
             .map(|(code, title, stages)| {
-                let d = stages.iter().filter(|s| progress.passed.contains_key(&s.def.id)).count();
+                let d = stages.iter().filter(|s| core(s)).filter(|s| progress.passed.contains_key(&s.def.id)).count();
                 serde_json::json!({
-                    "code": code, "title": title, "done": d, "total": stages.len(),
+                    "code": code, "title": title, "done": d, "total": stages.iter().filter(|s| core(s)).count(),
                     "stages": stages.iter().map(|s| serde_json::json!({
                         "id": s.def.id, "title": s.def.title, "difficulty": s.def.difficulty, "kind": s.def.kind,
                         "state": if progress.passed.contains_key(&s.def.id) { "done" } else if Some(&s.def.id) == cur.as_ref() { "current" } else { "todo" },
@@ -1205,15 +1275,19 @@ fn status(json: bool) -> anyhow::Result<ExitCode> {
                 })
             })
             .collect();
-        println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "course": course.meta.id, "title": course.meta.title, "done": done, "total": total, "current": cur, "modules": mods }))?);
+        println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "course": course.meta.id, "title": course.meta.title, "done": done, "total": total, "challenges": challenges, "challenges_done": challenges_done, "current": cur, "modules": mods }))?);
         return Ok(ExitCode::SUCCESS);
     }
     println!("{}   {}", bold(&course.meta.title), dim(&format!("{done} of {total} stages · {}%", (done * 100).checked_div(total).unwrap_or(0))));
     println!("{}", bar(done, total, 40));
+    if challenges > 0 {
+        println!("{}", dim(&format!("{challenges_done} of {challenges} challenges (extra practice, not part of the course)")));
+    }
     for (code, title, stages) in &modules {
-        let d = stages.iter().filter(|s| progress.passed.contains_key(&s.def.id)).count();
-        let header = format!("{code}  {title}  ({d}/{})  {}", stages.len(), bar(d, stages.len(), 10));
-        println!("\n{}", if d == stages.len() { green(&header) } else { header });
+        let n = stages.iter().filter(|s| core(s)).count();
+        let d = stages.iter().filter(|s| core(s)).filter(|s| progress.passed.contains_key(&s.def.id)).count();
+        let header = format!("{code}  {title}  ({d}/{n})  {}", bar(d, n, 10));
+        println!("\n{}", if d == n { green(&header) } else { header });
         for s in stages {
             let mark = if progress.passed.contains_key(&s.def.id) {
                 green("✓")
@@ -1222,7 +1296,8 @@ fn status(json: bool) -> anyhow::Result<ExitCode> {
             } else {
                 " ".to_owned()
             };
-            println!("  {mark} {:<8} {:<9} {}", s.def.id, s.def.difficulty, s.def.title);
+            let tag = if s.def.kind == "challenge" { dim("  challenge") } else { String::new() };
+            println!("  {mark} {:<8} {:<9} {}{tag}", s.def.id, s.def.difficulty, s.def.title);
         }
     }
     match cur.as_deref().and_then(|id| course.stage(id).ok()) {
@@ -1437,6 +1512,10 @@ fn test(stage: Option<&str>, opts: TestOpts, filter: Option<&str>) -> anyhow::Re
         }
         None => target.def.tests.clone(),
     };
+    if filter.is_none() {
+        // the stage page in the browser shows "Running…" from here until the report below
+        course_sync::report_start(&course.meta.id, &target.def.id);
+    }
     let report = run_entries(&repo, &entries, None, Duration::from_secs(180));
     print_report(&report, verbose);
     let ok = report.passed();
@@ -1588,11 +1667,20 @@ fn lint(course_id: &str, courses: &Path, all: bool) -> anyhow::Result<ExitCode> 
     let mut problems = Vec::new();
     let mut checked = 0;
     for m in &def.modules {
-        if !(6..=10).contains(&m.stages.len()) {
-            println!("note  {}: {} stages (6 to 10 is the sweet spot; not a hard limit)", m.code, m.stages.len());
+        let core_stages = m.stages.iter().filter(|s| s.kind != "challenge").count();
+        if !(6..=10).contains(&core_stages) {
+            println!("note  {}: {} stages (6 to 10 is the sweet spot; not a hard limit)", m.code, core_stages);
         }
         for st in &m.stages {
             if st.kind == "boss" {
+                continue;
+            }
+            if st.kind == "challenge" {
+                // a challenge is a spec and tests: no toolbox, hints or solution, but it still says what it practises
+                checked += 1;
+                if st.learn.is_empty() {
+                    problems.push(format!("{}: `learn` needs at least 1 entry (what this challenge practises)", st.id));
+                }
                 continue;
             }
             checked += 1;
@@ -1689,7 +1777,11 @@ fn solutions(course_id: &str, courses: &Path, out: Option<PathBuf>, only: &[Stri
     let render = |cutoff: usize| -> anyhow::Result<BTreeMap<String, String>> {
         texts.iter().map(|(name, t)| Ok((name.clone(), render_text(t, &ranks, cutoff, name)?))).collect()
     };
-    let diffs = course_sync::solution_diffs(&ranks, &render)?;
+    let mut diffs = course_sync::solution_diffs(&ranks, &render)?;
+    // a challenge has no published solution: the point is to solve it yourself
+    for st in course.stages.iter().filter(|s| s.def.kind == "challenge") {
+        diffs.remove(&st.def.id);
+    }
     match out {
         Some(path) => {
             fs::write(&path, serde_json::to_string_pretty(&diffs)? + "\n")?;
@@ -1754,7 +1846,7 @@ fn verify(course_id: &str, courses: &Path, only: Option<&str>, from: Option<&str
         }
         // A stage re-runs the earlier stages of its own module; the module's last stage (its boss) re-runs everything before it.
         let module_of = |id: &str| id.split('-').next().unwrap_or("").to_owned();
-        let last_of_module = course.stages.iter().rev().find(|x| module_of(&x.def.id) == module_of(&s.def.id)).is_some_and(|x| x.rank == s.rank);
+        let last_of_module = course.stages.iter().rev().filter(|x| x.def.kind != "challenge").find(|x| module_of(&x.def.id) == module_of(&s.def.id)).is_some_and(|x| x.rank == s.rank);
         let mut earlier: Vec<String> = course
             .stages
             .iter()

@@ -623,3 +623,269 @@ fn s1a_05_shut_down_makes_the_log_and_pages_available_to_the_next_manager() {
     assert!(dm.read_log(&mut buf, 0).unwrap());
     assert_eq!(&buf, b"commit 1", "the log written before shut_down is there when the same files are opened again");
 }
+
+// ---- 1a-c1 and 1a-c2: challenges ------------------------------------------------------------------------------------------------------------
+
+use bustub::storage::disk::cached_disk::CachedDisk;
+use bustub::storage::disk::mirrored_disk::MirroredDisk;
+use std::sync::atomic::AtomicBool;
+
+/// A memory disk (pages in a map; a deleted page reads as zeros) that can be switched to failing every read and write, and counts the reads that reach it.
+struct Flaky {
+    inner: std::sync::Mutex<HashMap<PageId, PageData>>,
+    down: AtomicBool,
+    reads: AtomicUsize,
+}
+
+impl Flaky {
+    fn new() -> Arc<Flaky> {
+        Arc::new(Flaky { inner: Default::default(), down: AtomicBool::new(false), reads: AtomicUsize::new(0) })
+    }
+    fn set_down(&self, down: bool) {
+        self.down.store(down, Ordering::SeqCst);
+    }
+    fn is_down(&self) -> bool {
+        self.down.load(Ordering::SeqCst)
+    }
+}
+
+impl DiskIo for Flaky {
+    fn read_page(&self, page_id: PageId, buf: &mut PageData) -> std::io::Result<()> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.is_down() {
+            return Err(std::io::Error::other("disk is down"));
+        }
+        *buf = self.inner.lock().unwrap().get(&page_id).copied().unwrap_or(ZERO);
+        Ok(())
+    }
+    fn write_page(&self, page_id: PageId, data: &PageData) -> std::io::Result<()> {
+        if self.is_down() {
+            return Err(std::io::Error::other("disk is down"));
+        }
+        self.inner.lock().unwrap().insert(page_id, *data);
+        Ok(())
+    }
+    fn delete_page(&self, page_id: PageId) {
+        self.inner.lock().unwrap().remove(&page_id);
+    }
+}
+
+fn read(disk: &dyn DiskIo, id: PageId) -> PageData {
+    let mut buf = ZERO;
+    disk.read_page(id, &mut buf).expect("the read works");
+    buf
+}
+
+#[test]
+fn s1a_c1_a_mirror_acts_like_one_disk_when_both_work() {
+    let (a, b) = (Flaky::new(), Flaky::new());
+    let m = MirroredDisk::new(a.clone(), b.clone());
+    m.write_page(PageId(3), &pattern(3)).unwrap();
+    m.write_page(PageId(9), &pattern(9)).unwrap();
+    assert_eq!(read(&m, PageId(3)), pattern(3));
+    assert_eq!(read(&m, PageId(9)), pattern(9));
+    assert_eq!(read(&m, PageId(5)), ZERO, "a page never written reads as zeros");
+    m.delete_page(PageId(3));
+    assert_eq!(read(&m, PageId(3)), ZERO, "deleted pages read as zeros");
+    assert_eq!(read(&*a, PageId(9)), pattern(9), "both copies hold the write");
+    assert_eq!(read(&*b, PageId(9)), pattern(9), "both copies hold the write");
+}
+
+#[test]
+fn s1a_c1_reads_survive_either_disk_failing() {
+    let (a, b) = (Flaky::new(), Flaky::new());
+    let m = MirroredDisk::new(a.clone(), b.clone());
+    m.write_page(PageId(1), &pattern(1)).unwrap();
+    a.set_down(true);
+    assert_eq!(read(&m, PageId(1)), pattern(1), "the primary is down: the secondary answers");
+    a.set_down(false);
+    b.set_down(true);
+    assert_eq!(read(&m, PageId(1)), pattern(1), "the secondary is down: the primary answers");
+}
+
+#[test]
+fn s1a_c1_a_write_while_one_disk_is_down_still_succeeds() {
+    let (a, b) = (Flaky::new(), Flaky::new());
+    let m = MirroredDisk::new(a.clone(), b.clone());
+    a.set_down(true);
+    m.write_page(PageId(2), &pattern(2)).expect("one disk is enough");
+    a.set_down(false);
+    assert_eq!(read(&m, PageId(2)), pattern(2));
+    b.set_down(true);
+    assert_eq!(read(&m, PageId(2)), pattern(2), "the first disk came back and now holds the page too");
+}
+
+#[test]
+fn s1a_c1_a_disk_that_missed_a_write_never_serves_the_old_page() {
+    let (a, b) = (Flaky::new(), Flaky::new());
+    let m = MirroredDisk::new(a.clone(), b.clone());
+    m.write_page(PageId(4), &pattern(1)).unwrap();
+    a.set_down(true);
+    m.write_page(PageId(4), &pattern(2)).unwrap();
+    a.set_down(false);
+    assert_eq!(read(&m, PageId(4)), pattern(2), "the primary is back but has the old page: the answer is the latest write");
+    b.set_down(true);
+    assert_eq!(read(&m, PageId(4)), pattern(2), "and the primary has been brought up to date");
+}
+
+#[test]
+fn s1a_c1_a_write_fails_only_when_both_disks_fail() {
+    let (a, b) = (Flaky::new(), Flaky::new());
+    let m = MirroredDisk::new(a.clone(), b.clone());
+    a.set_down(true);
+    b.set_down(true);
+    assert!(m.write_page(PageId(1), &pattern(1)).is_err());
+    let mut buf = ZERO;
+    assert!(m.read_page(PageId(1), &mut buf).is_err());
+}
+
+#[derive(Clone, Debug)]
+enum MOp {
+    Write(u32, u8),
+    Read(u32),
+    Delete(u32),
+    /// Switch a disk (0 or 1) off or on; the other disk is never switched off at the same time.
+    Toggle(u8),
+}
+
+fn mirror_ops() -> impl Strategy<Value = Vec<MOp>> {
+    proptest::collection::vec(
+        prop_oneof![
+            4 => (0..5u32, 1..250u8).prop_map(|(p, b)| MOp::Write(p, b)),
+            4 => (0..5u32).prop_map(MOp::Read),
+            1 => (0..5u32).prop_map(MOp::Delete),
+            2 => (0..2u8).prop_map(MOp::Toggle),
+        ],
+        1..60,
+    )
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Property: with at most one disk down at any moment, every read returns the latest successful write of the page (zeros if none or deleted). When a disk comes back, every page is read once, which is when it is brought up to date.
+    #[test]
+    fn s1a_c1_property_a_mirror_survives_any_single_disk_failing(ops in mirror_ops()) {
+        let (a, b) = (Flaky::new(), Flaky::new());
+        let m = MirroredDisk::new(a.clone(), b.clone());
+        let mut model: HashMap<u32, PageData> = HashMap::new();
+        for op in ops {
+            match op {
+                MOp::Write(p, byte) => {
+                    let data = [byte; PS];
+                    prop_assert!(m.write_page(PageId(p as i32), &data).is_ok());
+                    model.insert(p, data);
+                }
+                MOp::Read(p) => {
+                    let mut buf = ZERO;
+                    prop_assert!(m.read_page(PageId(p as i32), &mut buf).is_ok(), "a read with one disk down must work");
+                    prop_assert_eq!(buf[..8].to_vec(), model.get(&p).unwrap_or(&ZERO)[..8].to_vec());
+                    prop_assert_eq!(buf == ZERO, !model.contains_key(&p));
+                }
+                MOp::Delete(p) => {
+                    m.delete_page(PageId(p as i32));
+                    model.remove(&p);
+                }
+                MOp::Toggle(which) => {
+                    let (x, other) = if which == 0 { (&a, &b) } else { (&b, &a) };
+                    if x.is_down() {
+                        x.set_down(false);
+                        // the disk is back: the reads that follow are what bring it up to date, so read every page once
+                        for q in 0..5u32 {
+                            let mut buf = ZERO;
+                            prop_assert!(m.read_page(PageId(q as i32), &mut buf).is_ok());
+                            prop_assert_eq!(buf == ZERO, !model.contains_key(&q));
+                        }
+                    } else if !other.is_down() {
+                        x.set_down(true);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn s1a_c2_a_cache_hit_does_not_reach_the_disk() {
+    let inner = Flaky::new();
+    let c = CachedDisk::new(inner.clone(), 4);
+    c.write_page(PageId(1), &pattern(1)).unwrap();
+    let before = inner.reads.load(Ordering::SeqCst);
+    assert_eq!(read(&c, PageId(1)), pattern(1));
+    assert_eq!(read(&c, PageId(1)), pattern(1));
+    assert_eq!(inner.reads.load(Ordering::SeqCst), before, "a page just written is served from memory");
+}
+
+#[test]
+fn s1a_c2_a_full_cache_forgets_the_oldest_page_but_never_loses_data() {
+    let inner = Flaky::new();
+    let c = CachedDisk::new(inner.clone(), 2);
+    for p in 0..5i32 {
+        c.write_page(PageId(p), &pattern(p as usize)).unwrap();
+    }
+    for p in 0..5i32 {
+        assert_eq!(read(&c, PageId(p)), pattern(p as usize), "page {p}");
+    }
+}
+
+#[test]
+fn s1a_c2_a_deleted_page_reads_as_zeros() {
+    let inner = Flaky::new();
+    let c = CachedDisk::new(inner.clone(), 4);
+    c.write_page(PageId(7), &pattern(7)).unwrap();
+    assert_eq!(read(&c, PageId(7)), pattern(7));
+    c.delete_page(PageId(7));
+    assert_eq!(read(&c, PageId(7)), ZERO, "after a delete the page is gone, cached or not");
+}
+
+#[test]
+fn s1a_c2_the_cache_and_the_disk_underneath_agree() {
+    let inner = Flaky::new();
+    let c = CachedDisk::new(inner.clone(), 3);
+    c.write_page(PageId(1), &pattern(1)).unwrap();
+    c.write_page(PageId(1), &pattern(2)).unwrap();
+    assert_eq!(read(&c, PageId(1)), pattern(2), "a rewrite replaces the cached page");
+    assert_eq!(read(&*inner, PageId(1)), pattern(2), "write-through: the disk is current");
+    c.delete_page(PageId(1));
+    assert_eq!(read(&*inner, PageId(1)), ZERO);
+}
+
+#[derive(Clone, Debug)]
+enum COp {
+    Write(u32, u8),
+    Read(u32),
+    Delete(u32),
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Property: a cache is invisible: every answer equals that of a plain map of pages, whatever the capacity.
+    #[test]
+    fn s1a_c2_property_a_cached_disk_behaves_like_the_disk(capacity in 1usize..5, ops in proptest::collection::vec(
+        prop_oneof![
+            4 => (0..5u32, 1..250u8).prop_map(|(p, b)| COp::Write(p, b)),
+            5 => (0..5u32).prop_map(COp::Read),
+            2 => (0..5u32).prop_map(COp::Delete),
+        ], 1..60)) {
+        let c = CachedDisk::new(Flaky::new(), capacity);
+        let mut model: HashMap<u32, PageData> = HashMap::new();
+        for op in ops {
+            match op {
+                COp::Write(p, b) => {
+                    let data = [b; PS];
+                    c.write_page(PageId(p as i32), &data).unwrap();
+                    model.insert(p, data);
+                }
+                COp::Read(p) => {
+                    let got = read(&c, PageId(p as i32));
+                    prop_assert_eq!(got == *model.get(&p).unwrap_or(&ZERO), true, "read of page {} differs from the model", p);
+                }
+                COp::Delete(p) => {
+                    c.delete_page(PageId(p as i32));
+                    model.remove(&p);
+                }
+            }
+        }
+    }
+}

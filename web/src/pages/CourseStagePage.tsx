@@ -350,6 +350,8 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     }
     const inModule = p.module.stages.findIndex((s) => s.id === p.stage.id);
     const run = p.last_run;
+    // a run the CLI has started and not reported yet (it ends with the report)
+    const running = p.running ?? null;
     const cmd = `anneal course test ${p.stage.id}`;
     const reqConcepts = p.concepts.filter((k) => k.required);
     const reqDone = reqConcepts.filter((k) => k.read).length;
@@ -371,7 +373,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
         });
     const copyCmd = () => {
         try {
-            navigator.clipboard.writeText(cmd).then(() => toast("ok", "Command copied", cmd), () => toast("in", "Run it in your repo", cmd));
+            navigator.clipboard.writeText(cmd).then(() => toast("ok", "Command copied: run it in your repo", "This page is listening and shows the run as it happens"), () => toast("in", "Run it in your repo", cmd));
         } catch {
             toast("in", "Run it in your repo", cmd);
         }
@@ -390,8 +392,8 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                     </span>
                     <span className="k-sp" />
                     <span className="k-pct" ref={pctRef}>0% read</span>
-                    <button className="k-cta k-sm k-fx" onClick={copyCmd}>
-                        <span className="k-lbl">Run tests</span>
+                    <button className="k-cta k-sm k-fx" onClick={copyCmd} title="Copies the command; run it in your repo and this page shows the result">
+                        <span className="k-lbl">Copy test command</span>
                     </button>
                 </div>
                 <div className="k-mbar" id="mbar">
@@ -755,25 +757,29 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
 
                 <div className={`k-strip${strip ? " k-open" : ""}`} id="strip">
                     <div className="k-in">
-                        <span className="k-sd" id="sd" />
+                        <span className={`k-sd${running ? " k-run" : run ? (run.ok ? " k-ok" : "") : " k-idle"}`} id="sd" />
                         <div className="k-sb" id="sb">
                             {run?.tests.map((t) => <i key={t.name} className={t.ok ? "k-p" : "k-f"} />)}
                         </div>
                         <span className="k-tx" id="stx" role="status" aria-live="polite">
-                            {run ? (
+                            {running ? (
+                                <>
+                                    <b>running tests…</b> · started {ago(running)}
+                                </>
+                            ) : run ? (
                                 <>
                                     <b>{run.ok ? "stage passed" : run.problem ? "did not run" : `${run.passed} / ${run.total} passing`}</b> · run {ago(run.at)}
                                     {run.commit_sha ? ` · ${run.commit_sha.slice(0, 7)}` : ""}
                                 </>
                             ) : (
                                 <>
-                                    <b>no run yet</b> · run <code>anneal course test</code> in your repo
+                                    <b>listening for your next run</b> · run <code>anneal course test</code> in your repo
                                 </>
                             )}
                         </span>
-                        <button className="k-cta" id="runbtn" onClick={copyCmd}>
+                        <button className={`k-cta${running ? " k-busy" : ""}`} id="runbtn" onClick={copyCmd} title="Copies the command; run it in your repo and this page shows the result">
                             <span className="k-spn" />
-                            <span className="k-lbl">Run tests</span>
+                            <span className="k-lbl">{running ? "Running…" : "Copy test command"}</span>
                             <span className="k-ar">▶</span>
                         </button>
                         <button className="k-copy" id="logb" onClick={() => setStrip(!strip)} aria-expanded={strip}>

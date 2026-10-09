@@ -97,6 +97,8 @@ export function SolutionTab({ page, onOpen, pending }: { page: Page; onOpen: () 
                                         <span className="k-lbl">Reveal solution</span>
                                     </button>
                                 </>
+                            ) : page.stage.kind === "challenge" ? (
+                                <p>This is a challenge: there is no solution to reveal. The tests are properties, so any correct design passes. Work it out with what the modules before it taught.</p>
                             ) : page.stage.kind === "boss" ? (
                                 <p>A boss stage has no code of its own to write: it runs the tests of the stages before it, and BusTub's own tests. There is no solution to reveal.</p>
                             ) : (

@@ -4,7 +4,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { api, type CourseStagePage as Page } from "../../api";
+import { api, coreStages, type CourseStagePage as Page } from "../../api";
 import { getPref, setPref } from "../../prefs";
 import { Resizer, type PanelsApi } from "../stagePanels";
 import { Bars, STAGE_MINUTES } from "./shared";
@@ -66,7 +66,8 @@ export function Tree({ course, page, panels }: { course: string; page: Page; pan
             </label>
             <div className="k-tlist" ref={list}>
                 {shown.map(({ m, rows }) => {
-                    const done = m.stages.filter((s) => s.state !== "todo").length;
+                    const core = coreStages(m.stages);
+                    const done = core.filter((s) => s.state !== "todo").length;
                     const isOpen = needle ? true : open.has(m.code);
                     return (
                         <section key={m.code} className={`k-tm${isOpen ? " k-open" : ""}`}>
@@ -77,11 +78,11 @@ export function Tree({ course, page, panels }: { course: string; page: Page; pan
                                         {m.code.toUpperCase()} · {m.title}
                                     </b>
                                     <div className="k-mini" style={{ width: "100%", marginTop: 5 }}>
-                                        <i style={{ width: `${m.stages.length ? Math.round((100 * done) / m.stages.length) : 0}%` }} />
+                                        <i style={{ width: `${core.length ? Math.round((100 * done) / core.length) : 0}%` }} />
                                     </div>
                                 </span>
                                 <small>
-                                    {done}/{m.stages.length}
+                                    {done}/{core.length}
                                 </small>
                             </button>
                             <div className="k-tmb">

@@ -762,7 +762,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 // ---- courses (crates/api/src/course.rs) ----
 
 export type StageState = "todo" | "solved" | "assisted";
-export type StageKind = "learn" | "build" | "boss";
+export type StageKind = "learn" | "build" | "boss" | "challenge";
 export type StageDifficulty = "very-easy" | "easy" | "medium" | "hard";
 
 export interface CourseStageRow {
@@ -791,6 +791,9 @@ export interface CourseOverview {
   title: string;
   total: number;
   done: number;
+  /** Extra-practice stages (kind challenge): their own tally, not part of total and done. */
+  challenges?: number;
+  challenges_done?: number;
   /** The first stage not passed yet. */
   current: string | null;
   projects: { number: number; title: string; planned: boolean;
@@ -872,6 +875,8 @@ export interface CourseStagePage {
   state: StageState;
   hints: { total: number; revealed: { title: string; md: string }[]; titles: string[] };
   solution: { available: boolean; open: boolean; files: SolutionFile[] | null };
+  /** When the CLI started a run it has not reported yet (the page shows "Running…"); null when nothing is running. */
+  running?: string | null;
   last_run: CourseRun | null;
   /** The latest runs of this stage, newest first (at most ten). */
   runs: CourseRun[];
@@ -927,8 +932,13 @@ export const api = {
   focus: (id: string, seconds: number) => request<void>("POST", `/problems/${id}/focus`, { seconds }),
   course: (id: string) => request<CourseOverview>("GET", `/courses/${id}`),
   courseStage: (course: string, id: string) => request<CourseStagePage>("GET", `/courses/${course}/stages/${id}`),
+  resetCourse: (course: string, scope: { all: true } | { project: number } | { module: string }) =>
+    request<{ stages: number; stage_states_removed: number; runs_removed: number }>("POST", `/courses/${course}/reset`, scope),
   setConceptRead: (course: string, id: string, read: boolean) => request<{ read: boolean }>("PUT", `/courses/${course}/concepts/${id}/read`, { read }),
   courseConcept: (course: string, id: string) => request<CourseConceptPage>("GET", `/courses/${course}/concepts/${id}`),
   revealCourseHint: (course: string, id: string) => request<CourseStagePage>("POST", `/courses/${course}/stages/${id}/hints`),
   revealCourseSolution: (course: string, id: string) => request<CourseStagePage>("POST", `/courses/${course}/stages/${id}/solution`),
 };
+
+/** The stages that count towards a module's or the course's progress: challenges are extra practice with a tally of their own. */
+export const coreStages = <T extends { kind: string }>(stages: T[]): T[] => stages.filter((x) => x.kind !== "challenge");

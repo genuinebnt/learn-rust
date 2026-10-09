@@ -13,6 +13,7 @@ use crate::execution::expressions::abstract_expression::{ExprRef, Expression};
 use crate::execution::expressions::column_value_expression::ColumnValueExpression;
 use crate::execution::expressions::comparison_expression::{ComparisonExpression, ComparisonType};
 use crate::execution::expressions::constant_value_expression::ConstantValueExpression;
+use crate::execution::expressions::logic_expression::{LogicExpression, LogicType};
 use crate::execution::plans::plan_node::*;
 
 pub struct Optimizer<'c, 'a> {
@@ -246,18 +247,43 @@ impl<'c, 'a> Optimizer<'c, 'a> {
 
     // ---- the rules you write ------------------------------------------------------------------------------------------------
 
+    /// Splits a predicate into its conjuncts: `a AND (b AND c)` is `[a, b, c]`; anything else (an `OR`, a comparison) is one conjunct.
+    pub fn conjuncts(expr: &ExprRef, out: &mut Vec<ExprRef>) {
+        match expr.as_any().downcast_ref::<LogicExpression>() {
+            Some(l) if l.logic_type == LogicType::And => {
+                for c in expr.children() {
+                    Self::conjuncts(c, out);
+                }
+            }
+            _ => out.push(expr.clone()),
+        }
+    }
+
+    /// If **every** conjunct of a join predicate is `left column = right column` (written either way round), the key expressions of the
+    /// two sides, in the same order: `(left keys, right keys)`. Anything else (another operator, an `OR`, both columns on one side, a
+    /// constant) makes it `None`: the join cannot be a hash join.
+    pub fn extract_equi_join_keys(predicate: &ExprRef) -> Option<(Vec<ExprRef>, Vec<ExprRef>)> {
+        None // 3h-01: split the predicate into conjuncts (Optimizer::conjuncts); each must be a ComparisonExpression of type Equal whose two children are ColumnValueExpressions, one reading tuple 0 (left) and the other tuple 1 (right); collect the left columns and the right columns (as ColumnValueExpression(0, col_idx, type)); None if any conjunct is anything else
+    }
+
     /// Turns a nested loop join whose predicate is equalities between the two sides into a hash join.
     pub fn optimize_nlj_as_hash_join(&self, plan: &PlanRef) -> PlanRef {
-        plan.clone()
+        plan.clone() // 3h-02: optimize the children first (self.optimize_children(plan, &Self::optimize_nlj_as_hash_join)); then, for an INNER or LEFT NestedLoopJoin whose predicate gives equi-join keys, a HashJoin with the same schema, children and join type; otherwise the node unchanged
     }
 
     /// Turns `Limit(Sort(child))` into `TopN(child)`.
     pub fn optimize_sort_limit_as_top_n(&self, plan: &PlanRef) -> PlanRef {
-        plan.clone()
+        plan.clone() // 3h-03: optimize the children first; then a Limit whose child is a Sort becomes a TopN with the limit's output schema, the sort's order-bys, n = the limit, and the sort's children
     }
 
-    /// Turns a scan filtered by `col = constant` (on a column with an index) into an index scan.
+    /// If the predicate is `column = constant` (either way round) or an `OR` of such equalities on the **same** column: that column's
+    /// index in the scan's output and the constant expressions, in order. Otherwise `None`.
+    pub fn extract_point_lookup(predicate: &ExprRef) -> Option<(u32, Vec<ExprRef>)> {
+        None // 3h-04: an Equal comparison between a ColumnValueExpression and a ConstantValueExpression (either order) gives (the column's index, [the constant]); an OR of two such lookups on the same column gives the same column and the keys of both, left first; anything else None
+    }
+
+    /// Turns a scan with a point-lookup predicate on an indexed column into an index scan.
     pub fn optimize_seq_scan_as_index_scan(&self, plan: &PlanRef) -> PlanRef {
-        plan.clone()
+        plan.clone() // 3h-05: optimize the children first; then a SeqScan with a filter predicate that is (or has an AND-conjunct that is) a point lookup on a column with an index (self.match_index(table_name, column)) becomes an IndexScan with the scan's schema, that index, the keys as pred_keys, and the WHOLE predicate as filter_predicate; otherwise unchanged
     }
 }

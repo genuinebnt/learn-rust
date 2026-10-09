@@ -1,0 +1,7 @@
+id = "3h-02"
+title = "Nested loop join to hash join"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3h::s3h_02"]
+learn = ["a bottom-up rewrite rule", "building a replacement plan from the old pieces", "checking that a rule preserves the result"]
+concepts = ["rule-based-query-optimization", "join-algorithms", "hashing-values-and-keys"]

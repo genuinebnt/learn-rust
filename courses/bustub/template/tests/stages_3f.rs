@@ -350,7 +350,11 @@ fn s3f_04_three_tables_and_a_table_joined_with_itself() {
 #[test]
 fn s3f_04_the_right_side_is_initialised_again_for_each_left_tuple() {
     let db = join_db();
+    // the starter rules have no hash join (module 3h adds one), so the equality join stays a nested loop
     let script = "
+statement ok
+set force_optimizer_starter_rule=yes
+
 query rowsort +ensure:nlj_init_check
 select * from a inner join b on a.x = b.y;
 ----
@@ -416,7 +420,11 @@ fn s3f_05_left_joins_chained_and_with_a_filter_on_the_result() {
 #[test]
 fn s3f_05_the_left_join_passes_the_init_check_too() {
     let db = join_db();
+    // the starter rules have no hash join (module 3h adds one), so the equality join stays a nested loop
     let script = "
+statement ok
+set force_optimizer_starter_rule=yes
+
 query rowsort +ensure:nlj_init_check
 select * from a left join b on a.x = b.y;
 ----

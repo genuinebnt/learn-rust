@@ -1,0 +1,66 @@
+code = "3h"
+title = "Optimizer rules"
+summary = "Rewrite rules that make plans faster without changing their result: an equality nested loop join becomes a hash join, ORDER BY + LIMIT becomes a bounded top-N, and a scan with a point predicate on an indexed column becomes an index scan. BusTub Project 3, task 2 and 3 optimizer rules, checked with EXPLAIN."
+lectures = ["optimization1", "optimization2"]
+bustub = ["src/optimizer/nlj_as_hash_join.cpp", "src/optimizer/sort_limit_as_topn.cpp", "src/optimizer/seqscan_as_indexscan.cpp", "src/optimizer/optimizer_custom_rules.cpp", "src/optimizer/nlj_as_index_join.cpp", "src/optimizer/merge_filter_nlj.cpp", "src/include/execution/plans/hash_join_plan.h", "src/include/execution/plans/topn_plan.h", "src/include/execution/plans/index_scan_plan.h", "test/sql/p3.05-index-scan-btree.slt", "test/sql/p3.06-empty-table.slt", "test/sql/p3.14-hash-join.slt", "test/sql/p3.15-multi-way-hash-join.slt", "test/sql/p3.16-sort-limit.slt", "test/sql/p3.17-topn.slt"]
+files = [
+    "tests/sql/p3.05-index-scan-btree.slt",
+    "tests/sql/p3.06-empty-table.slt",
+    "tests/sql/p3.14-hash-join.slt",
+    "tests/sql/p3.15-multi-way-hash-join.slt",
+    "tests/sql/p3.17-topn.slt",
+    "tests/sql/hash_join.slt",
+    "tests/sql/order_by.slt",
+    "tests/sql/nested_index_join.slt",
+    "tests/sql/update.slt",
+]
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: how the planner and optimizer work"
+url = "https://www.postgresql.org/docs/current/planner-optimizer.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: using EXPLAIN"
+url = "https://www.postgresql.org/docs/current/using-explain.html"
+
+[[resources]]
+kind = "docs"
+title = "DataFusion: the query optimizer (rules)"
+url = "https://datafusion.apache.org/library-user-guide/query-optimizer.html"
+
+[[resources]]
+kind = "blog"
+title = "Query optimization (Wikipedia)"
+url = "https://en.wikipedia.org/wiki/Query_optimization"
+
+[[resources]]
+kind = "book"
+title = "Use The Index, Luke: the equals operator"
+url = "https://use-the-index-luke.com/sql/where-clause/the-equals-operator"
+
+[[resources]]
+kind = "docs"
+title = "std::collections::BinaryHeap"
+url = "https://doc.rust-lang.org/std/collections/struct.BinaryHeap.html"
+
+[[resources]]
+kind = "code"
+title = "BusTub's optimizer rules (custom)"
+url = "https://github.com/cmu-db/bustub/blob/master/src/optimizer/optimizer_custom_rules.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub: NLJ as hash join"
+url = "https://github.com/cmu-db/bustub/blob/master/src/optimizer/nlj_as_hash_join.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub: seq scan as index scan"
+url = "https://github.com/cmu-db/bustub/blob/master/src/optimizer/seqscan_as_indexscan.cpp"
+
+[[resources]]
+kind = "code"
+title = "BusTub: sort + limit as top-N"
+url = "https://github.com/cmu-db/bustub/blob/master/src/optimizer/sort_limit_as_topn.cpp"

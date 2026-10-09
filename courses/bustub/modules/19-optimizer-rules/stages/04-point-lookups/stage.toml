@@ -1,0 +1,7 @@
+id = "3h-04"
+title = "Point lookups"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3h::s3h_04"]
+learn = ["recognising column = constant in either order", "an OR of equalities on one column", "what makes a predicate usable by an index"]
+concepts = ["conjunctive-predicates", "access-paths-index-vs-seq-scan", "expression-trees"]

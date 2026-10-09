@@ -1,0 +1,7 @@
+id = "3h-01"
+title = "Equi-join keys"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3h::s3h_01"]
+learn = ["splitting a predicate into conjuncts", "recognising a cross-side equality in an expression tree", "downcasting trait objects to inspect them"]
+concepts = ["conjunctive-predicates", "expression-trees", "rule-based-query-optimization"]

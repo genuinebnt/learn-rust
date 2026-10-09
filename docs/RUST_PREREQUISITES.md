@@ -8,28 +8,28 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 
 | Track | Slug | Status | Tier | Modules that use it |
 |---|---|---|---|---|
-| L1 Ownership & moves | `l1-ownership-moves` | written | core | R, 1a, 1b, 1g, 0a |
-| L2 Borrowing | `l2-borrowing` | written | core | R, 1e, 1f, 1g |
+| L1 Ownership & moves | `l1-ownership-moves` | written | core | r, 1a, 1b, 1g, 0a |
+| L2 Borrowing | `l2-borrowing` | written | core | 1e, 1f, 1g |
 | L3 Lifetimes | `l3-lifetimes` | written | core | 1g, 2c, 3c, 3e, 3g, 4c |
 | L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3c, 3d, 3e, 3f, 3h, 4b |
 | L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b, 2c, 2d, 0b |
 | L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
-| L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 4c, 0a, 0c |
-| L8 Error design | `l8-error-design` | planned | core | R, 1a, 1b, 3a, 3d, 3e, 4b, 4c |
-| S1 Option & Result | `s1-option-result` | written | core | R, 1a, 1b, 1d, 1f, 2c, 3e, 3h, 4a, 4b, 0a |
-| S2 Strings & text | `s2-strings-text` | written | core | 3a, 3b, 3d |
-| S3 Vec & slices | `s3-vec-slices` | written | core | R, 1a, 1c, 2a, 2c, 2d, 3b, 3g, 0c |
+| L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | r, 2c, 2d, 3a, 3b, 3d, 3h, 4a, 4c, 0a, 0c |
+| L8 Error design | `l8-error-design` | planned | core | r, 1a, 1b, 3a, 3d, 3e, 4b, 4c |
+| S1 Option & Result | `s1-option-result` | written | core | r, 1a, 1b, 1d, 1f, 2c, 3e, 3h, 4a, 4b, 0a |
+| S2 Strings & text | `s2-strings-text` | written | core | r, 3a, 3b, 3d |
+| S3 Vec & slices | `s3-vec-slices` | written | core | r, 1a, 1c, 2a, 2c, 2d, 3b, 3g, 0c |
 | S4 Maps & sets | `s4-maps-sets` | written | core | 1a, 1c, 1d, 1e, 3c, 3f, 3g, 4a, 4b, 0d |
-| S5 Queues & heaps | `s5-queues-heaps` | planned | core | 1b, 1c, 1d, 3f, 3g |
+| S5 Queues & heaps | `s5-queues-heaps` | planned | core | r, 1b, 1c, 1d, 3f, 3g |
 | S6 Iterators | `s6-iterators` | planned | core | 1c, 1d, 2c, 3c, 3d, 3e, 3f, 3g |
-| S7 Smart pointers & interior mutability | `s7-smart-pointers` | planned | core | 1b, 1c, 1e, 1f, 1g, 2c, 3d, 3h, 4a, 0a |
+| S7 Smart pointers & interior mutability | `s7-smart-pointers` | planned | core | r, 1b, 1c, 1e, 1f, 1g, 2c, 3d, 3h, 4a, 0a |
 | S8 The core traits | `s8-core-traits` | planned | core | 1d, 1e, 1g, 2a, 2b, 2d, 3a, 3d, 3f, 3g, 0c, 0d |
-| S9 I/O & filesystem | `s9-io-filesystem` | planned | core | R, 1a, 3g, 4c |
+| S9 I/O & filesystem | `s9-io-filesystem` | planned | core | r, 1a, 3g, 4c |
 | S11 mem, ptr & alloc | `s11-mem-ptr-alloc` | planned | sde3 | 2a |
-| C1 Threads & shared state | `c1-threads-shared-state` | planned | core | 1a, 1b, 1f, 1g, 2b, 2c, 3c, 4a, 4b, 4c, 0a, 0b |
+| C1 Threads & shared state | `c1-threads-shared-state` | planned | core | r, 1a, 1b, 1f, 1g, 2b, 2c, 3c, 4a, 4b, 4c, 0a, 0b |
 | C2 Message passing | `c2-message-passing` | planned | core | 1b |
-| C3 Atomics & lock-free | `c3-atomics-lock-free` | planned | sde3 | 4a, 0d |
-| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | R, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3f, 3g, 3h, 4a, 4b, 4c, 0a, 0b, 0c, 0d |
+| C3 Atomics & lock-free | `c3-atomics-lock-free` | planned | sde3 | r, 4a, 0d |
+| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | r, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3f, 3g, 3h, 4a, 4b, 4c, 0a, 0b, 0c, 0d |
 | F1 Measure & read the machine | `f1-measure-machine` | planned | sde3 | 1a |
 | F2 Data layout | `f2-data-layout` | written | sde3 | 2a, 2b, 2c, 3b |
 | F3 Memory & allocation | `f3-memory-allocation` | planned | sde3 | 1c, 1f, 3d, 0b |
@@ -47,17 +47,22 @@ Not used by the course: L9 Modules, crates & Cargo, L10 Macros, S10 Time, env & 
 
 Do the rows top to bottom; a module's first rows are the ones its first stages need. "Stage" is the stage of the track to open (the band in brackets for planned tracks follows [CURRICULUM.md](CURRICULUM.md)).
 
-### R · Rust for systems (new, planned)
+### R · Rust on-ramp
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [L1 Ownership & moves](/t/l1-ownership-moves) | Moves & Copy; Passing values | what a move is, why a guard or a handle is moved, `Option::take` | the module |
-| [L2 Borrowing](/t/l2-borrowing) | Shared vs unique; Where borrows end | reading a borrow error from the top; two borrows of one struct | the module |
-| [S1 Option & Result](/t/s1-option-result) | Use it | `?`, `Option` and `Result` combinators, `let else` | the module |
-| [S3 Vec & slices](/t/s3-vec-slices) | Use it | slices, `copy_from_slice`, `chunks_exact`, `try_into` to an array | the module |
-| [S9 I/O & filesystem](/t/s9-io-filesystem) *(planned)* | Use | files, `BufReader`, positional reads, `io::Result` | the module |
-| [L8 Error design](/t/l8-error-design) *(planned)* | Custom errors | an error enum, `Display`, `?` through two layers | the module |
-| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Use it | unit tests, `#[should_panic]`, a first proptest | the module |
+| [S9 I/O & filesystem](/t/s9-io-filesystem) *(planned)* | Understand it | positional file I/O, `read_at` and short reads | r-01 |
+| [S3 Vec & slices](/t/s3-vec-slices) | Vec & slices | slices, ranges, `copy_from_slice`, `chunks_exact` | r-01 |
+| [L8 Error design](/t/l8-error-design) *(planned)* | Error design | an error enum, `Display`, `source`, `From` and `?` | r-02 |
+| [S1 Option & Result](/t/s1-option-result) | Option & Result | `?` and `map_err` | r-02 |
+| [S2 Strings & text](/t/s2-strings-text) | Strings & text | `from_utf8` on bytes that may be wrong | r-02 |
+| [L1 Ownership & moves](/t/l1-ownership-moves) | Ownership & moves | moving out of a place: `take`, `replace` | r-03 |
+| [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) *(planned)* | Understand it | `Box`, `Drop`, and `Arc` for sharing | r-03, r-04 |
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | `Mutex` and `Condvar`, scoped threads | r-04 |
+| [C3 Atomics & lock-free](/t/c3-atomics-lock-free) *(planned)* | Atomics | `fetch_add` for a shared counter | r-04 |
+| [S5 Queues & heaps](/t/s5-queues-heaps) *(planned)* | Queues & heaps | `VecDeque` as the model of a queue | r-05 |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums & pattern matching | an operation as an enum | r-05 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | a random sequence of operations against a model | r-05 |
 
 ### 1A · Disk manager
 
@@ -382,26 +387,26 @@ The planned tracks, sorted by the first module that needs them (then by how many
 | # | Track | First needed by | Used by |
 |---|---|---|---|
 | 1 | [Y5 Testing & verification](/t/y5-testing-verification) | R | 25 modules |
-| 2 | [L8 Error design](/t/l8-error-design) | R | 8 modules |
-| 3 | [S9 I/O & filesystem](/t/s9-io-filesystem) | R | 4 modules |
-| 4 | [C1 Threads & shared state](/t/c1-threads-shared-state) | 1A | 12 modules |
-| 5 | [F1 Measure & read the machine](/t/f1-measure-machine) | 1A | 1 modules |
-| 6 | [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) | 1B | 10 modules |
-| 7 | [S5 Queues & heaps](/t/s5-queues-heaps) | 1B | 5 modules |
-| 8 | [L6 Closures & functional Rust](/t/l6-closures) | 1B | 3 modules |
-| 9 | [C2 Message passing](/t/c2-message-passing) | 1B | 1 modules |
-| 10 | [S6 Iterators](/t/s6-iterators) | 1C | 8 modules |
-| 11 | [F3 Memory & allocation](/t/f3-memory-allocation) | 1C | 4 modules |
-| 12 | [D5 Linked lists](/t/d5-linked-lists) | 1C | 2 modules |
-| 13 | [S8 The core traits](/t/s8-core-traits) | 1D | 12 modules |
-| 14 | [F7 I/O & serialization](/t/f7-io-serialization) | 2A | 5 modules |
-| 15 | [S11 mem, ptr & alloc](/t/s11-mem-ptr-alloc) | 2A | 1 modules |
-| 16 | [D4 Binary search](/t/d4-binary-search) | 2A | 1 modules |
-| 17 | [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) | 2B | 4 modules |
-| 18 | [D13 Matrix, bits & math](/t/d13-matrix-bits-math) | 2B | 4 modules |
-| 19 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | 2C | 10 modules |
-| 20 | [D6 Trees & BSTs](/t/d6-trees-bsts) | 2C | 1 modules |
-| 21 | [C3 Atomics & lock-free](/t/c3-atomics-lock-free) | 4A | 2 modules |
+| 2 | [C1 Threads & shared state](/t/c1-threads-shared-state) | R | 13 modules |
+| 3 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | R | 11 modules |
+| 4 | [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) | R | 11 modules |
+| 5 | [L8 Error design](/t/l8-error-design) | R | 8 modules |
+| 6 | [S5 Queues & heaps](/t/s5-queues-heaps) | R | 6 modules |
+| 7 | [S9 I/O & filesystem](/t/s9-io-filesystem) | R | 4 modules |
+| 8 | [C3 Atomics & lock-free](/t/c3-atomics-lock-free) | R | 3 modules |
+| 9 | [F1 Measure & read the machine](/t/f1-measure-machine) | 1A | 1 modules |
+| 10 | [L6 Closures & functional Rust](/t/l6-closures) | 1B | 3 modules |
+| 11 | [C2 Message passing](/t/c2-message-passing) | 1B | 1 modules |
+| 12 | [S6 Iterators](/t/s6-iterators) | 1C | 8 modules |
+| 13 | [F3 Memory & allocation](/t/f3-memory-allocation) | 1C | 4 modules |
+| 14 | [D5 Linked lists](/t/d5-linked-lists) | 1C | 2 modules |
+| 15 | [S8 The core traits](/t/s8-core-traits) | 1D | 12 modules |
+| 16 | [F7 I/O & serialization](/t/f7-io-serialization) | 2A | 5 modules |
+| 17 | [S11 mem, ptr & alloc](/t/s11-mem-ptr-alloc) | 2A | 1 modules |
+| 18 | [D4 Binary search](/t/d4-binary-search) | 2A | 1 modules |
+| 19 | [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) | 2B | 4 modules |
+| 20 | [D13 Matrix, bits & math](/t/d13-matrix-bits-math) | 2B | 4 modules |
+| 21 | [D6 Trees & BSTs](/t/d6-trees-bsts) | 2C | 1 modules |
 
 ## 4. Gaps the tracks do not cover yet
 

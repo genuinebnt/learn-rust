@@ -779,6 +779,8 @@ export interface CourseModuleRow {
   code: string;
   /** Not (re)written yet: the stages are the old ones and will change. */
   planned?: boolean;
+  /** Not on the main path: the next stage is never picked from it. */
+  optional?: boolean;
   title: string;
   summary: string;
   stages: CourseStageRow[];
@@ -791,7 +793,9 @@ export interface CourseOverview {
   done: number;
   /** The first stage not passed yet. */
   current: string | null;
-  projects: { number: number; title: string; planned: boolean; modules: CourseModuleRow[] }[];
+  projects: { number: number; title: string; planned: boolean;
+  /** Not on the main path: the next stage is never picked from it. */
+  optional?: boolean; modules: CourseModuleRow[] }[];
 }
 
 export interface CourseSection {

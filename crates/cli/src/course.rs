@@ -170,6 +170,9 @@ struct CourseToml {
 struct ModuleToml {
     code: String,
     title: String,
+    /// Not on the main path: the next stage is never picked from it (the learner opens it on purpose).
+    #[serde(default)]
+    optional: bool,
     #[serde(default)]
     summary: String,
     /// Ids from `lectures.toml`: watch or read these before the module.
@@ -229,6 +232,8 @@ struct StageToml {
 struct Stage {
     def: StageToml,
     module: String,
+    /// The stage's module is optional: it is never the "next" stage.
+    optional: bool,
     module_title: String,
     /// Lectures, reading and BusTub files of the stage's module, for the stage page.
     resources: String,
@@ -292,6 +297,7 @@ impl Course {
                 stages.push(Stage {
                     def,
                     module: mt.code.clone(),
+                    optional: mt.optional,
                     module_title: mt.title.clone(),
                     resources: resources.clone(),
                     readme,
@@ -715,7 +721,7 @@ fn learner_course(repo: &Path) -> anyhow::Result<Course> {
 }
 
 fn current<'a>(course: &'a Course, progress: &Progress) -> Option<&'a Stage> {
-    course.stages.iter().find(|s| !progress.passed.contains_key(&s.def.id))
+    course.stages.iter().find(|s| !s.optional && !progress.passed.contains_key(&s.def.id))
 }
 
 fn head_commit(repo: &Path) -> String {

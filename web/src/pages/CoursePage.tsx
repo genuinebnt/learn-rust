@@ -8,6 +8,11 @@ import { MockCopy, MockRoot, reducedMotion, useReady } from "../components/mock"
 import { getPref, setPref } from "../prefs";
 import { plannedCount, useShowPlanned, withoutPlanned } from "./plannedModules";
 
+/** "Project 3" for BusTub's four projects; the optional extras (the Rust on-ramp, the primer) are named by their title. */
+export function projectLabel(number: number, title: string): string {
+    return number >= 1 && number <= 4 ? `Project ${number} · ${title}` : title;
+}
+
 /** The course the Courses nav item opens. */
 export const COURSE_ID = "bustub";
 
@@ -202,7 +207,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                             .filter((p) => p.modules.length > 0)
                                             .map((p) => (
                                                 <div className="k-proj" key={p.number}>
-                                                    <span>Project {p.number}</span>
+                                                    <span>{projectLabel(p.number, p.title)}</span>
                                                     <div className="k-nodes">
                                                         {p.modules.map((m) => {
                                                             const done = m.stages.filter((x) => x.state !== "todo").length;
@@ -265,6 +270,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                         <span>
                                                             <b>
                                                                 {m.code.toUpperCase()} · {m.title}
+                                                                {m.optional && !m.planned && <span className="k-planned k-optional" title="Not on the main path: the next stage never comes from here. Do it when you want it.">OPTIONAL</span>}
                                                                 {m.planned && <span className="k-planned" title="This module is being rewritten. Its stages are the old ones and will change.">PLANNED</span>}
                                                             </b>
                                                             {m.summary && <p>{m.summary}</p>}
@@ -341,7 +347,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                 <div key={p.number} className={`k-pr${i === 0 ? " k-act" : ""}`} role="button" tabIndex={first ? 0 : -1} onClick={() => first && jump(first.code)} onKeyDown={(e) => first && (e.key === "Enter" || e.key === " ") && (e.preventDefault(), jump(first.code))}>
                                                     <div className="k-l">
                                                         <span>
-                                                            Project {p.number} · {p.title}
+                                                            {projectLabel(p.number, p.title)}
                                                         </span>
                                                         <b>{v === null ? "—" : `${v}%`}</b>
                                                     </div>

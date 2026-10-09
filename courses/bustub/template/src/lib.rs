@@ -15,6 +15,7 @@ pub mod optimizer;
 pub mod planner;
 pub mod primer;
 pub mod recovery;
+pub mod rust_primer;
 pub mod sql;
 pub mod storage;
 pub mod types;

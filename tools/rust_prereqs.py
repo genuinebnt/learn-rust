@@ -72,14 +72,19 @@ def status(slug):
 
 # module code -> (title, [(track, which stage of the track, what to practise, stage ids it reaches or None)])
 MODULES = [
-    ("R", "Rust for systems (new, planned)", [
-        ("L1", "Moves & Copy; Passing values", "what a move is, why a guard or a handle is moved, `Option::take`", None),
-        ("L2", "Shared vs unique; Where borrows end", "reading a borrow error from the top; two borrows of one struct", None),
-        ("S1", "Use it", "`?`, `Option` and `Result` combinators, `let else`", None),
-        ("S3", "Use it", "slices, `copy_from_slice`, `chunks_exact`, `try_into` to an array", None),
-        ("S9", "Use", "files, `BufReader`, positional reads, `io::Result`", None),
-        ("L8", "Custom errors", "an error enum, `Display`, `?` through two layers", None),
-        ("Y5", "Use it", "unit tests, `#[should_panic]`, a first proptest", None),
+    ("r", "Rust on-ramp", [
+        ("S9", "Understand it", "positional file I/O, `read_at` and short reads", ["r-01"]),
+        ("S3", "Vec & slices", "slices, ranges, `copy_from_slice`, `chunks_exact`", ["r-01"]),
+        ("L8", "Error design", "an error enum, `Display`, `source`, `From` and `?`", ["r-02"]),
+        ("S1", "Option & Result", "`?` and `map_err`", ["r-02"]),
+        ("S2", "Strings & text", "`from_utf8` on bytes that may be wrong", ["r-02"]),
+        ("L1", "Ownership & moves", "moving out of a place: `take`, `replace`", ["r-03"]),
+        ("S7", "Understand it", "`Box`, `Drop`, and `Arc` for sharing", ["r-03", "r-04"]),
+        ("C1", "Understand it", "`Mutex` and `Condvar`, scoped threads", ["r-04"]),
+        ("C3", "Atomics", "`fetch_add` for a shared counter", ["r-04"]),
+        ("S5", "Queues & heaps", "`VecDeque` as the model of a queue", ["r-05"]),
+        ("L7", "Enums & pattern matching", "an operation as an enum", ["r-05"]),
+        ("Y5", "Build it", "a random sequence of operations against a model", ["r-05"]),
     ]),
     ("1a", "Disk manager", [
         ("S9", "Use; Understand (I/O errors)", "open and create files, positional reads and writes, `io::Result`, `sync_all`", ["1a-01", "1a-03", "1a-05"]),

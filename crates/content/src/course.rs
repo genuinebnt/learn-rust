@@ -47,6 +47,12 @@ struct ProjectToml {
 struct ModuleToml {
     code: String,
     title: String,
+    /// The project (in `course.toml`'s `[[project]]` list) the module belongs to, when its code does not start with the project's number.
+    #[serde(default)]
+    project: Option<u32>,
+    /// Not on the main path: skipped when picking the next stage (the learner opens it on purpose).
+    #[serde(default)]
+    optional: bool,
     #[serde(default)]
     summary: String,
     #[serde(default)]
@@ -145,6 +151,8 @@ pub struct Module {
     pub code: String,
     /// Not (re)written yet: the stages shown are the old ones and will change.
     pub planned: bool,
+    /// Not on the main path: skipped when picking the next stage.
+    pub optional: bool,
     pub title: String,
     pub summary: String,
     pub project: u32,
@@ -204,9 +212,12 @@ impl Course {
         let mut seen: HashMap<String, usize> = HashMap::new();
         for dir in sorted_dirs(&root.join("modules"))? {
             let mt: ModuleToml = read_toml(&dir.join("module.toml"))?;
-            let project: u32 = mt.code.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse().map_err(|_| {
-                CourseError::Invalid(format!("module code {:?} must start with its project number, like 2b", mt.code))
-            })?;
+            let project: u32 = match mt.project {
+                Some(p) => p,
+                None => mt.code.chars().take_while(|c| c.is_ascii_digit()).collect::<String>().parse().map_err(|_| {
+                    CourseError::Invalid(format!("module code {:?} must start with its project number, like 2b (or set `project` in module.toml)", mt.code))
+                })?,
+            };
             let mut mod_lectures = Vec::new();
             for id in &mt.lectures {
                 match lectures.iter().find(|l| &l.id == id) {
@@ -254,6 +265,7 @@ impl Course {
             }
             modules.push(Module {
                 planned: meta.planned_modules.contains(&mt.code),
+                optional: mt.optional,
                 code: mt.code,
                 title: mt.title,
                 summary: mt.summary,

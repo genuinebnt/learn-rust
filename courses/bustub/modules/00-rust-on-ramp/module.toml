@@ -1,0 +1,23 @@
+code = "r"
+project = 0
+optional = true
+title = "Rust on-ramp"
+summary = "The Rust a storage engine needs before module 1a, in five small pieces, each with BusTub-shaped tests: bytes and positional file I/O, errors as values, ownership shapes (a stack, an arena), shared state between threads, and testing against a model. Skip it if you already write this kind of Rust."
+lectures = []
+bustub = []
+files = []
+
+[[resources]]
+kind = "book"
+title = "The Rust Book"
+url = "https://doc.rust-lang.org/book/"
+
+[[resources]]
+kind = "book"
+title = "Learn Rust With Entirely Too Many Linked Lists"
+url = "https://rust-unofficial.github.io/too-many-lists/"
+
+[[resources]]
+kind = "docs"
+title = "std::os::unix::fs::FileExt"
+url = "https://doc.rust-lang.org/std/os/unix/fs/trait.FileExt.html"

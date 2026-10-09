@@ -1,0 +1,7 @@
+id = "0a-01"
+title = "Get: walking the trie"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_0a::s0a_01"]
+learn = ["following a key through a tree of nodes", "reading a value of a requested type back from type-erased storage", "telling a node that leads somewhere from one that holds a value"]
+concepts = ["tries", "persistent-data-structures-and-path-copying"]

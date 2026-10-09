@@ -470,18 +470,67 @@ fn run_entries(repo: &Path, entries: &[String], target_dir: Option<&Path>, timeo
             None => whole.push(bin),
         }
     }
-    let mut report = RunReport::default();
     let bins: Vec<&str> = by_bin.keys().copied().chain(whole.iter().copied()).collect();
-    for bin in bins {
-        let filters: &[&str] = if whole.contains(&bin) { &[] } else { &by_bin[bin] };
-        let mut cmd = Command::new("cargo");
-        cmd.current_dir(repo).args(["test", "--test", bin, "--"]);
-        cmd.args(filters);
-        cmd.env("RUST_BACKTRACE", "0").env("CARGO_TERM_COLOR", "never");
-        if let Some(t) = target_dir {
-            cmd.env("CARGO_TARGET_DIR", t);
+    // Build every needed test binary with ONE cargo call, then run them side by side: a regression over fifty binaries used to be fifty
+    // `cargo test` calls one after the other.
+    let mut build = Command::new("cargo");
+    build.current_dir(repo).args(["test", "--no-run", "--message-format=json-render-diagnostics"]);
+    for bin in &bins {
+        build.args(["--test", bin]);
+    }
+    build.env("RUST_BACKTRACE", "0").env("CARGO_TERM_COLOR", "never");
+    if let Some(t) = target_dir {
+        build.env("CARGO_TARGET_DIR", t);
+    }
+    let mut report = RunReport::default();
+    let (stdout, stderr, code) = match run_with_timeout(build, timeout.max(Duration::from_secs(600))) {
+        Err(e) => {
+            report.problem = Some(format!("{}: {e}", bins.first().copied().unwrap_or("build")));
+            return report;
         }
-        match run_with_timeout(cmd, timeout) {
+        Ok(r) => r,
+    };
+    let mut exes: HashMap<String, PathBuf> = HashMap::new();
+    for line in stdout.lines() {
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else { continue };
+        if v["reason"] == "compiler-artifact"
+            && v["target"]["kind"].as_array().is_some_and(|k| k.iter().any(|x| x == "test"))
+            && let (Some(name), Some(exe)) = (v["target"]["name"].as_str(), v["executable"].as_str())
+        {
+            exes.insert(name.to_owned(), PathBuf::from(exe));
+        }
+    }
+    if code != Some(0) {
+        let tail: Vec<&str> = stderr.lines().filter(|l| !l.trim().is_empty()).collect();
+        let shown = if tail.len() > 40 { &tail[..40] } else { &tail[..] };
+        report.problem = Some(format!("{}: the tests didn't compile or run\n{}", bins.first().copied().unwrap_or("build"), shown.join("\n")));
+        return report;
+    }
+    let jobs: Vec<(&str, &[&str])> = bins.iter().map(|b| (*b, if whole.contains(b) { &[][..] } else { &by_bin[b][..] })).collect();
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let results: std::sync::Mutex<Vec<Option<anyhow::Result<(String, String, Option<i32>)>>>> = std::sync::Mutex::new((0..jobs.len()).map(|_| None).collect());
+    std::thread::scope(|scope| {
+        for _ in 0..3 {
+            scope.spawn(|| {
+                loop {
+                    let k = next.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let Some((bin, filters)) = jobs.get(k) else { break };
+                    let out = match exes.get(*bin) {
+                        None => Err(anyhow::anyhow!("no test binary was built")),
+                        Some(exe) => {
+                            let mut cmd = Command::new(exe);
+                            cmd.current_dir(repo).args(*filters);
+                            cmd.env("RUST_BACKTRACE", "0").env("CARGO_MANIFEST_DIR", repo).env("CARGO_TERM_COLOR", "never");
+                            run_with_timeout(cmd, timeout)
+                        }
+                    };
+                    results.lock().unwrap()[k] = Some(out);
+                }
+            });
+        }
+    });
+    for ((bin, filters), result) in jobs.iter().zip(results.into_inner().unwrap()) {
+        match result.expect("every job ran") {
             Err(e) => {
                 report.problem = Some(format!("{bin}: {e}"));
                 return report;
@@ -490,7 +539,6 @@ fn run_entries(repo: &Path, entries: &[String], target_dir: Option<&Path>, timeo
                 let before = report.tests.len();
                 parse_tests(&stdout, &mut report.tests);
                 if report.tests.len() == before {
-                    // Nothing ran: a compile error, or the filter matched nothing.
                     let tail: Vec<&str> = stderr.lines().filter(|l| !l.trim().is_empty()).collect();
                     let shown = if tail.len() > 40 { &tail[..40] } else { &tail[..] };
                     report.problem = Some(if code == Some(0) {
@@ -1329,7 +1377,15 @@ fn verify(course_id: &str, courses: &Path, only: Option<&str>, from: Option<&str
         if before.problem.as_deref().is_some_and(|p| p.contains("didn't compile")) {
             notes.push("the stub state doesn't compile".into());
         }
-        let mut earlier: Vec<String> = course.stages.iter().filter(|x| x.rank < s.rank).flat_map(|x| x.def.tests.clone()).collect();
+        // A stage re-runs the earlier stages of its own module; the module's last stage (its boss) re-runs everything before it.
+        let module_of = |id: &str| id.split('-').next().unwrap_or("").to_owned();
+        let last_of_module = course.stages.iter().rev().find(|x| module_of(&x.def.id) == module_of(&s.def.id)).is_some_and(|x| x.rank == s.rank);
+        let mut earlier: Vec<String> = course
+            .stages
+            .iter()
+            .filter(|x| x.rank < s.rank && (last_of_module || module_of(&x.def.id) == module_of(&s.def.id)))
+            .flat_map(|x| x.def.tests.clone())
+            .collect();
         earlier.sort();
         earlier.dedup();
         if notes.is_empty() && !earlier.is_empty() {

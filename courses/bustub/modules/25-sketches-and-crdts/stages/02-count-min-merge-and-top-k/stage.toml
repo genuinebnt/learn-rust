@@ -1,0 +1,7 @@
+id = "0d-02"
+title = "Count-min sketch: clear, merge and top-k"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_0d::s0d_02"]
+learn = ["combining sketches from different streams", "ranking candidates by estimated count", "stable sorting for ties"]
+concepts = ["count-min-sketch-and-frequency-estimation", "hash-functions-and-murmur3"]

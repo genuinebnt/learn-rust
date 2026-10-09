@@ -1,0 +1,7 @@
+id = "0d-04"
+title = "HyperLogLog: the estimate"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_0d::s0d_04"]
+learn = ["a harmonic mean", "floating point powers of two", "what a small sketch's estimate looks like"]
+concepts = ["hyperloglog-and-distinct-counting", "shifts-masks-and-bit-tricks"]

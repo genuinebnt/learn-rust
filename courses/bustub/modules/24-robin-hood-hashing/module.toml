@@ -1,0 +1,16 @@
+code = "0c"
+title = "Robin Hood hashing"
+summary = "A fixed-capacity hash set with linear probing, Robin Hood displacement and tombstones, behind a reader-writer lock: home buckets and probe distances, insert and lookup, removal and tombstone reuse, and a model-checked random workload. BusTub Project 0 (the Robin Hood hash set)."
+lectures = []
+bustub = ["src/include/primer/robin_hood_hash_set.h", "src/primer/robin_hood_hash_set.cpp", "test/primer/robin_hood_hash_set_test.cpp"]
+files = []
+
+[[resources]]
+kind = "paper"
+title = "Robin Hood Hashing (Celis, 1986)"
+url = "https://cs.uwaterloo.ca/research/tr/1986/CS-86-14.pdf"
+
+[[resources]]
+kind = "blog"
+title = "Robin Hood hashing (Emmanuel Goossaert)"
+url = "https://codecapsule.com/2013/11/11/robin-hood-hashing/"

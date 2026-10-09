@@ -1,0 +1,16 @@
+code = "0b"
+title = "A skip list"
+summary = "An ordered set as a skip list: nodes with random heights, the search that remembers the last node on every level, insert, erase, and a reader-writer lock. The generator is a port of std::mt19937 so that the seed-pinned node heights of BusTub's test hold. BusTub Project 0 (the skip list)."
+lectures = []
+bustub = ["src/include/primer/skiplist.h", "src/primer/skiplist.cpp", "test/primer/skiplist_test.cpp"]
+files = ["src/primer/mt19937.rs"]
+
+[[resources]]
+kind = "paper"
+title = "Skip Lists: A Probabilistic Alternative to Balanced Trees (Pugh, 1990)"
+url = "https://15721.courses.cs.cmu.edu/spring2018/papers/08-oltpindexes1/pugh-skiplists-cacm1990.pdf"
+
+[[resources]]
+kind = "docs"
+title = "std::sync::RwLock"
+url = "https://doc.rust-lang.org/std/sync/struct.RwLock.html"

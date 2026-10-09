@@ -1,0 +1,48 @@
+//! Port of `src/include/primer/trie_store.h` and `src/primer/trie_store.cpp`: a thread-safe store over a persistent [`Trie`]. Readers take
+//! a snapshot (a clone of the root pointer, cheap) and read it without holding any lock; one writer at a time builds the next version
+//! and publishes it by swapping the root.
+
+use std::any::Any;
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
+
+use super::trie::Trie;
+
+/// A value found in the store. It keeps the value alive (shared with the trie version it came from) however many writes happen after.
+pub struct ValueGuard<T> {
+    value: Arc<T>,
+}
+
+impl<T> Deref for ValueGuard<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+#[derive(Default)]
+pub struct TrieStore {
+    /// The current version. Held only to clone or replace the pointer, never while reading or building.
+    root: Mutex<Trie>,
+    /// Makes writers take turns, so that two writes cannot both start from the same version and lose one of the changes.
+    write_lock: Mutex<()>,
+}
+
+impl TrieStore {
+    pub fn new() -> TrieStore {
+        TrieStore::default()
+    }
+
+    /// Looks `key` up in the current version.
+    pub fn get<T: Any + Send + Sync>(&self, key: &str) -> Option<ValueGuard<T>> {
+        todo!("0a-04: take the root lock only to clone the current trie; read from the clone with get_shared; wrap the value in a guard")
+    }
+
+    pub fn put<T: Any + Send + Sync>(&self, key: &str, value: T) {
+        todo!("0a-04: take the write lock for the whole operation; clone the current root; build the new trie without the root lock held; then take the root lock only to publish it")
+    }
+
+    pub fn remove(&self, key: &str) {
+        todo!("0a-04: as put, with remove")
+    }
+}

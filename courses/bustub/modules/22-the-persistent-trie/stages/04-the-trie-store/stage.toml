@@ -1,0 +1,7 @@
+id = "0a-04"
+title = "The trie store"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_0a::s0a_04"]
+learn = ["publishing a new version by swapping one pointer", "one writer at a time, readers never block", "values that outlive removal"]
+concepts = ["persistent-data-structures-and-path-copying", "mutex-owns-its-data"]

@@ -1,0 +1,7 @@
+id = "0d-05"
+title = "HyperLogLog, Presto-style"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_0d::s0d_05"]
+learn = ["trailing zeros instead of leading ones", "packing a register into dense and overflow parts", "pinning an algorithm with exact expected values"]
+concepts = ["hyperloglog-and-distinct-counting", "shifts-masks-and-bit-tricks"]

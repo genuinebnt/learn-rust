@@ -1,0 +1,21 @@
+code = "0d"
+title = "Sketches and replicated sets"
+summary = "Three small structures that trade exactness for space or coordination: a count-min sketch (frequency estimates), HyperLogLog and its Presto-style variant (distinct counts), and an observed-remove set with a driver that simulates replicas syncing over an unreliable network. BusTub Project 0 (count-min sketch, HyperLogLog, ORSet)."
+lectures = []
+bustub = ["src/include/primer/count_min_sketch.h", "src/primer/count_min_sketch.cpp", "src/include/primer/hyperloglog.h", "src/primer/hyperloglog.cpp", "src/include/primer/hyperloglog_presto.h", "src/primer/hyperloglog_presto.cpp", "src/include/primer/orset.h", "src/primer/orset.cpp", "src/include/primer/orset_driver.h", "src/primer/orset_driver.cpp", "test/primer/count_min_sketch_test.cpp", "test/primer/hyperloglog_test.cpp", "test/primer/orset_test.cpp"]
+files = []
+
+[[resources]]
+kind = "paper"
+title = "An improved data stream summary: the count-min sketch (Cormode and Muthukrishnan, 2005)"
+url = "https://dsf.berkeley.edu/cs286/papers/countmin-latin2004.pdf"
+
+[[resources]]
+kind = "paper"
+title = "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm (Flajolet et al., 2007)"
+url = "https://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf"
+
+[[resources]]
+kind = "paper"
+title = "A comprehensive study of Convergent and Commutative Replicated Data Types (Shapiro et al., 2011)"
+url = "https://inria.hal.science/inria-00555588/document"

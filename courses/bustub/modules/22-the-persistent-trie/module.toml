@@ -1,0 +1,21 @@
+code = "0a"
+title = "A persistent trie"
+summary = "A trie that never changes: get, put and remove return new versions that share every untouched node, and a thread-safe store that lets readers keep reading while one writer publishes the next version. BusTub Project 0 (the trie part)."
+lectures = []
+bustub = ["src/include/primer/trie.h", "src/primer/trie.cpp", "src/include/primer/trie_store.h", "src/primer/trie_store.cpp", "test/primer/trie_test.cpp", "test/primer/trie_store_test.cpp", "test/primer/trie_noncopy_test.cpp", "test/primer/trie_store_noncopy_test.cpp"]
+files = []
+
+[[resources]]
+kind = "book"
+title = "Purely Functional Data Structures (Okasaki)"
+url = "https://www.cambridge.org/core/books/purely-functional-data-structures/0409255DA1B48FA731859AC72E34D494"
+
+[[resources]]
+kind = "docs"
+title = "std::any::Any"
+url = "https://doc.rust-lang.org/std/any/trait.Any.html"
+
+[[resources]]
+kind = "docs"
+title = "Rust Book: Arc"
+url = "https://doc.rust-lang.org/book/ch16-03-shared-state.html"

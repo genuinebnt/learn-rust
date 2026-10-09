@@ -1236,7 +1236,7 @@ fn show(stage: Option<&str>, hint: Option<usize>, no_pager: bool) -> anyhow::Res
     };
     match hint {
         Some(n) => print_hint(&course.meta.id, s, n, no_pager)?,
-        None => print_stage(s, no_pager),
+        None => print_stage(&repo, s, no_pager),
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -1261,7 +1261,33 @@ fn difficulty_label(d: &str) -> &'static str {
     }
 }
 
-fn print_stage(s: &Stage, no_pager: bool) {
+/// The files of the repo that still have a stub marked with this stage's id (`todo!("1a-01: ...")`, `// TODO(2c-03): ...`), with how many
+/// places in each: where the learner works on the stage. Files they have already filled in no longer show.
+fn stage_files(repo: &Path, id: &str) -> Vec<(String, usize)> {
+    fn walk(dir: &Path, root: &Path, id: &str, out: &mut Vec<(String, usize)>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        let mut entries: Vec<_> = entries.flatten().collect();
+        entries.sort_by_key(|e| e.file_name());
+        for e in entries {
+            let path = e.path();
+            if path.is_dir() {
+                walk(&path, root, id, out);
+            } else if path.extension().is_some_and(|x| x == "rs") {
+                let Ok(text) = fs::read_to_string(&path) else { continue };
+                let (a, b) = (format!("{id}:"), format!("TODO({id})"));
+                let n = text.lines().filter(|l| l.contains(&a) || l.contains(&b)).count();
+                if n > 0 {
+                    out.push((path.strip_prefix(root).unwrap_or(&path).display().to_string(), n));
+                }
+            }
+        }
+    }
+    let mut out = vec![];
+    walk(&repo.join("src"), repo, id, &mut out);
+    out
+}
+
+fn print_stage(repo: &Path, s: &Stage, no_pager: bool) {
     let (body, hints) = render::split_hints(&s.readme);
     let (color, width) = (term::color_on(), term::text_width());
     let mut text = format!(
@@ -1272,6 +1298,11 @@ fn print_stage(s: &Stage, no_pager: bool) {
         difficulty_label(&s.def.difficulty),
         s.def.kind
     );
+    let files = stage_files(repo, &s.def.id);
+    if !files.is_empty() {
+        let list = files.iter().map(|(f, n)| format!("  {f}  ({n} place{})", if *n == 1 { "" } else { "s" })).collect::<Vec<_>>().join("\n");
+        text.push_str(&format!("{}\n{list}\n{}\n\n", term::bold("Where to work"), term::dim(&format!("each place is a stub marked {}: find them with  grep -rn '{}:' src", s.def.id, s.def.id))));
+    }
     text.push_str(&render::render(body, width, color));
     text.push('\n');
     text.push_str(&render::render("Your way: the tests call only the public items named above. How you build the inside is up to you; change the given structs and helpers if you want a different design.", width, color));
@@ -1293,7 +1324,7 @@ fn next() -> anyhow::Result<ExitCode> {
     maybe_unlock(&repo, &course, &progress)?;
     match current(&course, &progress) {
         Some(s) => {
-            print_stage(s, false);
+            print_stage(&repo, s, false);
             Ok(ExitCode::SUCCESS)
         }
         None => {

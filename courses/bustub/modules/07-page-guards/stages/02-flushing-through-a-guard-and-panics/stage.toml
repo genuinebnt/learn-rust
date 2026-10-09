@@ -1,0 +1,8 @@
+id = "1g-02"
+title = "Flushing through a guard, and panics"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_1g::s1g_02"]
+learn = ["write through a held latch without asking for it again", "a flush that cannot deadlock", "convenience wrappers that panic for caller bugs"]
+concepts = []
+concepts_optional = ["deadlock-and-lock-ordering", "raii-guards-and-lifetimes", "reader-writer-latches", "testing-concurrent-code-with-loom-and-miri", "designing-error-types"]

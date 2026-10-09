@@ -163,7 +163,7 @@ fn a_timing_guard_with_a_generous_limit_and_a_median() {
 
 - **1b-06 (sharded scheduler):** the stage's "Measure it": 200,000 writes over a disk that sleeps per I/O, with 1, 2, 4 and 8 workers, then all to the same page; predict the shape first, then measure.
 - **1d-03 and 1e-02:** the 100,000-eviction test and the 400,000-hit test: a time limit with a generous factor is how a quadratic design fails without making the suite slow.
-- **1g-02 (a flush that cannot deadlock):** run the deadlock test under a 5-second watchdog on the unfixed code, then the fixed code under load while checking that every pin count returns to zero.
+- **1g-02:** a deadlock test under a watchdog timeout: a hang becomes a failed test with a message.
 - Every stage's **Performance** section ends with a "Measure it" paragraph; the helpers above are what you paste in.
 
 ### Where it is used

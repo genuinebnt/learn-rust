@@ -130,7 +130,7 @@ fn a_scan_flushes_lru_but_not_a_frequency_aware_policy() {
 
 - **1c-02 and 1c-03:** LRU and CLOCK behind the one `Replacer` trait. The simulator above is a way to compare policies on a trace; the boss stage replays a trace through both to show when they agree.
 - **1d and 1e:** LRU-K and ARC exist because of the last test: a scan defeats plain LRU.
-- **1f-02:** the buffer pool calls the replacer on every hit and miss; the hit ratio you measure there is the `faults` count above, over the number of accesses.
+- **1f-02:** the buffer pool calls the replacer on every access and every miss; the hit ratio you measure there is the `faults` count above, over the number of accesses.
 
 ### Where it is used
 

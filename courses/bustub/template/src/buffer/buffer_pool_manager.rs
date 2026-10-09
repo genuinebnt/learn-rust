@@ -5,51 +5,32 @@
 //! replacer picks a page nobody has pinned, which is written back first if it was modified.
 //!
 //! This module has the textbook interface (`fetch_page` / `unpin_page`, as in BusTub's earlier years). The next module wraps it in
-//! RAII page guards, the interface BusTub's current tests use.
+//! RAII page guards, the interface BusTub's current tests use. What is inside the pool is yours; the tests use the public methods only,
+//! and a pool works with **any** [`FrameReplacer`]: yours from module 1e or 1d, or one of your own.
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use super::arc_replacer::ArcReplacer;
-use crate::common::config::{FrameId, PageData, PageId, BUSTUB_PAGE_SIZE};
+use super::replacer::FrameReplacer;
+use crate::common::config::{FrameId, PageData, PageId};
 use crate::storage::disk::disk_manager::DiskIo;
-use crate::storage::disk::disk_scheduler::{DiskRequest, DiskScheduler};
 use crate::storage::page::page_guard::{ReadPageGuard, WritePageGuard};
 
-/// What the pool knows about a frame besides its bytes.
-struct FrameMeta {
-    /// The page the frame holds, if any.
-    page_id: Option<PageId>,
-    /// How many users have the page pinned.
-    pin_count: usize,
-    /// True if the bytes differ from the page on disk.
-    dirty: bool,
-}
-
-/// Everything the pool's latch protects (BusTub's `bpm_latch_`).
-struct Inner {
-    /// Which frame holds each resident page.
-    page_table: HashMap<PageId, FrameId>,
-    /// Frames that hold no page.
-    free_frames: Vec<FrameId>,
-    meta: Vec<FrameMeta>,
-    replacer: ArcReplacer,
-    /// The id the next `new_page` hands out.
-    next_page_id: i32,
-}
+// TODO(1f-01): your imports and private types go here.
 
 pub struct BufferPoolManager {
-    num_frames: usize,
-    /// The memory itself: one 8 KiB buffer per frame, each behind its own reader-writer latch.
-    frames: Vec<RwLock<Box<PageData>>>,
-    inner: Mutex<Inner>,
-    disk_scheduler: DiskScheduler,
+    // TODO(1f-01): the fields are yours: the frames, what you know about each, and a way to reach the disk.
 }
 
 impl BufferPoolManager {
-    /// A pool of `num_frames` frames, all free, on top of `disk`.
+    /// A pool of `num_frames` frames, all free, on top of `disk`, evicting with the ARC replacer of module 1e.
     pub fn new(num_frames: usize, disk: Arc<dyn DiskIo>) -> BufferPoolManager {
-        todo!("1f-01: the frames and their metadata, every frame on the free list, an empty page table, a replacer for num_frames frames, and a disk scheduler")
+        todo!("1f-01: a pool with the ARC replacer; `with_replacer` does the work")
+    }
+
+    /// A pool of `num_frames` frames on top of `disk`, evicting with `replacer`. Every frame starts free and zeroed.
+    pub fn with_replacer(num_frames: usize, disk: Arc<dyn DiskIo>, replacer: Box<dyn FrameReplacer>) -> BufferPoolManager {
+        todo!("1f-01: the frames and what you know about them, every frame free, and a way to reach the disk")
     }
 
     /// The number of frames.
@@ -59,39 +40,31 @@ impl BufferPoolManager {
 
     /// The bytes of a frame, behind its latch. Only meaningful for a frame you have pinned.
     pub fn frame_data(&self, frame: FrameId) -> &RwLock<Box<PageData>> {
-        &self.frames[frame.0]
+        todo!("1f-01: the bytes of the frame, behind a reader-writer latch")
     }
 
     /// Hands out a fresh page id. The page isn't in memory or on disk yet; `fetch_page` brings it in (all zeros, since the disk
     /// has never seen it).
     pub fn new_page(&self) -> PageId {
-        todo!("1f-01: the next id, 0, 1, 2, ...; no two callers may get the same one")
+        todo!("1f-01: a page id nobody has been given before; two callers never get the same one")
     }
 
-    /// Reads a page from disk into `frame`. The caller holds the pool's latch and has the frame to itself.
-    fn load(&self, page_id: PageId, frame: FrameId) {
-        todo!("1f-01: schedule a read request, wait for the future, copy the bytes into the frame")
-    }
 
-    /// Writes the bytes of `frame` to disk as page `page_id`. The caller holds the pool's latch; nobody has the frame latched.
-    fn store(&self, page_id: PageId, frame: FrameId) {
-        todo!("1f-03: copy the frame's bytes into a Box, schedule a write request, wait for it")
-    }
 
-    /// Pins `page_id`, bringing it into memory if needed, and returns its frame. `None` if every frame is pinned.
-    /// Each successful call must be matched by an `unpin_page`.
+    /// Pins `page_id`, bringing it into memory if needed, and returns its frame. `None` if the page is not in memory and every frame
+    /// is pinned. Each successful call must be matched by an `unpin_page`. A page that was never written reads as zeros.
     pub fn fetch_page(&self, page_id: PageId) -> Option<FrameId> {
-        todo!("1f-01: a page not in memory goes into a free frame: read it from disk, pin it once, note it in the page table and the replacer")
+        todo!("1f-01: pin the page, reading it into a free frame if it is not in memory")
     }
 
     /// Releases one pin. `is_dirty` says the caller modified the page. `false` if the page isn't in memory or wasn't pinned.
     pub fn unpin_page(&self, page_id: PageId, is_dirty: bool) -> bool {
-        todo!("1f-02: drop one pin; remember the dirt; when the last pin goes, the frame may be evicted")
+        todo!("1f-01: drop one pin; remember the dirt; when the last pin goes, the frame may be evicted")
     }
 
     /// The page's pin count, or `None` if the page isn't in memory.
     pub fn get_pin_count(&self, page_id: PageId) -> Option<usize> {
-        todo!("1f-02: the pin count of the frame holding the page, if there is one")
+        todo!("1f-01: the pin count of the page, if it is in memory")
     }
 
     /// Writes the page to disk (whether or not it is dirty) and clears its dirty flag. `false` if it isn't in memory.
@@ -101,21 +74,21 @@ impl BufferPoolManager {
 
     /// Flushes every page in memory.
     pub fn flush_all_pages(&self) {
-        todo!("1f-03: flush every resident page")
+        todo!("1f-03: flush every page that is in memory")
     }
 
     /// Removes the page from memory and frees its disk space. `false` if somebody has it pinned; `true` otherwise (also when it
     /// wasn't in memory). A dirty page is simply dropped: it is being deleted.
     pub fn delete_page(&self, page_id: PageId) -> bool {
-        todo!("1f-03: refuse if pinned; otherwise take the page out of the page table and the replacer, free its frame, and tell the disk")
+        todo!("1f-03: refuse if the page is pinned; otherwise drop it from memory without writing it, free its frame, and tell the disk")
     }
 
-    /// Pins `page_id` and takes its read latch. `None` if every frame is pinned.
+    /// Pins `page_id` and takes its read latch. `None` if the page cannot be brought into memory because every frame is pinned.
     pub fn checked_read_page(&self, page_id: PageId) -> Option<ReadPageGuard<'_>> {
-        todo!("1g-01: pin the page (fetch_page), then take the frame's read latch, then build the guard")
+        todo!("1g-01: pin the page, take the frame's read latch, and hand out a guard that releases both")
     }
 
-    /// Pins `page_id` and takes its write latch. `None` if every frame is pinned.
+    /// Pins `page_id` and takes its write latch. `None` if the page cannot be brought into memory because every frame is pinned.
     pub fn checked_write_page(&self, page_id: PageId) -> Option<WritePageGuard<'_>> {
         todo!("1g-01: like checked_read_page, with the write latch")
     }
@@ -130,8 +103,4 @@ impl BufferPoolManager {
         todo!("1g-02: checked_write_page, but a failure is a panic")
     }
 
-    /// Writes `data` to disk as page `page_id` without touching the pool's state. For guards that already hold the page's latch.
-    pub fn write_page_data(&self, page_id: PageId, data: &PageData) {
-        todo!("1g-02: copy the bytes into a Box, schedule a write, wait for it; no locks needed")
-    }
 }

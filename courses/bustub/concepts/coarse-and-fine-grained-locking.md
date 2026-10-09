@@ -151,8 +151,8 @@ fn different_pages_do_not_block_each_other() {
 
 ### In the exercises
 
-- **1f-01, 1f-03:** the pool's `Mutex<Inner>` is the coarse latch; every `BufferPoolManager` method takes it first.
-- **1g-02 Part 3 (a flush must not wait for a latch while holding the pool's lock):** the fix is exactly `pin`, release the pool latch, then take the frame latch, as in `with_write` above.
+- **1f-01 to 1f-03:** a pool's `Mutex<Inner>` is the coarse latch; every operation takes it first.
+- **1g-02:** a flush must not wait for a latch while holding the pool's lock; the fix is to pin the page, release the pool latch, then take the frame latch.
 - **1g-01:** guards hold the frame latch for as long as the user holds the guard, and take the pool latch only briefly in `Drop` to unpin.
 
 ### Where it is used

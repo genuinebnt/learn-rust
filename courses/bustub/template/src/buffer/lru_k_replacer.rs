@@ -52,3 +52,22 @@ impl LruKReplacer {
         todo!("1d-01: ignore unknown frames; panic for a frame that is not evictable; otherwise forget it")
     }
 }
+
+/// LRU-K ignores which page a frame holds: only the frame's own access history matters.
+impl crate::buffer::replacer::FrameReplacer for LruKReplacer {
+    fn record_access(&mut self, frame: FrameId, _page: crate::common::config::PageId) {
+        LruKReplacer::record_access(self, frame)
+    }
+    fn set_evictable(&mut self, frame: FrameId, evictable: bool) {
+        LruKReplacer::set_evictable(self, frame, evictable)
+    }
+    fn evict(&mut self) -> Option<FrameId> {
+        LruKReplacer::evict(self)
+    }
+    fn remove(&mut self, frame: FrameId) {
+        LruKReplacer::remove(self, frame)
+    }
+    fn size(&self) -> usize {
+        LruKReplacer::size(self)
+    }
+}

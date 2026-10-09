@@ -53,3 +53,21 @@ impl ArcReplacer {
         todo!("1e-01: ignore unknown frames; panic for a frame that is not evictable; forget it, leaving no ghost")
     }
 }
+
+impl crate::buffer::replacer::FrameReplacer for ArcReplacer {
+    fn record_access(&mut self, frame: FrameId, page: PageId) {
+        ArcReplacer::record_access(self, frame, page)
+    }
+    fn set_evictable(&mut self, frame: FrameId, evictable: bool) {
+        ArcReplacer::set_evictable(self, frame, evictable)
+    }
+    fn evict(&mut self) -> Option<FrameId> {
+        ArcReplacer::evict(self)
+    }
+    fn remove(&mut self, frame: FrameId) {
+        ArcReplacer::remove(self, frame)
+    }
+    fn size(&self) -> usize {
+        ArcReplacer::size(self)
+    }
+}

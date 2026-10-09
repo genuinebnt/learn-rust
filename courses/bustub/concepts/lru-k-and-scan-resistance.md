@@ -169,7 +169,7 @@ fn pinned_frames_are_never_victims_and_size_counts_only_evictable() {
 ### In the exercises
 
 - **1d-01 to 1d-03:** the bookkeeping (a `VecDeque` of the last K timestamps, a logical clock; see *Logical clocks and timestamps*), then the ordering rule (infinite distances first, oldest first access first; then the oldest K-th access), then the `BTreeSet` that makes eviction O(log n) (see *Ordered sets as priority queues*). The first test above is the worked trace.
-- **1f-02:** the buffer pool calls `record_access` on every hit and `set_evictable(false)` while a frame is pinned.
+- **1f-01, 1f-02:** the buffer pool calls `record_access` on every access and `set_evictable(false)` while a frame is pinned.
 
 ### Where it is used
 

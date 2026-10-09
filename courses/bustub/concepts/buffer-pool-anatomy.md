@@ -197,9 +197,7 @@ fn pins_count_flush_ignores_dirty_and_delete_refuses_pinned() {
 
 ### In the exercises
 
-- **1f-01 (frames, `new_page`, `fetch_page`):** the struct above with `RwLock`-wrapped frames and `ArcReplacer`; the first miss path takes a frame from the free list.
-- **1f-02 (hits, unpin, eviction):** `get_pin_count`, `unpin_page` and the evict branch of `fetch_page`; the first test above is the trace to match, including "all pinned returns `None` and changes nothing".
-- **1f-03 (write-back, `flush_page`, `delete_page`):** the I/O counts: a clean eviction writes nothing, a dirty one writes once, `flush_page` writes whatever the flag says.
+- **1f-01 to 1f-03:** the struct above is the shape: `RwLock`-wrapped frames, a page table, a free list, per-frame metadata and a replacer behind one lock. The first test above is the trace to match, including "all pinned returns `None`"; the I/O counts are the invariant (a clean eviction writes nothing, a dirty one writes once, `flush_page` writes whatever the flag says).
 
 ### Where it is used
 

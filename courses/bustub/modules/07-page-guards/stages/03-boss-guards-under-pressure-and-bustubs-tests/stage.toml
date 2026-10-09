@@ -1,0 +1,8 @@
+id = "1g-03"
+title = "Boss: guards under pressure and BusTub's tests"
+kind = "boss"
+difficulty = "easy"
+tests = ["stages_1g::s1g_03", "buffer_pool_manager_test", "page_guard_test"]
+retest = true
+concepts = []
+concepts_optional = ["testing-concurrent-code-with-loom-and-miri", "deadlock-and-lock-ordering", "performance-tests-and-measuring"]

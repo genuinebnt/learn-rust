@@ -1,6 +1,8 @@
 //! Helpers shared by the tests. Not part of the course: nothing here for you to write.
 #![allow(dead_code)]
 
+pub mod pool;
+
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 

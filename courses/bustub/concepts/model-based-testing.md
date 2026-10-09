@@ -168,7 +168,7 @@ fn the_planted_bug_is_found_and_shrunk_to_a_readable_case() {
 - **1c-01 to 1c-03:** every stage's tests are model tests: a list against a `Vec`, LRU against a four-line model, CLOCK against a rotating queue. Read the models in `tests/stages_1c.rs` to see how small a good model is.
 - **1d-02, 1d-03:** the LRU-K replacer against a brute-force model that keeps every access time; the stage tests print the step and `k` on a mismatch.
 - **1e-02, 1e-03:** ARC against an exact model of its rules on four `Vec`s, with the lists printed in the failure message.
-- **1f-03:** a buffer pool is easy to model with a `HashMap<PageId, bytes>` of "what each page should contain"; whatever was last written is what a fetch must return, however often pages were evicted.
+- **1f-01 to 1f-03:** a buffer pool is easy to model with a table of "what each page should contain and how often it is pinned"; whatever was last written is what a fetch must return, however many pages were evicted in between.
 - **2a-03:** `PageArray` against `Vec::insert`/`remove` (64 and 500 random operations, comparing only `0..len`).
 - **2b-01:** MurmurHash3 against vectors recorded from the C++ original: a model that is a different implementation of the same spec.
 

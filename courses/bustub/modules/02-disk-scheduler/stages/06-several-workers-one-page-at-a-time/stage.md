@@ -100,4 +100,4 @@ BusTub's `DiskScheduler` has a single background thread, and the project does no
 ## Learn more
 
 - [`i32::rem_euclid`](https://doc.rust-lang.org/std/primitive.i32.html#method.rem_euclid) · [`Vec::drain`](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.drain)
-- [`io_uring(7)`](https://man7.org/linux/man-pages/man7/io_uring.7.html), the Linux interface that moves the queueing into the kernel
+- [`io_uring`](https://kernel.dk/io_uring.pdf), the Linux interface that moves the queueing into the kernel

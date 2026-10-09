@@ -1,0 +1,8 @@
+id = "1f-04"
+title = "Boss: threads and BusTub's classic tests"
+kind = "boss"
+difficulty = "easy"
+tests = ["stages_1f::s1f_04", "buffer_pool_manager_classic_test"]
+retest = true
+concepts = []
+concepts_optional = ["testing-concurrent-code-with-loom-and-miri", "deadlock-and-lock-ordering", "performance-tests-and-measuring"]

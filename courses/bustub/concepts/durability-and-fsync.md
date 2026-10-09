@@ -163,7 +163,7 @@ fn flush_on_a_plain_file_is_a_no_op_and_sync_is_not() {
 
 - **1a-03:** the log file and `write_log`: what is appended must be what a later `read_log` returns.
 - **1a-05:** `shut_down` makes both files durable (`sync_all`), and a new manager over the same files sees the log.
-- **1f-03:** the buffer pool flushes a dirty page before eviction.
+- **1f-02, 1f-03:** the buffer pool writes a dirty page before eviction, and `flush_page` on demand.
 
 ### Where it is used
 

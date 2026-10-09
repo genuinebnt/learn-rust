@@ -165,8 +165,7 @@ fn count_the_writes() {
 
 ### In the exercises
 
-- **1f-02 Part 3 (evict an unpinned page when no frame is free):** the miss path of `fetch_page`; "every frame pinned returns `None` and changes nothing" is the check before step 2.
-- **1f-03 Part 1 (write dirty victims back):** step 2, with the *old* page id, before the frame is reused; the tests count writes like `count_the_writes`.
+- **1f-02:** the miss path of `fetch_page`: pick a victim, write it back first if it is dirty, then reuse the frame. "Every frame pinned returns `None` and changes nothing" is a property the model test checks; the tests also count writes.
 
 ### Where it is used
 

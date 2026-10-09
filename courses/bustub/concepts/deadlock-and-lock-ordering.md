@@ -152,7 +152,7 @@ fn a_watchdog_turns_a_deadlock_into_a_failure() {
 
 ### In the exercises
 
-- **1g-02:** reproduce the flush deadlock (a writer holding a page latch while another thread, holding the pool lock, waits for it) with a test that has a watchdog (third example), then fix `flush_page`: pin under the pool lock, release the lock, *then* wait for the page latch. The first example is the general-purpose fix; yours removes hold-and-wait.
+- **1g-02:** the flush deadlock (a writer holding a page latch while another thread, holding the pool lock, waits for it) and a test with a watchdog that turns it into a failure.
 - **1g-01:** release order inside a guard (unlatch, then unpin) is a lock-ordering rule: never hold a pin without the right to the latch, never the reverse.
 - **2b-08 and 2b-11:** a fixed order of page latches (header, directory, bucket; lower slot first for two buckets).
 

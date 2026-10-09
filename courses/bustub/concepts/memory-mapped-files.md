@@ -123,7 +123,7 @@ mod map {
 
 ### In the exercises
 
-- **1f-03:** the stage's comparison table says why the buffer pool writes a page itself instead of leaving it to a mapping, and links the paper above.
+- **1f-01 and 1f-02:** the buffer pool writes a page itself instead of leaving it to a mapping; the paper above says why.
 
 ### Where it is used
 

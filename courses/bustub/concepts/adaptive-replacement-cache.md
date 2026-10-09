@@ -182,7 +182,7 @@ fn the_bounds_hold_on_a_random_workload() {
 ### In the exercises
 
 - **1e-01 to 1e-03:** the same algorithm in three steps: the contract and live frames; the `mru`/`mfu` split with hits and eviction; ghost hits, the adaptive target `p` and the bounds on the four lists. The first test above is the target moving; the `check` function is the bounds.
-- **1f-02:** the buffer pool can use `ArcReplacer`; a scan workload is where the hit ratio differs from LRU.
+- **1f-02:** the buffer pool can sit on `ArcReplacer` (the pool takes any `FrameReplacer`); a scan workload is where the hit ratio differs from LRU.
 
 ### Where it is used
 

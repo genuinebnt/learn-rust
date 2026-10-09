@@ -167,7 +167,7 @@ fn the_write_ahead_rule_for_a_dirty_page() {
 
 ### In the exercises
 
-- **1f-01, 1f-02:** `FrameMeta` and its transitions: `fetch_page` pins (and removes the frame from the replacer), `unpin_page` ORs the flag and re-adds the frame at zero pins; `get_pin_count` is how tests see the balance.
+- **1f-01, 1f-02:** per-frame metadata and its transitions: fetching pins (and makes the frame non-evictable), the last unpin makes it evictable again, and the dirty flag accumulates.
 - **1f-03:** `flush_page` writes regardless of the flag and clears it; eviction writes only when dirty.
 - **1g-01 (page guards):** the `Drop` impl above is the stage's shape: dropping a guard unlatches, then unpins with the guard's dirty flag. `WritePageGuard` marks the page dirty.
 

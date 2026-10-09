@@ -1,0 +1,11 @@
+[package]
+name = "loomcheck"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+
+[target.'cfg(loom)'.dependencies]
+loom = "0.7"

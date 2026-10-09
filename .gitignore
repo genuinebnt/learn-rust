@@ -8,3 +8,4 @@ __pycache__/
 /.dev.pid
 /deploy/.env
 /tools/neetcode/cache/
+tools/*/target

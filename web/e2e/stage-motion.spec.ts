@@ -55,6 +55,28 @@ test("the solution is blurred behind a gate until it is revealed", async ({ page
     await expect(sol.locator(".k-gate")).toBeVisible();
 });
 
+test("an opened solution is syntax highlighted, with its diff lines marked", async ({ page }) => {
+    await page.route("**/api/courses/bustub/stages/4a-04", async (route) => {
+        const res = await route.fetch();
+        const body = await res.json();
+        const lines = [" fn get(&self) -> u32 {", "-    todo!()", "+    // one way\n".trim(), "+    let n: u32 = 7; n", " }"];
+        body.solution = { available: true, open: true, files: [{ path: "src/x.rs", lines }] };
+        await route.fulfill({ response: res, json: body });
+    });
+    await page.reload();
+    await expect(page.locator(".k-tabs")).toBeVisible();
+    await page.getByRole("tab", { name: /^Solution/ }).click();
+    const sol = page.locator(".k-sol").first();
+    await expect(sol.locator(".k-add")).toHaveCount(2);
+    await expect(sol.locator(".k-del")).toHaveCount(1);
+    await expect(sol.locator(".t-k", { hasText: "fn" }).first()).toBeVisible();
+    await expect(sol.locator(".t-c", { hasText: "one way" })).toBeVisible();
+    await expect(sol.locator(".t-t", { hasText: "u32" }).first()).toBeVisible();
+    const kw = await sol.locator(".t-k").first().evaluate((e) => getComputedStyle(e).color);
+    const plain = await sol.locator("pre").evaluate((e) => getComputedStyle(e).color);
+    expect(kw).not.toBe(plain);
+});
+
 test("the run strip names the last run and its logs slide open", async ({ page }) => {
     await expect(page.locator("#stx")).toContainText("passing");
     await expect(page.locator("#strip")).not.toHaveClass(/k-open/);

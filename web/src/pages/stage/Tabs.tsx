@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, type CourseRun, type CourseStagePage as Page, type SolutionFile } from "../../api";
-import { handleCodeClick, handleCodeKey, initCodeTabs, renderMd } from "../courseMd";
+import { handleCodeClick, handleCodeKey, highlightDiffLines, initCodeTabs, renderMd } from "../courseMd";
 import { MockCopy } from "../../components/mock";
 import { toast } from "../../components/toasts";
 import { ago } from "./shared";
@@ -67,7 +67,7 @@ export function SolutionTab({ page, onOpen, pending }: { page: Page; onOpen: () 
     const { solution, state } = page;
     const opened = solution.open && !!solution.files;
     // A stand-in for the code behind the blur until it is opened.
-    const dummy: SolutionFile[] = [{ path: "", lines: ["pub fn solution(&mut self) -> Result<()> {", "    let page = self.pool.fetch(id)?;", "    page.write(offset, bytes);", "    Ok(())", "}"] }];
+    const dummy: SolutionFile[] = [{ path: "", lines: [" pub fn solution(&mut self) -> Result<()> {", "     let page = self.pool.fetch(id)?;", "     page.write(offset, bytes);", "     Ok(())", " }"] }];
     const files = opened ? (solution.files as SolutionFile[]) : dummy;
     return (
         <>
@@ -78,11 +78,15 @@ export function SolutionTab({ page, onOpen, pending }: { page: Page; onOpen: () 
                 <div className={`k-sol${opened ? " k-rev" : ""}`} key={f.path || n} style={{ marginBottom: 12 }}>
                     {f.path && <div className="k-solf">{f.path}</div>}
                     <pre aria-hidden={!opened}>
-                        {f.lines.map((l, i) => (
+                        {highlightDiffLines(f.lines).map((html, i) => {
+                            const l = f.lines[i] ?? "";
+                            return (
                             <span key={i} className={`k-l${l.startsWith("+") ? " k-add" : l.startsWith("-") ? " k-del" : ""}`}>
-                                {l || " "}
+                                {l.slice(0, 1) || " "}
+                                <span dangerouslySetInnerHTML={{ __html: html || " " }} />
                             </span>
-                        ))}
+                            );
+                        })}
                     </pre>
                     {!opened && n === 0 && (
                         <div className="k-gate">

@@ -39,6 +39,26 @@ function highlightRust(code: string): string {
     return out + esc(code.slice(at));
 }
 
+/** Highlights the lines of a diff (each starting with ' ', '+' or '-') as Rust, as one file so that a comment or string over several lines stays one token. Gives each line's HTML, without the leading character. */
+export function highlightDiffLines(lines: string[]): string[] {
+    const code = lines.map((l) => l.slice(1)).join("\n");
+    const out: string[] = [""];
+    const put = (text: string, cls?: string) => {
+        text.split("\n").forEach((piece, i) => {
+            if (i > 0) out.push("");
+            if (piece) out[out.length - 1] += cls ? `<span class="${cls}">${esc(piece)}</span>` : esc(piece);
+        });
+    };
+    let at = 0;
+    highlightTree(rust().language.parser.parse(code), rustHighlighter, (from, to, cls) => {
+        if (from > at) put(code.slice(at, from));
+        put(code.slice(from, to), cls);
+        at = to;
+    });
+    put(code.slice(at));
+    return lines.map((_, i) => out[i] ?? "");
+}
+
 const CPP_KEYWORDS = new Set(
     "alignas auto break case catch class const constexpr continue default delete do else enum explicit extern for friend goto if inline mutable namespace new noexcept operator override private protected public register return sizeof static static_assert struct switch template this throw try typedef typename union using virtual volatile while final".split(" "),
 );

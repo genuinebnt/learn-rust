@@ -107,7 +107,7 @@ fn body_end(text: &str, from: usize) -> Option<usize> {
                 }
                 if b.get(j) == Some(&b'"') {
                     j += 1;
-                    let close: Vec<u8> = std::iter::once(b'"').chain(std::iter::repeat(b'#').take(hashes)).collect();
+                    let close: Vec<u8> = std::iter::once(b'"').chain(std::iter::repeat_n(b'#', hashes)).collect();
                     while j < b.len() && !b[j..].starts_with(&close) {
                         j += 1;
                     }
@@ -134,11 +134,9 @@ fn body_end(text: &str, from: usize) -> Option<usize> {
                 } else if b.get(i + 2) == Some(&b'\'') {
                     i += 3;
                     continue;
-                } else if let Some(c) = text[i + 1..].chars().next() {
-                    if text[i + 1 + c.len_utf8()..].starts_with('\'') {
-                        i += 2 + c.len_utf8();
-                        continue;
-                    }
+                } else if let Some(c) = text[i + 1..].chars().next().filter(|c| text[i + 1 + c.len_utf8()..].starts_with('\'')) {
+                    i += 2 + c.len_utf8();
+                    continue;
                 }
             }
             b'(' => paren += 1,

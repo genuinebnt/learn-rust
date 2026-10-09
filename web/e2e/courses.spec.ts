@@ -15,11 +15,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("the map has a button for every module and opens the one you click", async ({ page }) => {
-    const n = await page.locator(".cx-node").count();
+    const n = await page.locator(".cx-mnode").count();
     expect(n).toBeGreaterThanOrEqual(25);
     const header = page.locator("#mod-4a .cx-mh");
     await expect(header).toHaveAttribute("aria-expanded", "false");
-    await page.locator(".cx-node", { hasText: "4A" }).click();
+    await page.locator(".cx-mnode", { hasText: "4A" }).click();
     await expect(header).toHaveAttribute("aria-expanded", "true");
     await expect(page.locator("#mod-4a .cx-srow").first()).toBeVisible();
 });

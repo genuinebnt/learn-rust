@@ -186,7 +186,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                     return (
                                                         <button
                                                             key={m.code}
-                                                            className={`cx-node${done === m.stages.length ? " done" : ""}${m.code === here?.code ? " cur" : ""}`}
+                                                            className={`cx-mnode${done === m.stages.length ? " done" : ""}${m.code === here?.code ? " cur" : ""}`}
                                                             onClick={() => jump(m.code)}
                                                             aria-label={`${m.code.toUpperCase()} ${m.title}: ${done} of ${m.stages.length} passed`}
                                                         >
@@ -239,7 +239,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                 return (
                                                     <section className={`cx-mod${isOpen ? " open" : ""}${m.code === here?.code ? " cur" : ""}`} id={`mod-${m.code}`} key={m.code}>
                                                         <button className="cx-mh" aria-expanded={isOpen} onClick={() => toggle(m.code)} disabled={active}>
-                                                            <span className="cx-chev" aria-hidden="true">›</span>
+                                                            <span className="cx-mchev" aria-hidden="true">›</span>
                                                             <span className="cx-mt">
                                                                 <b>
                                                                     {m.code.toUpperCase()} · {m.title}

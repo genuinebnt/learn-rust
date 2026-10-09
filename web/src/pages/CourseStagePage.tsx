@@ -1,11 +1,13 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { api, type CourseRun, type CourseStagePage as Page, type CourseStageRow, type SolutionFile } from "../api";
+import { api, type CourseRun, type CourseStagePage as Page, type CourseStageRow, type SolutionFile, type StageDifficulty } from "../api";
 import { Header } from "../components/Header";
 import { DIFFICULTY_COLOR, SplitTitle } from "./CoursePage";
 import { renderMd } from "./courseMd";
-import { Celebration, celebrateOff } from "../components/kit";
+import { Celebration, CopyButton, celebrateOff } from "../components/kit";
+import { FocusTimer } from "../components/FocusTimer";
+import { Resizer, usePanels, type PanelsApi } from "./stagePanels";
 
 const md = renderMd;
 type Tab = "instructions" | "hints" | "solution" | "concepts" | "run";
@@ -267,82 +269,135 @@ function RunPanel({ run, stageId }: { run: CourseRun; stageId: string }) {
     );
 }
 
-function Sidebar({ course, page }: { course: string; page: Page }) {
+function Sidebar({ course, page, panels }: { course: string; page: Page; panels: PanelsApi }) {
     const overview = useQuery({ queryKey: ["course", course], queryFn: () => api.course(course) });
     const o = overview.data;
+    const here = page.module.code;
+    // Modules open and close on their own; the one you are in is always open when you arrive in it.
+    const [open, setOpen] = useState<Set<string>>(() => new Set([here]));
+    useEffect(() => setOpen((prev) => (prev.has(here) ? prev : new Set(prev).add(here))), [here]);
+    const [find, setFind] = useState("");
+    const needle = find.trim().toLowerCase();
+    const pct = o && o.total ? Math.round((100 * o.done) / o.total) : 0;
+    const { p: pp, update, drawer, setDrawer } = panels;
+    const toggle = (code: string) =>
+        setOpen((prev) => {
+            const next = new Set(prev);
+            if (!next.delete(code)) next.add(code);
+            return next;
+        });
+    const mine = o?.projects.flatMap((p) => p.modules).find((m) => m.code === here);
+    // Bring the current stage into view in the tree (the tree scrolls, not the page).
+    const tree = useRef<HTMLElement>(null);
+    useEffect(() => {
+        const box = tree.current;
+        const leaf = box?.querySelector<HTMLElement>(".cx-leaf.cur");
+        if (!box || !leaf) return;
+        const top = leaf.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+        box.scrollTop = Math.max(0, top - box.clientHeight / 2);
+    }, [page.stage.id, o]);
     return (
-        <aside className="cx-side">
-            <div className="cx-sh">
-                <small>COURSE</small>
-                <b>{page.course.title}</b>
-                {o && (
-                    <>
-                        <div className="cx-prog">
-                            {o.projects
-                                .flatMap((p) => p.modules)
-                                .flatMap((m) => m.stages)
-                                .map((s) => (
-                                    <i key={s.id} className={s.state !== "todo" ? "d" : ""} />
-                                ))}
-                        </div>
-                        <div className="cx-pl">
-                            {o.done} of {o.total} stages passed
-                        </div>
-                    </>
-                )}
+        <aside className={`cx-side${pp.lc ? " rail" : ""}${drawer === "l" ? " open" : ""}`} aria-label="Course">
+            <Resizer side="l" panels={panels} />
+            <div className="cx-sh2">
+                <span className="cx-cring" style={{ "--p": pct } as React.CSSProperties} aria-hidden="true">
+                    <span>{pct}%</span>
+                </span>
+                <div className="cx-shm">
+                    <b>{page.course.title}</b>
+                    <small>{o ? `${o.done} of ${o.total} stages passed` : ""}</small>
+                </div>
+                <button className="cx-pbtn cx-collapse" aria-label={pp.lc ? "Expand the course panel" : "Collapse the course panel"} title="Collapse (Ctrl/⌘ B)" onClick={() => update({ ...pp, lc: !pp.lc })}>
+                    {pp.lc ? "»" : "«"}
+                </button>
+                <button className="cx-pbtn cx-dclose" aria-label="Close" onClick={() => setDrawer(null)}>
+                    ×
+                </button>
             </div>
-            <nav className="cx-tree" aria-label="Course">
-                {o?.projects.map((p) => (
-                    <Fragment key={p.number}>
-                        <Link className={`cx-node${p.modules.length ? "" : " dim"}`} to="/courses/$course" params={{ course }}>
-                            <span className="cx-nt">
-                                Project {p.number} · {p.title}
-                            </span>
-                            <span className="cx-nc">{p.modules.length ? `${p.modules.flatMap((m) => m.stages).filter((s) => s.state !== "todo").length}/${p.modules.flatMap((m) => m.stages).length}` : "planned"}</span>
-                        </Link>
-                        {p.modules.length > 0 && (
-                            <div className="cx-kids">
-                                {p.modules.map((m) => {
-                                    const here = m.code === page.module.code;
-                                    const open = here;
-                                    return (
-                                        <Fragment key={m.code}>
-                                            <Link className="cx-node" to="/courses/$course/$stage" params={{ course, stage: (m.stages.find((s) => s.state === "todo") ?? m.stages[0])?.id ?? "" }}>
-                                                <span className="cx-car">{open ? "▾" : "▸"}</span>
-                                                <span className="cx-nt">
-                                                    {m.code} · {m.title}
-                                                </span>
-                                                <span className="cx-nc">
-                                                    {m.stages.filter((s) => s.state !== "todo").length}/{m.stages.length}
-                                                </span>
-                                            </Link>
-                                            {open && (
-                                                <div className="cx-leaves">
-                                                    {m.stages.map((s: CourseStageRow, i) => (
-                                                        <Link key={s.id} className={`cx-leaf${s.id === page.stage.id ? " cur" : ""}${s.kind === "boss" ? " boss" : ""}`} to="/courses/$course/$stage" params={{ course, stage: s.id }}>
-                                                            <span className={`cx-si${s.state !== "todo" ? " ok" : s.id === page.stage.id ? " now" : ""}${s.state === "assisted" ? " asst" : ""}`} title={s.state === "assisted" ? "passed with help" : undefined}>{s.state !== "todo" ? "✓" : ""}</span>
-                                                            <span className="cx-ln2">{String(i + 1).padStart(2, "0")}</span>
-                                                            <span className="cx-lt">{s.title}</span>
-                                                            <span className="cx-dot" style={{ background: DIFFICULTY_COLOR[s.difficulty] }} title={s.difficulty} />
-                                                        </Link>
-                                                    ))}
+            <label className="cx-sfind">
+                <span aria-hidden="true">⌕</span>
+                <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="filter stages…" aria-label="Filter stages" autoComplete="off" spellCheck={false} onKeyDown={(e) => e.key === "Escape" && e.currentTarget.blur()} />
+            </label>
+            <nav className="cx-tree" aria-label="Course" ref={tree}>
+                {o?.projects.map((p) => {
+                    const mods = p.modules.filter((m) => !needle || m.stages.some((s) => `${s.title} ${s.id}`.toLowerCase().includes(needle)));
+                    if (needle && mods.length === 0) return null;
+                    return (
+                        <Fragment key={p.number}>
+                            <Link className={`cx-node${p.modules.length ? "" : " dim"}`} to="/courses/$course" params={{ course }}>
+                                <span className="cx-nt">
+                                    Project {p.number} · {p.title}
+                                </span>
+                                <span className="cx-nc">{p.modules.length ? `${p.modules.flatMap((m) => m.stages).filter((s) => s.state !== "todo").length}/${p.modules.flatMap((m) => m.stages).length}` : "planned"}</span>
+                            </Link>
+                            {mods.length > 0 && (
+                                <div className="cx-kids">
+                                    {mods.map((m) => {
+                                        const isOpen = needle ? true : open.has(m.code);
+                                        const leaves = needle ? m.stages.filter((s) => `${s.title} ${s.id}`.toLowerCase().includes(needle)) : m.stages;
+                                        const done = m.stages.filter((s) => s.state !== "todo").length;
+                                        return (
+                                            <Fragment key={m.code}>
+                                                <button className="cx-node cx-mrow" aria-expanded={isOpen} onClick={() => toggle(m.code)} disabled={!!needle}>
+                                                    <span className="cx-car">{isOpen ? "▾" : "▸"}</span>
+                                                    <span className="cx-nt">
+                                                        {m.code} · {m.title}
+                                                    </span>
+                                                    <span className="cx-nc">
+                                                        {done}/{m.stages.length}
+                                                    </span>
+                                                </button>
+                                                <div className={`cx-mbody${isOpen ? " open" : ""}`}>
+                                                    <div inert={!isOpen}>
+                                                        <div className="cx-leaves">
+                                                            {leaves.map((s: CourseStageRow) => (
+                                                                <Link key={s.id} className={`cx-leaf${s.id === page.stage.id ? " cur" : ""}${s.kind === "boss" ? " boss" : ""}`} to="/courses/$course/$stage" params={{ course, stage: s.id }} onClick={() => setDrawer(null)}>
+                                                                    <span className={`cx-si${s.state !== "todo" ? " ok" : s.id === page.stage.id ? " now" : ""}${s.state === "assisted" ? " asst" : ""}`} title={s.state === "assisted" ? "passed with help" : undefined}>{s.state !== "todo" ? "✓" : ""}</span>
+                                                                    <span className="cx-ln2">{s.id.split("-")[1]}</span>
+                                                                    <span className="cx-lt">{s.title}</span>
+                                                                    <DifficultyBars d={s.difficulty} />
+                                                                </Link>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </Fragment>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </Fragment>
-                ))}
+                                            </Fragment>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </Fragment>
+                    );
+                })}
+                {needle && !o?.projects.some((p) => p.modules.some((m) => m.stages.some((s) => `${s.title} ${s.id}`.toLowerCase().includes(needle)))) && <p className="cx-snone">No stage matches that.</p>}
             </nav>
+            <div className="cx-rail" aria-label="This module">
+                {mine?.stages.map((s) => (
+                    <Link key={s.id} className={`cx-rdot${s.id === page.stage.id ? " cur" : ""}`} to="/courses/$course/$stage" params={{ course, stage: s.id }} title={`${s.id.split("-")[1]} · ${s.title}`} aria-label={s.title}>
+                        <span className={`cx-si${s.state !== "todo" ? " ok" : s.id === page.stage.id ? " now" : ""}${s.state === "assisted" ? " asst" : ""}`}>{s.state !== "todo" ? "✓" : ""}</span>
+                    </Link>
+                ))}
+            </div>
         </aside>
+    );
+}
+
+/** Three small bars for the difficulty: one lit for easy, two for medium, three for hard. */
+function DifficultyBars({ d }: { d: StageDifficulty }) {
+    const n = d === "hard" ? 3 : d === "medium" ? 2 : 1;
+    return (
+        <span className="cx-dbars" style={{ color: DIFFICULTY_COLOR[d] }} title={d}>
+            <i className={n >= 1 ? "on" : ""} />
+            <i className={n >= 2 ? "on" : ""} />
+            <i className={n >= 3 ? "on" : ""} />
+        </span>
     );
 }
 
 export function CourseStagePage({ course, stage }: { course: string; stage: string }) {
     const qc = useQueryClient();
     const nav = useNavigate();
+    const panels = usePanels();
     const key = ["course-stage", course, stage];
     // Poll while the page is open and visible: a push in the terminal shows up here within a few seconds.
     const q = useQuery({ queryKey: key, queryFn: () => api.courseStage(course, stage), refetchInterval: 3000 });
@@ -494,6 +549,20 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                     {p.state !== "todo" && <span className="pill">{p.state === "assisted" ? "PASSED · ASSISTED" : "PASSED"}</span>}
                 </div>
                 <div className="sbr">
+                    {(panels.p.lc || panels.p.rc) && (
+                        <span className="cx-reopen">
+                            {panels.p.lc && (
+                                <button onClick={() => panels.update({ ...panels.p, lc: false })} aria-label="Show the course panel" title="Show the course panel (Ctrl/⌘ B)">
+                                    ☰
+                                </button>
+                            )}
+                            {panels.p.rc && (
+                                <button onClick={() => panels.update({ ...panels.p, rc: false })} aria-label="Show the page panel" title="Show the page panel (Ctrl/⌘ .)">
+                                    ▤
+                                </button>
+                            )}
+                        </span>
+                    )}
                     <span className="cx-nav">
                         {p.prev ? (
                             <Link to="/courses/$course/$stage" params={{ course, stage: p.prev.id }} aria-label="Previous stage">
@@ -549,8 +618,20 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                     <button className="x" aria-label="Dismiss" onClick={() => setToast(null)}>×</button>
                 </div>
             )}
-            <div className="cx" style={{ "--ca": "var(--grn)", "--cab": "var(--grn-bg)" } as React.CSSProperties}>
-                <Sidebar course={course} page={p} />
+            <div className="cx-mbar">
+                <button onClick={() => panels.setDrawer(panels.drawer === "l" ? null : "l")} aria-expanded={panels.drawer === "l"}>
+                    ☰ Stages <b>{p.module.stages.findIndex((s) => s.id === p.stage.id) + 1}/{p.module.stages.length}</b>
+                </button>
+                <button onClick={() => panels.setDrawer(panels.drawer === "r" ? null : "r")} aria-expanded={panels.drawer === "r"}>
+                    ▤ This page
+                </button>
+            </div>
+            {panels.drawer && <div className="cx-dbk" onClick={() => panels.setDrawer(null)} aria-hidden="true" />}
+            <div
+                className={`cx${panels.dragging ? " dragging" : ""}${panels.p.lc ? " lc" : ""}${panels.p.rc ? " rc" : ""}`}
+                style={{ "--ca": "var(--grn)", "--cab": "var(--grn-bg)", "--cl": panels.p.lc ? "64px" : `${panels.p.l}px`, "--cr": panels.p.rc ? "0px" : `${panels.p.r}px` } as React.CSSProperties}
+            >
+                <Sidebar course={course} page={p} panels={panels} />
                 <div className="cx-main">
                     <main className="cx-read">
                         <div className="cx-col">
@@ -806,23 +887,69 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                         )}
                     </div>
                 </div>
-                <aside className="cx-toc">
-                    {tab === "instructions" && (
-                    <div>
-                        <h4>ON THIS PAGE</h4>
-                        {toc.map(([id, label]) => (
-                            <a key={id} href={`#${id}`} className={active === id ? "on" : ""} onClick={(e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
-                                {label}
-                            </a>
-                        ))}
+                <aside className={`cx-toc${panels.drawer === "r" ? " open" : ""}`} aria-label="This page">
+                    <Resizer side="r" panels={panels} />
+                    <div className="cx-tscroll">
+                        {tab === "instructions" && (
+                            <section className="cx-card">
+                                <h4>
+                                    <span>ON THIS PAGE</span>
+                                    <button className="cx-pbtn cx-collapse" aria-label="Hide the page panel" title="Hide (Ctrl/⌘ .)" onClick={() => panels.update({ ...panels.p, rc: true })}>
+                                        »
+                                    </button>
+                                    <button className="cx-pbtn cx-dclose" aria-label="Close" onClick={() => panels.setDrawer(null)}>
+                                        ×
+                                    </button>
+                                </h4>
+                                <div className="cx-outline">
+                                    {toc.map(([id, label]) => (
+                                        <a key={id} href={`#${id}`} className={active === id ? "on" : ""} onClick={(e) => { e.preventDefault(); panels.setDrawer(null); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+                                            {label}
+                                        </a>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                        {p.concepts.length > 0 && (
+                            <section className="cx-card">
+                                <h4>
+                                    <span>CONCEPTS</span>
+                                    <button className="cx-pbtn cx-link" onClick={() => (pick("concepts"), panels.setDrawer(null))}>
+                                        {p.concepts.length} ›
+                                    </button>
+                                </h4>
+                                {p.concepts.map((k) => (
+                                    <Link key={k.id} className="cx-crow" to="/courses/$course/concept/$id" params={{ course, id: k.id }}>
+                                        <b>{k.title}</b>
+                                        <small>{k.minutes} min read</small>
+                                    </Link>
+                                ))}
+                            </section>
+                        )}
+                        <section className="cx-card">
+                            <h4>
+                                <span>THIS STAGE</span>
+                            </h4>
+                            <div className="cx-cmdline">
+                                <code>anneal course test {p.stage.id}</code>
+                                <CopyButton text={`anneal course test ${p.stage.id}`} />
+                            </div>
+                            <div className="cx-kv">
+                                <span>Last run</span>
+                                <b>{p.last_run ? (p.last_run.problem ? "did not run" : `${p.last_run.passed} / ${p.last_run.total} · ${ago(p.last_run.at)}`) : "none yet"}</b>
+                            </div>
+                            <div className="cx-kv">
+                                <span>Hints used</span>
+                                <b>
+                                    {p.hints.revealed.length} / {p.hints.total}
+                                </b>
+                            </div>
+                            <p className="cx-keys">
+                                <kbd>[</kbd> <kbd>]</kbd> previous / next stage
+                            </p>
+                        </section>
                     </div>
-                    )}
-                    <div>
-                        <h4>SHORTCUTS</h4>
-                        <p>
-                            <kbd>[</kbd> <kbd>]</kbd> previous / next stage
-                        </p>
-                    </div>
+                    <FocusTimer />
                 </aside>
             </div>
         </>

@@ -59,7 +59,11 @@ pub enum CourseCmd {
         stages: Vec<String>,
     },
     /// Where you are: the current module and stage, and what's done.
-    Status,
+    Status {
+        /// Print the progress as JSON (for scripts and editors).
+        #[arg(long)]
+        json: bool,
+    },
     /// Print a stage's README (default: the current stage).
     Show { stage: Option<String> },
     /// Run a stage's tests (default: the current stage, then the earlier stages as a regression check).
@@ -75,9 +79,19 @@ pub enum CourseCmd {
         /// Show every failure in full (the default shows each distinct failure once, cleaned of thread ids and backtrace notes).
         #[arg(short, long)]
         verbose: bool,
+        /// Run only the tests whose name contains this text (in the test files of the stage).
+        #[arg(short, long)]
+        filter: Option<String>,
+        /// Run again whenever a file under src/ or tests/ changes, until the stage passes (Ctrl-C stops).
+        #[arg(short, long)]
+        watch: bool,
     },
     /// Show the next stage's README. Run after the current stage passes.
     Next,
+    /// Check the tools and the setup a learner needs: rust, git, curl, the hook, the login, the queue, the build directory.
+    Doctor,
+    /// Send the test runs that could not be reported earlier (no network, an expired session).
+    Sync,
     /// Install (or reinstall) the git hooks in this repo.
     Hooks,
     /// Bring in the stages, tests and stubs added since `init` (new modules), without touching your code.
@@ -711,10 +725,15 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
         }
         CourseCmd::Lint { course, courses, all } => lint(&course, &courses, all),
         CourseCmd::Solutions { course, courses, out, stages } => solutions(&course, &courses, out, &stages),
-        CourseCmd::Status => status(),
+        CourseCmd::Status { json } => status(json),
         CourseCmd::Show { stage } => show(stage.as_deref()),
-        CourseCmd::Test { stage, all, only, verbose } => test(stage.as_deref(), TestOpts { all, only, verbose, hook: false }),
+        CourseCmd::Test { stage, all, only, verbose, filter, watch } => test_command(stage.as_deref(), TestOpts { all, only, verbose, hook: false }, filter.as_deref(), watch),
         CourseCmd::Next => next(),
+        CourseCmd::Doctor => doctor(),
+        CourseCmd::Sync => {
+            course_sync::sync(&find_repo()?)?;
+            Ok(ExitCode::SUCCESS)
+        }
         CourseCmd::Update { course, courses } => update(&course, &courses),
         CourseCmd::Hooks => {
             install_hooks(&find_repo()?)?;
@@ -722,7 +741,7 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         CourseCmd::Hook { name } => match name.as_str() {
-            "pre-push" => test(None, TestOpts { all: false, only: false, verbose: false, hook: true }),
+            "pre-push" => test(None, TestOpts { all: false, only: false, verbose: false, hook: true }, None),
             other => bail!("no hook {other:?}"),
         },
         CourseCmd::Build { stage, full, out, course, courses } => {
@@ -884,15 +903,24 @@ fn maybe_unlock(repo: &Path, course: &Course, progress: &Progress) -> anyhow::Re
     Ok(())
 }
 
-/// Where the course files are: `courses/<id>` here, else the checkout this binary was built from, so `anneal course init bustub` works
-/// from any directory after `cargo install --path crates/cli`.
+/// Where the course files are: `courses/<id>` here, else the checkout this binary was built from, else the courses compiled into the
+/// binary, so `anneal course init bustub` works from any directory after `cargo install --git ... anneal-cli`.
 fn course_root(courses: &Path, id: &str) -> PathBuf {
     let here = courses.join(id);
-    if here.join("course.toml").exists() {
+    // ANNEAL_EMBEDDED_ONLY=1 skips the two directories (the smoke test uses it to check the compiled-in copy)
+    let embedded_only = std::env::var_os("ANNEAL_EMBEDDED_ONLY").is_some();
+    if !embedded_only && here.join("course.toml").exists() {
         return here;
     }
     let built_from = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../courses").join(id);
-    if built_from.join("course.toml").exists() { built_from } else { here }
+    if !embedded_only && built_from.join("course.toml").exists() {
+        return built_from;
+    }
+    // Neither: the courses compiled into this binary (a `cargo install --git` has no checkout).
+    match crate::embedded::courses_dir() {
+        Ok(Some(dir)) if dir.join(id).join("course.toml").exists() => dir.join(id),
+        _ => here,
+    }
 }
 
 fn init(course_id: &str, dir: Option<PathBuf>, courses: &Path) -> anyhow::Result<ExitCode> {
@@ -1017,31 +1045,143 @@ fn install_hooks(repo: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn status() -> anyhow::Result<ExitCode> {
+/// A text bar of `width` cells, `done` of `total` filled.
+fn bar(done: usize, total: usize, width: usize) -> String {
+    let filled = if total == 0 {
+        0
+    } else if done >= total {
+        width
+    } else {
+        // proportional, but a started bar shows something and an unfinished one is never full
+        (done * width / total).max(usize::from(done > 0)).min(width.saturating_sub(1))
+    };
+    format!("{}{}", "█".repeat(filled), "░".repeat(width - filled))
+}
+
+/// The first line `tool --version` prints, if the tool runs.
+fn tool_version(tool: &str) -> Option<String> {
+    let out = Command::new(tool).arg("--version").stdin(Stdio::null()).output().ok()?;
+    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).lines().next().unwrap_or("").trim().to_owned())
+}
+
+/// The total size of the files under `dir`.
+fn dir_size(dir: &Path) -> u64 {
+    let Ok(entries) = fs::read_dir(dir) else { return 0 };
+    entries.flatten().map(|e| match e.metadata() {
+        Ok(m) if m.is_dir() => dir_size(&e.path()),
+        Ok(m) => m.len(),
+        Err(_) => 0,
+    }).sum()
+}
+
+/// `anneal course doctor`: what is set up and what is not, with the fix for each problem.
+fn doctor() -> anyhow::Result<ExitCode> {
+    use crate::term::{green, red};
+    let mut bad = 0;
+    let mut line = |ok: Option<bool>, what: &str, detail: String| {
+        let mark = match ok {
+            Some(true) => green("✓"),
+            Some(false) => {
+                bad += 1;
+                red("✗")
+            }
+            None => "!".to_owned(),
+        };
+        println!("  {mark} {what:<14} {detail}");
+    };
+    println!("anneal {}\n", env!("CARGO_PKG_VERSION"));
+    // (tool, required, how to get it); curl is only needed to report runs to the web app
+    for (tool, required, fix) in [("rustc", true, "install Rust: https://rustup.rs"), ("cargo", true, "install Rust: https://rustup.rs"), ("git", true, "install git"), ("curl", false, "install curl (needed only to report runs)")] {
+        match tool_version(tool) {
+            Some(v) => line(Some(true), tool, v),
+            None => line(if required { Some(false) } else { None }, tool, format!("not found: {fix}")),
+        }
+    }
+    match find_repo() {
+        Err(_) => line(None, "repo", "not inside a course repo (run this from the folder `anneal course init` made)".into()),
+        Ok(repo) => {
+            let course = learner_course(&repo)?;
+            let progress = load_progress(&repo);
+            line(Some(true), "repo", format!("{} · {} of {} stages done", course.meta.title, progress.passed.len(), course.stages.len()));
+            let hook = fs::read_to_string(repo.join(".git/hooks/pre-push")).unwrap_or_default();
+            if hook.contains("anneal") {
+                line(Some(true), "git hook", "pre-push runs the tests".into());
+            } else {
+                line(Some(false), "git hook", "missing: run `anneal course hooks`".into());
+            }
+            let queued = course_sync::queued_runs(&repo);
+            if queued > 0 {
+                line(None, "queued runs", format!("{queued} waiting: `anneal course sync`"));
+            }
+            let target = dir_size(&repo.join("target"));
+            let gb = target as f64 / 1e9;
+            if gb > 8.0 {
+                line(None, "build dir", format!("target/ is {gb:.1} GB: `cargo clean` frees it"));
+            } else {
+                line(Some(true), "build dir", format!("target/ is {gb:.1} GB"));
+            }
+        }
+    }
+    match course_sync::session_status() {
+        None => line(None, "web app", "not signed in (optional): `anneal course login <url>` to report runs".into()),
+        Some((url, Ok(st))) if st < 400 => line(Some(true), "web app", format!("signed in to {url}")),
+        Some((url, Ok(st))) => line(Some(false), "web app", format!("{url} answered {st}: `anneal course login {url}` again")),
+        Some((url, Err(e))) => line(None, "web app", format!("{url} is not reachable ({e}); runs are queued until it is")),
+    }
+    Ok(if bad == 0 { ExitCode::SUCCESS } else { ExitCode::FAILURE })
+}
+
+fn status(json: bool) -> anyhow::Result<ExitCode> {
+    use crate::term::{bold, dim, green};
     let repo = find_repo()?;
     let course = learner_course(&repo)?;
     let progress = load_progress(&repo);
-    println!("{}", course.meta.title);
     let cur = current(&course, &progress).map(|s| s.def.id.clone());
-    let mut last_module = String::new();
+    let total = course.stages.len();
+    let done = course.stages.iter().filter(|s| progress.passed.contains_key(&s.def.id)).count();
+    let mut modules: Vec<(String, String, Vec<&Stage>)> = Vec::new();
     for s in &course.stages {
-        if s.module != last_module {
-            let total = course.stages.iter().filter(|x| x.module == s.module).count();
-            let done = course.stages.iter().filter(|x| x.module == s.module && progress.passed.contains_key(&x.def.id)).count();
-            println!("\n{}  {}  ({done}/{total})", s.module, s.module_title);
-            last_module = s.module.clone();
+        match modules.last_mut() {
+            Some(m) if m.0 == s.module => m.2.push(s),
+            _ => modules.push((s.module.clone(), s.module_title.clone(), vec![s])),
         }
-        let mark = if progress.passed.contains_key(&s.def.id) {
-            "✓"
-        } else if Some(&s.def.id) == cur.as_ref() {
-            "→"
-        } else {
-            " "
-        };
-        println!("  {mark} {:<8} {:<9} {}", s.def.id, s.def.difficulty, s.def.title);
     }
-    match cur {
-        Some(id) => println!("\nCurrent: {id}. `anneal course show` to read it, `anneal course test` to run it."),
+    if json {
+        let mods: Vec<serde_json::Value> = modules
+            .iter()
+            .map(|(code, title, stages)| {
+                let d = stages.iter().filter(|s| progress.passed.contains_key(&s.def.id)).count();
+                serde_json::json!({
+                    "code": code, "title": title, "done": d, "total": stages.len(),
+                    "stages": stages.iter().map(|s| serde_json::json!({
+                        "id": s.def.id, "title": s.def.title, "difficulty": s.def.difficulty, "kind": s.def.kind,
+                        "state": if progress.passed.contains_key(&s.def.id) { "done" } else if Some(&s.def.id) == cur.as_ref() { "current" } else { "todo" },
+                    })).collect::<Vec<_>>(),
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "course": course.meta.id, "title": course.meta.title, "done": done, "total": total, "current": cur, "modules": mods }))?);
+        return Ok(ExitCode::SUCCESS);
+    }
+    println!("{}   {}", bold(&course.meta.title), dim(&format!("{done} of {total} stages · {}%", (done * 100).checked_div(total).unwrap_or(0))));
+    println!("{}", bar(done, total, 40));
+    for (code, title, stages) in &modules {
+        let d = stages.iter().filter(|s| progress.passed.contains_key(&s.def.id)).count();
+        let header = format!("{code}  {title}  ({d}/{})  {}", stages.len(), bar(d, stages.len(), 10));
+        println!("\n{}", if d == stages.len() { green(&header) } else { header });
+        for s in stages {
+            let mark = if progress.passed.contains_key(&s.def.id) {
+                green("✓")
+            } else if Some(&s.def.id) == cur.as_ref() {
+                bold("→")
+            } else {
+                " ".to_owned()
+            };
+            println!("  {mark} {:<8} {:<9} {}", s.def.id, s.def.difficulty, s.def.title);
+        }
+    }
+    match cur.as_deref().and_then(|id| course.stage(id).ok()) {
+        Some(s) => println!("\nNext up: {} · {} ({}). `anneal course show` to read it, `anneal course test` to run it.", s.def.id, s.def.title, s.def.difficulty),
         None => println!("\nEvery stage is done."),
     }
     Ok(ExitCode::SUCCESS)
@@ -1095,6 +1235,50 @@ fn next() -> anyhow::Result<ExitCode> {
     }
 }
 
+/// `anneal course test`: once, or (with `--watch`) again after every change to the learner's files until the stage passes.
+fn test_command(stage: Option<&str>, opts: TestOpts, filter: Option<&str>, watch: bool) -> anyhow::Result<ExitCode> {
+    if !watch {
+        return test(stage, opts, filter);
+    }
+    let repo = find_repo()?;
+    loop {
+        if std::io::IsTerminal::is_terminal(&std::io::stdout()) {
+            print!("\x1b[2J\x1b[H");
+        }
+        let code = test(stage, opts, filter)?;
+        if code == ExitCode::SUCCESS && filter.is_none() {
+            return Ok(code);
+        }
+        println!("\n{}", crate::term::dim("Watching src/ and tests/ for changes (Ctrl-C to stop)..."));
+        let before = newest_change(&repo);
+        while newest_change(&repo) == before {
+            std::thread::sleep(Duration::from_millis(400));
+        }
+    }
+}
+
+/// The latest modification time of anything the learner edits.
+fn newest_change(repo: &Path) -> Option<SystemTime> {
+    fn walk(dir: &Path, newest: &mut Option<SystemTime>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for e in entries.flatten() {
+            let path = e.path();
+            if path.is_dir() {
+                walk(&path, newest);
+            } else if let Ok(m) = e.metadata().and_then(|m| m.modified())
+                && newest.is_none_or(|n| m > n)
+            {
+                *newest = Some(m);
+            }
+        }
+    }
+    let mut newest = None;
+    for d in ["src", "tests"] {
+        walk(&repo.join(d), &mut newest);
+    }
+    newest
+}
+
 /// What `anneal course test` was asked to do.
 #[derive(Clone, Copy)]
 struct TestOpts {
@@ -1117,7 +1301,7 @@ fn failure_code(opts: TestOpts, block_on_fail: bool, nothing_ran: bool) -> ExitC
     }
 }
 
-fn test(stage: Option<&str>, opts: TestOpts) -> anyhow::Result<ExitCode> {
+fn test(stage: Option<&str>, opts: TestOpts, filter: Option<&str>) -> anyhow::Result<ExitCode> {
     use crate::term::{bold, dim, green, red};
     let TestOpts { all, only, verbose, .. } = opts;
     crate::term::enable_progress();
@@ -1138,12 +1322,25 @@ fn test(stage: Option<&str>, opts: TestOpts) -> anyhow::Result<ExitCode> {
     let done = progress.passed.len();
     println!("{}  {}\n", bold(&format!("Stage {} · {}", target.def.id, target.def.title)), dim(&format!("({done} of {} stages done)", course.stages.len())));
     let started = Instant::now();
-    let report = run_entries(&repo, &target.def.tests, None, Duration::from_secs(180));
+    let entries: Vec<String> = match filter {
+        // the stage's test files, but only the tests with this text in their name
+        Some(f) => {
+            let mut bins: Vec<String> = target.def.tests.iter().map(|t| t.split("::").next().unwrap_or(t).to_owned()).collect();
+            bins.sort();
+            bins.dedup();
+            bins.into_iter().map(|b| format!("{b}::{f}")).collect()
+        }
+        None => target.def.tests.clone(),
+    };
+    let report = run_entries(&repo, &entries, None, Duration::from_secs(180));
     print_report(&report, verbose);
     let ok = report.passed();
+    if filter.is_some() {
+        return Ok(if ok { ExitCode::SUCCESS } else { failure_code(opts, cfg.block_on_fail, report.tests.is_empty()) });
+    }
     {
         let tests: Vec<(String, bool, String)> = report.tests.iter().map(|t| (t.name.clone(), t.ok, t.detail.lines().filter(|l| !l.trim().is_empty()).take(6).collect::<Vec<_>>().join("\n"))).collect();
-        course_sync::report_run(&course.meta.id, &target.def.id, &tests, report.problem.as_deref(), &head_commit(&repo), started.elapsed().as_millis() as u64);
+        course_sync::report_run(&repo, &course.meta.id, &target.def.id, &tests, report.problem.as_deref(), &head_commit(&repo), started.elapsed().as_millis() as u64);
     }
     if !ok {
         println!("\n{} `anneal course show {}` has the task and hints; `-v` shows every failure in full.", red("Not yet."), target.def.id);
@@ -1528,4 +1725,18 @@ fn verify_unlock_states(course: &Course, reference: &Path, full: &Path, work: &P
         }
     }
     Ok(problems)
+}
+
+#[cfg(test)]
+mod bar_tests {
+    use super::bar;
+
+    #[test]
+    fn a_progress_bar_is_never_full_until_done_and_never_empty_once_started() {
+        assert_eq!(bar(0, 10, 10), "░░░░░░░░░░");
+        assert_eq!(bar(1, 100, 10), "█░░░░░░░░░");
+        assert_eq!(bar(99, 100, 10), "█████████░");
+        assert_eq!(bar(10, 10, 10), "██████████");
+        assert_eq!(bar(0, 0, 4), "░░░░");
+    }
 }

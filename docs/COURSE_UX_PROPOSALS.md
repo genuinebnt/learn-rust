@@ -1,6 +1,6 @@
 # Course UX proposals: CLI, tables and the web (2026-10-09)
 
-Proposals only; nothing here is built (CLAUDE.md: propose extras with a recommendation, mock up UI changes first). Based on running the CLI as a
+Status (2026-10-09): the CLI items 1, 2, 3 (`--watch`, `--filter`, `--only`), 5 (`status` progress and `--json`), 6 (the courses are compiled into the binary), 7 (a queue for runs that cannot be reported, `sync`), 8 (`doctor`) and 9 (`--version`, `completions`) are built; item 4 (a rendered `show`, `--hint`) and the table/web items are not. Written first as proposals (CLAUDE.md: propose extras with a recommendation, mock up UI changes first). Based on running the CLI as a
 learner (`anneal course init`, `status`, `show`, `test`) and reading the web styles; the web pages were **not** rendered in a browser for this
 review, so the UI items are from the CSS and need a screenshot pass before mockups. The CLI guidance follows the rust-skills CLI guide (stderr
 for errors, TTY and `NO_COLOR` detection, non-zero exit codes, `indicatif` progress, `clap_complete`).
@@ -64,3 +64,20 @@ Other web ideas: show the CLI command next to each stage (`anneal course test 4a
 
 Recommendation: do the table basics (tabular numbers, sticky headers, phone cards) as one change after a screenshot review, then mock up
 the tests-tab regrouping before building it.
+
+## What was built (CLI)
+
+- `anneal course test`: exit 1 when tests fail, 2 when nothing could run; failures grouped by message and cleaned of thread ids and
+  backtrace notes (`-v` for everything); a spinner while cargo compiles (terminals only); colour on terminals and not under `NO_COLOR`;
+  `--only` (skip the regression run), `--filter TEXT` (tests with that text in their name; a filtered run never records progress),
+  `--watch` (re-run on every change under `src/` and `tests/` until the stage passes); a pipe closed early (`| head`) ends quietly.
+- `anneal course status`: a bar for the whole course and one per module, `Next up`, and `--json`.
+- Download: the learner-facing part of every course (stage definitions and the template, never the reference) is compiled into the binary
+  (`crates/cli/build.rs`), so `cargo install --git <repo> anneal-cli` followed by `anneal course init bustub` needs no checkout.
+  `ANNEAL_EMBEDDED_ONLY=1` makes the CLI ignore directories and use only the compiled-in copy (the smoke test checks that it builds the same repo).
+- Upload: a run that cannot be reported (no network, a server error, an expired session) is queued in `.anneal/outbox.jsonl` and sent with
+  the next report or `anneal course sync`; the message says what happened and how many are waiting.
+- `anneal course doctor` (rust, cargo, git, curl, the hook, the queue, the size of `target/`, the login) and `anneal completions <shell>`.
+
+Not built: a rendered `show` with a pager and `--hint`, the device-code login (the passphrase prompt is unchanged), a template download from
+the web app (superseded by compiling the courses into the binary), and the table and web items above.

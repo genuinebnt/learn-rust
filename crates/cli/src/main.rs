@@ -1,6 +1,7 @@
 mod course;
 mod course_sync;
 mod course_unlock;
+mod embedded;
 mod term;
 
 use std::path::PathBuf;
@@ -15,6 +16,7 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(
     name = "anneal",
+    version,
     about = "Tools for the anneal Rust interview-prep platform"
 )]
 struct Cli {
@@ -31,6 +33,10 @@ enum Command {
     Validate,
     /// Prompt for a login passphrase and print the ANNEAL_PASSPHRASE_HASH value for it.
     Passphrase,
+    /// Print a shell completion script: `anneal completions zsh > ~/.zfunc/_anneal` (bash, zsh, fish, elvish, powershell).
+    Completions {
+        shell: clap_complete::Shell,
+    },
     /// CodeCrafters-style courses (docs/BUSTUB.md): create a repo, run a stage's tests, and the git hooks.
     #[command(subcommand)]
     Course(course::CourseCmd),
@@ -83,6 +89,11 @@ async fn main() -> anyhow::Result<ExitCode> {
     if let Command::Passphrase = cli.command {
         return passphrase();
     }
+    if let Command::Completions { shell } = cli.command {
+        let mut cmd = <Cli as clap::CommandFactory>::command();
+        clap_complete::generate(shell, &mut cmd, "anneal", &mut std::io::stdout());
+        return Ok(ExitCode::SUCCESS);
+    }
     // Courses run on the learner's machine, without the content directory.
     let cli = match cli.command {
         Command::Course(cmd) => return course::run(cmd),
@@ -91,7 +102,7 @@ async fn main() -> anyhow::Result<ExitCode> {
     let Loaded { catalog, issues } = Catalog::load(&cli.content)
         .with_context(|| format!("loading {}", cli.content.display()))?;
     match cli.command {
-        Command::Passphrase | Command::Course(_) => unreachable!("handled before loading content"),
+        Command::Passphrase | Command::Completions { .. } | Command::Course(_) => unreachable!("handled before loading content"),
         Command::Validate => {
             let problems: usize = catalog.tracks.iter().map(|t| t.problems.len()).sum();
             let mut issues: Vec<String> = issues.iter().map(ToString::to_string).collect();

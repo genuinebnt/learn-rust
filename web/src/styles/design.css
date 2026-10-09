@@ -120,6 +120,8 @@ code,pre,kbd,.m,textarea{font-variant-ligatures:none;font-feature-settings:"liga
 .chip.on{border-color:var(--acc);background:var(--acc-bg);color:var(--acc)}
 .tblw{border:1px solid var(--line2);border-radius:8px;background:var(--panel);overflow-x:auto}
 .tbl{min-width:900px}
+/* columns of digits line up: counts, times, percentages in every table */
+.tr,.num,.best,.lvl,.ptable td,.cx-prose .cx-tbl td{font-variant-numeric:tabular-nums}
 .tr{display:grid;gap:0 16px;align-items:center;min-height:60px;padding:8px 24px;border-bottom:1px solid var(--line2)}
 .tbl>.tr:last-child{border-bottom:0}
 a.tr:hover{background:var(--sel)}

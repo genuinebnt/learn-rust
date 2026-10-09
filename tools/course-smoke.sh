@@ -30,6 +30,13 @@ git config user.name t
 "$A" course status | head -6
 if "$A" course test | grep -q "^✓ Stage .* complete"; then echo "BUG: stage 1 passed on the stub"; exit 1; fi
 if "$A" course test >/dev/null 2>&1; then echo "BUG: a failing stage exits 0"; exit 1; fi
+"$A" course status --json | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["total"] > 0 and d["done"] == 0 and d["current"]' || { echo "BUG: status --json"; exit 1; }
+"$A" course doctor >/dev/null || { echo "BUG: doctor found a problem on a fresh repo"; exit 1; }
+"$A" completions zsh | grep -q "compdef" || { echo "BUG: completions"; exit 1; }
+
+echo "== the courses compiled into the binary make the same repo as the checkout does (no checkout needed)"
+ANNEAL_EMBEDDED_ONLY=1 XDG_CACHE_HOME="$WORK/cache" "$A" course init "$COURSE" "$WORK/from-binary" >/dev/null
+test "$(git -C "$WORK/from-binary" ls-files | wc -l)" = "$(git -C "$WORK/learner" ls-files | wc -l)" || { echo "BUG: the embedded course differs from the checkout's"; exit 1; }
 
 echo "== only the first module is in the learner's repo"
 test ! -e src/storage/disk/disk_scheduler.rs || { echo "BUG: module 1b's file is visible at the start"; exit 1; }

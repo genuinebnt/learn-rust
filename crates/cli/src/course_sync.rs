@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use anyhow::{Context, bail};
@@ -109,18 +109,106 @@ struct TestReport<'a> {
     detail: &'a str,
 }
 
-/// Reports one stage run, if a session exists. Never fails the caller.
-pub fn report_run(course: &str, stage: &str, tests: &[(String, bool, String)], problem: Option<&str>, commit: &str, ms: u64) {
+/// Where runs wait when the app cannot be reached: one JSON line per run, in the learner's repo.
+fn outbox_path(repo: &Path) -> PathBuf {
+    repo.join(".anneal").join("outbox.jsonl")
+}
+
+fn queued(repo: &Path) -> Vec<String> {
+    fs::read_to_string(outbox_path(repo)).map(|t| t.lines().filter(|l| !l.trim().is_empty()).map(str::to_owned).collect()).unwrap_or_default()
+}
+
+fn save_queue(repo: &Path, lines: &[String]) {
+    let path = outbox_path(repo);
+    if lines.is_empty() {
+        let _ = fs::remove_file(path);
+    } else {
+        let _ = fs::write(path, lines.join("\n") + "\n");
+    }
+}
+
+/// How a send went: delivered, worth retrying later (no network, a server error, an expired session), or refused for good.
+enum Sent {
+    Delivered,
+    Retry(String),
+    Refused(String),
+}
+
+fn send(s: &Session, course: &str, body: &str) -> Sent {
+    match curl("POST", &format!("{}/api/courses/{course}/runs", s.url), Some(&s.token), Some(body)) {
+        Ok((200, ..)) => Sent::Delivered,
+        Ok((401, ..)) => Sent::Retry(format!("the session at {} expired: run `anneal course login {}`", s.url, s.url)),
+        Ok((404, ..)) => Sent::Refused(format!("{} doesn't know this stage; it may not be published there yet", s.url)),
+        Ok((st, _, b)) if st >= 500 => Sent::Retry(format!("the server answered {st}: {}", b.trim())),
+        Ok((st, _, b)) => Sent::Refused(format!("{st}: {}", b.trim())),
+        Err(e) => Sent::Retry(format!("can't reach {}: {e}", s.url)),
+    }
+}
+
+/// Sends the queued runs, oldest first, stopping at the first one that cannot be delivered right now. Returns (sent, refused, left).
+fn flush(repo: &Path, s: &Session) -> (usize, usize, usize) {
+    let lines = queued(repo);
+    let (mut sent, mut refused) = (0, 0);
+    let mut left: Vec<String> = Vec::new();
+    for (k, line) in lines.iter().enumerate() {
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
+            refused += 1;
+            continue;
+        };
+        let (course, body) = (v["course"].as_str().unwrap_or(""), v["body"].to_string());
+        match send(s, course, &body) {
+            Sent::Delivered => sent += 1,
+            Sent::Refused(_) => refused += 1,
+            Sent::Retry(_) => {
+                left.extend(lines[k..].iter().cloned());
+                break;
+            }
+        }
+    }
+    save_queue(repo, &left);
+    (sent, refused, left.len())
+}
+
+/// Reports one stage run, if a session exists. Never fails the caller. A run that cannot be delivered now is queued in
+/// `.anneal/outbox.jsonl` and goes out with the next report or `anneal course sync`.
+pub fn report_run(repo: &Path, course: &str, stage: &str, tests: &[(String, bool, String)], problem: Option<&str>, commit: &str, ms: u64) {
     let Some(s) = load_session() else { return };
     let tests: Vec<TestReport> = tests.iter().map(|(n, ok, d)| TestReport { name: n.rsplit("::").next().unwrap_or(n), ok: *ok, detail: d }).collect();
-    let body = serde_json::json!({ "stage_id": stage, "tests": tests, "problem": problem, "commit": commit, "duration_ms": ms }).to_string();
-    match curl("POST", &format!("{}/api/courses/{course}/runs", s.url), Some(&s.token), Some(&body)) {
-        Ok((200, ..)) => println!("\nReported to {}", s.url),
-        Ok((401, ..)) => println!("\nNot reported: the session at {} expired. Run `anneal course login {}`.", s.url, s.url),
-        Ok((404, ..)) => println!("\nNot reported: {} doesn't know stage {stage}. It may not be published there yet.", s.url),
-        Ok((st, _, b)) => println!("\nNot reported ({st}): {}", b.trim()),
-        Err(e) => println!("\nNot reported: {e}"),
+    let body = serde_json::json!({ "stage_id": stage, "tests": tests, "problem": problem, "commit": commit, "duration_ms": ms });
+    let (earlier, ..) = flush(repo, &s);
+    match send(&s, course, &body.to_string()) {
+        Sent::Delivered => {
+            let more = if earlier > 0 { format!(" (and {earlier} earlier queued run{})", if earlier == 1 { "" } else { "s" }) } else { String::new() };
+            println!("\nReported to {}{more}", s.url);
+        }
+        Sent::Retry(why) => {
+            let mut q = queued(repo);
+            q.push(serde_json::json!({ "course": course, "body": body }).to_string());
+            let n = q.len();
+            save_queue(repo, &q);
+            println!("\nNot reported yet: {why}.\nQueued ({n} waiting); `anneal course sync` or your next test run sends them.");
+        }
+        Sent::Refused(why) => println!("\nNot reported: {why}"),
     }
+}
+
+/// `anneal course sync`: sends what is queued.
+pub fn sync(repo: &Path) -> anyhow::Result<()> {
+    let s = load_session().context("not signed in: run `anneal course login <url>` first")?;
+    let waiting = queued(repo).len();
+    if waiting == 0 {
+        println!("Nothing waiting to be reported.");
+        return Ok(());
+    }
+    let (sent, refused, left) = flush(repo, &s);
+    println!("Sent {sent} of {waiting} queued run{} to {}.", if waiting == 1 { "" } else { "s" }, s.url);
+    if refused > 0 {
+        println!("{refused} the server refused and dropped (an unknown stage, for example).");
+    }
+    if left > 0 {
+        bail!("{left} still waiting: the server can't be reached or the session expired (`anneal course login {}`)", s.url);
+    }
+    Ok(())
 }
 
 #[derive(Serialize)]
@@ -196,4 +284,16 @@ pub fn push_solutions(course: &str, stages: &BTreeMap<String, Vec<SolutionFile>>
         println!("Skipped {} the server doesn't publish yet: {}", skipped.len(), skipped.join(", "));
     }
     Ok(())
+}
+
+/// For `anneal course doctor`: the signed-in app's address, and whether it answers.
+pub fn session_status() -> Option<(String, anyhow::Result<u16>)> {
+    let s = load_session()?;
+    let answer = curl("GET", &format!("{}/api/courses/bustub", s.url), Some(&s.token), None).map(|(st, ..)| st);
+    Some((s.url, answer))
+}
+
+/// For `anneal course doctor`: how many runs wait to be reported.
+pub fn queued_runs(repo: &Path) -> usize {
+    queued(repo).len()
 }

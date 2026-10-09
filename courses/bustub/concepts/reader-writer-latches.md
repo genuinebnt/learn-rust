@@ -138,7 +138,7 @@ fn a_writer_that_panics_poisons_the_latch() {
 
 ### In the exercises
 
-- **1b-03 (`ReaderWriterLatch`):** a thin wrapper over `RwLock<T>` whose `read()` and `write()` ignore poisoning with `unwrap_or_else(PoisonError::into_inner)` (the third example), because the data is plain page bytes.
+- **1b-05 (`ReaderWriterLatch`):** a thin wrapper over `RwLock<T>` whose `read()` and `write()` ignore poisoning with `unwrap_or_else(PoisonError::into_inner)` (the third example), because the data is plain page bytes.
 - **1g-01 (page guards):** `ReadPageGuard` holds an `RwLockReadGuard`, `WritePageGuard` an `RwLockWriteGuard`. You will store each in an `Option`, so `release()` can `take()` and drop it *before* unpinning.
 - **2b-08 and 2b-10 (insert and remove):** the directory is taken with `write_page` from the start, because you cannot upgrade a read latch (see the second example).
 

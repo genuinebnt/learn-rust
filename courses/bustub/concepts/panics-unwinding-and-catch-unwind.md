@@ -139,7 +139,7 @@ fn a_contract_pinned_by_should_panic() {
 
 ### In the exercises
 
-- **1b-03 Part 2:** wrap the disk call in `catch_unwind(AssertUnwindSafe(..))`, map a panic to `Err(io::Error::other("the disk panicked"))` and `set` it on the request's promise (the second test above is the loop you need).
+- **1b-04:** wrap the disk call in `catch_unwind(AssertUnwindSafe(..))`, map a panic to `Err(io::Error::other("the disk panicked"))` and `set` it on the request's promise (the second test above is the loop you need).
 - **1a-04:** `DiskManagerMemory` panics when asked for a page beyond its capacity ("ran out of disk space"); a stage test checks that it panics with `catch_unwind`, as in the last example.
 - **Every stage with a `remove` or an out-of-range id:** decide panic versus `None` as in the contract above and make the message name the offender.
 

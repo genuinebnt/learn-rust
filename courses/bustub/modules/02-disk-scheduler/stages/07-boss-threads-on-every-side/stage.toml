@@ -1,0 +1,8 @@
+id = "1b-07"
+title = "Boss: threads on every side and BusTub's own tests"
+kind = "boss"
+difficulty = "easy"
+tests = ["stages_1b::s1b_07", "disk_scheduler_test", "rwlatch_test"]
+retest = true
+concepts = []
+concepts_optional = ["testing-concurrent-code-with-loom-and-miri", "deadlock-and-lock-ordering", "performance-tests-and-measuring"]

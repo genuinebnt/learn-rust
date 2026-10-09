@@ -147,8 +147,8 @@ fn set_on_one_thread_get_on_another() {
 
 ### In the exercises
 
-- **1b-01 Parts 4 to 6:** `Promise::set(self, v)`, `Future::get(self)` and `Drop for Promise` are the third example plus the `Broken` state (the first example's second test shows the behaviour you must reproduce).
-- **1b-02:** a `DiskRequest` carries a `Promise<DiskResult>`; the worker calls `callback.set(result)`.
+- **1b-02:** `Promise::set(self, v)`, `Future::get(self)` and `Drop for Promise` are the third example plus the `Broken` state (the first example's second test shows the behaviour you must reproduce).
+- **1b-03:** a `DiskRequest` carries a `Promise<DiskResult>`; the worker calls `callback.set(result)`.
 - **1f-01 (`load`):** `DiskRequest::read` gives you a future; the pool `schedule`s the request and calls `future.get()` to wait for the page.
 
 ### Where it is used

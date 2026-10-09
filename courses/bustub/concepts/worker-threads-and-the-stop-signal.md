@@ -149,10 +149,10 @@ fn join_reports_a_panic() {
 
 ### In the exercises
 
-- **1b-02 (`DiskScheduler::new`):** spawn the worker with `move`, giving it clones of the queue `Arc` and the disk `Arc`; store `Some(handle)` in the scheduler. The first example is the same structure in miniature.
+- **1b-03 (`DiskScheduler::new`):** spawn the worker with `move`, giving it clones of the queue `Arc` and the disk `Arc`; store `Some(handle)` in the scheduler. The first example is the same structure in miniature.
 - **1b-01 (`consume`):** the loop `while let Some(item) = channel.get() { f(item) }` is the worker body: `None` ends it.
-- **1b-03 (`Drop`):** `put(None)`, then `self.background_thread.take()` and `join()`: the `finish` method above, written as `Drop`.
-- **1b-04:** one such worker *per shard*, each with its own queue and its own sentinel.
+- **1b-04 (`Drop`):** `put(None)`, then `self.background_thread.take()` and `join()`: the `finish` method above, written as `Drop`.
+- **1b-06:** one such worker *per shard*, each with its own queue and its own sentinel.
 
 ### Where it is used
 

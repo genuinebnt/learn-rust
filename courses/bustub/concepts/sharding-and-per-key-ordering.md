@@ -132,7 +132,7 @@ fn per_key_order_with_cross_key_parallelism() {
 
 ### In the exercises
 
-- **1b-04 (`ShardedDiskScheduler`):** `schedule` computes `page_id.0.rem_euclid(self.queues.len() as i32)` for each request and `put`s `Some(request)` in that queue; `new` spawns one worker per queue; `Drop` puts a `None` in every queue and joins every worker. The second example is the whole design with `mpsc`.
+- **1b-06 (`ShardedDiskScheduler`):** `schedule` computes `page_id.0.rem_euclid(self.queues.len() as i32)` for each request and `put`s `Some(request)` in that queue; `new` spawns one worker per queue; `Drop` puts a `None` in every queue and joins every worker. The second example is the whole design with `mpsc`.
 - **Tests:** the stage tests check per-page order with many threads and distinct pages; a version that uses one shared queue passes the distinct-pages test and fails the order test.
 
 ### Where it is used

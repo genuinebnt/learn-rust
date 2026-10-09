@@ -146,8 +146,8 @@ fn the_checker_stops_at_the_operation_that_broke_the_rule() {
 
 ### In the exercises
 
-- **1c-01 and 1c-03:** write a `check()` for `IndexList` (every live node reachable from `head` exactly once, `len` matches the walk) and for the CLOCK ring (the hand is in range); the stages' queue and model tests then run against a structure that polices itself.
-- **1d-02, 1d-03:** "the set holds exactly the evictable frames, each under its current key" is the invariant to assert after every step of the model test.
+- **1c-01 and 1c-03:** a private `check()` for the list (every live node reachable from the front exactly once, `len` equal to the walk) and for the CLOCK ring (the hand in range) turns every test into a test of the structure's own rules as well.
+- **1d-02, 1d-03:** "the set holds exactly the evictable frames, each under its current key" is the invariant to assert after every step of a random run.
 - **1e-01, 1e-03:** ARC's bounds and the disjointness of the four lists, as in the ARC concept's `check`.
 - **2a-03, 2a-04:** a page array's entries are sorted and `len <= capacity`; binary search is stated as a loop invariant.
 - **2b-04 Part 3 (`verify_integrity`):** the same three rules as the first example above; the stage's version panics with a message naming the slot or bucket. The table's own tests (from 2b-07 on) call it after every phase.

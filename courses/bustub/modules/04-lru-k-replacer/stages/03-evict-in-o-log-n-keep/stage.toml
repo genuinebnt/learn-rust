@@ -1,8 +1,0 @@
-id = "1d-03"
-title = "Evict in O(log n): keep the frames in order"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_1d::s1d_08"]
-learn = ["an ordered set (BTreeSet) as a priority queue", "the remove-old, change, insert-new update protocol", "testing a fast structure against a simple model"]
-concepts = ["ordered-sets-as-priority-queues", "model-based-testing", "performance-tests-and-measuring", "checking-invariants"]
-concepts_optional = ["collections-as-tables", "lru-k-and-scan-resistance"]

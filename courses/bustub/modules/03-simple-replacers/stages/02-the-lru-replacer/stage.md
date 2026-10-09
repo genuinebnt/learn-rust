@@ -1,181 +1,119 @@
-The LRU replacer is the baseline policy: it evicts the frame that was **unpinned longest ago**. With the arena list from the previous stage it is almost nothing, which is the point: the structure did the hard part. What remains is the *protocol*: which calls change the order, what `size` counts, and what happens when the same frame is unpinned twice.
+The buffer pool has far fewer frames than the database has pages, so it has to evict. A **replacer** keeps the set of frames that *may* be evicted (the ones nobody is using) and picks which of them to give up. The pool does not care how: it calls the four methods of the `Replacer` trait, and any policy that keeps their promises can sit underneath. You write the policy that most people write first, **least recently used**: the frame that has gone the longest without being unpinned is the one least likely to be needed soon.
 
-The exercise also asks for speed: a replacer built on a scan works and fails the 100 000-frame test.
-
-## Part 1 · LruReplacer: unpin and size
-
-**Where this fits.** Now the first replacer. A **replacer** tracks which buffer-pool frames may be evicted and chooses the victim. **LRU** evicts the frame that was *unpinned* longest ago.
-
-> [!CHECK] An LRU replacer (capacity 7) sees `unpin(1)`, `unpin(2)`, `unpin(3)`, `pin(2)`, `unpin(2)`, `unpin(1)`. What do the next two `victim()` calls return? Trace the list after every call.
-> ||1, then 3. After the three unpins the list is [1, 2, 3]; `pin(2)` removes it: [1, 3]; `unpin(2)` puts it at the back: [1, 3, 2]; `unpin(1)` finds 1 already there and leaves it in place.||
+> [!CHECK] Give a sequence of operations on which LRU keeps exactly the wrong frames, one that makes a sensible cache perform terribly. What property of the workload breaks the "recently used means likely to be used again" assumption, and what could a replacer remember to resist it?
+> ||A one-time sequential scan over more pages than there are frames: every scanned page is touched once, so each is "most recently used" when it arrives, and together they push out the hot pages that were about to be needed again. The assumption breaks when pages are used once. A replacer can remember more than the last use: how many times a page was used (LFU), the time of the second-to-last use (LRU-K), or whether a page returned after being evicted (ARC). Those are the next three modules.||
 >
-> - Does `unpin` of a frame that is already in the list move it?
-> - What does `pin` do to the list and to the map of handles?
-> - The oldest end is the front: which frame is there after each step?
+> - What does a large table scan do to a buffer pool managed by LRU?
+> - What would you need to record per frame to tell a one-off page from a hot one?
+> - Which of the two costs more memory: one timestamp or a list of them?
 
-### The task
+## The task
 
-`Replacer` (given, `src/buffer/replacer.rs`) is the trait: `victim`, `pin`, `unpin`, `size`. `LruReplacer` (`src/buffer/lru_replacer.rs`) keeps an `IndexList<FrameId>` (oldest at the front) and a `HashMap<FrameId, Handle>` that says where each frame is. Implement:
-- `unpin(frame)`: add the frame at the back of the list and remember its handle. A frame that is **already** there stays where it is (BusTub's rule). If the list already holds `capacity` frames, panic with a message containing "full";
-- `size()`: how many frames the replacer holds.
+The `Replacer` trait (given, `replacer.rs`) says what the buffer pool may rely on. `LruReplacer::new(num_pages)` makes a replacer for a pool of that many frames, and implements the trait:
 
-### Tests
+- `unpin(frame)`: the frame may now be evicted. A frame the replacer does not hold is added as the **most recently used**. A frame it already holds is left where it is; unpinning twice does **not** refresh it.
+- `pin(frame)`: the frame is in use and must not be evicted. It leaves the replacer. A frame that is not there: nothing happens.
+- `victim()`: removes and returns the **least recently used** frame, or `None` if there is none.
+- `size()`: how many frames may be evicted right now.
+- Holding more distinct frames than `num_pages` is a bug in the caller: it **panics**.
 
-- 6 unpins give size 6; unpinning a frame twice counts it once; a 3rd frame on a 2-frame replacer panics ("full").
-- The replacer works as a `Box<dyn Replacer>`.
+The tests run random sequences against a four-line model of LRU, check the promises every policy makes (a general contract that you will also meet in CLOCK, LRU-K and ARC), and run 300 000 operations on 100 000 frames under a time limit. The file also runs a deliberately different, quadratic LRU through the same LRU properties, to show that they test behaviour and not one design.
 
-### Syntax and methods
+## Your freedom
 
-```rust
-if self.handles.contains_key(&frame) { return; }
-let handle = self.list.push_back(frame);
-self.handles.insert(frame, handle);
-assert!(self.list.len() < self.capacity, "the replacer is full: ...");
-let mut r: Box<dyn Replacer> = Box::new(LruReplacer::new(3));      // a trait object
-```
+Everything inside `LruReplacer`. You can use the `IndexList` you built, a `HashMap` of linked nodes, a `BTreeMap` from a counter to a frame, or a `Vec` with lazy deletion. Any structure works if all four operations are fast enough for the time limit.
 
-### Notes
+## The Rust toolbox
 
-**Pinned vs evictable.** In the buffer pool a frame holding a page that someone is using is *pinned* and must not be evicted. The replacer only holds *unpinned* frames: `unpin` adds, `pin` removes, `victim` picks among what is there. `size()` is therefore "how many frames could I evict right now".
+**A trait is the contract between components.** `trait Replacer { fn victim(&mut self) -> Option<FrameId>; ... }`. `impl Replacer for LruReplacer { ... }` is your agreement to keep it. The buffer pool and the tests hold a `Box<dyn Replacer>` and never name `LruReplacer`; that is why you can swap policies without touching the pool.
 
-**Where did BusTub's latch go?** C++'s replacers have a `std::mutex latch_` in each method. These take `&mut self` and are meant to live inside the buffer pool's mutex, so the compiler guarantees no two threads use one at the same time.
+**`&mut self` means exclusive.** The replacer's methods take `&mut self`, so the caller must hold it exclusively, usually behind the pool's mutex. The replacer therefore needs no locks of its own, and it need not be `Sync`.
 
-### In BusTub
+**Two structures that must agree.** Many designs keep an ordered structure and a map into it. Every method then changes both, and a bug is a place where only one is updated. A small private `fn check(&self)` that asserts `map.len() == list.len()` and calls it under `debug_assert!` in each method catches most of them.
 
-```cpp
-void LRUReplacer::Unpin(frame_id_t frame_id) {            // (student code in the course; this is the usual shape)
-  std::scoped_lock lock(latch_);
-  if (pos_.count(frame_id) != 0) { return; }
-  lru_list_.push_back(frame_id);  pos_[frame_id] = std::prev(lru_list_.end());
-}
-```
+**Use the entry API instead of get-then-insert.** `map.entry(frame).or_insert_with(|| list.push_back(frame))` looks the key up once, and `if let Entry::Vacant(e) = map.entry(frame) { ... }` lets you act only on the missing case. It also avoids the compiler's complaint about borrowing `map` twice.
 
-### The C/C++ way
+**`HashMap::remove` returns the old value.** `if let Some(handle) = map.remove(&frame) { list.remove(handle); }` is the whole of `pin`.
 
-| C / C++ | Rust |
-|---|---|
-| `virtual auto Victim(frame_id_t *frame_id) -> bool = 0;` (bool + out-parameter) | `fn victim(&mut self) -> Option<FrameId>` |
-| `class LRUReplacer : public Replacer` | `impl Replacer for LruReplacer` |
-| `std::unordered_map<K, V>`; `map.count(k)`, `map[k] = v` | `HashMap<K, V>`; `contains_key(&k)`, `insert(k, v)` |
-| `std::scoped_lock lock(latch_);` in every method | `&mut self` + the owner's mutex |
-| `frame_id_t` (an `int32_t`, with `-1` meaning none) | `FrameId(usize)`, and `Option<FrameId>` for "none" |
-| assertion/throw on misuse (`BUSTUB_ASSERT`, `throw Exception`) | `assert!` / `panic!` for bugs, `Result` for recoverable errors |
+**Panic with a message.** `assert!(len < self.capacity, "the replacer is full: more frames than it was made for")`. A bug in the caller should be loud, early, and say what happened.
 
-**Port rule:** the "bool return + out-parameter" idiom (`bool Get(K, V *out)`) is always `Option<V>` (or `Result<V, E>`).
+## If this is new
 
-### Learn more
-- [Page replacement algorithms](https://en.wikipedia.org/wiki/Page_replacement_algorithm) · [Cache replacement policies](https://en.wikipedia.org/wiki/Cache_replacement_policies) · OSTEP, [Beyond physical memory: policies](https://pages.cs.wisc.edu/~remzi/OSTEP/vm-beyondphys-policy.pdf)
-- CMU 15-445, "Memory Management" lecture (linked under Module resources)
+- **L4 Traits & dispatch**: defining and implementing a trait; `dyn Trait` behind a `Box`.
+- **S4 Maps & sets**: `HashMap`, `entry`, `remove`, `contains_key`.
+- **S1 Option & Result**: `?` on an `Option`, `if let Some(..)`.
+- The *replacement policies* concept (optional) explains LRU, CLOCK and their cousins, and a hit-rate simulator you can reuse.
 
-## Part 2 · LruReplacer::victim
+## Tests
 
-**Where this fits.** When the pool is full and a new page is needed, the replacer names the frame to throw out.
-
-### The task
-
-Implement `victim()` in `src/buffer/lru_replacer.rs`: remove and return the frame at the **front** of the list (the one unpinned longest ago), forgetting its handle; `None` if the replacer is empty.
-
-### Tests
-
-- Unpin 3, 1, 2: victims come out 3, 1, 2, then `None`. A victim leaves the replacer (`size` shrinks). Unpinning a frame that is already there does **not** refresh it: unpin 1, 2, 1, and 1 is still the first victim.
-- A victim can be unpinned again and then goes to the back.
-
-### Syntax and methods
-
-```rust
-let frame = self.list.pop_front()?;      // `?`: return None if the list is empty
-self.handles.remove(&frame);
-Some(frame)
-```
-
-### Notes
-
-The map and the list must be kept in step: every frame in one is in the other. Whenever you add a second place that remembers something, ask which operations have to update both. (A pattern that comes back in the buffer pool: the page table and the replacer.)
-
-### In BusTub
-
-```cpp
-auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool {
-  if (lru_list_.empty()) { return false; }
-  *frame_id = lru_list_.front();  lru_list_.pop_front();  pos_.erase(*frame_id);  return true;
-}
-```
-
-### The C/C++ way
-
-| C / C++ | Rust |
-|---|---|
-| `*frame_id = lru_list_.front(); ... return true;` | `Some(frame)` |
-| `if (lru_list_.empty()) return false;` guard before `front()` (UB otherwise) | `pop_front()?` |
-| two containers to keep in step by discipline | the same, but the types make you write each update |
-
-### Learn more
-- LRU in practice: PostgreSQL uses a clock sweep instead ([`freelist.c`](https://github.com/postgres/postgres/blob/master/src/backend/storage/buffer/freelist.c)) because exact LRU needs a lock on every access · [crate `lru`](https://docs.rs/lru) is the ready-made cache
-
-## Part 3 · LruReplacer::pin, and speed
-
-**Where this fits.** A frame in use must not be evicted: pinning takes it out of the replacer.
-
-### The task
-
-Implement `pin(frame)` in `src/buffer/lru_replacer.rs`: if the replacer holds the frame, remove it from the list and the map; otherwise do nothing. Everything must be **O(1)**.
-
-### Tests
-
-- A pinned frame is never a victim; pinning an unknown frame, or the same frame twice, changes nothing. Unpinning after a pin puts the frame at the back.
-- **Speed:** 200,000 unpins, 100,000 pins, 50,000 more unpins and a drain of all victims finish in under 5 seconds (a `Vec`-and-`position` solution takes minutes).
-
-### Syntax and methods
-
-```rust
-if let Some(handle) = self.handles.remove(&frame) {   // HashMap::remove returns the removed value
-    self.list.remove(handle);
-}
-```
-
-### Notes
-
-The speed test is the reason for the index list: with a `VecDeque`, `pin` must search for the frame (`O(n)`), and a buffer pool of a million frames pins and unpins on every page access. "Fine for the tests" and "fine for 200,000 frames" are different requirements.
-
-### In BusTub
-
-```cpp
-void LRUReplacer::Pin(frame_id_t frame_id) {
-  auto it = pos_.find(frame_id);
-  if (it == pos_.end()) { return; }
-  lru_list_.erase(it->second);  pos_.erase(it);
-}
-```
-
-### The C/C++ way
-
-| C / C++ | Rust |
-|---|---|
-| `auto it = m.find(k); if (it == m.end()) return; ... m.erase(it);` | `if let Some(h) = m.remove(&k) { ... }` (lookup and erase in one) |
-| `std::find(v.begin(), v.end(), x)` on a vector: O(n) | `HashMap` for position, arena for order |
-| complexity is a comment ("O(1) amortised") | complexity is a test (`Instant::now()` + an assertion) |
-
-### Learn more
-- [`HashMap::remove`](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.remove) · Postgres' buffer manager README: [`storage/buffer/README`](https://github.com/postgres/postgres/blob/master/src/backend/storage/buffer/README) (pins, usage counts, the clock sweep)
-
-## Performance
-
-With the handle map every operation is O(1): `unpin` is a hash lookup and a `push_back` or `move_to_back`; `pin` is a hash lookup and a `remove`; `victim` is a `pop_front` and a hash removal. The scan-based alternative (a `Vec` of frames searched for each call) is O(n) per operation, so 100 000 operations over 100 000 frames is about 10<sup>10</sup> steps: tens of seconds, against milliseconds for the handle version.
-
-An LRU **hit costs a list write**, and in a concurrent buffer pool that write needs the pool's lock on every access: that is the cost the CLOCK replacer exists to avoid (next stage).
-
-**Measure it.** Time 1 000 000 `unpin`/`pin`/`victim` operations at 1 000, 10 000 and 100 000 frames: the time per operation should not grow with the frame count. Replay the reference string `1 2 3 4 1 2 5 1 2 3 4 5` through a model of FIFO and your LRU and check you get 9/10 and 10/8 faults with 3 and 4 frames.
+- Frames leave in the order they were unpinned; a second unpin changes nothing; pinning removes, and a later unpin makes the frame the most recent; a replacer over capacity panics.
+- For random sequences, victims and sizes agree with the LRU model.
+- For random sequences, the general replacer contract holds: `size` is the number of evictable frames, a victim is always one of them, draining returns each exactly once.
+- 300 000 operations on 100 000 frames finish under the time limit.
 
 ## Hints
 
-### What does `unpin` do for a frame that is already in the list?
+### What is the invariant?
 
-Calling `unpin` on a frame that is already evictable must not add a second copy. This replacer **ignores** the repeat: the frame keeps the place it earned when it was first unpinned, because "evict the one unpinned longest ago" is about the *last transition from pinned to unpinned*, and nothing was pinned in between. (Moving it to the back would make a harmless duplicate call change the eviction order.) The list and the map must agree afterwards: one entry in each, and `size()` equal to the number of frames in the list. Also decide what happens when the replacer is already full; BusTub treats it as a bug in the caller.
+State, in one sentence each, what your structure says about a frame that is evictable, one that is pinned, and one that was just chosen as a victim. Check the sentences against `pin` of an unknown frame and `unpin` of a known one.
 
-### The map and the list are two views of one fact
+### Where does "most recent" live?
 
-Every evictable frame is in the list *and* in the map (frame to handle); a frame is in neither otherwise. Operations that change one must change the other in the same call, and `victim` must remove the popped frame from the map too: forgetting that leaves a map entry whose handle is stale, so a later `pin` of that frame calls `remove` on a dead handle and the size drifts. A `check()` that compares `list.len()`, `map.len()` and `size()` after every operation finds this in the first test that evicts.
+Whichever end of your ordered structure is the most recent, `unpin` of a new frame goes there and `victim` takes from the other. What does an unpin of a frame already present do to the order? The test named for it fails quickly if you refresh it.
 
-### Speed is part of the specification
+### Making `pin` fast
 
-The speed test makes an O(n) `victim` or `pin` fail by timing out rather than by a wrong answer. If you reach for `Vec::position` or `retain`, the arena handle is what replaces it: `pin(frame)` should look up the handle and `remove` it, never walk the list.
+`pin` has to find the frame wherever it is in the order. With a plain `Vec` that is a search (O(n)); with a list and a map it is a lookup and a unlink. If the timing test fails, which of your operations is doing the search?
+
+## Performance
+
+All four operations should be O(1) or O(log n) in the number of evictable frames. A pool of a million frames receives an operation for every page access, so the replacer's cost is paid on the hottest path in the system. A design with a search per operation is correct at ten frames and unusable at a hundred thousand.
+
+**Measure it.** Replace your structure with a `Vec<FrameId>` and a linear search. At what size does 300 000 operations take a second? Predict the size, then find it. (The test file runs exactly such a design through the correctness properties.)
+
+## Experiment
+
+Optional. Predict first, then run.
+
+1. **A scan.** Feed LRU a hot set of 20 pages accessed repeatedly, then a single pass over 1 000 pages, then the hot set again, with a pool of 32 frames. How many of the hot pages survive the scan? You have just reproduced the weakness the check-yourself question asked about.
+2. **Lazy deletion.** Implement `pin` by marking a frame dead in a map and skipping dead entries in `victim`. What is the worst case for `victim`, and how does the size of the queue behave under a pin-heavy workload?
+
+## Other designs
+
+- **List plus map (ours).** O(1) for everything; two structures to keep in step.
+- **`BTreeMap<u64, FrameId>` keyed by a counter.** `unpin` takes the next counter value; `victim` takes the smallest key; a second map `FrameId -> u64` finds a frame's key. O(log n), simple, no linked list.
+- **`VecDeque` with lazy deletion.** `pin` only marks; `victim` skips the dead. Amortised O(1) but the queue can hold many dead entries.
+- **An intrusive list in the frame table.** The pool stores each frame's links itself. Fastest, and it couples the replacer to the pool's layout, which the trait deliberately avoids.
+
+## In BusTub
+
+```cpp
+class LRUReplacer : public Replacer {
+ public:
+  explicit LRUReplacer(size_t num_pages);
+  auto Victim(frame_id_t *frame_id) -> bool override;
+  void Pin(frame_id_t frame_id) override;
+  void Unpin(frame_id_t frame_id) override;
+  auto Size() -> size_t override;
+ private:
+  std::mutex latch_;
+  std::list<frame_id_t> lru_list_;
+  std::unordered_map<frame_id_t, std::list<frame_id_t>::iterator> map_;
+};
+```
+
+## The C/C++ way
+
+| C / C++ | Rust |
+|---|---|
+| `class LRUReplacer : public Replacer` with `override` | `impl Replacer for LruReplacer` |
+| `bool Victim(frame_id_t *out)` | `fn victim(&mut self) -> Option<FrameId>` |
+| a `std::mutex latch_` inside the class | none: `&mut self` makes the caller hold exclusive access |
+| `list` + `unordered_map<_, list::iterator>` | `IndexList` + `HashMap<FrameId, Handle>` (or your own design) |
+
+**Port rule:** an out-parameter plus a `bool` becomes an `Option`; a lock inside an object becomes `&mut self` and a lock in the owner.
+
+## Learn more
+
+- [`HashMap` entry API](https://doc.rust-lang.org/std/collections/hash_map/enum.Entry.html) · [`BTreeMap`](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html) · [`debug_assert!`](https://doc.rust-lang.org/std/macro.debug_assert.html)
+- [Page replacement algorithms](https://en.wikipedia.org/wiki/Page_replacement_algorithm) (the survey of LRU, CLOCK, LFU, ARC)

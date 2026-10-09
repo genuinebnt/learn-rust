@@ -181,9 +181,7 @@ fn the_bounds_hold_on_a_random_workload() {
 
 ### In the exercises
 
-- **1e-01 (four lists, new pages):** the lists, the target `p` and rule 4's admission of a new page.
-- **1e-02 (eviction, and hits that move frames to mfu):** `evict` (oldest *evictable* frame, leaving a ghost) and rule 1; in the real stage frames can be pinned, so the fallback to the other list matters.
-- **1e-03 (ghost hits, the adaptive target, bounded ghosts, `remove`):** rules 2 and 3 with the integer-division step sizes, and the two bounds that `check` asserts; the first test above is the kind of trace to reproduce by hand.
+- **1e-01 to 1e-03:** the same algorithm in three steps: the contract and live frames; the `mru`/`mfu` split with hits and eviction; ghost hits, the adaptive target `p` and the bounds on the four lists. The first test above is the target moving; the `check` function is the bounds.
 - **1f-02:** the buffer pool can use `ArcReplacer`; a scan workload is where the hit ratio differs from LRU.
 
 ### Where it is used

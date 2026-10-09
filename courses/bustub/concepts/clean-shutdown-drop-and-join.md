@@ -139,8 +139,8 @@ fn fields_drop_in_declaration_order() {
 
 ### In the exercises
 
-- **1b-03 Part 1:** `impl Drop for DiskScheduler` is the first example, with the course's `Channel<Option<_>>` and a `None` sentinel where the example closes a channel. Check with a test that schedules work, drops the scheduler, and asserts the work ran.
-- **1b-04:** the sharded scheduler's `Drop` repeats this for every queue and every worker: signal all, then join all.
+- **1b-04:** `impl Drop for DiskScheduler` is the first example, with the course's `Channel<Option<_>>` and a `None` sentinel where the example closes a channel. Check with a test that schedules work, drops the scheduler, and asserts the work ran.
+- **1b-06:** the sharded scheduler's `Drop` repeats this for every queue and every worker: signal all, then join all.
 - **1g-01 (guards):** the same `Drop` shape releases a latch and a pin; the field order decides what is released first (second example).
 
 ### Where it is used

@@ -153,7 +153,7 @@ fn compare_exchange_claims_once() {
 
 - **1a-03:** the counters behind `get_num_writes`, `get_num_deletes` and `get_num_flushes` are shared by every thread that uses the disk manager: an atomic per counter is one good design, a field under your existing lock is another. The tests check the counts are exact after many threads (1a-05).
 - **1a-03:** `write_log` appends and counts one flush; `read_log` reads from an offset. Two appends must not interleave their bytes, so the log needs its own protection whatever you choose.
-- **Later, 1d-01:** the replacer's logical clock is a plain `usize` because the replacer takes `&mut self`; a concurrent clock would be `AtomicU64::fetch_add(1, Relaxed)`.
+- **Later, 1d-01:** the LRU-K replacer's logical clock is a plain `usize` because the replacer takes `&mut self`; a concurrent clock would be `AtomicU64::fetch_add(1, Relaxed)`.
 
 ### Where it is used
 

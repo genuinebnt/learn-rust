@@ -185,8 +185,9 @@ fn random_operations_agree_with_a_vecdeque_model() {
 
 ### In the exercises
 
-- **1c-01 (IndexList):** the code above is the whole stage: `push_back` (Part 1), `pop_front` (Part 2, `unlink` and free), `remove` by handle with slot reuse (Part 3) and `move_to_back` (Part 4).
-- **1c-02 (the LRU replacer):** keeps a `HashMap<FrameId, Handle>` beside an `IndexList`, so `pin` is `remove(handle)` and `unpin` is `push_back`.
+- **1c-01 (a list with handles):** the whole idea: nodes in a `Vec`, links as indices, a free list, and a generation in each handle so a stale handle is noticed.
+- **1c-02 and 1e (replacers):** a `HashMap<FrameId, Handle>` beside the list makes "take this frame out of the middle" a lookup and an unlink.
+
 - **1e (ARC):** the same list type, four times, with page-to-handle maps for the ghost lists.
 
 ### Where it is used

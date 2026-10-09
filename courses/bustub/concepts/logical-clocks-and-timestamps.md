@@ -123,7 +123,7 @@ fn what_the_real_clocks_promise() {
 
 ### In the exercises
 
-- **1d-01 (`LruKNode` and the bookkeeping):** `current_timestamp` in `LruKReplacer::record_access`: read, then increment, exactly as in `tick` above. The stage's tests assert eviction order, which only a deterministic clock allows.
+- **1d-01, 1d-02:** the replacer's `current_timestamp`: read, then increment, exactly as in `tick` above. Distinct timestamps are what make every comparison in the LRU-K rule unambiguous.
 
 ### Where it is used
 

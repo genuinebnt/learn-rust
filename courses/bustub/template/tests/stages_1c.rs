@@ -1,23 +1,44 @@
-//! Tests for the simple replacer stages (1c-01 … 1c-04): the index list, LRU and CLOCK. A test named `s1c_04_…` belongs to stage 1c-01.
+//! Tests for module 1c, the simple replacers. A test name starts with its stage: `s1c_02_…` belongs to stage 1c-02, and
+//! `anneal course test` runs just those.
+//!
+//! The tests use only the public items: `IndexList` and `Handle`, `LruReplacer`, `ClockReplacer` and the `Replacer` trait. They are
+//! written against the trait, not the types: the same functions check any replacer. Each policy is compared with a **model**, a few
+//! lines of plain code that says what the policy means, and every replacer must also keep the promises that hold for *all*
+//! policies. A test that only your design passes would be a bug in the test, so the file also runs a deliberately different LRU
+//! (a plain `Vec`, linear time) through the LRU properties.
 
-use std::collections::VecDeque;
+use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::sync::mpsc;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use bustub::buffer::clock_replacer::ClockReplacer;
 use bustub::buffer::lru_replacer::LruReplacer;
 use bustub::buffer::replacer::Replacer;
 use bustub::common::config::FrameId;
-use bustub::common::index_list::IndexList;
+use bustub::common::index_list::{Handle, IndexList};
+use proptest::prelude::*;
+
+type Make<'a> = &'a dyn Fn(usize) -> Box<dyn Replacer>;
 
 fn f(n: usize) -> FrameId {
     FrameId(n)
 }
 
-fn all<T: Clone>(list: &IndexList<T>) -> Vec<T> {
-    list.iter().cloned().collect()
+fn config() -> ProptestConfig {
+    ProptestConfig { cases: 64, max_shrink_iters: 2000, ..ProptestConfig::default() }
 }
 
-/// A tiny deterministic generator, so the model tests need no crate.
+/// Runs `work` on a thread and fails the test if it takes longer than `limit`: a quadratic design must fail, not hang the run.
+fn within<T: Send + 'static>(what: &str, limit: Duration, work: impl FnOnce() -> T + Send + 'static) -> T {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = tx.send(work());
+    });
+    rx.recv_timeout(limit).unwrap_or_else(|_| panic!("{what} did not finish in {limit:?}: the cost must not grow with the number of elements"))
+}
+
+/// A tiny deterministic generator for the large runs.
 struct Lcg(u64);
 impl Lcg {
     fn next(&mut self, n: usize) -> usize {
@@ -26,635 +47,573 @@ impl Lcg {
     }
 }
 
-// ---- 1c-01 · IndexList::push_back --------------------------------------------------------------------------------------
+// ---- 1c-01 · A list you can pull from the middle --------------------------------------------------------------------
+
+fn all<T: Clone>(list: &IndexList<T>) -> Vec<T> {
+    list.iter().cloned().collect()
+}
+
+#[derive(Clone, Debug)]
+enum ListOp {
+    Push(i32),
+    Pop,
+    Remove(usize),
+    MoveToBack(usize),
+    Get(usize),
+}
+
+fn list_ops() -> impl Strategy<Value = Vec<ListOp>> {
+    prop::collection::vec(
+        prop_oneof![
+            3 => any::<i32>().prop_map(ListOp::Push),
+            1 => Just(ListOp::Pop),
+            2 => (0..64usize).prop_map(ListOp::Remove),
+            2 => (0..64usize).prop_map(ListOp::MoveToBack),
+            1 => (0..64usize).prop_map(ListOp::Get),
+        ],
+        1..150,
+    )
+}
 
 #[test]
 fn s1c_01_a_new_list_is_empty() {
     let list: IndexList<u32> = IndexList::new();
-    assert!(list.is_empty(), "a new list is empty: expected `list.is_empty()`");
-    assert_eq!(list.len(), 0, "a new list is empty");
-    assert_eq!(list.front(), None, "a new list is empty");
-    assert_eq!(all(&list), Vec::<u32>::new(), "a new list is empty");
+    assert!(list.is_empty(), "a new list is empty");
+    assert_eq!(list.len(), 0);
+    assert_eq!(list.front(), None);
+    assert_eq!(all(&list), Vec::<u32>::new());
+    let mut list = list;
+    assert_eq!(list.pop_front(), None, "popping an empty list gives nothing");
 }
 
 #[test]
-fn s1c_01_push_back_keeps_order_and_counts() {
+fn s1c_01_push_back_keeps_order_and_each_handle_finds_its_element() {
     let mut list = IndexList::new();
-    for x in [10, 20, 30] {
-        list.push_back(x);
-    }
-    assert_eq!(list.len(), 3, "push back keeps order and counts");
-    assert!(!list.is_empty(), "push back keeps order and counts: expected `!list.is_empty()`");
-    assert_eq!(all(&list), [10, 20, 30], "push back keeps order and counts");
-    assert_eq!(list.front(), Some(&10), "push back keeps order and counts");
+    let hs: Vec<Handle> = ["a", "b", "c"].into_iter().map(|s| list.push_back(String::from(s))).collect();
+    assert_eq!(list.len(), 3);
+    assert_eq!(list.iter().map(|s| s.as_str()).collect::<Vec<_>>(), ["a", "b", "c"], "elements are ordered front to back in the order pushed (and need not be Clone)");
+    assert_eq!(list.front().map(|s| s.as_str()), Some("a"));
+    assert_eq!(hs.iter().map(|h| list.get(*h).unwrap().as_str()).collect::<Vec<_>>(), ["a", "b", "c"], "each handle finds the element it was returned for");
+    assert!(hs[0] != hs[1] && hs[1] != hs[2] && hs[0] != hs[2], "handles for different elements differ");
 }
 
 #[test]
-fn s1c_01_each_push_returns_a_handle_to_its_element() {
+fn s1c_01_a_removed_handle_never_names_another_element_even_when_the_space_is_reused() {
     let mut list = IndexList::new();
     let a = list.push_back("a");
-    let b = list.push_back("b");
+    assert_eq!(list.remove(a), Some("a"));
+    assert_eq!(list.get(a), None, "a removed element is gone");
+    let b = list.push_back("b"); // may well be stored where `a` was
     let c = list.push_back("c");
-    assert_eq!((list.get(a), list.get(b), list.get(c)), (Some(&"a"), Some(&"b"), Some(&"c")), "each push returns a handle to its element");
-    assert_ne!(a, b, "each push returns a handle to its element");
-    assert_ne!(b, c, "each push returns a handle to its element");
+    assert_eq!(list.get(a), None, "the old handle must not find the new element that took its place");
+    assert_eq!(list.remove(a), None, "removing through a stale handle does nothing");
+    assert!(!list.move_to_back(a), "moving through a stale handle reports failure");
+    assert_eq!(all(&list), ["b", "c"], "a stale handle must not disturb the list");
+    assert_eq!((list.get(b), list.get(c)), (Some(&"b"), Some(&"c")), "live handles are unaffected");
 }
 
 #[test]
-fn s1c_01_values_need_not_be_clone_or_copy() {
+fn s1c_01_moving_to_the_back_keeps_the_handle_valid() {
     let mut list = IndexList::new();
-    list.push_back(String::from("x"));
-    list.push_back(String::from("y"));
-    assert_eq!(list.iter().map(|s| s.as_str()).collect::<Vec<_>>(), ["x", "y"], "values need not be clone or copy");
+    let hs: Vec<Handle> = (0..4).map(|i| list.push_back(i)).collect();
+    assert!(list.move_to_back(hs[1]));
+    assert_eq!(all(&list), [0, 2, 3, 1]);
+    assert!(list.move_to_back(hs[1]), "moving the last element to the back succeeds and changes nothing");
+    assert_eq!(all(&list), [0, 2, 3, 1]);
+    assert!(list.move_to_back(hs[0]));
+    assert_eq!(all(&list), [2, 3, 1, 0]);
+    assert_eq!(hs.iter().map(|h| list.get(*h).copied()).collect::<Vec<_>>(), [Some(0), Some(1), Some(2), Some(3)], "every handle still names its own element");
+    assert_eq!(list.pop_front(), Some(2));
 }
 
-#[test]
-fn s1c_01_a_thousand_pushes() {
-    let mut list = IndexList::new();
-    let handles: Vec<_> = (0..1000).map(|i| list.push_back(i)).collect();
-    assert_eq!(list.len(), 1000, "a thousand pushes");
-    assert_eq!(all(&list), (0..1000).collect::<Vec<_>>(), "a thousand pushes");
-    assert!(handles.iter().enumerate().all(|(i, h)| list.get(*h) == Some(&i)), "a thousand pushes: expected `handles.iter().enumerate().all(|(i, h)| list.get(*h) == Some(&i))`");
-}
+proptest! {
+    #![proptest_config(config())]
 
-// ---- 1c-01 · pop_front -------------------------------------------------------------------------------------------------
-
-#[test]
-fn s1c_02_pop_front_returns_the_oldest_first() {
-    let mut list = IndexList::new();
-    for x in 1..=4 {
-        list.push_back(x);
-    }
-    assert_eq!((list.pop_front(), list.pop_front()), (Some(1), Some(2)), "pop front returns the oldest first");
-    assert_eq!(all(&list), [3, 4], "pop front returns the oldest first");
-    assert_eq!(list.len(), 2, "pop front returns the oldest first");
-    assert_eq!(list.front(), Some(&3), "pop front returns the oldest first");
-}
-
-#[test]
-fn s1c_02_pop_front_of_an_empty_list_is_none() {
-    let mut list: IndexList<u8> = IndexList::new();
-    assert_eq!(list.pop_front(), None, "pop front of an empty list is none");
-    list.push_back(1);
-    list.pop_front();
-    assert_eq!(list.pop_front(), None, "pop front of an empty list is none");
-    assert!(list.is_empty(), "pop front of an empty list is none: expected `list.is_empty()`");
-}
-
-#[test]
-fn s1c_02_pushing_after_popping_everything_works() {
-    let mut list = IndexList::new();
-    list.push_back(1);
-    list.pop_front();
-    list.push_back(2);
-    list.push_back(3);
-    assert_eq!(all(&list), [2, 3], "pushing after popping everything works");
-    assert_eq!(list.pop_front(), Some(2), "pushing after popping everything works");
-    assert_eq!(list.pop_front(), Some(3), "pushing after popping everything works");
-    assert_eq!(list.pop_front(), None, "pushing after popping everything works");
-}
-
-#[test]
-fn s1c_02_the_handle_of_a_popped_element_is_stale() {
-    let mut list = IndexList::new();
-    let a = list.push_back("a");
-    let b = list.push_back("b");
-    list.pop_front();
-    assert_eq!(list.get(a), None, "the handle of a popped element is stale");
-    assert_eq!(list.get(b), Some(&"b"), "the handle of a popped element is stale");
-}
-
-#[test]
-fn s1c_02_a_queue_model() {
-    let mut list = IndexList::new();
-    let mut model = VecDeque::new();
-    let mut rng = Lcg(7);
-    for step in 0..2000 {
-        if rng.next(3) == 0 {
-            assert_eq!(list.pop_front(), model.pop_front(), "step {step}");
-        } else {
-            list.push_back(step);
-            model.push_back(step);
+    /// Whatever happens to it, the list is the same sequence a `Vec` of (id, value) pairs would be, and a handle names its element
+    /// until that element is gone.
+    #[test]
+    fn s1c_01_any_sequence_of_operations_agrees_with_a_vec_model(ops in list_ops()) {
+        let mut list: IndexList<i32> = IndexList::new();
+        let mut handles: Vec<Handle> = Vec::new();
+        let mut value: Vec<i32> = Vec::new();
+        let mut live: Vec<bool> = Vec::new();
+        let mut order: Vec<usize> = Vec::new(); // ids, front to back
+        for op in ops {
+            match op {
+                ListOp::Push(v) => {
+                    handles.push(list.push_back(v));
+                    value.push(v);
+                    live.push(true);
+                    order.push(handles.len() - 1);
+                }
+                ListOp::Pop => {
+                    let got = list.pop_front();
+                    if order.is_empty() {
+                        prop_assert_eq!(got, None, "popping an empty list");
+                    } else {
+                        let id = order.remove(0);
+                        live[id] = false;
+                        prop_assert_eq!(got, Some(value[id]), "pop_front returns the first element");
+                    }
+                }
+                ListOp::Remove(i) if !handles.is_empty() => {
+                    let id = i % handles.len();
+                    let got = list.remove(handles[id]);
+                    prop_assert_eq!(got, live[id].then_some(value[id]), "remove returns the element, or None for a handle that is no longer valid");
+                    if live[id] {
+                        live[id] = false;
+                        order.retain(|&x| x != id);
+                    }
+                }
+                ListOp::MoveToBack(i) if !handles.is_empty() => {
+                    let id = i % handles.len();
+                    let got = list.move_to_back(handles[id]);
+                    prop_assert_eq!(got, live[id], "move_to_back succeeds exactly for live handles");
+                    if live[id] {
+                        order.retain(|&x| x != id);
+                        order.push(id);
+                    }
+                }
+                ListOp::Get(i) if !handles.is_empty() => {
+                    let id = i % handles.len();
+                    prop_assert_eq!(list.get(handles[id]).copied(), live[id].then_some(value[id]), "get finds live elements and only those");
+                }
+                _ => {}
+            }
+            let expected: Vec<i32> = order.iter().map(|&id| value[id]).collect();
+            prop_assert_eq!(all(&list), expected.clone(), "the elements, front to back");
+            prop_assert_eq!(list.len(), expected.len(), "len");
+            prop_assert_eq!(list.is_empty(), expected.is_empty(), "is_empty");
+            prop_assert_eq!(list.front().copied(), expected.first().copied(), "front");
         }
-        assert_eq!(list.len(), model.len(), "a queue model");
     }
-    assert_eq!(all(&list), model.into_iter().collect::<Vec<_>>(), "a queue model");
-}
-
-// ---- 1c-01 · remove and slot reuse -------------------------------------------------------------------------------------
-
-#[test]
-fn s1c_03_remove_from_the_middle_head_and_tail() {
-    let mut list = IndexList::new();
-    let h: Vec<_> = (1..=5).map(|x| list.push_back(x)).collect();
-    assert_eq!(list.remove(h[2]), Some(3), "remove from the middle head and tail");
-    assert_eq!(all(&list), [1, 2, 4, 5], "remove from the middle head and tail");
-    assert_eq!(list.remove(h[0]), Some(1), "remove from the middle head and tail");
-    assert_eq!(list.remove(h[4]), Some(5), "remove from the middle head and tail");
-    assert_eq!(all(&list), [2, 4], "remove from the middle head and tail");
-    assert_eq!(list.len(), 2, "remove from the middle head and tail");
-    assert_eq!(list.front(), Some(&2), "remove from the middle head and tail");
 }
 
 #[test]
-fn s1c_03_removing_twice_gives_none() {
-    let mut list = IndexList::new();
-    let a = list.push_back(1);
-    list.push_back(2);
-    assert_eq!(list.remove(a), Some(1), "removing twice gives none");
-    assert_eq!(list.remove(a), None, "removing twice gives none");
-    assert_eq!(list.len(), 1, "removing twice gives none");
+fn s1c_01_removing_from_the_middle_by_handle_takes_constant_time() {
+    // 60 000 removals in scrambled order. Searching for the element would take about 60 000 x 30 000 steps and miss the limit.
+    within("removing 60 000 elements by handle", Duration::from_secs(10), || {
+        let n = 60_000;
+        let mut list = IndexList::new();
+        let handles: Vec<Handle> = (0..n).map(|i| list.push_back(i)).collect();
+        let mut order: Vec<usize> = (0..n).collect();
+        let mut rng = Lcg(7);
+        for i in (1..n).rev() {
+            order.swap(i, rng.next(i + 1));
+        }
+        for &i in &order {
+            assert_eq!(list.remove(handles[i]), Some(i));
+        }
+        assert!(list.is_empty());
+        // and the space is reused, so churn does not grow the list for ever
+        for round in 0..200_000 {
+            let h = list.push_back(round);
+            assert_eq!(list.remove(h), Some(round));
+        }
+    });
 }
 
-#[test]
-fn s1c_03_removing_the_only_element_leaves_a_usable_list() {
-    let mut list = IndexList::new();
-    let a = list.push_back(1);
-    assert_eq!(list.remove(a), Some(1), "removing the only element leaves a usable list");
-    assert!(list.is_empty(), "removing the only element leaves a usable list: expected `list.is_empty()`");
-    assert_eq!(list.front(), None, "removing the only element leaves a usable list");
-    list.push_back(2);
-    assert_eq!(all(&list), [2], "removing the only element leaves a usable list");
+// ---- Replacer models -------------------------------------------------------------------------------------------------------
+
+const FRAMES: usize = 10;
+
+#[derive(Clone, Copy, Debug)]
+enum ROp {
+    Unpin(usize),
+    Pin(usize),
+    Victim,
 }
 
-#[test]
-fn s1c_03_a_freed_slot_is_reused_but_the_old_handle_stays_stale() {
-    let mut list = IndexList::new();
-    let a = list.push_back("a");
-    list.push_back("keep");
-    list.remove(a);
-    let c = list.push_back("c"); // takes a's slot
-    assert_eq!(list.get(a), None, "a's handle must not see c");
-    assert_eq!(list.get(c), Some(&"c"), "a freed slot is reused but the old handle stays stale");
-    assert_eq!(list.remove(a), None, "and must not remove c");
-    assert_eq!(all(&list), ["keep", "c"], "a freed slot is reused but the old handle stays stale");
+fn replacer_ops() -> impl Strategy<Value = Vec<ROp>> {
+    prop::collection::vec(
+        prop_oneof![
+            4 => (0..FRAMES).prop_map(ROp::Unpin),
+            2 => (0..FRAMES).prop_map(ROp::Pin),
+            2 => Just(ROp::Victim),
+        ],
+        1..200,
+    )
 }
 
-#[test]
-fn s1c_03_the_vec_does_not_grow_while_slots_are_free() {
-    let mut list = IndexList::new();
-    for round in 0..1000 {
-        let h = list.push_back(round);
-        list.remove(h);
+/// What LRU means: the least recently unpinned frame goes first; unpinning a frame that is already there changes nothing.
+#[derive(Default)]
+struct LruModel {
+    order: Vec<usize>,
+}
+impl LruModel {
+    fn unpin(&mut self, frame: usize) {
+        if !self.order.contains(&frame) {
+            self.order.push(frame);
+        }
     }
-    // A list that grew its Vec on every push would be 1000 nodes; this is checked through behaviour: it still works, fast.
-    assert!(list.is_empty(), "the vec does not grow while slots are free: expected `list.is_empty()`");
-    for x in 0..3 {
-        list.push_back(x);
+    fn pin(&mut self, frame: usize) {
+        self.order.retain(|&x| x != frame);
     }
-    assert_eq!(all(&list), [0, 1, 2], "the vec does not grow while slots are free");
+    fn victim(&mut self) -> Option<usize> {
+        (!self.order.is_empty()).then(|| self.order.remove(0))
+    }
+}
+
+/// What CLOCK means, written as a rotating queue: the front is the frame under the hand. A new frame joins at the back (just
+/// behind the hand). A victim search takes the front: with its bit set it goes to the back with the bit cleared, otherwise it leaves.
+#[derive(Default)]
+struct ClockModel {
+    ring: VecDeque<(usize, bool)>,
+}
+impl ClockModel {
+    fn unpin(&mut self, frame: usize) {
+        match self.ring.iter_mut().find(|(g, _)| *g == frame) {
+            Some(entry) => entry.1 = true,
+            None => self.ring.push_back((frame, true)),
+        }
+    }
+    fn pin(&mut self, frame: usize) {
+        self.ring.retain(|&(g, _)| g != frame);
+    }
+    fn victim(&mut self) -> Option<usize> {
+        loop {
+            let (frame, bit) = self.ring.pop_front()?;
+            if bit {
+                self.ring.push_back((frame, false));
+            } else {
+                return Some(frame);
+            }
+        }
+    }
+    fn size(&self) -> usize {
+        self.ring.len()
+    }
+}
+
+/// A deliberately different LRU for the sanity check: a plain `Vec` searched linearly.
+struct NaiveLru {
+    capacity: usize,
+    frames: Vec<FrameId>,
+}
+impl Replacer for NaiveLru {
+    fn victim(&mut self) -> Option<FrameId> {
+        (!self.frames.is_empty()).then(|| self.frames.remove(0))
+    }
+    fn pin(&mut self, frame: FrameId) {
+        self.frames.retain(|&g| g != frame);
+    }
+    fn unpin(&mut self, frame: FrameId) {
+        if !self.frames.contains(&frame) {
+            assert!(self.frames.len() < self.capacity, "the replacer is full");
+            self.frames.push(frame);
+        }
+    }
+    fn size(&self) -> usize {
+        self.frames.len()
+    }
+}
+
+fn lru(capacity: usize) -> Box<dyn Replacer> {
+    Box::new(LruReplacer::new(capacity))
+}
+fn clock(capacity: usize) -> Box<dyn Replacer> {
+    Box::new(ClockReplacer::new(capacity))
+}
+
+/// The policy is exactly the model's.
+fn lru_agrees_with_the_model(make: Make, ops: &[ROp]) -> Result<(), TestCaseError> {
+    let (mut r, mut m) = (make(FRAMES), LruModel::default());
+    for (step, op) in ops.iter().enumerate() {
+        match *op {
+            ROp::Unpin(x) => {
+                r.unpin(f(x));
+                m.unpin(x);
+            }
+            ROp::Pin(x) => {
+                r.pin(f(x));
+                m.pin(x);
+            }
+            ROp::Victim => prop_assert_eq!(r.victim(), m.victim().map(f), "step {}: the victim must be the least recently used frame", step),
+        }
+        prop_assert_eq!(r.size(), m.order.len(), "step {}: size is the number of frames that may be evicted", step);
+    }
+    Ok(())
+}
+
+fn clock_agrees_with_the_model(make: Make, ops: &[ROp]) -> Result<(), TestCaseError> {
+    let (mut r, mut m) = (make(FRAMES), ClockModel::default());
+    for (step, op) in ops.iter().enumerate() {
+        match *op {
+            ROp::Unpin(x) => {
+                r.unpin(f(x));
+                m.unpin(x);
+            }
+            ROp::Pin(x) => {
+                r.pin(f(x));
+                m.pin(x);
+            }
+            ROp::Victim => prop_assert_eq!(r.victim(), m.victim().map(f), "step {}: the victim must be the frame the clock hand finds", step),
+        }
+        prop_assert_eq!(r.size(), m.size(), "step {}: size is the number of frames on the ring", step);
+    }
+    Ok(())
+}
+
+/// What every replacer promises whatever its policy: the set of evictable frames is what unpin and pin make it, `victim` takes one
+/// of them out, and draining gives each exactly once.
+fn satisfies_the_general_contract(make: Make, ops: &[ROp]) -> Result<(), TestCaseError> {
+    let mut r = make(FRAMES);
+    let mut evictable: BTreeSet<usize> = BTreeSet::new();
+    for (step, op) in ops.iter().enumerate() {
+        match *op {
+            ROp::Unpin(x) => {
+                r.unpin(f(x));
+                evictable.insert(x);
+            }
+            ROp::Pin(x) => {
+                r.pin(f(x));
+                evictable.remove(&x);
+            }
+            ROp::Victim => match r.victim() {
+                None => prop_assert!(evictable.is_empty(), "step {}: victim said nothing can be evicted, but {:?} can", step, evictable),
+                Some(FrameId(v)) => prop_assert!(evictable.remove(&v), "step {}: victim returned frame {} which was not evictable (evictable: {:?})", step, v, evictable),
+            },
+        }
+        prop_assert_eq!(r.size(), evictable.len(), "step {}: size is the number of evictable frames", step);
+    }
+    let mut drained = BTreeSet::new();
+    while let Some(FrameId(v)) = r.victim() {
+        prop_assert!(drained.insert(v), "frame {} was returned twice while draining", v);
+    }
+    prop_assert_eq!(drained, evictable, "draining must give every evictable frame exactly once");
+    prop_assert_eq!(r.size(), 0, "a drained replacer is empty");
+    Ok(())
+}
+
+// ---- 1c-02 · The LRU replacer ----------------------------------------------------------------------------------------------
+
+#[test]
+fn s1c_02_frames_leave_in_the_order_they_were_unpinned() {
+    let mut r = LruReplacer::new(8);
+    for x in [3, 1, 4, 2] {
+        r.unpin(f(x));
+    }
+    assert_eq!(r.size(), 4);
+    assert_eq!([r.victim(), r.victim(), r.victim(), r.victim(), r.victim()], [Some(f(3)), Some(f(1)), Some(f(4)), Some(f(2)), None], "least recently unpinned first, then nothing");
+    assert_eq!(r.size(), 0);
 }
 
 #[test]
-fn s1c_03_a_model_with_random_removals() {
-    let mut list = IndexList::new();
-    let mut model: Vec<(usize, bustub::common::index_list::Handle)> = Vec::new();
+fn s1c_02_unpinning_a_frame_that_is_already_there_changes_nothing() {
+    let mut r = LruReplacer::new(8);
+    for x in [1, 2, 3, 1, 1] {
+        r.unpin(f(x));
+    }
+    assert_eq!(r.size(), 3, "frame 1 counts once");
+    assert_eq!(r.victim(), Some(f(1)), "a second unpin does not make frame 1 more recent");
+}
+
+#[test]
+fn s1c_02_pinning_removes_a_frame_and_a_later_unpin_makes_it_the_most_recent() {
+    let mut r = LruReplacer::new(8);
+    for x in [1, 2, 3] {
+        r.unpin(f(x));
+    }
+    r.pin(f(1));
+    r.pin(f(9)); // never there: nothing happens
+    assert_eq!(r.size(), 2);
+    r.unpin(f(1));
+    assert_eq!([r.victim(), r.victim(), r.victim()], [Some(f(2)), Some(f(3)), Some(f(1))], "frame 1 came back last, so it leaves last");
+}
+
+#[test]
+fn s1c_02_a_replacer_given_more_frames_than_its_capacity_panics() {
+    let result = std::panic::catch_unwind(|| {
+        let mut r = LruReplacer::new(2);
+        for x in 0..3 {
+            r.unpin(f(x));
+        }
+    });
+    assert!(result.is_err(), "unpinning a third distinct frame in a replacer of capacity 2 is a bug in the caller: it must panic");
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    #[test]
+    fn s1c_02_lru_agrees_with_the_model_for_any_operations(ops in replacer_ops()) {
+        lru_agrees_with_the_model(&lru, &ops)?;
+    }
+
+    #[test]
+    fn s1c_02_lru_satisfies_the_general_replacer_contract(ops in replacer_ops()) {
+        satisfies_the_general_contract(&lru, &ops)?;
+    }
+
+    /// The tests are about behaviour: a different design passes the same LRU properties. (Not a stage test: it needs no code of yours.)
+    #[test]
+    fn sanity_a_naive_lru_passes_the_same_lru_properties(ops in replacer_ops()) {
+        let naive = |c: usize| -> Box<dyn Replacer> { Box::new(NaiveLru { capacity: c, frames: Vec::new() }) };
+        lru_agrees_with_the_model(&naive, &ops)?;
+        satisfies_the_general_contract(&naive, &ops)?;
+    }
+}
+
+#[test]
+fn s1c_02_every_operation_stays_fast_with_a_hundred_thousand_frames() {
+    // 300 000 operations on 100 000 frames. A design that searches for a frame costs about 100 000 steps per operation.
+    within("300 000 operations on a replacer of 100 000 frames", Duration::from_secs(10), || {
+        let n = 100_000;
+        let mut r = LruReplacer::new(n);
+        for x in 0..n {
+            r.unpin(f(x));
+        }
+        assert_eq!(r.size(), n);
+        let mut rng = Lcg(42);
+        let start = Instant::now();
+        for _ in 0..300_000 {
+            let x = f(rng.next(n));
+            match rng.next(3) {
+                0 => r.pin(x),
+                1 => r.unpin(x),
+                _ => {
+                    let _ = r.victim();
+                }
+            }
+        }
+        assert!(r.size() <= n);
+        eprintln!("300 000 operations took {:?}", start.elapsed());
+    });
+}
+
+// ---- 1c-03 · The CLOCK replacer --------------------------------------------------------------------------------------------
+
+#[test]
+fn s1c_03_a_frame_whose_bit_was_set_again_gets_a_second_chance() {
+    let mut r = ClockReplacer::new(8);
+    for x in [1, 2, 3] {
+        r.unpin(f(x));
+    }
+    assert_eq!(r.victim(), Some(f(1)), "all bits are set, so the hand clears them all and comes back to the first frame");
+    r.unpin(f(2)); // sets frame 2's bit again
+    assert_eq!(r.victim(), Some(f(3)), "frame 2 has its bit set, so the hand passes it (clearing the bit) and takes frame 3");
+    assert_eq!(r.victim(), Some(f(2)));
+    assert_eq!(r.victim(), None);
+}
+
+#[test]
+fn s1c_03_unpinning_a_frame_on_the_ring_does_not_change_its_place_or_the_size() {
+    let mut r = ClockReplacer::new(8);
+    for x in [1, 2, 3, 2, 2] {
+        r.unpin(f(x));
+    }
+    assert_eq!(r.size(), 3);
+    assert_eq!([r.victim(), r.victim(), r.victim()], [Some(f(1)), Some(f(2)), Some(f(3))]);
+}
+
+#[test]
+fn s1c_03_pinning_a_frame_behind_the_hand_leaves_the_hand_on_the_same_frame() {
+    let mut r = ClockReplacer::new(8);
+    for x in [1, 2, 3] {
+        r.unpin(f(x));
+    }
+    assert_eq!(r.victim(), Some(f(1))); // the hand now points at frame 2, whose bit is clear
+    r.unpin(f(4)); // joins just behind the hand
+    r.pin(f(4)); // and leaves again
+    assert_eq!(r.victim(), Some(f(2)), "the hand still points at frame 2");
+    assert_eq!(r.victim(), Some(f(3)));
+}
+
+#[test]
+fn s1c_03_pinning_the_frame_under_the_hand_moves_the_hand_to_the_next() {
+    let mut r = ClockReplacer::new(8);
+    for x in [1, 2, 3] {
+        r.unpin(f(x));
+    }
+    assert_eq!(r.victim(), Some(f(1))); // the hand points at frame 2
+    r.pin(f(2));
+    assert_eq!(r.victim(), Some(f(3)), "frame 2 left, so the hand is on frame 3");
+    assert_eq!(r.victim(), None);
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    #[test]
+    fn s1c_03_clock_agrees_with_the_model_for_any_operations(ops in replacer_ops()) {
+        clock_agrees_with_the_model(&clock, &ops)?;
+    }
+
+    #[test]
+    fn s1c_03_clock_satisfies_the_general_replacer_contract(ops in replacer_ops()) {
+        satisfies_the_general_contract(&clock, &ops)?;
+    }
+}
+
+// ---- 1c-04 · Boss ----------------------------------------------------------------------------------------------------------
+
+#[test]
+fn s1c_04_long_runs_on_many_frames_agree_with_the_models() {
+    let n = 300;
+    let mut rng = Lcg(2024);
+    let (mut l, mut lm) = (LruReplacer::new(n), LruModel::default());
+    let (mut c, mut cm) = (ClockReplacer::new(n), ClockModel::default());
+    for step in 0..20_000 {
+        let x = rng.next(n);
+        match rng.next(5) {
+            0 | 1 => {
+                l.unpin(f(x));
+                lm.unpin(x);
+                c.unpin(f(x));
+                cm.unpin(x);
+            }
+            2 => {
+                l.pin(f(x));
+                lm.pin(x);
+                c.pin(f(x));
+                cm.pin(x);
+            }
+            _ => {
+                assert_eq!(l.victim(), lm.victim().map(f), "LRU victim at step {step}");
+                assert_eq!(c.victim(), cm.victim().map(f), "CLOCK victim at step {step}");
+            }
+        }
+        assert_eq!((l.size(), c.size()), (lm.order.len(), cm.size()), "sizes at step {step}");
+    }
+}
+
+/// Replays a reference string through a pool of `frames` frames, using only the replacer to choose what to evict. Returns the hit
+/// rate and the pages evicted, in order.
+fn replay(mut r: Box<dyn Replacer>, frames: usize, accesses: &[usize]) -> (f64, Vec<usize>) {
+    let mut page_in: HashMap<usize, usize> = HashMap::new(); // page -> frame
+    let mut frame_holds: Vec<Option<usize>> = vec![None; frames];
+    let mut free: Vec<usize> = (0..frames).rev().collect();
+    let mut evicted = Vec::new();
+    let mut hits = 0;
+    for &page in accesses {
+        if let Some(&frame) = page_in.get(&page) {
+            hits += 1;
+            r.pin(f(frame)); // in use ...
+            r.unpin(f(frame)); // ... and done
+        } else {
+            let frame = free.pop().unwrap_or_else(|| r.victim().expect("a pool whose pages are all unpinned always has a victim").0);
+            if let Some(old) = frame_holds[frame] {
+                page_in.remove(&old);
+                evicted.push(old);
+            }
+            frame_holds[frame] = Some(page);
+            page_in.insert(page, frame);
+            r.unpin(f(frame));
+        }
+    }
+    (hits as f64 / accesses.len() as f64, evicted)
+}
+
+/// A buffer pool pins a frame when it uses a page and unpins it when done. Used like that, every access moves a frame to the
+/// back of the ring with its bit set, and CLOCK behaves exactly as LRU does. The two only differ when frames are unpinned
+/// without having been pinned in between.
+#[test]
+fn s1c_04_when_every_use_is_a_pin_and_an_unpin_clock_chooses_the_same_victims_as_lru() {
+    // 60% of accesses go to 24 hot pages and 40% to 90 cold ones; the pool has 32 frames, so recency decides what stays.
     let mut rng = Lcg(99);
-    for step in 0..3000 {
-        if !model.is_empty() && rng.next(2) == 0 {
-            let at = rng.next(model.len());
-            let (value, handle) = model.remove(at);
-            assert_eq!(list.remove(handle), Some(value), "step {step}");
-        } else {
-            let handle = list.push_back(step);
-            model.push((step, handle));
-        }
-    }
-    assert_eq!(all(&list), model.iter().map(|(v, _)| *v).collect::<Vec<_>>(), "a model with random removals");
-    assert_eq!(list.len(), model.len(), "a model with random removals");
-}
-
-// ---- 1c-01 · move_to_back ---------------------------------------------------------------------------------------------
-
-#[test]
-fn s1c_04_the_head_goes_to_the_back() {
-    let mut list = IndexList::new();
-    let h: Vec<_> = (1..=4).map(|x| list.push_back(x)).collect();
-    assert!(list.move_to_back(h[0]), "the head goes to the back: expected `list.move_to_back(h[0])`");
-    assert_eq!(all(&list), [2, 3, 4, 1], "the head goes to the back");
-    assert_eq!(list.front(), Some(&2), "the head goes to the back");
-}
-
-#[test]
-fn s1c_04_a_middle_element_goes_to_the_back() {
-    let mut list = IndexList::new();
-    let h: Vec<_> = (1..=4).map(|x| list.push_back(x)).collect();
-    assert!(list.move_to_back(h[1]), "a middle element goes to the back: expected `list.move_to_back(h[1])`");
-    assert_eq!(all(&list), [1, 3, 4, 2], "a middle element goes to the back");
-}
-
-#[test]
-fn s1c_04_the_tail_stays_where_it_is() {
-    let mut list = IndexList::new();
-    let h: Vec<_> = (1..=3).map(|x| list.push_back(x)).collect();
-    assert!(list.move_to_back(h[2]), "the tail stays where it is: expected `list.move_to_back(h[2])`");
-    assert_eq!(all(&list), [1, 2, 3], "the tail stays where it is");
-}
-
-#[test]
-fn s1c_04_a_single_element_list() {
-    let mut list = IndexList::new();
-    let a = list.push_back(1);
-    assert!(list.move_to_back(a), "a single element list: expected `list.move_to_back(a)`");
-    assert_eq!(all(&list), [1], "a single element list");
-}
-
-#[test]
-fn s1c_04_the_handle_stays_valid_after_the_move() {
-    let mut list = IndexList::new();
-    let a = list.push_back("a");
-    list.push_back("b");
-    list.move_to_back(a);
-    assert_eq!(list.get(a), Some(&"a"), "the handle stays valid after the move");
-    assert_eq!(list.remove(a), Some("a"), "the handle stays valid after the move");
-    assert_eq!(all(&list), ["b"], "the handle stays valid after the move");
-}
-
-#[test]
-fn s1c_04_a_stale_handle_is_refused() {
-    let mut list = IndexList::new();
-    let a = list.push_back(1);
-    list.push_back(2);
-    list.remove(a);
-    assert!(!list.move_to_back(a), "a stale handle is refused: expected `!list.move_to_back(a)`");
-    assert_eq!(all(&list), [2], "a stale handle is refused");
-}
-
-#[test]
-fn s1c_04_links_stay_consistent_under_many_moves() {
-    let mut list = IndexList::new();
-    let handles: Vec<_> = (0..50).map(|x| list.push_back(x)).collect();
-    let mut model: VecDeque<usize> = (0..50).collect();
-    let mut rng = Lcg(5);
-    for _ in 0..2000 {
-        let i = rng.next(50);
-        assert!(list.move_to_back(handles[i]), "links stay consistent under many moves: expected `list.move_to_back(handles[i])`");
-        let at = model.iter().position(|&x| x == i).unwrap();
-        model.remove(at);
-        model.push_back(i);
-    }
-    assert_eq!(all(&list), model.into_iter().collect::<Vec<_>>(), "links stay consistent under many moves");
-    // popping from the front walks the whole chain
-    let mut count = 0;
-    while list.pop_front().is_some() {
-        count += 1;
-    }
-    assert_eq!(count, 50, "links stay consistent under many moves");
-}
-
-// ---- 1c-02 · LruReplacer: unpin and size --------------------------------------------------------------------------------
-
-#[test]
-fn s1c_05_a_new_replacer_holds_nothing() {
-    assert_eq!(LruReplacer::new(5).size(), 0, "a new replacer holds nothing");
-}
-
-#[test]
-fn s1c_05_unpin_adds_frames() {
-    let mut lru = LruReplacer::new(7);
-    for n in 1..=6 {
-        lru.unpin(f(n));
-    }
-    assert_eq!(lru.size(), 6, "unpin adds frames");
-}
-
-#[test]
-fn s1c_05_unpinning_a_frame_twice_counts_it_once() {
-    let mut lru = LruReplacer::new(7);
-    lru.unpin(f(1));
-    lru.unpin(f(2));
-    lru.unpin(f(1));
-    assert_eq!(lru.size(), 2, "unpinning a frame twice counts it once");
-}
-
-#[test]
-#[should_panic(expected = "full")]
-fn s1c_05_more_frames_than_the_capacity_is_a_bug() {
-    let mut lru = LruReplacer::new(2);
-    lru.unpin(f(1));
-    lru.unpin(f(2));
-    lru.unpin(f(3));
-}
-
-#[test]
-fn s1c_05_it_can_be_used_through_the_trait() {
-    let mut lru: Box<dyn Replacer> = Box::new(LruReplacer::new(3));
-    lru.unpin(f(0));
-    assert_eq!(lru.size(), 1, "it can be used through the trait");
-}
-
-// ---- 1c-02 · LruReplacer::victim ----------------------------------------------------------------------------------------
-
-#[test]
-fn s1c_06_the_victim_is_the_frame_unpinned_longest_ago() {
-    let mut lru = LruReplacer::new(7);
-    for n in [3, 1, 2] {
-        lru.unpin(f(n));
-    }
-    assert_eq!(lru.victim(), Some(f(3)), "the victim is the frame unpinned longest ago");
-    assert_eq!(lru.victim(), Some(f(1)), "the victim is the frame unpinned longest ago");
-    assert_eq!(lru.victim(), Some(f(2)), "the victim is the frame unpinned longest ago");
-    assert_eq!(lru.victim(), None, "the victim is the frame unpinned longest ago");
-}
-
-#[test]
-fn s1c_06_victim_removes_the_frame() {
-    let mut lru = LruReplacer::new(4);
-    lru.unpin(f(1));
-    lru.unpin(f(2));
-    lru.victim();
-    assert_eq!(lru.size(), 1, "victim removes the frame");
-}
-
-#[test]
-fn s1c_06_unpinning_again_does_not_refresh_a_frame() {
-    // BusTub's rule: a frame that is already unpinned keeps its place in line.
-    let mut lru = LruReplacer::new(4);
-    lru.unpin(f(1));
-    lru.unpin(f(2));
-    lru.unpin(f(1));
-    assert_eq!(lru.victim(), Some(f(1)), "unpinning again does not refresh a frame");
-}
-
-#[test]
-fn s1c_06_an_empty_replacer_has_no_victim() {
-    assert_eq!(LruReplacer::new(3).victim(), None, "an empty replacer has no victim");
-}
-
-#[test]
-fn s1c_06_a_victim_can_be_unpinned_again_and_goes_to_the_back() {
-    let mut lru = LruReplacer::new(4);
-    lru.unpin(f(1));
-    lru.unpin(f(2));
-    assert_eq!(lru.victim(), Some(f(1)), "a victim can be unpinned again and goes to the back");
-    lru.unpin(f(1));
-    assert_eq!(lru.victim(), Some(f(2)), "a victim can be unpinned again and goes to the back");
-    assert_eq!(lru.victim(), Some(f(1)), "a victim can be unpinned again and goes to the back");
-}
-
-// ---- 1c-02 · LruReplacer::pin -------------------------------------------------------------------------------------------
-
-#[test]
-fn s1c_07_a_pinned_frame_is_not_a_victim() {
-    let mut lru = LruReplacer::new(5);
-    for n in 1..=4 {
-        lru.unpin(f(n));
-    }
-    lru.pin(f(2));
-    assert_eq!(lru.size(), 3, "a pinned frame is not a victim");
-    assert_eq!([lru.victim(), lru.victim(), lru.victim(), lru.victim()], [Some(f(1)), Some(f(3)), Some(f(4)), None], "a pinned frame is not a victim");
-}
-
-#[test]
-fn s1c_07_pinning_a_frame_the_replacer_doesnt_hold_does_nothing() {
-    let mut lru = LruReplacer::new(5);
-    lru.unpin(f(1));
-    lru.pin(f(9));
-    assert_eq!(lru.size(), 1, "pinning a frame the replacer doesnt hold does nothing");
-    let mut empty = LruReplacer::new(2);
-    empty.pin(f(0));
-    assert_eq!(empty.size(), 0, "pinning a frame the replacer doesnt hold does nothing");
-}
-
-#[test]
-fn s1c_07_unpinning_after_a_pin_puts_the_frame_at_the_back() {
-    let mut lru = LruReplacer::new(5);
-    for n in 1..=3 {
-        lru.unpin(f(n));
-    }
-    lru.pin(f(1));
-    lru.unpin(f(1));
-    assert_eq!([lru.victim(), lru.victim(), lru.victim()], [Some(f(2)), Some(f(3)), Some(f(1))], "unpinning after a pin puts the frame at the back");
-}
-
-#[test]
-fn s1c_07_pinning_twice_is_fine() {
-    let mut lru = LruReplacer::new(5);
-    lru.unpin(f(1));
-    lru.pin(f(1));
-    lru.pin(f(1));
-    assert_eq!(lru.size(), 0, "pinning twice is fine");
-    assert_eq!(lru.victim(), None, "pinning twice is fine");
-}
-
-#[test]
-fn s1c_07_two_hundred_thousand_frames_stay_fast() {
-    // Every operation must be O(1): a Vec-and-position implementation takes minutes here.
-    let n = 200_000;
-    let mut lru = LruReplacer::new(n);
-    let start = Instant::now();
-    for i in 0..n {
-        lru.unpin(f(i));
-    }
-    for i in (0..n).step_by(2) {
-        lru.pin(f(i));
-    }
-    for i in (0..n).step_by(4) {
-        lru.unpin(f(i));
-    }
-    let mut victims = 0;
-    while lru.victim().is_some() {
-        victims += 1;
-    }
-    assert_eq!(victims, n / 2 + n / 4, "two hundred thousand frames stay fast");
-    assert!(start.elapsed() < Duration::from_secs(5), "took {:?}", start.elapsed());
-}
-
-// ---- 1c-03 · ClockReplacer: unpin and size ------------------------------------------------------------------------------
-
-#[test]
-fn s1c_08_unpin_adds_frames_to_the_ring() {
-    let mut clock = ClockReplacer::new(7);
-    assert_eq!(clock.size(), 0, "unpin adds frames to the ring");
-    for n in 1..=6 {
-        clock.unpin(f(n));
-    }
-    assert_eq!(clock.size(), 6, "unpin adds frames to the ring");
-}
-
-#[test]
-fn s1c_08_unpinning_a_frame_twice_counts_it_once() {
-    let mut clock = ClockReplacer::new(7);
-    clock.unpin(f(1));
-    clock.unpin(f(2));
-    clock.unpin(f(1));
-    assert_eq!(clock.size(), 2, "unpinning a frame twice counts it once");
-}
-
-#[test]
-#[should_panic(expected = "full")]
-fn s1c_08_more_frames_than_the_capacity_is_a_bug() {
-    let mut clock = ClockReplacer::new(1);
-    clock.unpin(f(1));
-    clock.unpin(f(2));
-}
-
-// ---- 1c-03 · ClockReplacer::victim --------------------------------------------------------------------------------------
-
-#[test]
-fn s1c_09_with_every_bit_set_the_sweep_starts_over_at_the_first_frame() {
-    let mut clock = ClockReplacer::new(7);
-    for n in 1..=4 {
-        clock.unpin(f(n));
-    }
-    assert_eq!([clock.victim(), clock.victim(), clock.victim(), clock.victim()], [Some(f(1)), Some(f(2)), Some(f(3)), Some(f(4))], "with every bit set the sweep starts over at the first frame");
-    assert_eq!(clock.victim(), None, "with every bit set the sweep starts over at the first frame");
-    assert_eq!(clock.size(), 0, "with every bit set the sweep starts over at the first frame");
-}
-
-#[test]
-fn s1c_09_a_frame_unpinned_again_gets_a_second_chance() {
-    let mut clock = ClockReplacer::new(7);
-    for n in 1..=4 {
-        clock.unpin(f(n));
-    }
-    assert_eq!(clock.victim(), Some(f(1)), "a frame unpinned again gets a second chance"); // the sweep cleared every bit
-    clock.unpin(f(2)); // sets 2's bit again
-    assert_eq!(clock.victim(), Some(f(3)), "2 is skipped once: its bit is cleared instead");
-    assert_eq!(clock.victim(), Some(f(4)), "a frame unpinned again gets a second chance");
-    assert_eq!(clock.victim(), Some(f(2)), "a frame unpinned again gets a second chance");
-}
-
-#[test]
-fn s1c_09_a_new_frame_joins_the_end_of_the_ring_with_its_bit_set() {
-    let mut clock = ClockReplacer::new(7);
-    clock.unpin(f(1));
-    clock.unpin(f(2));
-    assert_eq!(clock.victim(), Some(f(1)), "a new frame joins the end of the ring with its bit set");
-    clock.unpin(f(3));
-    assert_eq!(clock.victim(), Some(f(2)), "a new frame joins the end of the ring with its bit set");
-    assert_eq!(clock.victim(), Some(f(3)), "a new frame joins the end of the ring with its bit set");
-}
-
-#[test]
-fn s1c_09_an_empty_ring_has_no_victim() {
-    assert_eq!(ClockReplacer::new(3).victim(), None, "an empty ring has no victim");
-}
-
-#[test]
-fn s1c_09_a_single_frame_with_its_bit_set_is_still_evicted() {
-    let mut clock = ClockReplacer::new(3);
-    clock.unpin(f(5));
-    assert_eq!(clock.victim(), Some(f(5)), "a single frame with its bit set is still evicted");
-}
-
-// ---- 1c-03 · ClockReplacer::pin ----------------------------------------------------------------------------------------
-
-#[test]
-fn s1c_10_a_pinned_frame_leaves_the_ring() {
-    let mut clock = ClockReplacer::new(7);
-    for n in 1..=4 {
-        clock.unpin(f(n));
-    }
-    clock.pin(f(2));
-    assert_eq!(clock.size(), 3, "a pinned frame leaves the ring");
-    assert_eq!([clock.victim(), clock.victim(), clock.victim(), clock.victim()], [Some(f(1)), Some(f(3)), Some(f(4)), None], "a pinned frame leaves the ring");
-}
-
-#[test]
-fn s1c_10_pinning_an_unknown_frame_does_nothing() {
-    let mut clock = ClockReplacer::new(7);
-    clock.unpin(f(1));
-    clock.pin(f(8));
-    assert_eq!(clock.size(), 1, "pinning an unknown frame does nothing");
-}
-
-#[test]
-fn s1c_10_the_hand_keeps_pointing_at_the_same_frame_when_an_earlier_frame_is_pinned() {
-    let mut clock = ClockReplacer::new(8);
-    for n in 1..=6 {
-        clock.unpin(f(n));
-    }
-    assert_eq!(clock.victim(), Some(f(1)), "the hand keeps pointing at the same frame when an earlier frame is pinned"); // all bits cleared, hand at 2
-    clock.unpin(f(2)); // 2 gets a second chance
-    assert_eq!(clock.victim(), Some(f(3)), "the hand keeps pointing at the same frame when an earlier frame is pinned"); // hand passed 2 (clearing it) and took 3; hand now at 4
-    clock.pin(f(2)); // 2 is behind the hand
-    assert_eq!(clock.victim(), Some(f(4)), "the hand must still be at 4");
-    assert_eq!(clock.victim(), Some(f(5)), "the hand keeps pointing at the same frame when an earlier frame is pinned");
-}
-
-#[test]
-fn s1c_10_pinning_the_frame_under_the_hand_moves_on_to_the_next() {
-    let mut clock = ClockReplacer::new(8);
-    for n in 1..=4 {
-        clock.unpin(f(n));
-    }
-    clock.victim(); // 1; hand at 2
-    clock.pin(f(2));
-    assert_eq!(clock.victim(), Some(f(3)), "pinning the frame under the hand moves on to the next");
-    assert_eq!(clock.victim(), Some(f(4)), "pinning the frame under the hand moves on to the next");
-}
-
-#[test]
-fn s1c_10_pinning_the_last_frame_wraps_the_hand() {
-    let mut clock = ClockReplacer::new(8);
-    for n in 1..=3 {
-        clock.unpin(f(n));
-    }
-    clock.victim(); // 1; ring [2, 3], hand at 2
-    clock.unpin(f(2)); // bit set
-    clock.victim(); // clears 2, takes 3; ring [2], hand wraps to 0
-    clock.pin(f(2));
-    assert_eq!(clock.size(), 0, "pinning the last frame wraps the hand");
-    clock.unpin(f(7));
-    assert_eq!(clock.victim(), Some(f(7)), "pinning the last frame wraps the hand");
-}
-
-#[test]
-fn s1c_10_unpin_after_pin_adds_the_frame_with_its_bit_set() {
-    let mut clock = ClockReplacer::new(8);
-    for n in 1..=3 {
-        clock.unpin(f(n));
-    }
-    clock.victim(); // 1 (bits of 2, 3 cleared)
-    clock.pin(f(2));
-    clock.unpin(f(2)); // back at the end of the ring, bit set
-    assert_eq!(clock.victim(), Some(f(3)), "unpin after pin adds the frame with its bit set");
-    assert_eq!(clock.victim(), Some(f(2)), "unpin after pin adds the frame with its bit set");
-}
-
-// ---- 1c-04 · both replacers on the BusTub scenario ---------------------------------------------------------------------------
-
-fn bustub_scenario(r: &mut dyn Replacer) -> Vec<Option<FrameId>> {
-    for n in [1, 2, 3, 4, 5, 6, 1] {
-        r.unpin(f(n));
-    }
-    assert_eq!(r.size(), 6, "in helper `bustub_scenario`");
-    let mut out = vec![r.victim(), r.victim(), r.victim()];
-    r.pin(f(3));
-    r.pin(f(4));
-    assert_eq!(r.size(), 2, "in helper `bustub_scenario`");
-    r.unpin(f(4));
-    out.extend([r.victim(), r.victim(), r.victim(), r.victim()]);
-    out
-}
-
-#[test]
-fn s1c_11_lru_gives_the_bustub_answers_through_the_trait() {
-    let want = [Some(f(1)), Some(f(2)), Some(f(3)), Some(f(5)), Some(f(6)), Some(f(4)), None];
-    assert_eq!(bustub_scenario(&mut LruReplacer::new(7)), want, "lru gives the bustub answers through the trait");
-}
-
-#[test]
-fn s1c_11_clock_gives_the_bustub_answers_through_the_trait() {
-    let want = [Some(f(1)), Some(f(2)), Some(f(3)), Some(f(5)), Some(f(6)), Some(f(4)), None];
-    assert_eq!(bustub_scenario(&mut ClockReplacer::new(7)), want, "clock gives the bustub answers through the trait");
-}
-
-#[test]
-fn s1c_11_the_policies_differ_when_frames_are_touched_unevenly() {
-    // LRU: a frame unpinned again while it is already unpinned keeps its place. CLOCK: it gets a second chance.
-    let mut lru = LruReplacer::new(5);
-    let mut clock = ClockReplacer::new(5);
-    for r in [&mut lru as &mut dyn Replacer, &mut clock] {
-        for n in 1..=4 {
-            r.unpin(f(n));
-        }
-    }
-    clock.victim(); // clears every bit, evicts 1
-    lru.victim();
-    lru.unpin(f(2));
-    clock.unpin(f(2));
-    assert_eq!(lru.victim(), Some(f(2)), "LRU: 2 never moved");
-    assert_eq!(clock.victim(), Some(f(3)), "CLOCK: 2 got a second chance");
+    let accesses: Vec<usize> = (0..40_000).map(|_| if rng.next(10) < 6 { rng.next(24) } else { 24 + rng.next(90) }).collect();
+    let ((l, l_evicted), (c, c_evicted)) = (replay(lru(32), 32, &accesses), replay(clock(32), 32, &accesses));
+    eprintln!("hit rate: LRU {l:.3}, CLOCK {c:.3}");
+    assert!(l > 0.4, "the hot set should mostly stay in memory: hit rate {l:.3}");
+    assert_eq!(c_evicted, l_evicted, "with pin-then-unpin on every use, CLOCK must evict the same pages as LRU, in the same order");
 }

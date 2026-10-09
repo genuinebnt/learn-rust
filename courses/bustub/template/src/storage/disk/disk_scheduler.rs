@@ -1,17 +1,17 @@
 //! Port of `src/storage/disk/disk_scheduler.cpp` (BusTub, MIT, Copyright (c) 2015-2025 Carnegie Mellon University Database Group).
 //!
 //! The disk scheduler runs disk reads and writes on a background thread. Callers hand it requests and wait on a future when they
-//! need the result, so the buffer pool can start several I/Os and do other work meanwhile.
+//! need the result, so the buffer pool can start several I/Os and do other work meanwhile. How the scheduler and the requests
+//! are built is yours; the tests use only the public items in this file.
 
 use std::io;
-use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
-use std::thread::JoinHandle;
 
 use super::disk_manager::DiskIo;
-use crate::common::channel::{consume, Channel};
-use crate::common::config::{PageData, PageId, BUSTUB_PAGE_SIZE};
-use crate::common::promise::{promise, Future, Promise};
+use crate::common::config::{PageData, PageId};
+use crate::common::promise::{Future, Promise};
+
+// TODO(1b-03): your imports go here.
 
 /// What a finished request reports: the page buffer (the page read, or the page just written), or the I/O error.
 pub type DiskResult = io::Result<Box<PageData>>;
@@ -20,93 +20,71 @@ pub type DiskResult = io::Result<Box<PageData>>;
 ///
 /// BusTub passes a `char *data` that the worker reads from or fills in, so the buffer is shared between two threads by convention.
 /// Here the request **owns** the buffer: a write carries the page to write; a read carries an empty buffer to fill. Either way the
-/// buffer comes back through the callback when the request is done.
+/// buffer comes back through the future when the request is done.
 pub struct DiskRequest {
-    pub is_write: bool,
-    pub data: Box<PageData>,
-    pub page_id: PageId,
-    /// Completed with the result when the request is done.
-    pub callback: Promise<DiskResult>,
+    // TODO(1b-03): the fields are yours: what a worker needs to do the I/O, and the way to answer the caller.
 }
 
 impl DiskRequest {
-    /// A read of `page_id` into a zeroed buffer, and the future for its result.
+    /// A read of `page_id`, and the future that will hold the page that was read.
     pub fn read(page_id: PageId) -> (DiskRequest, Future<DiskResult>) {
-        todo!("1b-02: a promise/future pair, and a request with is_write false and a zeroed buffer")
+        todo!("1b-03: a request to read the page, and the future for its result")
     }
 
-    /// A write of `data` as `page_id`, and the future for its result.
+    /// A write of `data` as `page_id`, and the future that will report whether it worked (and hand the buffer back).
     pub fn write(page_id: PageId, data: Box<PageData>) -> (DiskRequest, Future<DiskResult>) {
-        todo!("1b-02: a promise/future pair, and a request with is_write true carrying the data")
+        todo!("1b-03: a request to write the page, and the future for its result")
     }
 }
 
-/// Does the I/O of one request.
-fn run(disk: &dyn DiskIo, is_write: bool, page_id: PageId, data: &mut PageData) -> io::Result<()> {
-    todo!("1b-02: write_page when is_write, read_page (into data) otherwise")
-}
+// TODO(1b-03): private helpers go here.
 
-/// Runs one request against `disk`, then completes its callback with the buffer on success, or with the error.
-pub fn execute(disk: &dyn DiskIo, request: DiskRequest) {
-    todo!("1b-02: do the I/O (run), then complete the callback: the buffer if it worked, the error if not")
-}
-
-/// Runs disk requests, one at a time and in the order they were scheduled, on one background thread.
+/// Runs disk requests, one at a time and in the order they were scheduled, on a background thread.
 pub struct DiskScheduler {
-    disk: Arc<dyn DiskIo>,
-    /// `None` is the stop signal (BusTub's `std::nullopt`).
-    request_queue: Arc<Channel<Option<DiskRequest>>>,
-    background_thread: Option<JoinHandle<()>>,
+    // TODO(1b-03): the fields are yours; you will need the disk, a way to hand work to a thread, and the thread.
 }
 
 impl DiskScheduler {
-    /// Starts the worker thread.
+    /// Starts the background work.
     pub fn new(disk: Arc<dyn DiskIo>) -> DiskScheduler {
-        todo!("1b-02: create the queue, spawn the worker (consume the queue, execute each request on the disk), build the scheduler")
+        todo!("1b-03: start whatever runs the requests in the background, and build the scheduler")
     }
 
-    /// Queues the requests, in order. Returns at once; the futures say when they are done.
+    /// Hands the requests over, in order. Returns at once; each request's future says when it is done. Requests are run one at
+    /// a time in the order they were scheduled, so a read scheduled after a write of the same page sees that write.
     pub fn schedule(&self, requests: Vec<DiskRequest>) {
-        todo!("1b-02: put each request on the queue, in order")
+        todo!("1b-03: hand each request to the worker, keeping their order")
     }
 
-    /// A promise and its future for a request's callback. (BusTub's `CreatePromise()`.)
+    /// A promise and its future, for building a request by hand. (BusTub's `CreatePromise()`.)
     pub fn create_promise(&self) -> (Promise<DiskResult>, Future<DiskResult>) {
         todo!("1b-03: a fresh promise/future pair")
     }
 
     /// Frees a page on the disk. (BusTub's `DeallocatePage()`.)
     pub fn deallocate_page(&self, page_id: PageId) {
-        todo!("1b-03: ask the disk to delete the page")
+        todo!("1b-04: ask the disk to delete the page")
     }
 }
 
-impl Drop for DiskScheduler {
-    /// Stops the worker after it has finished everything already scheduled, and waits for it.
-    fn drop(&mut self) {
-        // TODO(1b-03): put the stop signal in the queue, then join the worker thread
-    }
-}
+// TODO(1b-04): when the scheduler goes away, finish everything already scheduled and stop the worker (a `Drop` impl).
 
 /// A scheduler with several workers that still runs the requests for each page in order: requests for page `p` go to worker
 /// `p % workers`, so two requests for the same page can never overtake each other, and requests for different pages overlap.
 pub struct ShardedDiskScheduler {
-    queues: Vec<Arc<Channel<Option<DiskRequest>>>>,
-    workers: Vec<JoinHandle<()>>,
+    // TODO(1b-06): the fields are yours.
 }
 
 impl ShardedDiskScheduler {
+    /// `workers` background workers (at least one: panic otherwise).
     pub fn new(disk: Arc<dyn DiskIo>, workers: usize) -> ShardedDiskScheduler {
-        todo!("1b-04: one queue and one worker thread per worker, like DiskScheduler::new but `workers` times")
+        todo!("1b-06: start the workers")
     }
 
+    /// Like `DiskScheduler::schedule`, but requests for different pages may run at the same time.
     pub fn schedule(&self, requests: Vec<DiskRequest>) {
-        todo!("1b-04: put each request on the queue of its page's shard (page id modulo the number of workers)")
+        todo!("1b-06: send each request to a worker so that requests for one page stay in order")
     }
 }
 
-impl Drop for ShardedDiskScheduler {
-    fn drop(&mut self) {
-        // TODO(1b-04): stop and join every worker
-    }
-}
+// TODO(1b-06): stop and join every worker when the scheduler goes away.

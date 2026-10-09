@@ -1,549 +1,590 @@
-//! Tests for the ARC stages (1e-01 … 1e-04). A test named `s1e_05_…` belongs to stage 1e-03.
+//! Tests for module 1e, the ARC replacer. A test name starts with its stage: `s1e_02_…` belongs to stage 1e-02, and
+//! `anneal course test` runs just those.
 //!
-//! Notation in the comments (BusTub's): `(a, fb)` is page a on frame b, `(a, _)` a ghost page, `p(a, fb)` a pinned page;
-//! `[mru_ghost][mru]![mfu][mfu_ghost] p=x` with the freshest entries next to the `!`.
+//! The tests use only `ArcReplacer`'s public methods. ARC is specified by a handful of rules (they are written out in the stage
+//! pages), so the main property is an **exact model**: the same rules on four plain `Vec`s, run side by side with your replacer on
+//! random operation sequences. Stage 1e-01 checks only what every replacer promises; 1e-02 adds the recency/frequency split; 1e-03
+//! adds the ghost lists and the adaptive target.
+
+use std::collections::BTreeMap;
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
 
 use bustub::buffer::arc_replacer::ArcReplacer;
+use bustub::buffer::lru_replacer::LruReplacer;
+use bustub::buffer::replacer::Replacer;
 use bustub::common::config::{FrameId, PageId};
+use proptest::prelude::*;
 
 fn f(n: usize) -> FrameId {
     FrameId(n)
 }
-
-fn p(n: i32) -> PageId {
+fn pg(n: i32) -> PageId {
     PageId(n)
 }
 
-/// Records an access and makes the frame evictable, as the buffer pool does when it unpins a page.
-fn touch(r: &mut ArcReplacer, frame: usize, page: i32) {
-    r.record_access(f(frame), p(page));
-    r.set_evictable(f(frame), true);
+fn config() -> ProptestConfig {
+    ProptestConfig { cases: 96, max_shrink_iters: 3000, ..ProptestConfig::default() }
 }
 
-// ---- 1e-01 · new and size ----------------------------------------------------------------------------------------------
-
-#[test]
-fn s1e_01_a_new_replacer_has_nothing_to_evict() {
-    assert_eq!(ArcReplacer::new(7).size(), 0, "a new replacer has nothing to evict");
-    assert_eq!(ArcReplacer::new(0).size(), 0, "a new replacer has nothing to evict");
+fn within<T: Send + 'static>(what: &str, limit: Duration, work: impl FnOnce() -> T + Send + 'static) -> T {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = tx.send(work());
+    });
+    rx.recv_timeout(limit).unwrap_or_else(|_| panic!("{what} did not finish in {limit:?}: the cost must not grow with the number of frames"))
 }
 
-// ---- 1e-01 · record_access (new pages) and set_evictable -------------------------------------------------------------------
-
-#[test]
-fn s1e_02_recorded_frames_start_out_not_evictable() {
-    let mut r = ArcReplacer::new(7);
-    r.record_access(f(1), p(10));
-    r.record_access(f(2), p(11));
-    assert_eq!(r.size(), 0, "recorded frames start out not evictable");
-}
-
-#[test]
-fn s1e_02_size_counts_the_evictable_frames_only() {
-    // the start of BusTub's SampleTest
-    let mut r = ArcReplacer::new(7);
-    for n in 1..=6 {
-        r.record_access(f(n), p(n as i32));
+struct Lcg(u64);
+impl Lcg {
+    fn next(&mut self, n: usize) -> usize {
+        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        ((self.0 >> 33) as usize) % n
     }
-    for n in 1..=5 {
-        r.set_evictable(f(n), true);
+}
+
+// ---- The model: ARC as BusTub specifies it, on plain vectors -------------------------------------------------------------
+
+/// Four lists, oldest first, and the target size `p` of `mru`. Frames are on `mru` and `mfu`; pages (without frames) on the ghost lists.
+struct ArcModel {
+    c: usize,
+    p: usize,
+    mru: Vec<usize>,
+    mfu: Vec<usize>,
+    mru_ghost: Vec<i32>,
+    mfu_ghost: Vec<i32>,
+    /// frame -> (page, evictable) for every live frame.
+    live: BTreeMap<usize, (i32, bool)>,
+}
+
+impl ArcModel {
+    fn new(c: usize) -> ArcModel {
+        ArcModel { c, p: 0, mru: vec![], mfu: vec![], mru_ghost: vec![], mfu_ghost: vec![], live: BTreeMap::new() }
     }
-    r.set_evictable(f(6), false);
-    assert_eq!(r.size(), 5, "size counts the evictable frames only");
-}
 
-#[test]
-fn s1e_02_setting_a_flag_twice_counts_once() {
-    let mut r = ArcReplacer::new(7);
-    r.record_access(f(1), p(1));
-    r.set_evictable(f(1), true);
-    r.set_evictable(f(1), true);
-    assert_eq!(r.size(), 1, "setting a flag twice counts once");
-    r.set_evictable(f(1), false);
-    r.set_evictable(f(1), false);
-    assert_eq!(r.size(), 0, "setting a flag twice counts once");
-}
-
-#[test]
-fn s1e_02_unknown_frames_are_ignored() {
-    let mut r = ArcReplacer::new(7);
-    r.set_evictable(f(3), true);
-    r.set_evictable(f(3), false);
-    assert_eq!(r.size(), 0, "unknown frames are ignored");
-}
-
-#[test]
-fn s1e_02_many_new_pages_are_fine() {
-    let mut r = ArcReplacer::new(100);
-    for n in 0..100 {
-        touch(&mut r, n, 1000 + n as i32);
-    }
-    assert_eq!(r.size(), 100, "many new pages are fine");
-}
-
-// ---- 1e-02 · evict ----------------------------------------------------------------------------------------------------
-
-#[test]
-fn s1e_03_the_oldest_evictable_frame_goes_first() {
-    let mut r = ArcReplacer::new(7);
-    for n in 1..=4 {
-        touch(&mut r, n, n as i32);
-    }
-    assert_eq!([r.evict(), r.evict(), r.evict(), r.evict(), r.evict()], [Some(f(1)), Some(f(2)), Some(f(3)), Some(f(4)), None], "the oldest evictable frame goes first");
-    assert_eq!(r.size(), 0, "the oldest evictable frame goes first");
-}
-
-#[test]
-fn s1e_03_pinned_frames_are_skipped() {
-    let mut r = ArcReplacer::new(7);
-    for n in 1..=3 {
-        touch(&mut r, n, n as i32);
-    }
-    r.set_evictable(f(1), false);
-    assert_eq!(r.evict(), Some(f(2)), "pinned frames are skipped");
-    assert_eq!(r.evict(), Some(f(3)), "pinned frames are skipped");
-    assert_eq!(r.evict(), None, "frame 1 is pinned");
-    assert_eq!(r.size(), 0, "pinned frames are skipped");
-}
-
-#[test]
-fn s1e_03_evict_lowers_size_and_a_failed_evict_does_not() {
-    let mut r = ArcReplacer::new(7);
-    touch(&mut r, 1, 1);
-    touch(&mut r, 2, 2);
-    r.evict();
-    assert_eq!(r.size(), 1, "evict lowers size and a failed evict does not");
-    let mut empty = ArcReplacer::new(3);
-    assert_eq!(empty.evict(), None, "evict lowers size and a failed evict does not");
-}
-
-#[test]
-fn s1e_03_an_evicted_frame_can_hold_another_page() {
-    let mut r = ArcReplacer::new(3);
-    touch(&mut r, 1, 1);
-    touch(&mut r, 2, 2);
-    assert_eq!(r.evict(), Some(f(1)), "an evicted frame can hold another page");
-    touch(&mut r, 1, 3); // frame 1 reused for page 3
-    assert_eq!(r.size(), 2, "an evicted frame can hold another page");
-    assert_eq!(r.evict(), Some(f(2)), "an evicted frame can hold another page");
-    assert_eq!(r.evict(), Some(f(1)), "an evicted frame can hold another page");
-}
-
-// ---- 1e-02 · a hit on a live frame ----------------------------------------------------------------------------------------
-
-#[test]
-fn s1e_04_a_second_access_moves_a_frame_to_the_frequent_side() {
-    // [][(1,f1),(2,f2),(3,f3),(4,f4)]!  then a hit on page 1:  [][(2,f2),(3,f3),(4,f4)]![(1,f1)]   p = 0, so mru is evicted first
-    let mut r = ArcReplacer::new(7);
-    for n in 1..=4 {
-        touch(&mut r, n, n as i32);
-    }
-    r.record_access(f(1), p(1));
-    assert_eq!([r.evict(), r.evict(), r.evict(), r.evict()], [Some(f(2)), Some(f(3)), Some(f(4)), Some(f(1))], "a second access moves a frame to the frequent side");
-}
-
-#[test]
-fn s1e_04_a_hit_in_mfu_refreshes_the_frame() {
-    let mut r = ArcReplacer::new(7);
-    for n in 1..=3 {
-        touch(&mut r, n, n as i32);
-    }
-    r.record_access(f(1), p(1));
-    r.record_access(f(2), p(2)); // mfu: 1, 2 (2 is fresher)
-    r.record_access(f(1), p(1)); // mfu: 2, 1
-    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(3)), Some(f(2)), Some(f(1))], "a hit in mfu refreshes the frame");
-}
-
-#[test]
-fn s1e_04_a_hit_keeps_the_evictable_flag() {
-    let mut r = ArcReplacer::new(7);
-    touch(&mut r, 1, 1);
-    r.record_access(f(1), p(1));
-    assert_eq!(r.size(), 1, "a hit keeps the evictable flag");
-    r.set_evictable(f(1), false);
-    r.record_access(f(1), p(1));
-    assert_eq!(r.size(), 0, "a hit keeps the evictable flag");
-    assert_eq!(r.evict(), None, "a hit keeps the evictable flag");
-}
-
-#[test]
-fn s1e_04_the_bustub_sample_start() {
-    let mut r = ArcReplacer::new(7);
-    for n in 1..=6 {
-        r.record_access(f(n), p(n as i32));
-    }
-    for n in 1..=5 {
-        r.set_evictable(f(n), true);
-    }
-    r.set_evictable(f(6), false);
-    assert_eq!(r.size(), 5, "the bustub sample start");
-    r.record_access(f(1), p(1)); // frame 1 goes to mfu
-    // [][(2,f2),(3,f3),(4,f4),(5,f5),p(6,f6)]![(1,f1)][] p=0: the mru side is evicted
-    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(2)), Some(f(3)), Some(f(4))], "the bustub sample start");
-    assert_eq!(r.size(), 2, "the bustub sample start");
-}
-
-// ---- 1e-03 · a hit on mru_ghost: the target grows ----------------------------------------------------------------------------
-
-#[test]
-fn s1e_05_a_ghost_hit_brings_the_page_back_on_the_frequent_side() {
-    let mut r = ArcReplacer::new(4);
-    for n in 1..=3 {
-        touch(&mut r, n, n as i32);
-    }
-    assert_eq!(r.evict(), Some(f(1)), "a ghost hit brings the page back on the frequent side"); // [(1,_)][(2,f2),(3,f3)]!
-    touch(&mut r, 1, 1); // page 1 again, on frame 1: a mru_ghost hit -> mfu.  p becomes 1
-    // [][(2,f2),(3,f3)]![(1,f1)][] p=1: mru has 2 >= 1 frames, so it is evicted first
-    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(2)), Some(f(3)), Some(f(1))], "a ghost hit brings the page back on the frequent side");
-}
-
-#[test]
-fn s1e_05_a_new_page_is_not_a_ghost_hit() {
-    // BusTub: "Insert new page 7 on frame 2, this should NOT be a hit on the ghost list since we've never seen page 7"
-    let mut r = ArcReplacer::new(7);
-    for n in 1..=5 {
-        touch(&mut r, n, n as i32);
-    }
-    r.record_access(f(1), p(1)); // 1 -> mfu
-    for _ in 0..3 {
-        r.evict(); // frames 2, 3, 4 become ghosts (pages 2, 3, 4)
-    }
-    touch(&mut r, 2, 7); // an unseen page on a freed frame: mru, not mfu
-    // [(2,_),(3,_),(4,_)][(5,f5),(7,f2)]![(1,f1)][] p=0
-    assert_eq!([r.evict(), r.evict()], [Some(f(5)), Some(f(2))], "page 7 sits in mru, behind page 5");
-}
-
-#[test]
-fn s1e_05_the_target_makes_eviction_prefer_mfu_when_mru_is_small() {
-    // BusTub's SampleTest, from the start to "Evict another entry, this time mru is smaller than target, mfu is victimized"
-    let mut r = ArcReplacer::new(7);
-    for n in 1..=6 {
-        r.record_access(f(n), p(n as i32));
-    }
-    for n in 1..=5 {
-        r.set_evictable(f(n), true);
-    }
-    r.set_evictable(f(6), false);
-    r.record_access(f(1), p(1));
-    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(2)), Some(f(3)), Some(f(4))], "the target makes eviction prefer mfu when mru is small");
-    // [(2,_),(3,_),(4,_)][(5,f5),p(6,f6)]![(1,f1)][] p=0
-    touch(&mut r, 2, 7);
-    touch(&mut r, 3, 2); // ghost hit on page 2: p = 1
-    // [(3,_),(4,_)][(5,f5),p(6,f6),(7,f2)]![(2,f3),(1,f1)][] p=1
-    assert_eq!(r.size(), 4, "the target makes eviction prefer mfu when mru is small");
-    touch(&mut r, 4, 3);
-    touch(&mut r, 7, 4); // ghost hits on pages 3 and 4: p = 3
-    // [][(5,f5),p(6,f6),(7,f2)]![(4,f7),(3,f4),(2,f3),(1,f1)][] p=3
-    assert_eq!(r.size(), 6, "the target makes eviction prefer mfu when mru is small");
-    assert_eq!(r.evict(), Some(f(5)), "mru holds 3 frames, which is >= p = 3: evict from mru");
-    // [(5,_)][p(6,f6),(7,f2)]![(4,f7),(3,f4),(2,f3),(1,f1)][] p=3
-    assert_eq!(r.evict(), Some(f(1)), "mru now holds 2 < 3: evict from mfu, its oldest");
-}
-
-#[test]
-fn s1e_05_when_the_preferred_side_has_nothing_evictable_the_other_side_is_used() {
-    let mut r = ArcReplacer::new(4);
-    r.record_access(f(1), p(1)); // pinned, in mru
-    touch(&mut r, 2, 2);
-    r.record_access(f(2), p(2)); // frame 2 -> mfu
-    // mru = [p(1)] (1 >= p = 0, so mru is preferred) but nothing there is evictable
-    assert_eq!(r.evict(), Some(f(2)), "when the preferred side has nothing evictable the other side is used");
-}
-
-// ---- 1e-03 · a hit on mfu_ghost: the target shrinks ----------------------------------------------------------------------------
-
-#[test]
-fn s1e_06_a_hit_on_mfu_ghost_lowers_the_target() {
-    // BusTub's SampleTest, up to "p is adjusted down by 1/1 = 1" and the eviction after it.
-    let mut r = ArcReplacer::new(7);
-    for n in 1..=6 {
-        r.record_access(f(n), p(n as i32));
-    }
-    for n in 1..=5 {
-        r.set_evictable(f(n), true);
-    }
-    r.set_evictable(f(6), false);
-    r.record_access(f(1), p(1));
-    r.evict();
-    r.evict();
-    r.evict();
-    touch(&mut r, 2, 7);
-    touch(&mut r, 3, 2);
-    touch(&mut r, 4, 3);
-    touch(&mut r, 7, 4);
-    assert_eq!(r.evict(), Some(f(5)), "a hit on mfu ghost lowers the target");
-    assert_eq!(r.evict(), Some(f(1)), "a hit on mfu ghost lowers the target");
-    // [(5,_)][p(6,f6),(7,f2)]![(4,f7),(3,f4),(2,f3)][(1,_)] p=3
-    touch(&mut r, 5, 1); // page 1 is on mfu_ghost: back to mfu, p = 3 - 1 = 2
-    // [(5,_)][p(6,f6),(7,f2)]![(1,f5),(4,f7),(3,f4),(2,f3)][] p=2
-    assert_eq!(r.size(), 5, "a hit on mfu ghost lowers the target");
-    assert_eq!(r.evict(), Some(f(2)), "mru holds 2 >= p = 2: evict from mru; frame 6 is pinned, so page 7 on frame 2 goes");
-}
-
-#[test]
-fn s1e_06_the_target_stops_at_zero() {
-    let mut r = ArcReplacer::new(3);
-    touch(&mut r, 1, 1);
-    r.record_access(f(1), p(1)); // mfu
-    assert_eq!(r.evict(), Some(f(1)), "the target stops at zero"); // mru is empty (0 >= p = 0), nothing evictable there, so mfu: page 1 -> mfu_ghost
-    touch(&mut r, 1, 1); // mfu_ghost hit: p = 0 - 1 saturates at 0 (and must not wrap around)
-    touch(&mut r, 2, 2);
-    // mru = [(2,f2)], mfu = [(1,f1)], p = 0: mru preferred
-    assert_eq!(r.evict(), Some(f(2)), "the target stops at zero");
-}
-
-// ---- 1e-03 · keeping the ghost lists bounded --------------------------------------------------------------------------------------
-
-#[test]
-fn s1e_07_a_new_page_pushes_out_the_oldest_mru_ghost_when_mru_and_its_ghosts_fill_c() {
-    // BusTub's SampleTest2, from the start up to "Access page 1 ... Ghost page 2 should be driven out"
-    let mut r = ArcReplacer::new(3);
-    touch(&mut r, 1, 1);
-    touch(&mut r, 2, 2);
-    touch(&mut r, 3, 3);
-    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(1)), Some(f(2)), Some(f(3))], "a new page pushes out the oldest mru ghost when mru and its ghosts fill c");
-    // [(1,_),(2,_),(3,_)][]![][] p=0
-    touch(&mut r, 3, 4); // case 4A: ghost page 1 is driven out. [(2,_),(3,_)][(4,f3)]!
-    touch(&mut r, 2, 1); // page 1 is no longer a ghost, so this is a NEW page, not a ghost hit. Ghost 2 is driven out
-    assert_eq!(r.size(), 2, "a new page pushes out the oldest mru ghost when mru and its ghosts fill c");
-    // [(3,_)][(4,f3),(1,f2)]![][] p=0 -- if page 1 had been a ghost hit, it would be on mfu and p would be 1
-    touch(&mut r, 1, 3); // page 3 IS still a ghost: hit. mfu: (3,f1).  p = 1
-    // [][(4,f3),(1,f2)]![(3,f1)][] p=1
-    assert_eq!(r.evict(), Some(f(3)), "mru holds 2 >= p = 1: evict from mru, the oldest: page 4 on frame 3");
-}
-
-#[test]
-fn s1e_07_four_lists_at_twice_the_capacity_shrink_the_mfu_ghost_list() {
-    // BusTub's SampleTest2 end to end: the middle of it is case 4B ("four lists total size equals 2 * capacity").
-    // Test a smaller capacity
-    let mut r = ArcReplacer::new(3);
-    // Fill up the replacer
-    r.record_access(f(1), p(1));
-    r.set_evictable(f(1), true);
-    r.record_access(f(2), p(2));
-    r.set_evictable(f(2), true);
-    r.record_access(f(3), p(3));
-    r.set_evictable(f(3), true);
-    assert_eq!(3, r.size(), "four lists at twice the capacity shrink the mfu ghost list");
-    // Now [][(1,f1), (2,f2), (3,f3)]![][] p=0
-    // Evict all pages
-    assert_eq!(Some(f(1)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    assert_eq!(Some(f(2)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    assert_eq!(Some(f(3)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    assert_eq!(0, r.size(), "four lists at twice the capacity shrink the mfu ghost list");
-    // Now [(1,_), (2,_), (3,_)][]![][] p=0
-
-    // Insert a new page 4 with frame 3. This is case 4A
-    // and ghost pages 1 should be driven out
-    r.record_access(f(3), p(4));
-    r.set_evictable(f(3), true);
-    // Now [(2,_), (3,_)][(4,f3)]![][] p=0
-
-    // Access page 1 on frame 2, it should NOT be a hit on
-    // the ghost list. Ghost page 2 should be driven out
-    r.record_access(f(2), p(1));
-    r.set_evictable(f(2), true);
-    assert_eq!(2, r.size(), "four lists at twice the capacity shrink the mfu ghost list");
-    // Now [(3,_)][(4,f3), (1,f2)]![][] p=0
-
-    // Access page 3 with frame 1, this should be a ghost hit,
-    // page 3 is placed on mfu and target size is bumped up by 1
-    r.record_access(f(1), p(3));
-    r.set_evictable(f(1), true);
-    // Now [][(4,f3), (1,f2)]![(3,f1)][] p=1
-
-    // Make some more ghosts by evicting all pages again
-    assert_eq!(Some(f(3)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    assert_eq!(Some(f(2)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    assert_eq!(Some(f(1)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    // Now [(4,_), (1,_)][]![][(3,_)] p=1
-
-    // Let's make even more ghost to fill the list to "full"
-    // Insert page 1 again so it goes to mfu side,
-    // target is bumped up by 1
-    r.record_access(f(1), p(1));
-    r.set_evictable(f(1), true);
-    // Now [(4,_)][]![(1,f1)][(3,_)] p=2
-
-    // Insert page 4 again so it goes to mfu side,
-    // target is bumped up by 1
-    r.record_access(f(2), p(4));
-    r.set_evictable(f(2), true);
-    // Now [][]![(4,f2),(1,f1)][(3,_)] p=3
-
-    // Now insert and evict one new page at a time
-    // Insert page 5 and evict, since target size is 3,
-    // should victimize page 1
-    r.record_access(f(3), p(5));
-    r.set_evictable(f(3), true);
-    assert_eq!(Some(f(1)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    // Now [][(5,f3)]![(4,f2)][(1,_),(3,_)] p=3
-    // Insert page 6 and evict, notice target size is 3,
-    // so page 4 gets evicted
-    r.record_access(f(1), p(6));
-    r.set_evictable(f(1), true);
-    assert_eq!(Some(f(2)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    // Now [][(5,f3),(6,f1)]![(4,_),(1,_),(3,_)] p=3
-    // Insert page 7 and evict, notice target size is 3,
-    // so page 5 gets evicted
-    r.record_access(f(2), p(7));
-    r.set_evictable(f(2), true);
-    assert_eq!(Some(f(3)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    // Now [(5,_)][(6,f1),(7,f2)]![][(4,_),(1,_),(3,_)] p=3
-
-    // Now the list is full! reaching 2*capacity
-    // adjust page 5 to mfu list
-    r.record_access(f(3), p(5));
-    r.set_evictable(f(3), true);
-    // Now [][(6,f1),(7,f2)]![(5,f3)][(4,_),(1,_),(3,_)] p=3
-
-    // Now evict, target should be mfu
-    assert_eq!(Some(f(3)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    // Now [][(6,f1),(7,f2)]![][(5,_),(4,_),(1,_),(3,_)] p=3
-
-    // Now mru and mru_ghost together has
-    // less than 3 records. When inserting a new page 2
-    // this should be case 4B and
-    // four lists total size equals 2 * capacity case,
-    // So mfu ghost will be shrinked
-    r.record_access(f(3), p(2));
-    r.set_evictable(f(3), true);
-    // Now [][(6,f1),(7,f2),(2,f3)]![][(5,_),(4,_),(1,_)] p=3
-
-    // Evict a page 6
-    assert_eq!(Some(f(1)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    // Now [(6,_)][(7,f2),(2,f3)]![][(5,_),(4,_),(1,_)] p=3
-    // And access page 3 who was removed
-    // then this is case 4A, ghost page 6 will be removed
-    r.record_access(f(1), p(3));
-    r.set_evictable(f(1), true);
-    // Now [][(7,f2),(2,f3),(3,f1)]![][(5,_),(4,_),(1,_)] p=3
-
-    // Finally we evict all pages and see if the order is right,
-    // note that target size is 3
-    assert_eq!(Some(f(2)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    assert_eq!(Some(f(3)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-    assert_eq!(Some(f(1)), r.evict(), "four lists at twice the capacity shrink the mfu ghost list");
-}
-
-// ---- 1e-03 · remove -------------------------------------------------------------------------------------------------------------
-
-#[test]
-fn s1e_08_remove_drops_a_frame_and_keeps_the_order_of_the_rest() {
-    let mut r = ArcReplacer::new(5);
-    for n in 0..5 {
-        touch(&mut r, n, 60 + n as i32);
-    }
-    r.remove(f(2));
-    assert_eq!(r.size(), 4, "remove drops a frame and keeps the order of the rest");
-    assert_eq!([r.evict(), r.evict(), r.evict(), r.evict(), r.evict()], [Some(f(0)), Some(f(1)), Some(f(3)), Some(f(4)), None], "remove drops a frame and keeps the order of the rest");
-}
-
-#[test]
-fn s1e_08_removing_from_mfu() {
-    let mut r = ArcReplacer::new(4);
-    touch(&mut r, 0, 20);
-    touch(&mut r, 1, 21);
-    r.record_access(f(0), p(20)); // frame 0 -> mfu
-    r.remove(f(0));
-    assert_eq!(r.size(), 1, "removing from mfu");
-    assert_eq!(r.evict(), Some(f(1)), "removing from mfu");
-    assert_eq!(r.evict(), None, "removing from mfu");
-}
-
-#[test]
-fn s1e_08_remove_leaves_no_ghost() {
-    // If frame 0 had been EVICTED, page 30 would be a ghost and re-accessing it would be a ghost hit (mfu, p up).
-    // Removed instead, it is a new page: back in mru, behind the others.
-    let mut r = ArcReplacer::new(3);
-    for n in 0..3 {
-        touch(&mut r, n, 30 + n as i32);
-    }
-    r.remove(f(0));
-    touch(&mut r, 0, 30);
-    assert_eq!([r.evict(), r.evict(), r.evict()], [Some(f(1)), Some(f(2)), Some(f(0))], "remove leaves no ghost");
-}
-
-#[test]
-fn s1e_08_unknown_frames_and_double_removes_are_ignored() {
-    let mut r = ArcReplacer::new(3);
-    r.remove(f(0));
-    touch(&mut r, 0, 40);
-    r.remove(f(99));
-    assert_eq!(r.size(), 1, "unknown frames and double removes are ignored");
-    r.remove(f(0));
-    r.remove(f(0));
-    assert_eq!(r.size(), 0, "unknown frames and double removes are ignored");
-}
-
-#[test]
-fn s1e_08_a_removed_frame_can_be_reused_for_another_page() {
-    let mut r = ArcReplacer::new(3);
-    touch(&mut r, 0, 50);
-    r.remove(f(0));
-    touch(&mut r, 0, 51);
-    assert_eq!(r.size(), 1, "a removed frame can be reused for another page");
-    assert_eq!(r.evict(), Some(f(0)), "a removed frame can be reused for another page");
-}
-
-#[test]
-#[should_panic(expected = "not evictable")]
-fn s1e_08_removing_a_pinned_frame_is_a_bug() {
-    let mut r = ArcReplacer::new(3);
-    r.record_access(f(0), p(1));
-    r.remove(f(0));
-}
-
-// ---- 1e-04 · the module as a whole -------------------------------------------------------------------------------------------------
-
-#[test]
-fn s1e_09_the_size_always_matches_a_recount() {
-    // A deterministic random workload against a slow model of just the evictable count.
-    let mut x: u64 = 12345;
-    let mut next = |n: usize| {
-        x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-        ((x >> 33) as usize) % n
-    };
-    let mut r = ArcReplacer::new(8);
-    let mut page_of = [None::<i32>; 8];
-    let mut evictable = [false; 8];
-    let mut next_page = 0;
-    for step in 0..2000 {
-        match next(4) {
-            0 => {
-                // access: a free frame gets a fresh page; a used frame is hit
-                let frame = next(8);
-                let page = page_of[frame].unwrap_or_else(|| {
-                    next_page += 1;
-                    next_page
-                });
-                r.record_access(f(frame), p(page));
-                page_of[frame] = Some(page);
-            }
-            1 => {
-                let frame = next(8);
-                let flag = next(2) == 0;
-                r.set_evictable(f(frame), flag);
-                if page_of[frame].is_some() {
-                    evictable[frame] = flag;
+    fn access(&mut self, frame: usize, page: i32) {
+        if self.live.contains_key(&frame) {
+            // a hit: the frame goes to the newest end of mfu
+            self.mru.retain(|&x| x != frame);
+            self.mfu.retain(|&x| x != frame);
+            self.mfu.push(frame);
+        } else if let Some(i) = self.mru_ghost.iter().position(|&x| x == page) {
+            let delta = if self.mru_ghost.len() >= self.mfu_ghost.len() { 1 } else { self.mfu_ghost.len() / self.mru_ghost.len() };
+            self.p = (self.p + delta).min(self.c);
+            self.mru_ghost.remove(i);
+            self.mfu.push(frame);
+            self.live.insert(frame, (page, false));
+        } else if let Some(i) = self.mfu_ghost.iter().position(|&x| x == page) {
+            let delta = if self.mfu_ghost.len() >= self.mru_ghost.len() { 1 } else { self.mru_ghost.len() / self.mfu_ghost.len() };
+            self.p = self.p.saturating_sub(delta);
+            self.mfu_ghost.remove(i);
+            self.mfu.push(frame);
+            self.live.insert(frame, (page, false));
+        } else {
+            let recent = self.mru.len() + self.mru_ghost.len();
+            if recent >= self.c {
+                if !self.mru_ghost.is_empty() {
+                    self.mru_ghost.remove(0);
                 }
+            } else if recent + self.mfu.len() + self.mfu_ghost.len() >= 2 * self.c && !self.mfu_ghost.is_empty() {
+                self.mfu_ghost.remove(0);
             }
-            2 => {
-                if let Some(victim) = r.evict() {
-                    assert!(evictable[victim.0], "step {step}: evicted a frame that was not evictable");
-                    page_of[victim.0] = None;
-                    evictable[victim.0] = false;
+            self.mru.push(frame);
+            self.live.insert(frame, (page, false));
+        }
+    }
+
+    fn set_evictable(&mut self, frame: usize, evictable: bool) {
+        if let Some(entry) = self.live.get_mut(&frame) {
+            entry.1 = evictable;
+        }
+    }
+
+    fn evict(&mut self) -> Option<usize> {
+        let mru_first = self.mru.len() >= self.p;
+        let from_mru = self.mru.iter().position(|x| self.live[x].1);
+        let from_mfu = self.mfu.iter().position(|x| self.live[x].1);
+        let (in_mru, i) = match (mru_first, from_mru, from_mfu) {
+            (true, Some(i), _) | (false, Some(i), None) => (true, i),
+            (true, None, Some(j)) | (false, _, Some(j)) => (false, j),
+            _ => return None,
+        };
+        let frame = if in_mru { self.mru.remove(i) } else { self.mfu.remove(i) };
+        let (page, _) = self.live.remove(&frame).unwrap();
+        if in_mru {
+            self.mru_ghost.push(page);
+        } else {
+            self.mfu_ghost.push(page);
+        }
+        Some(frame)
+    }
+
+    /// An eviction that the replacer under test made on its own; only the set of live frames matters afterwards.
+    fn forget(&mut self, frame: usize) {
+        self.live.remove(&frame);
+        self.mru.retain(|&x| x != frame);
+        self.mfu.retain(|&x| x != frame);
+    }
+
+    fn remove(&mut self, frame: usize) {
+        self.forget(frame);
+    }
+
+    fn size(&self) -> usize {
+        self.live.values().filter(|(_, e)| *e).count()
+    }
+}
+
+// ---- Random runs ----------------------------------------------------------------------------------------------------------
+
+const PAGES: i32 = 12;
+
+#[derive(Clone, Copy, Debug)]
+enum Op {
+    Access(usize, i32),
+    SetEvictable(usize, bool),
+    Evict,
+    Remove(usize),
+}
+
+fn ops(frames: usize) -> impl Strategy<Value = Vec<Op>> {
+    prop::collection::vec(
+        prop_oneof![
+            5 => (0..frames, 0..PAGES).prop_map(|(x, p)| Op::Access(x, p)),
+            4 => (0..frames, any::<bool>()).prop_map(|(x, b)| Op::SetEvictable(x, b)),
+            3 => Just(Op::Evict),
+            1 => (0..frames).prop_map(Op::Remove),
+        ],
+        1..250,
+    )
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Check {
+    /// Any evictable frame will do.
+    AnyEvictable,
+    /// Exactly the frame ARC picks.
+    Arc,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Pages {
+    /// Pages come from the strategy: pages evicted earlier come back, so ghost lists matter.
+    Recurring,
+    /// Every new use of a frame brings a page never seen before: no ghost is ever hit.
+    Fresh,
+}
+
+fn run(c: usize, ops: &[Op], check: Check, pages: Pages) -> Result<(), TestCaseError> {
+    let mut r = ArcReplacer::new(c);
+    let mut m = ArcModel::new(c);
+    let mut fresh = 1_000;
+    for (step, op) in ops.iter().enumerate() {
+        match *op {
+            Op::Access(x, wanted) => {
+                if x >= c {
+                    continue;
                 }
+                let page = match m.live.get(&x) {
+                    Some(&(page, _)) => page, // a frame that is live is accessed again as the same page
+                    None if pages == Pages::Fresh => {
+                        fresh += 1;
+                        fresh
+                    }
+                    None => (0..PAGES).map(|d| (wanted + d) % PAGES).find(|p| m.live.values().all(|(q, _)| q != p)).expect("fewer frames than pages"),
+                };
+                r.record_access(f(x), pg(page));
+                m.access(x, page);
             }
-            _ => {
-                let frame = next(8);
-                if page_of[frame].is_some() && evictable[frame] {
-                    r.remove(f(frame));
-                    page_of[frame] = None;
-                    evictable[frame] = false;
+            Op::SetEvictable(x, b) => {
+                r.set_evictable(f(x), b);
+                m.set_evictable(x, b);
+            }
+            Op::Remove(x) => {
+                if m.live.get(&x).is_some_and(|&(_, evictable)| !evictable) {
+                    continue; // a caller bug: it panics, and has its own test
+                }
+                r.remove(f(x));
+                m.remove(x);
+            }
+            Op::Evict => {
+                let got = r.evict();
+                match check {
+                    Check::Arc => {
+                        let want = m.evict();
+                        prop_assert_eq!(got, want.map(f), "step {}: evict must return the frame ARC chooses (p = {}, mru {:?}, mfu {:?}, ghosts {:?} / {:?})", step, m.p, m.mru, m.mfu, m.mru_ghost, m.mfu_ghost);
+                    }
+                    Check::AnyEvictable => match got {
+                        None => prop_assert!(m.size() == 0, "step {}: evict returned None but a frame is evictable", step),
+                        Some(FrameId(v)) => {
+                            prop_assert!(m.live.get(&v).is_some_and(|&(_, e)| e), "step {}: evict returned frame {} which is not an evictable live frame", step, v);
+                            m.forget(v);
+                        }
+                    },
                 }
             }
         }
-        assert_eq!(r.size(), evictable.iter().filter(|&&e| e).count(), "step {step}");
+        prop_assert_eq!(r.size(), m.size(), "step {}: size is the number of evictable frames", step);
     }
+    Ok(())
+}
+
+// ---- 1e-01 · Frames and the contract ---------------------------------------------------------------------------------------
+
+#[test]
+fn s1e_01_a_new_frame_is_not_evictable_until_it_is_marked_so() {
+    let mut r = ArcReplacer::new(4);
+    r.record_access(f(0), pg(10));
+    r.record_access(f(1), pg(11));
+    assert_eq!((r.size(), r.evict()), (0, None), "new frames are not evictable");
+    r.set_evictable(f(0), true);
+    r.set_evictable(f(0), true);
+    assert_eq!(r.size(), 1, "each evictable frame counts once");
+    r.set_evictable(f(0), false);
+    assert_eq!(r.size(), 0);
+}
+
+#[test]
+fn s1e_01_accessing_a_live_frame_again_keeps_it_live_and_keeps_its_flag() {
+    let mut r = ArcReplacer::new(4);
+    r.record_access(f(0), pg(10));
+    r.set_evictable(f(0), true);
+    r.record_access(f(0), pg(10)); // a hit
+    assert_eq!(r.size(), 1, "a hit does not change whether the frame is evictable");
+    assert_eq!(r.evict(), Some(f(0)));
+    assert_eq!(r.evict(), None, "and the frame is on the lists once, not twice");
+}
+
+#[test]
+fn s1e_01_evicting_forgets_the_frame() {
+    let mut r = ArcReplacer::new(4);
+    r.record_access(f(2), pg(5));
+    r.set_evictable(f(2), true);
+    assert_eq!(r.evict(), Some(f(2)));
+    assert_eq!(r.size(), 0);
+    r.set_evictable(f(2), true); // not live any more: ignored
+    assert_eq!(r.size(), 0, "marking an evicted frame evictable does nothing");
+}
+
+#[test]
+fn s1e_01_remove_forgets_an_evictable_frame_ignores_unknown_ones_and_panics_for_pinned_ones() {
+    let mut r = ArcReplacer::new(4);
+    r.remove(f(3)); // unknown: nothing happens
+    for x in 0..2 {
+        r.record_access(f(x), pg(x as i32));
+        r.set_evictable(f(x), true);
+    }
+    r.remove(f(0));
+    assert_eq!((r.size(), r.evict(), r.evict()), (1, Some(f(1)), None));
+    let result = std::panic::catch_unwind(|| {
+        let mut r = ArcReplacer::new(4);
+        r.record_access(f(0), pg(0));
+        r.remove(f(0)); // live but not evictable
+    });
+    assert!(result.is_err(), "removing a frame that is not evictable is a bug in the caller: panic");
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    #[test]
+    fn s1e_01_the_replacer_contract_holds_for_any_operations(c in 2usize..6, ops in ops(5)) {
+        run(c.max(5), &ops, Check::AnyEvictable, Pages::Fresh)?;
+    }
+}
+
+// ---- 1e-02 · Recency and frequency -----------------------------------------------------------------------------------------
+
+/// Marks every frame in `frames` evictable.
+fn evictable(r: &mut ArcReplacer, frames: &[usize]) {
+    for &x in frames {
+        r.set_evictable(f(x), true);
+    }
+}
+
+fn drain(r: &mut ArcReplacer) -> Vec<usize> {
+    std::iter::from_fn(|| r.evict().map(|FrameId(v)| v)).collect()
+}
+
+#[test]
+fn s1e_02_frames_seen_once_leave_before_frames_seen_twice() {
+    let mut r = ArcReplacer::new(4);
+    for x in [1, 2] {
+        r.record_access(f(x), pg(x as i32));
+        r.record_access(f(x), pg(x as i32)); // seen twice: mfu
+    }
+    for x in [3, 4] {
+        r.record_access(f(x), pg(x as i32)); // seen once: mru
+    }
+    evictable(&mut r, &[1, 2, 3, 4]);
+    assert_eq!(drain(&mut r), [3, 4, 1, 2], "mru first (oldest first), then mfu (oldest first): a scan cannot push out the frames seen twice");
+}
+
+#[test]
+fn s1e_02_a_hit_moves_the_frame_to_the_newest_end_of_mfu() {
+    let mut r = ArcReplacer::new(4);
+    for x in [1, 2] {
+        r.record_access(f(x), pg(x as i32));
+        r.record_access(f(x), pg(x as i32));
+    }
+    r.record_access(f(1), pg(1)); // frame 1 is newest on mfu again
+    evictable(&mut r, &[1, 2]);
+    assert_eq!(drain(&mut r), [2, 1]);
+}
+
+#[test]
+fn s1e_02_a_frame_that_is_not_evictable_is_skipped_not_dropped() {
+    let mut r = ArcReplacer::new(4);
+    for x in [1, 2, 3] {
+        r.record_access(f(x), pg(x as i32));
+    }
+    evictable(&mut r, &[2, 3]); // frame 1, the oldest, is in use
+    assert_eq!(r.evict(), Some(f(2)));
+    assert_eq!(r.evict(), Some(f(3)));
+    assert_eq!(r.evict(), None);
+    r.set_evictable(f(1), true);
+    assert_eq!(r.evict(), Some(f(1)), "the pinned frame was only skipped");
+}
+
+#[test]
+fn s1e_02_removing_a_frame_takes_it_off_its_list() {
+    let mut r = ArcReplacer::new(4);
+    for x in [1, 2, 3] {
+        r.record_access(f(x), pg(x as i32));
+    }
+    evictable(&mut r, &[1, 2, 3]);
+    r.remove(f(2));
+    assert_eq!(drain(&mut r), [1, 3]);
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// No page comes back after it was evicted, so ghosts are never hit and the target stays 0: only the two live lists matter.
+    #[test]
+    fn s1e_02_victims_follow_mru_then_mfu_for_any_operations(ops in ops(5)) {
+        run(5, &ops, Check::Arc, Pages::Fresh)?;
+    }
+}
+
+#[test]
+fn s1e_02_a_hit_on_a_very_long_list_stays_fast() {
+    // 100 000 frames on mfu and 400 000 hits in the middle of it. A list walked from the end per hit costs 50 000 steps each.
+    within("400 000 hits on a replacer of 100 000 frames", Duration::from_secs(10), || {
+        let n = 100_000;
+        let mut r = ArcReplacer::new(n);
+        for x in 0..n {
+            r.record_access(f(x), pg(x as i32));
+            r.record_access(f(x), pg(x as i32));
+            r.set_evictable(f(x), true);
+        }
+        let mut at = n / 2;
+        for _ in 0..4 * n {
+            r.record_access(f(at), pg(at as i32));
+            at = (at + 1) % n;
+        }
+        assert_eq!(r.size(), n);
+    });
+}
+
+// ---- 1e-03 · Ghosts and the adaptive target --------------------------------------------------------------------------------
+
+#[test]
+fn s1e_03_a_ghost_hit_on_mru_ghost_raises_the_target_so_mfu_is_evicted_from_first() {
+    let mut r = ArcReplacer::new(4);
+    for x in 0..4 {
+        r.record_access(f(x), pg(x as i32));
+    }
+    evictable(&mut r, &[0, 1, 2, 3]);
+    assert_eq!([r.evict(), r.evict()], [Some(f(0)), Some(f(1))], "mru goes first; pages 0 and 1 become ghosts");
+    r.record_access(f(0), pg(0)); // a ghost hit: the target grows to 1, and page 0 returns on mfu
+    r.record_access(f(1), pg(1)); // another: the target is now 2
+    evictable(&mut r, &[0, 1]);
+    // mru holds 2 frames (2 and 3) and the target is 2, so mru still gives the first victim; then it holds 1, below the target,
+    // so the next victims come from mfu until it is empty.
+    assert_eq!(drain(&mut r), [2, 0, 1, 3], "after two ghost hits the pool keeps mru frames and evicts from mfu");
+}
+
+#[test]
+fn s1e_03_without_ghost_hits_the_target_stays_zero_and_mru_always_goes_first() {
+    let mut r = ArcReplacer::new(4);
+    for x in 0..4 {
+        r.record_access(f(x), pg(x as i32));
+    }
+    evictable(&mut r, &[0, 1, 2, 3]);
+    assert_eq!([r.evict(), r.evict()], [Some(f(0)), Some(f(1))]);
+    r.record_access(f(0), pg(10)); // new pages, not ghosts
+    r.record_access(f(1), pg(11));
+    evictable(&mut r, &[0, 1]);
+    assert_eq!(drain(&mut r), [2, 3, 0, 1], "all four are on mru, so oldest first");
+}
+
+#[test]
+fn s1e_03_a_removed_frame_leaves_no_ghost() {
+    let mut r = ArcReplacer::new(4);
+    for x in 0..4 {
+        r.record_access(f(x), pg(x as i32));
+    }
+    evictable(&mut r, &[0, 1, 2, 3]);
+    r.remove(f(0));
+    r.remove(f(1));
+    r.record_access(f(0), pg(0)); // page 0 was deleted, not evicted: not a ghost, so no adaptation
+    r.record_access(f(1), pg(1));
+    evictable(&mut r, &[0, 1]);
+    assert_eq!(drain(&mut r), [2, 3, 0, 1], "pages brought back after a remove are new pages");
+}
+
+#[test]
+fn s1e_03_a_ghost_that_has_been_pushed_out_of_its_list_is_forgotten() {
+    // c = 2: mru + mru_ghost may hold two entries, so page 0's ghost is dropped as soon as two newer pages arrive.
+    let mut r = ArcReplacer::new(2);
+    r.record_access(f(0), pg(0));
+    r.set_evictable(f(0), true);
+    assert_eq!(r.evict(), Some(f(0))); // page 0 is a ghost
+    r.record_access(f(0), pg(1));
+    r.set_evictable(f(0), true);
+    r.record_access(f(1), pg(2)); // mru + mru_ghost would exceed 2: the oldest ghost, page 0, is dropped
+    r.set_evictable(f(1), true);
+    r.record_access(f(0), pg(1)); // hit: promotes frame 0 to mfu
+    r.evict(); // frame 1 (page 2) from mru, becomes a ghost
+    r.record_access(f(1), pg(0)); // page 0 again: a new page now, not a ghost hit
+    r.set_evictable(f(1), true);
+    // if page 0 had still been a ghost, the target would have grown to 1 and mfu would be evicted from first only below that
+    assert_eq!(drain(&mut r), [1, 0], "page 0 was forgotten, so it joined mru as a new page and is evicted first");
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// ARC against its model on a small pool with pages that come back, so ghost hits, target changes and ghost-list limits all happen.
+    #[test]
+    fn s1e_03_victims_agree_with_the_model_for_any_operations(c in 2usize..6, ops in ops(5)) {
+        run(c.max(5), &ops, Check::Arc, Pages::Recurring)?;
+    }
+
+    /// The same on the smallest pools, where the limits on the ghost lists bite after a few operations.
+    #[test]
+    fn s1e_03_the_ghost_list_limits_hold_on_tiny_pools(ops in prop::collection::vec(prop_oneof![
+            5 => (0..3usize, 0..PAGES).prop_map(|(x, p)| Op::Access(x, p)),
+            4 => (0..3usize, any::<bool>()).prop_map(|(x, b)| Op::SetEvictable(x, b)),
+            3 => Just(Op::Evict),
+        ], 1..300)) {
+        run(3, &ops, Check::Arc, Pages::Recurring)?;
+    }
+}
+
+// ---- 1e-04 · Boss ----------------------------------------------------------------------------------------------------------
+
+#[test]
+fn s1e_04_long_runs_on_a_larger_pool_agree_with_the_model() {
+    let (c, pages) = (64, 200);
+    let mut rng = Lcg(2025);
+    let mut r = ArcReplacer::new(c);
+    let mut m = ArcModel::new(c);
+    for step in 0..30_000 {
+        let x = rng.next(c);
+        match rng.next(10) {
+            0..=4 => {
+                let page = match m.live.get(&x) {
+                    Some(&(p, _)) => p,
+                    None => loop {
+                        let p = rng.next(pages) as i32;
+                        if m.live.values().all(|(q, _)| *q != p) {
+                            break p;
+                        }
+                    },
+                };
+                r.record_access(f(x), pg(page));
+                m.access(x, page);
+            }
+            5 | 6 => {
+                let b = rng.next(4) != 0;
+                r.set_evictable(f(x), b);
+                m.set_evictable(x, b);
+            }
+            7 | 8 => assert_eq!(r.evict(), m.evict().map(f), "step {step}: the victim"),
+            _ => {
+                if m.live.get(&x).is_none_or(|&(_, e)| e) {
+                    r.remove(f(x));
+                    m.remove(x);
+                }
+            }
+        }
+        assert_eq!(r.size(), m.size(), "step {step}: size");
+    }
+}
+
+/// Replays a trace through a pool of `frames` frames. `access` is called for a page that is in memory, `load` for one that is not
+/// (with the frame to put it in, found by `victim` when none is free).
+fn arc_hit_rate(frames: usize, trace: &[i32]) -> f64 {
+    let mut r = ArcReplacer::new(frames);
+    let mut where_is: std::collections::HashMap<i32, usize> = Default::default();
+    let mut holds: Vec<Option<i32>> = vec![None; frames];
+    let mut free: Vec<usize> = (0..frames).rev().collect();
+    let mut hits = 0;
+    for &page in trace {
+        if let Some(&frame) = where_is.get(&page) {
+            hits += 1;
+            r.set_evictable(f(frame), false); // in use
+            r.record_access(f(frame), pg(page));
+            r.set_evictable(f(frame), true); // and done
+        } else {
+            let frame = free.pop().unwrap_or_else(|| r.evict().expect("every page is unpinned").0);
+            if let Some(old) = holds[frame] {
+                where_is.remove(&old);
+            }
+            holds[frame] = Some(page);
+            where_is.insert(page, frame);
+            r.record_access(f(frame), pg(page));
+            r.set_evictable(f(frame), true);
+        }
+    }
+    hits as f64 / trace.len() as f64
+}
+
+fn lru_hit_rate(frames: usize, trace: &[i32]) -> f64 {
+    let mut r = LruReplacer::new(frames);
+    let mut where_is: std::collections::HashMap<i32, usize> = Default::default();
+    let mut holds: Vec<Option<i32>> = vec![None; frames];
+    let mut free: Vec<usize> = (0..frames).rev().collect();
+    let mut hits = 0;
+    for &page in trace {
+        if let Some(&frame) = where_is.get(&page) {
+            hits += 1;
+            r.pin(f(frame));
+            r.unpin(f(frame));
+        } else {
+            let frame = free.pop().unwrap_or_else(|| r.victim().expect("every page is unpinned").0);
+            if let Some(old) = holds[frame] {
+                where_is.remove(&old);
+            }
+            holds[frame] = Some(page);
+            where_is.insert(page, frame);
+            r.unpin(f(frame));
+        }
+    }
+    hits as f64 / trace.len() as f64
+}
+
+/// The reason ARC exists: 24 hot pages accessed all the time, and now and then a scan of 300 pages that are never used again.
+#[test]
+fn s1e_04_arc_keeps_the_hot_pages_through_scans_better_than_lru() {
+    let mut rng = Lcg(11);
+    let mut trace = Vec::new();
+    let mut scan_page = 1_000;
+    for round in 0..200 {
+        for _ in 0..200 {
+            trace.push(rng.next(24) as i32);
+        }
+        if round % 4 == 3 {
+            for _ in 0..60 {
+                trace.push(scan_page);
+                scan_page += 1;
+            }
+        }
+    }
+    let (arc, lru) = (arc_hit_rate(32, &trace), lru_hit_rate(32, &trace));
+    eprintln!("hit rate: ARC {arc:.3}, LRU {lru:.3}");
+    assert!(arc > lru + 0.02, "a scan should hurt ARC less than LRU: ARC {arc:.3} against LRU {lru:.3}");
 }

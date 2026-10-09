@@ -132,9 +132,9 @@ fn pin_moves_the_hand_correctly() {
 
 ### In the exercises
 
-- **1c-03 Part 1:** `unpin`/`size` and the ring (`Vec<(FrameId, bool)>`), asserting the capacity.
-- **1c-03 Part 2:** `victim`: the loop above; the stage tests include "all bits set" (a full revolution) and an empty ring.
-- **1c-03 Part 3:** `pin`: removal with the three hand cases; the worked tests move the hand over every position.
+- **1c-03:** the ring, the hand, the reference bit and the three hand-after-removal cases are the stage; the worked sweep above is the check to make against your own picture.
+
+
 
 ### Where it is used
 

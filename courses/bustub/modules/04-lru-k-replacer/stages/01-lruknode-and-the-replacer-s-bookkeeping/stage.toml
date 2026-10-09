@@ -1,8 +1,0 @@
-id = "1d-01"
-title = "LruKNode and the replacer's bookkeeping"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1d::s1d_01", "stages_1d::s1d_02", "stages_1d::s1d_03"]
-learn = ["keeping a bounded history in a VecDeque", "backward k-distance and infinite distance", "a logical clock instead of wall-clock time"]
-concepts = ["lru-k-and-scan-resistance", "logical-clocks-and-timestamps", "collections-as-tables"]
-concepts_optional = ["atomics-ordering-and-the-log"]

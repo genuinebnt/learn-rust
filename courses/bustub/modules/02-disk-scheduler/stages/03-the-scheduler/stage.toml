@@ -1,0 +1,8 @@
+id = "1b-03"
+title = "The scheduler"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1b::s1b_03"]
+learn = ["handing work to a background thread and getting the answer back", "ownership transfer instead of a shared buffer", "Arc<dyn Trait> shared with a thread"]
+concepts = []
+concepts_optional = ["moving-data-across-threads", "worker-threads-and-the-stop-signal", "trait-objects-and-the-disk-seam", "send-and-sync", "smart-pointers-box-rc-arc", "rust-io-errors", "reading-compiler-errors"]

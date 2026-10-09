@@ -1,0 +1,8 @@
+id = "1b-06"
+title = "Several workers, one page at a time"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_1b::s1b_06"]
+learn = ["parallelism without losing order: partition by key", "stable routing with rem_euclid", "an invariant that holds for every number of workers"]
+concepts = []
+concepts_optional = ["sharding-and-per-key-ordering", "performance-tests-and-measuring", "send-and-sync", "clean-shutdown-drop-and-join", "integers-and-casts"]

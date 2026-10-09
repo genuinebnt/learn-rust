@@ -168,9 +168,7 @@ fn pinned_frames_are_never_victims_and_size_counts_only_evictable() {
 
 ### In the exercises
 
-- **1d-01 (`LruKNode` and the bookkeeping):** the `VecDeque` of the last K timestamps and `record_access` with its logical clock (see *Logical clocks and timestamps* for why a counter and not `Instant`). `kth_timestamp` is the `history.front()` trick when the deque is full.
-- **1d-02 (`set_evictable`, `evict`, `remove`):** the ordering rule: infinite distances first (oldest first access first), then the oldest K-th access. The first test above is the trace to reproduce.
-- **1d-03 (O(log n)):** replace the scan with the `BTreeSet` shown here; see *Ordered sets as priority queues*.
+- **1d-01 to 1d-03:** the bookkeeping (a `VecDeque` of the last K timestamps, a logical clock; see *Logical clocks and timestamps*), then the ordering rule (infinite distances first, oldest first access first; then the oldest K-th access), then the `BTreeSet` that makes eviction O(log n) (see *Ordered sets as priority queues*). The first test above is the worked trace.
 - **1f-02:** the buffer pool calls `record_access` on every hit and `set_evictable(false)` while a frame is pinned.
 
 ### Where it is used

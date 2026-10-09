@@ -1,7 +1,0 @@
-id = "1e-01"
-title = "ArcReplacer: four lists and new pages"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_1e::s1e_01", "stages_1e::s1e_02"]
-learn = ["four lists and two maps as one state machine", "ghost entries: remembering ids, not data", "using an arena list as a building block"]
-concepts = ["adaptive-replacement-cache", "arenas-and-generational-handles", "checking-invariants"]

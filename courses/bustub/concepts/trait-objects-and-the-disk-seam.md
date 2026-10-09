@@ -169,7 +169,7 @@ fn static_versus_dynamic_dispatch() {
 
 - **1a-04:** `DiskIo` has three methods and is `Send + Sync`; `DiskManager` implements it by forwarding to its own methods, and `copy_page` works through any of them.
 - **1a-04:** `DiskManagerMemory` and `DiskManagerUnlimitedMemory` are two more `impl DiskIo` blocks; one test runs the same operations against all three and compares them with a model.
-- **1b-02:** the scheduler stores an `Arc<dyn DiskIo>` and the worker's closure clones it; this is why the disk's concrete type never appears in the scheduler's signature.
+- **1b-03:** the scheduler stores an `Arc<dyn DiskIo>` and the worker's closure clones it; this is why the disk's concrete type never appears in the scheduler's signature.
 
 ### Where it is used
 

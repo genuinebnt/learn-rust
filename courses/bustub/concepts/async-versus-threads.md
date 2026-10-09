@@ -135,7 +135,7 @@ fn cpu_bound_work_belongs_on_threads() {
 
 ### In the exercises
 
-- **1b-01:** the disk scheduler's `Promise` and `Future` are a *one-shot channel* you block on, not Rust's `async` futures; the *promises and futures* article draws the line.
+- **1b-02:** the disk scheduler's `Promise` and `Future` are a *one-shot channel* you block on, not Rust's `async` futures; the *promises and futures* article draws the line.
 - **1g-02:** a read of a page waits on a lock, which is the blocking style this course uses throughout; nothing here is `async`.
 
 ### Where it is used

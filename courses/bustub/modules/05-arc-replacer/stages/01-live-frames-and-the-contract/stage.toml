@@ -1,0 +1,8 @@
+id = "1e-01"
+title = "Live frames and the contract"
+kind = "learn"
+difficulty = "medium"
+tests = ["stages_1e::s1e_01"]
+learn = ["a replacer that sees the page, not only the frame", "hit versus new page", "state that outlives a frame: why the page id is passed in"]
+concepts = []
+concepts_optional = ["adaptive-replacement-cache", "replacement-policies", "arenas-and-generational-handles", "collections-as-tables", "checking-invariants"]

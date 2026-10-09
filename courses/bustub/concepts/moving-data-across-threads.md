@@ -153,8 +153,8 @@ fn send_and_sync_in_practice() {
 
 ### In the exercises
 
-- **1b-02 (`DiskRequest`):** the first example is the design: a request *owns* a `Box<PageData>` and a way to answer (here a `Sender`, in the course a `Promise`). `DiskRequest::read` makes an empty buffer, `write` takes the page by value.
-- **1b-02 (`DiskScheduler::new`):** the worker's closure needs the queue and the disk, both `Arc`, cloned and `move`d in.
+- **1b-03 (`DiskRequest`):** the first example is the design: a request *owns* a `Box<PageData>` and a way to answer (here a `Sender`, in the course a `Promise`). `DiskRequest::read` makes an empty buffer, `write` takes the page by value.
+- **1b-03 (`DiskScheduler::new`):** the worker's closure needs the queue and the disk, both `Arc`, cloned and `move`d in.
 - **Tests (every threaded stage):** the second example (`thread::scope`) is how the stage tests run several callers at once and guarantee none outlives the test.
 
 ### Where it is used

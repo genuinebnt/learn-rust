@@ -1,8 +1,0 @@
-id = "1c-01"
-title = "IndexList: a linked list inside a Vec"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_1c::s1c_01", "stages_1c::s1c_02", "stages_1c::s1c_03", "stages_1c::s1c_04"]
-learn = ["linked structures as an arena of indices", "generational handles against stale references", "O(1) unlink, free-list reuse and move-to-back"]
-concepts = ["arenas-and-generational-handles", "checking-invariants", "collections-as-tables"]
-concepts_optional = ["model-based-testing"]

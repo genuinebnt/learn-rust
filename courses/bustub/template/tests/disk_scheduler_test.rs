@@ -1,5 +1,6 @@
 //! Port of `test/storage/disk_scheduler_test.cpp` (BusTub, MIT, Copyright (c) 2015-2025 Carnegie Mellon University Database Group).
-//! The C++ test hands the scheduler `char *` buffers; here each request owns its buffer and gets it back through the future.
+//! The C++ test hands the scheduler `char *` buffers; here each request owns its buffer and gets it back through the future, and it
+//! is built with `DiskRequest::write` / `DiskRequest::read` instead of by filling in its fields.
 
 use bustub::common::config::{PageId, BUSTUB_PAGE_SIZE};
 use bustub::storage::disk::disk_manager::DiskIo;
@@ -15,16 +16,13 @@ fn schedule_write_read_page_test() {
     let dm = Arc::new(DiskManagerUnlimitedMemory::new());
     let disk_scheduler = DiskScheduler::new(dm.clone());
 
-    let (promise1, future1) = disk_scheduler.create_promise();
-    let (promise2, future2) = disk_scheduler.create_promise();
-
-    let r1 = DiskRequest { is_write: true, data: data.clone(), page_id: PageId(0), callback: promise1 };
+    let (r1, future1) = DiskRequest::write(PageId(0), data.clone());
     disk_scheduler.schedule(vec![r1]);
 
-    let r2 = DiskRequest { is_write: false, data: Box::new([0u8; BUSTUB_PAGE_SIZE]), page_id: PageId(0), callback: promise2 };
+    let (r2, future2) = DiskRequest::read(PageId(0));
     disk_scheduler.schedule(vec![r2]);
 
-    assert!(future1.get().unwrap().is_ok());
+    assert!(future1.get().unwrap().is_ok(), "the write should succeed");
     let buf = future2.get().unwrap().unwrap();
     assert!(*buf == *data, "the page read back differs from the page written");
 

@@ -1,60 +1,27 @@
-//! Port of `src/buffer/arc_replacer.cpp`: the ARC replacement policy (Megiddo and Modha, FAST 2003).
+//! Port of `src/buffer/arc_replacer.cpp`: the ARC replacement policy (Megiddo and Modha, FAST 2003), as BusTub specifies it.
 //!
-//! ARC keeps four lists. `mru` holds live frames seen **once** recently, `mfu` holds live frames seen **at least twice**. The two
-//! **ghost** lists remember the page ids (not the data) of pages recently evicted from `mru` and `mfu`. A hit on a ghost tells ARC
-//! which side it evicted too eagerly, and it shifts the target size of `mru` (`p`) towards that side. So ARC adapts between
-//! recency-heavy and frequency-heavy workloads, and a scan can't flush the frequently used pages.
+//! ARC keeps four lists, each ordered from the **oldest** entry to the **newest**.
 //!
-//! Every list is an [`IndexList`] with the **oldest at the front and the newest at the back**, so eviction takes from the front.
+//! - `mru` holds the live frames that have been seen **once** recently; `mfu` holds the live frames seen **at least twice**.
+//! - `mru_ghost` and `mfu_ghost` remember the page ids (not the data) of pages recently evicted from `mru` and `mfu`.
+//!
+//! A hit on a ghost tells ARC which side it evicted too eagerly, and it moves the **target size** `p` of `mru`. So ARC adapts
+//! between recency-heavy and frequency-heavy workloads, and a scan cannot flush the frequently used pages. The rules are written out
+//! in the stage pages and checked by the tests through `record_access`, `set_evictable`, `evict`, `remove` and `size` alone.
 
-use std::collections::HashMap;
-
+// TODO(1e-01): your imports go here.
 use crate::common::config::{FrameId, PageId};
-use crate::common::index_list::{Handle, IndexList};
 
-/// Which of the four lists an entry is on.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ArcStatus {
-    Mru,
-    Mfu,
-    MruGhost,
-    MfuGhost,
-}
-
-/// A frame that holds a page right now (on `mru` or `mfu`).
-struct Alive {
-    page_id: PageId,
-    evictable: bool,
-    status: ArcStatus,
-    handle: Handle,
-}
-
-/// A page that was evicted recently (on `mru_ghost` or `mfu_ghost`). It has no frame.
-struct Ghost {
-    status: ArcStatus,
-    handle: Handle,
-}
+// TODO(1e-01): private types and helpers go here.
 
 pub struct ArcReplacer {
-    mru: IndexList<FrameId>,
-    mfu: IndexList<FrameId>,
-    mru_ghost: IndexList<PageId>,
-    mfu_ghost: IndexList<PageId>,
-    /// Where each live frame is.
-    alive: HashMap<FrameId, Alive>,
-    /// Where each ghost page is.
-    ghost: HashMap<PageId, Ghost>,
-    /// How many live frames are evictable.
-    curr_size: usize,
-    /// `p` in the paper: how many frames `mru` should hold.
-    mru_target_size: usize,
-    /// `c` in the paper: the number of frames.
-    replacer_size: usize,
+    // TODO(1e-01): the fields are yours.
 }
 
 impl ArcReplacer {
+    /// A replacer for a pool of `num_frames` frames (`c` in the paper).
     pub fn new(num_frames: usize) -> ArcReplacer {
-        todo!("1e-01: four empty lists, two empty maps, the counters at zero; the replacer's size is the number of frames")
+        todo!("1e-01: an empty replacer for `num_frames` frames")
     }
 
     /// How many live frames are evictable.
@@ -64,30 +31,25 @@ impl ArcReplacer {
 
 
 
-    /// `frame` now holds (or is accessed as) `page_id`.
+    /// `frame` now holds (or is accessed as) `page_id`. A frame that is already live is a hit and its page is the same.
     pub fn record_access(&mut self, frame: FrameId, page_id: PageId) {
         todo!("1e-01: a new frame goes to the newest end of mru and is not evictable until marked")
     }
 
-    /// Marks a live frame evictable or not. Unknown frames are ignored.
+    /// Marks a live frame evictable or not. Frames the replacer does not hold are ignored.
     pub fn set_evictable(&mut self, frame: FrameId, evictable: bool) {
         todo!("1e-01: ignore unknown frames; change the flag and keep the count right")
-    }
-
-    /// The oldest evictable frame on `mru` or `mfu`.
-    fn oldest_evictable(&self, status: ArcStatus) -> Option<FrameId> {
-        todo!("1e-02: walk the list from the oldest end for the first evictable frame")
     }
 
     /// Evicts a frame: from `mru` if it holds at least `p` frames, else from `mfu` (and from the other list if the first has no
     /// evictable frame). The victim's page becomes a ghost. `None` if no frame is evictable.
     pub fn evict(&mut self) -> Option<FrameId> {
-        todo!("1e-02: take the oldest evictable frame, forget its frame, remember its page as a ghost of the same side")
+        todo!("1e-01: choose an evictable frame, forget it, and return it")
     }
 
     /// Removes an evictable frame without leaving a ghost (the page was deleted, not evicted). Unknown frames are ignored.
     /// Panics if the frame is not evictable.
     pub fn remove(&mut self, frame: FrameId) {
-        todo!("1e-03: ignore unknown frames; panic for a frame that is not evictable; drop it from its list and the map; no ghost")
+        todo!("1e-01: ignore unknown frames; panic for a frame that is not evictable; forget it, leaving no ghost")
     }
 }

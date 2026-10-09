@@ -129,9 +129,9 @@ fn vec_as_a_free_list_and_swap_remove() {
 ### In the exercises
 
 - **1a-01 and 1a-02:** a disk manager must remember where each page lives and which space is free again. A map from page id to place and a stack of freed places is the usual design, and `HashMap::entry`-style code (look up, else allocate and record) is the usual shape; a design with no free list is a valid first attempt that 1a-02's file-size property will reject.
-- **1c-01 and 1c-02:** the arena's free list is a `Vec<usize>` stack, and the LRU replacer's `frame -> handle` map is a `HashMap`. Use `remove(&frame)` to take the handle out in the same call that you use it.
-- **1d-01:** each frame's history is a `VecDeque<usize>`: `push_back` the new timestamp, `pop_front` when it holds more than K.
-- **1d-03 (later):** the evictable frames go in a `BTreeSet`; `first()` is the next victim (second example).
+- **1c-01 and 1c-02:** a free list is a `Vec<usize>` used as a stack, and a replacer's `frame -> position` map is a `HashMap`; `remove(&key)` takes the value out in the same call that uses it.
+- **1d-01:** a frame's history is a `VecDeque<usize>`: `push_back` the new timestamp, `pop_front` when it holds more than K.
+- **1d-03:** the evictable frames can go in a `BTreeSet`; `first()` is the next victim (second example).
 
 ### Where it is used
 

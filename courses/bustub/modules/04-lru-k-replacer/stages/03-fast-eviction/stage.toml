@@ -1,0 +1,8 @@
+id = "1d-03"
+title = "Fast eviction"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_1d::s1d_03"]
+learn = ["an ordered set as a priority queue with deletion", "keeping an index in step with the state it indexes", "a time budget as a test"]
+concepts = []
+concepts_optional = ["ordered-sets-as-priority-queues", "performance-tests-and-measuring", "model-based-testing", "checking-invariants", "collections-as-tables"]

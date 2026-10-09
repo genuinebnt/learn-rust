@@ -137,7 +137,7 @@ fn bucket_array_when_keys_are_small_integers() {
 
 ### In the exercises
 
-- **1d-03 (evict in O(log n)):** the `BTreeSet<(u8, usize, FrameId)>` and key function of the LRU-K concept; `evict` is `pop_first`.
+- **1d-03:** the `BTreeSet<(u8, usize, FrameId)>` and key function of the LRU-K concept; `evict` takes `first()`.
 - **The update protocol** applies in `record_access`, `set_evictable` and `remove` of that stage; its model test checks the fast replacer against the simple one.
 - **Choosing:** the lazy `BinaryHeap` above works too; the stage's Performance section asks you to compare them, and `size()` is the awkward part (a heap's length counts stale entries).
 

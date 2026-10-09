@@ -123,7 +123,7 @@ fn immutable_data_needs_only_an_arc() {
 
 ### In the exercises
 
-- **1b-02 / 1b-04:** the scheduler's worker thread (and the sharded workers): what has to be `Send` to cross into `thread::spawn`.
+- **1b-03 / 1b-06:** the scheduler's worker thread (and the sharded workers): what has to be `Send` to cross into `thread::spawn`.
 - **1f:** the buffer pool shares frames behind latches across threads.
 - **0a-04:** `TrieStore` is `Sync` because its two fields are `Mutex`es.
 - **0d-01:** `AtomicU32` counters make the sketch `Sync` with no lock.

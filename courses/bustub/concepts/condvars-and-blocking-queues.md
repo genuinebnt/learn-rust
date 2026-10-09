@@ -176,8 +176,8 @@ fn std_channel_when_you_do_not_need_your_own() {
 
 ### In the exercises
 
-- **1b-01 Part 1 and 2 (`Channel::put` / `get`):** the first example is the whole exercise in miniature. `put` pushes under the lock and `notify_one`s; `get` uses `wait_while(..., |q| q.is_empty())` so a getter that arrives early sleeps and one that is woken too late goes back to sleep.
-- **1b-01 Part 3 (`consume`):** a loop of `channel.get()` that stops when it receives `None`: the `Option` is the stop signal (see the worker-threads concept).
+- **1b-01 (`Channel::put` / `get`):** the first example is the whole exercise in miniature. `put` pushes under the lock and `notify_one`s; `get` uses `wait_while(..., |q| q.is_empty())` so a getter that arrives early sleeps and one that is woken too late goes back to sleep.
+- **1b-01 (`consume`):** a loop of `channel.get()` that stops when it receives `None`: the `Option` is the stop signal (see the worker-threads concept).
 - **Part 5 (`Future::get`):** the same pair with a state enum instead of a queue; you need `wait_while(.., |s| matches!(s, State::Pending))` and `notify_all`.
 - **Tests you can write yourself:** start the consumer thread first and sleep before putting, as the first example does; it fails if `get` spins or loses a wake-up.
 

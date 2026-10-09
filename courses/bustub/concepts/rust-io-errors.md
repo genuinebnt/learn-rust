@@ -154,7 +154,7 @@ fn your_own_error_type_and_question_mark() {
 
 - **1a-01 (`DiskManager::new`):** open the log, then the db file, with `?` (the `read_config` shape). A test with a path in a missing directory expects `Err`, not a panic.
 - **1a-01 to 1a-03:** if you read in a loop, retry `ErrorKind::Interrupted` and return every other error: `Err(e) if e.kind() == io::ErrorKind::Interrupted => continue`.
-- **1b-02:** a failing disk's `io::Error` travels back through the promise (`DiskResult = io::Result<Box<PageData>>`); the panicking-disk case uses `io::Error::other("the disk panicked")`.
+- **1b-03 and 1b-04:** a failing disk's `io::Error` travels back through the promise (`DiskResult = io::Result<Box<PageData>>`); the panicking-disk case uses `io::Error::other("the disk panicked")`.
 
 ### Where it is used
 

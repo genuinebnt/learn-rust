@@ -352,3 +352,25 @@ pub fn open_hint(course: &str, stage: &str, n: usize) -> anyhow::Result<(String,
     let hint = &page["hints"]["revealed"][n - 1];
     Ok((hint["title"].as_str().unwrap_or("").to_owned(), hint["md"].as_str().unwrap_or("").to_owned(), opened))
 }
+
+/// `anneal course adopt`: opens the stage's solution in the app (which marks the stage as helped) and returns its files: (path, diff lines).
+pub fn open_solution(course: &str, stage: &str) -> anyhow::Result<Vec<(String, Vec<String>)>> {
+    let s = load_session().context("not signed in: `anneal course adopt` fetches our solution from the app; run `anneal course login <url>` first")?;
+    let (status, _, body) = curl("POST", &format!("{}/api/courses/{course}/stages/{stage}/solution", s.url), Some(&s.token), Some("{}"))?;
+    match status {
+        200 => {}
+        401 => bail!("the session expired: run `anneal course login {}`", s.url),
+        404 => bail!("the app has no solution for {stage} (a boss or a challenge has none, or it was not uploaded yet)"),
+        st => bail!("the app refused ({st}): {}", body.trim()),
+    }
+    let page: serde_json::Value = serde_json::from_str(&body).context("reading the app's reply")?;
+    let files = page["solution"]["files"].as_array().context("the app sent no solution files")?;
+    Ok(files
+        .iter()
+        .map(|f| {
+            let path = f["path"].as_str().unwrap_or("").to_owned();
+            let lines = f["lines"].as_array().map(|l| l.iter().map(|x| x.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default();
+            (path, lines)
+        })
+        .collect())
+}

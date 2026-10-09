@@ -294,6 +294,13 @@ MODULES = [
         ("L7", "Enums as design", "a log record as an enum, matched in analysis, redo and undo", ["4c-01", "4c-05", "4c-06"]),
         ("Y5", "Build it", "crash a disk at a random point, then recover; a model of the committed state", ["4c-03", "4c-04", "4c-05", "4c-06", "4c-07", "4c-08"]),
     ]),
+    ("4d", "The lock manager", [
+        ("C1", "Understand it", "`Mutex` and `Condvar`; waiting in a loop; a detector thread stopped in `Drop`", ["4d-03", "4d-04", "4d-06"]),
+        ("L7", "Enums & exhaustiveness", "lock modes, isolation levels and phases matched together", ["4d-01", "4d-05"]),
+        ("L8", "Errors at scale", "an abort as a returned error with a reason", ["4d-05"]),
+        ("S4", "Maps & sets", "ordered maps for a graph whose search order is fixed", ["4d-06"]),
+        ("Y5", "Build it", "check a concurrent system by the history it leaves", ["4d-02", "4d-07"]),
+    ]),
     ("0a", "A persistent trie", [
         ("L1", "Clones & drops", "sharing structure instead of copying: a clone of a node clones pointers", ["0a-02"]),
         ("S7", "Understand it", "`Arc` for path copying and for snapshots; `Mutex` around a pointer", ["0a-02", "0a-03"]),

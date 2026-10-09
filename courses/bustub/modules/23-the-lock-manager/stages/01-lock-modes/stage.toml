@@ -1,0 +1,8 @@
+id = "4d-01"
+title = "Lock modes"
+kind = "build"
+difficulty = "easy"
+tests = ["stages_4d::s4d_01"]
+learn = ["which lock modes can be held together and why", "which modes can replace which", "checking a small table with exhaustive and property tests"]
+concepts = ["lock-modes-and-two-phase-locking"]
+concepts_optional = ["eq-hash-ord-contracts", "enums-with-data-and-match", "errors-4d"]

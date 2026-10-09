@@ -14,22 +14,22 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3c, 3d, 3e, 3f, 3h, 4b |
 | L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b, 2c, 2d, 0b |
 | L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
-| L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | r, 2c, 2d, 3a, 3b, 3d, 3h, 4a, 4c, 0a, 0c |
-| L8 Error design | `l8-error-design` | planned | core | r, 1a, 1b, 3a, 3d, 3e, 4b, 4c |
+| L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | r, 2c, 2d, 3a, 3b, 3d, 3h, 4a, 4c, 4d, 0a, 0c |
+| L8 Error design | `l8-error-design` | planned | core | r, 1a, 1b, 3a, 3d, 3e, 4b, 4c, 4d |
 | S1 Option & Result | `s1-option-result` | written | core | r, 1a, 1b, 1d, 1f, 2c, 3e, 3h, 4a, 4b, 0a |
 | S2 Strings & text | `s2-strings-text` | written | core | r, 3a, 3b, 3d |
 | S3 Vec & slices | `s3-vec-slices` | written | core | r, 1a, 1c, 2a, 2c, 2d, 3b, 3g, 0c |
-| S4 Maps & sets | `s4-maps-sets` | written | core | 1a, 1c, 1d, 1e, 3c, 3f, 3g, 4a, 4b, 0d |
+| S4 Maps & sets | `s4-maps-sets` | written | core | 1a, 1c, 1d, 1e, 3c, 3f, 3g, 4a, 4b, 4d, 0d |
 | S5 Queues & heaps | `s5-queues-heaps` | planned | core | r, 1b, 1c, 1d, 3f, 3g |
 | S6 Iterators | `s6-iterators` | planned | core | 1c, 1d, 2c, 3c, 3d, 3e, 3f, 3g |
 | S7 Smart pointers & interior mutability | `s7-smart-pointers` | planned | core | r, 1b, 1c, 1e, 1f, 1g, 2c, 3d, 3h, 4a, 0a |
 | S8 The core traits | `s8-core-traits` | planned | core | 1d, 1e, 1g, 2a, 2b, 2d, 3a, 3d, 3f, 3g, 0c, 0d |
 | S9 I/O & filesystem | `s9-io-filesystem` | planned | core | r, 1a, 3g, 4c |
 | S11 mem, ptr & alloc | `s11-mem-ptr-alloc` | planned | sde3 | 2a |
-| C1 Threads & shared state | `c1-threads-shared-state` | planned | core | r, 1a, 1b, 1f, 1g, 2b, 2c, 3c, 4a, 4b, 4c, 0a, 0b |
+| C1 Threads & shared state | `c1-threads-shared-state` | planned | core | r, 1a, 1b, 1f, 1g, 2b, 2c, 3c, 4a, 4b, 4c, 4d, 0a, 0b |
 | C2 Message passing | `c2-message-passing` | planned | core | 1b |
 | C3 Atomics & lock-free | `c3-atomics-lock-free` | planned | sde3 | r, 4a, 0d |
-| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | r, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3f, 3g, 3h, 4a, 4b, 4c, 0a, 0b, 0c, 0d |
+| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | r, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3f, 3g, 3h, 4a, 4b, 4c, 4d, 0a, 0b, 0c, 0d |
 | F1 Measure & read the machine | `f1-measure-machine` | planned | sde3 | 1a |
 | F2 Data layout | `f2-data-layout` | written | sde3 | 2a, 2b, 2c, 3b |
 | F3 Memory & allocation | `f3-memory-allocation` | planned | sde3 | 1c, 1f, 3d, 0b |
@@ -338,6 +338,16 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 | [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums as design | a log record as an enum, matched in analysis, redo and undo | 4c-01, 4c-05, 4c-06 |
 | [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | crash a disk at a random point, then recover; a model of the committed state | 4c-03, 4c-04, 4c-05, 4c-06, 4c-07, 4c-08 |
 
+### 4D · The lock manager
+
+| Track | Stage of the track | Practise | Needed by |
+|---|---|---|---|
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | `Mutex` and `Condvar`; waiting in a loop; a detector thread stopped in `Drop` | 4d-03, 4d-04, 4d-06 |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums & exhaustiveness | lock modes, isolation levels and phases matched together | 4d-01, 4d-05 |
+| [L8 Error design](/t/l8-error-design) *(planned)* | Errors at scale | an abort as a returned error with a reason | 4d-05 |
+| [S4 Maps & sets](/t/s4-maps-sets) | Maps & sets | ordered maps for a graph whose search order is fixed | 4d-06 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | check a concurrent system by the history it leaves | 4d-02, 4d-07 |
+
 ### 0A · A persistent trie
 
 | Track | Stage of the track | Practise | Needed by |
@@ -386,11 +396,11 @@ The planned tracks, sorted by the first module that needs them (then by how many
 
 | # | Track | First needed by | Used by |
 |---|---|---|---|
-| 1 | [Y5 Testing & verification](/t/y5-testing-verification) | R | 25 modules |
-| 2 | [C1 Threads & shared state](/t/c1-threads-shared-state) | R | 13 modules |
-| 3 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | R | 11 modules |
+| 1 | [Y5 Testing & verification](/t/y5-testing-verification) | R | 26 modules |
+| 2 | [C1 Threads & shared state](/t/c1-threads-shared-state) | R | 14 modules |
+| 3 | [L7 Enums & pattern matching](/t/l7-enums-patterns) | R | 12 modules |
 | 4 | [S7 Smart pointers & interior mutability](/t/s7-smart-pointers) | R | 11 modules |
-| 5 | [L8 Error design](/t/l8-error-design) | R | 8 modules |
+| 5 | [L8 Error design](/t/l8-error-design) | R | 9 modules |
 | 6 | [S5 Queues & heaps](/t/s5-queues-heaps) | R | 6 modules |
 | 7 | [S9 I/O & filesystem](/t/s9-io-filesystem) | R | 4 modules |
 | 8 | [C3 Atomics & lock-free](/t/c3-atomics-lock-free) | R | 3 modules |

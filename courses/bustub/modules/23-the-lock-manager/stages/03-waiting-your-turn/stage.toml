@@ -1,0 +1,8 @@
+id = "4d-03"
+title = "Waiting your turn"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_4d::s4d_03"]
+learn = ["a blocking request that waits on a condition variable and is woken", "a fair queue where a reader does not jump a waiting writer", "testing threads without hanging the test run"]
+concepts = ["lock-modes-and-two-phase-locking", "condvars-and-blocking-queues"]
+concepts_optional = ["mutex-owns-its-data", "moving-data-across-threads", "deadlock-and-lock-ordering", "errors-4d"]

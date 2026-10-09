@@ -1,0 +1,8 @@
+id = "4d-06"
+title = "Finding deadlocks"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_4d::s4d_06"]
+learn = ["a waits-for graph and finding a cycle in it", "choosing a victim by a fixed rule", "a background thread that is stopped and joined cleanly"]
+concepts = ["waits-for-graphs-and-deadlock-detection", "lock-modes-and-two-phase-locking"]
+concepts_optional = ["deadlock-and-lock-ordering", "clean-shutdown-drop-and-join", "condvars-and-blocking-queues", "errors-4d"]

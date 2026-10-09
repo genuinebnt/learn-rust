@@ -5,4 +5,4 @@ difficulty = "hard"
 tests = ["stages_4b::s4b_05"]
 learn = ["deciding reachability from the watermark", "walking every chain of every table", "forgetting transactions safely"]
 concepts = []
-concepts_optional = ["watermarks-and-garbage-collection", "multi-version-concurrency-control", "iterators-and-closures"]
+concepts_optional = ["watermarks-and-garbage-collection", "multi-version-concurrency-control", "iterators-and-closures", "errors-4b"]

@@ -16,8 +16,8 @@ The optional Rust on-ramp (r, 5 stages), modules 1a to 4c, and the optional prim
 
 | # | Item | Size | Notes |
 |---|---|---|---|
-| 1 | **4d Lock manager** (standalone 2PL) | 7 stages | Modes IS/IX/S/SIX/X and the compatibility matrix; one request queue; blocking and FIFO; upgrades; 2PL and isolation levels with intent locks; deadlock detection (waits-for graph, abort the youngest); boss: strict-2PL store equals a serial order, and the same workloads under MVCC are serializable. Plan in the planning thread; open decisions in §5. |
-| 2 | "Errors you will meet" pages, one per module | about 30 short pages | The compiler errors each module provokes and how to read them. |
+| 1 | **4d Lock manager** (standalone 2PL), **built** (7 stages; the hybrid stage 4d-08 is still to do) | 7 stages | Modes IS/IX/S/SIX/X and the compatibility matrix; one request queue; blocking and FIFO; upgrades; 2PL and isolation levels with intent locks; deadlock detection (waits-for graph, abort the youngest); boss: strict-2PL store equals a serial order, and the same workloads under MVCC are serializable. Plan in the planning thread; open decisions in §5. |
+| 2 | "Errors you will meet" pages, one per module, **built** | 28 concept pages `errors-<code>` | 21 error families, each produced and checked with a real compiler (the bad program, the message, the fix), mapped to the modules that provoke them; linked as optional concepts from every stage. The generator is /tmp/c2/gen/errfam.py, errmods.py and errgen.py (copy them into tools/ before they are lost). |
 | 3 | `anneal course adopt <stage>` | CLI only | Copy our implementation of a stage into the learner's repo. |
 | 4 | Rewrite the older concept articles in the newer style | ongoing | Quality pass, no new content. |
 | 5 | Cost-based optimizer and an LSM tree | see §4 | The owner approved "1-5" of the earlier roadmap, which included these two. They are also in the advanced course; see the decision in §5. |

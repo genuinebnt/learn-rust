@@ -1,0 +1,8 @@
+id = "4d-04"
+title = "Upgrades"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_4d::s4d_04"]
+learn = ["replacing a held lock by a stronger one without losing it", "why an upgrade goes ahead of the queue", "why only one upgrade per lock can be allowed"]
+concepts = ["lock-modes-and-two-phase-locking"]
+concepts_optional = ["condvars-and-blocking-queues", "deadlock-and-lock-ordering", "errors-4d"]

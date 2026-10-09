@@ -1,9 +1,0 @@
-id = "0c-04"
-title = "Boss: BusTub's Robin Hood tests"
-kind = "boss"
-difficulty = "easy"
-tests = ["stages_0c::s0c_04"]
-learn = ["concurrent stress on a lock-protected table", "reading a race from its symptoms"]
-concepts = []
-concepts_optional = ["robin-hood-hashing-and-open-addressing", "reader-writer-latches", "testing-concurrent-code-with-loom-and-miri"]
-retest = true

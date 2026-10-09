@@ -1,0 +1,21 @@
+code = "4d"
+title = "The lock manager"
+summary = "Pessimistic concurrency control: lock modes and the compatibility matrix, one lock with its holders, blocking requests in a fair queue, upgrades, two-phase locking per isolation level with table and row locks, and a background thread that finds deadlocks and aborts the youngest transaction. The classic alternative to MVCC; new in this course, since BusTub's current projects stop at MVCC."
+lectures = ["concurrencycontrol", "twophaselocking"]
+bustub = []
+files = ["src/concurrency/lock_error.rs", "src/concurrency/lock_txn.rs"]
+
+[[resources]]
+kind = "paper"
+title = "Granularity of Locks and Degrees of Consistency in a Shared Data Base (Gray et al., 1976)"
+url = "https://jimgray.azurewebsites.net/papers/granularitylocks.pdf"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: explicit locking"
+url = "https://www.postgresql.org/docs/current/explicit-locking.html"
+
+[[resources]]
+kind = "docs"
+title = "MySQL InnoDB locking"
+url = "https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html"

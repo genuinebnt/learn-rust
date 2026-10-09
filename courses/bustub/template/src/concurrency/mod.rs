@@ -1,3 +1,9 @@
+pub mod deadlock;
+pub mod lock_error;
+pub mod lock_manager;
+pub mod lock_mode;
+pub mod lock_queue;
+pub mod lock_txn;
 pub mod transaction;
 pub mod transaction_manager;
 pub mod watermark;

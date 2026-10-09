@@ -59,6 +59,14 @@ pub enum CourseCmd {
         /// Only these stage ids.
         stages: Vec<String>,
     },
+    /// Put our solution of a stage into your repo (from the web app; the stage is then marked as helped). Parts that do not fit your code are saved for you to merge by hand.
+    Adopt {
+        /// A stage id, e.g. 1a-03 (default: the current stage).
+        stage: Option<String>,
+        /// Do not ask for confirmation.
+        #[arg(long, short)]
+        yes: bool,
+    },
     /// Forget your progress for one module or the whole course (your code is not touched). The web app's progress is reset too when you are signed in.
     Reset {
         /// A module code, e.g. 1a.
@@ -758,6 +766,7 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
         }
         CourseCmd::Lint { course, courses, all } => lint(&course, &courses, all),
         CourseCmd::Solutions { course, courses, out, stages } => solutions(&course, &courses, out, &stages),
+        CourseCmd::Adopt { stage, yes } => adopt(stage.as_deref(), yes),
         CourseCmd::Reset { module, all, yes } => reset(module.as_deref(), all, yes),
         CourseCmd::Status { json } => status(json),
         CourseCmd::Show { stage, hint, no_pager } => show(stage.as_deref(), hint, no_pager),
@@ -1103,6 +1112,103 @@ fn install_hooks(repo: &Path) -> anyhow::Result<()> {
         fs::set_permissions(&path, fs::Permissions::from_mode(0o755))?;
     }
     Ok(())
+}
+
+/// A solution diff of one file is hunks of lines starting with ' ' (kept), '-' (removed) and '+' (added), separated by ` ⋯` lines. Applies each hunk
+/// whose old lines (kept and removed) are found, in order, in `text`; returns the new text and the hunks that could not be applied.
+fn apply_hunks(text: &str, diff: &[String]) -> (String, usize, Vec<Vec<String>>) {
+    let mut hunks: Vec<Vec<&str>> = vec![Vec::new()];
+    for l in diff {
+        if l.trim() == "⋯" {
+            hunks.push(Vec::new());
+        } else {
+            hunks.last_mut().unwrap().push(l);
+        }
+    }
+    let mut lines: Vec<String> = text.lines().map(str::to_owned).collect();
+    let (mut applied, mut rejected) = (0, Vec::new());
+    let mut from = 0;
+    for h in hunks.into_iter().filter(|h| !h.is_empty()) {
+        let old: Vec<&str> = h.iter().filter(|l| l.starts_with(' ') || l.starts_with('-')).map(|l| &l[1..]).collect();
+        let new: Vec<String> = h.iter().filter(|l| l.starts_with(' ') || l.starts_with('+')).map(|l| l[1..].to_owned()).collect();
+        let at = if old.is_empty() {
+            None
+        } else {
+            (from..lines.len().saturating_sub(old.len() - 1)).find(|&i| old.iter().enumerate().all(|(k, o)| lines[i + k] == *o))
+        };
+        match at {
+            Some(i) => {
+                let n = new.len();
+                lines.splice(i..i + old.len(), new);
+                from = i + n;
+                applied += 1;
+            }
+            None => rejected.push(h.iter().map(|l| (*l).to_owned()).collect()),
+        }
+    }
+    let mut out = lines.join("\n");
+    if text.ends_with('\n') || text.is_empty() {
+        out.push('\n');
+    }
+    (out, applied, rejected)
+}
+
+/// `anneal course adopt`: our solution of a stage, applied to the learner's files.
+fn adopt(stage: Option<&str>, yes: bool) -> anyhow::Result<ExitCode> {
+    use std::io::{BufRead, IsTerminal, Write};
+    let repo = find_repo()?;
+    let course = learner_course(&repo)?;
+    let progress = load_progress(&repo);
+    let target = match stage {
+        Some(id) => course.stage(id)?,
+        None => current(&course, &progress).context("every stage is done")?,
+    };
+    if target.def.kind == "boss" || target.def.kind == "challenge" {
+        bail!("{} is a {}: there is no solution to adopt, only tests to pass", target.def.id, target.def.kind);
+    }
+    println!("Adopting our solution of {} · {} replaces the parts of your files that this stage is about. The stage is marked as helped (assisted) in the app.", target.def.id, target.def.title);
+    if !yes {
+        if !std::io::stdin().is_terminal() {
+            bail!("not a terminal: add --yes to adopt without asking");
+        }
+        print!("Type adopt to go on: ");
+        std::io::stdout().flush()?;
+        let mut line = String::new();
+        std::io::stdin().lock().read_line(&mut line)?;
+        if line.trim() != "adopt" {
+            println!("Nothing changed.");
+            return Ok(ExitCode::FAILURE);
+        }
+    }
+    let files = course_sync::open_solution(&course.meta.id, &target.def.id)?;
+    let (mut applied, mut rejected_total) = (0, 0);
+    let mut rej = String::new();
+    for (path, diff) in &files {
+        let file = repo.join(path);
+        let Ok(text) = fs::read_to_string(&file) else {
+            println!("  {path}: not in your repo yet (it arrives with its module); skipped");
+            continue;
+        };
+        let (new, ok, rejected) = apply_hunks(&text, diff);
+        if ok > 0 {
+            fs::write(&file, new)?;
+        }
+        applied += ok;
+        rejected_total += rejected.len();
+        println!("  {path}: {ok} part{} applied{}", if ok == 1 { "" } else { "s" }, if rejected.is_empty() { String::new() } else { format!(", {} did not fit", rejected.len()) });
+        for h in rejected {
+            rej.push_str(&format!("--- {path}\n{}\n\n", h.join("\n")));
+        }
+    }
+    if !rej.is_empty() {
+        let dir = repo.join(STATE_DIR).join("adopt");
+        fs::create_dir_all(&dir)?;
+        let out = dir.join(format!("{}.txt", target.def.id));
+        fs::write(&out, rej)?;
+        println!("\n{rejected_total} part(s) did not fit your code: they are in {} (lines starting + are ours, - are the starter code, the rest is context). Merge them by hand.", out.display());
+    }
+    println!("\n{applied} part(s) applied. Run `anneal course test {}`.", target.def.id);
+    Ok(ExitCode::SUCCESS)
 }
 
 /// `anneal course reset`: forgets which stages passed, for one module or for the whole course. The learner's code stays as it is.
@@ -1710,7 +1816,8 @@ fn lint(course_id: &str, courses: &Path, all: bool) -> anyhow::Result<ExitCode> 
     for m in &def.modules {
         for st in m.stages.iter().filter(|st| st.kind != "boss") {
             for id in st.concepts.iter().chain(&st.concepts_optional) {
-                if !seen.insert(id.clone()) {
+                if !seen.insert(id.clone()) || id.starts_with("errors-") {
+                    // the "errors you will meet" pages show compiler output instead of runnable examples
                     continue;
                 }
                 let Some(k) = def.concept(id) else { continue };
@@ -1922,6 +2029,43 @@ fn verify_unlock_states(course: &Course, reference: &Path, full: &Path, work: &P
         }
     }
     Ok(problems)
+}
+
+#[cfg(test)]
+mod adopt_tests {
+    use super::apply_hunks;
+
+    fn d(lines: &[&str]) -> Vec<String> {
+        lines.iter().map(|l| (*l).to_owned()).collect()
+    }
+
+    #[test]
+    fn a_hunk_replaces_the_starter_lines_it_finds() {
+        let text = "fn a() {\n    todo!()\n}\nfn b() {}\n";
+        let (out, ok, rej) = apply_hunks(text, &d(&[" fn a() {", "-    todo!()", "+    1 + 1", " }"]));
+        assert_eq!(out, "fn a() {\n    1 + 1\n}\nfn b() {}\n");
+        assert_eq!((ok, rej.len()), (1, 0));
+    }
+
+    #[test]
+    fn a_hunk_that_does_not_fit_is_set_aside_and_the_file_is_untouched() {
+        let text = "fn a() {\n    my own code\n}\n";
+        let (out, ok, rej) = apply_hunks(text, &d(&[" fn a() {", "-    todo!()", "+    1 + 1", " }"]));
+        assert_eq!(out, text);
+        assert_eq!((ok, rej.len()), (0, 1));
+    }
+
+    #[test]
+    fn several_hunks_apply_in_order_and_each_is_judged_alone() {
+        let text = "a\nTODO1\nb\nc\nd\ne\nf\nTODO2\ng\n";
+        let diff = d(&[" a", "-TODO1", "+one", " b", " ⋯", " f", "-TODO2", "+two", " g"]);
+        let (out, ok, rej) = apply_hunks(text, &diff);
+        assert_eq!(out, "a\none\nb\nc\nd\ne\nf\ntwo\ng\n");
+        assert_eq!((ok, rej.len()), (2, 0));
+        let (out, ok, rej) = apply_hunks("a\nmine\nb\nc\nd\ne\nf\nTODO2\ng\n", &diff);
+        assert_eq!(out, "a\nmine\nb\nc\nd\ne\nf\ntwo\ng\n", "the first hunk does not fit, the second still does");
+        assert_eq!((ok, rej.len()), (1, 1));
+    }
 }
 
 #[cfg(test)]

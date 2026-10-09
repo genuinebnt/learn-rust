@@ -74,6 +74,14 @@ S2=$("$A" course status --json)
 [ "$(echo "$S2" | json 'd["challenges_done"]')" = "1" ] && [ "$(echo "$S2" | json 'd["done"]')" = "1" ] && ok "the challenge is in its own tally, not in the course's" || bad "tallies wrong"
 [ "$(api | json 'd["challenges_done"]')" = "1" ] && ok "the app's tally matches" || bad "the app's tally differs"
 
+step "adopt: our solution of a stage lands in your files, and the stage is marked as helped"
+"$A" course solutions $C >/dev/null 2>&1 && ok "the throwaway app has the solutions" || bad "uploading the solutions"
+if "$A" course adopt r-03 </dev/null >/dev/null 2>&1; then bad "adopt went ahead without asking"; else ok "adopt needs a terminal or --yes"; fi
+"$A" course adopt r-03 --yes >/dev/null 2>&1 && ok "adopt r-03 --yes" || bad "adopt failed"
+"$A" course test r-03 --only >/dev/null 2>&1 && ok "r-03 passes with the adopted code" || bad "r-03 does not pass after adopt"
+[ "$(api /stages/r-03 | json 'd["state"]')" = "assisted" ] && ok "the app marks the stage as helped" || bad "the app does not know the stage was helped"
+if "$A" course adopt r-c1 --yes >/dev/null 2>&1; then bad "a challenge was adopted"; else ok "a challenge has nothing to adopt"; fi
+
 step "finishing a module unlocks the next one"
 [ ! -e src/storage/disk/disk_scheduler.rs ] && ok "module 1b's files are not there yet" || bad "1b is visible too early"
 "$A" course build "$WORK/solved3" --stage 1a-05 $C >/dev/null
@@ -89,7 +97,7 @@ if "$A" course reset --module 1a </dev/null >/dev/null 2>&1; then bad "reset wen
 "$A" course reset --module 1a --yes >/dev/null 2>&1 && ok "reset --module 1a --yes" || bad "reset failed"
 S3=$("$A" course status --json)
 [ "$(echo "$S3" | json 'd["current"]')" = "1a-01" ] && ok "back at 1a-01" || bad "current did not go back"
-[ "$(echo "$S3" | json 'd["done"]')" = "1" ] && ok "the on-ramp stage is still done" || bad "other modules were reset too"
+[ "$(echo "$S3" | json 'd["done"]')" = "2" ] && ok "the on-ramp stages (r-01, and r-03 from adopt) are still done" || bad "other modules were reset too"
 [ "$(api /stages/1a-01 | json 'd["state"]')" = "todo" ] && ok "the app forgot 1a too" || bad "the app still has 1a"
 [ "$(api /stages/r-01 | json 'd["state"]')" != "todo" ] && ok "and kept r-01" || bad "the app lost r-01"
 "$A" course reset --all --yes >/dev/null 2>&1 && ok "reset --all --yes" || bad "reset --all failed"

@@ -5,4 +5,4 @@ difficulty = "hard"
 tests = ["stages_4c::s4c_04"]
 learn = ["the write-ahead rule: describe the change, then make it", "commit as a durable record", "rollback as logged undo", "flushing a page only after its log records"]
 concepts = []
-concepts_optional = ["write-ahead-logging", "rolling-back-with-undo-logs", "deadlock-and-lock-ordering", "interior-mutability-cell-refcell-mutex", "model-based-testing"]
+concepts_optional = ["write-ahead-logging", "rolling-back-with-undo-logs", "deadlock-and-lock-ordering", "interior-mutability-cell-refcell-mutex", "model-based-testing", "errors-4c"]

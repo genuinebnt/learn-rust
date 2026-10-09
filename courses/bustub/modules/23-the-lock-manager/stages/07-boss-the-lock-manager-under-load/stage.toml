@@ -1,0 +1,9 @@
+id = "4d-07"
+title = "Boss: the lock manager under load"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_4d::s4d_07"]
+learn = ["checking a concurrent system by the history it leaves", "proving that deadlocks happen and are resolved"]
+concepts = ["lock-modes-and-two-phase-locking", "waits-for-graphs-and-deadlock-detection"]
+concepts_optional = ["model-based-testing", "deadlock-and-lock-ordering", "errors-4d"]
+retest = true

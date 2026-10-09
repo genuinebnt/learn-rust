@@ -1,0 +1,8 @@
+id = "3f-06"
+title = "Boss: three joins and a naive one"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_3f::s3f_06", "sql_aggregation_and_joins_test"]
+retest = true
+concepts = []
+concepts_optional = ["model-based-testing", "property-testing-and-fuzzing", "join-algorithms"]

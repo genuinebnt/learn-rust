@@ -55,14 +55,19 @@ pub fn show(e: &Expr) -> String {
     }
 }
 
-/// What `e` is on `row` (columns by name). Arithmetic does not overflow for the small numbers the strategies generate.
+/// What `e` is on `row` (columns `a`, `b`, `c`). Arithmetic does not overflow for the small numbers the strategies generate.
 pub fn eval(e: &Expr, row: &Row) -> Val {
+    eval_in(e, row, &COLUMNS)
+}
+
+/// What `e` is on `row`, whose columns have the (possibly dotted, `l.k`) names `cols`.
+pub fn eval_in(e: &Expr, row: &Row, cols: &[&str]) -> Val {
     match e {
         Expr::Integer(v) => Val::Int(Some(*v)),
         Expr::Null => Val::Int(None),
         Expr::Bool(b) => Val::Bool(Some(*b)),
-        Expr::Column(parts) => Val::Int(row[COLUMNS.iter().position(|c| *c == parts[0]).expect("a, b or c")]),
-        Expr::Binary { op, left, right } => match (op.as_str(), eval(left, row), eval(right, row)) {
+        Expr::Column(parts) => Val::Int(row[cols.iter().position(|c| *c == parts.join(".")).expect("a column of the row")]),
+        Expr::Binary { op, left, right } => match (op.as_str(), eval_in(left, row, cols), eval_in(right, row, cols)) {
             ("and", Val::Bool(l), Val::Bool(r)) => Val::Bool(match (l, r) {
                 (Some(false), _) | (_, Some(false)) => Some(false),
                 (Some(true), Some(true)) => Some(true),
@@ -91,7 +96,11 @@ pub fn eval(e: &Expr, row: &Row) -> Val {
 
 /// True when the predicate keeps the row: only TRUE keeps it, FALSE and unknown do not.
 pub fn keeps(pred: &Expr, row: &Row) -> bool {
-    eval(pred, row) == Val::Bool(Some(true))
+    keeps_in(pred, row, &COLUMNS)
+}
+
+pub fn keeps_in(pred: &Expr, row: &Row, cols: &[&str]) -> bool {
+    eval_in(pred, row, cols) == Val::Bool(Some(true))
 }
 
 pub fn as_int(v: Val) -> Option<i64> {

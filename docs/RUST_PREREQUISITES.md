@@ -11,7 +11,7 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | L1 Ownership & moves | `l1-ownership-moves` | written | core | R, 1a, 1b, 1g, 0a |
 | L2 Borrowing | `l2-borrowing` | written | core | R, 1e, 1f, 1g |
 | L3 Lifetimes | `l3-lifetimes` | written | core | 1g, 2c, 3c, 3e |
-| L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3c, 3d, 3e, 3h |
+| L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3c, 3d, 3e, 3f, 3h |
 | L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b, 2c, 2d |
 | L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
 | L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 0a |
@@ -30,7 +30,7 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | C2 Message passing | `c2-message-passing` | planned | core | 1b |
 | C3 Atomics & lock-free | `c3-atomics-lock-free` | planned | sde3 | 4a |
 | Y2 Unsafe Rust | `y2-unsafe-rust` | planned | sde3 | 0b |
-| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | R, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3h, 4b, 4c, 0d |
+| Y5 Testing & verification | `y5-testing-verification` | planned | sde3 | R, 1a, 1b, 1c, 1d, 1e, 1f, 1g, 2a, 2b, 2c, 2d, 3c, 3d, 3e, 3f, 3h, 4b, 4c, 0d |
 | F1 Measure & read the machine | `f1-measure-machine` | planned | sde3 | 1a |
 | F2 Data layout | `f2-data-layout` | written | sde3 | 2a, 2b, 2c, 3b |
 | F3 Memory & allocation | `f3-memory-allocation` | planned | sde3 | 1c, 1f, 3d, 0b |
@@ -268,11 +268,13 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [S4 Maps & sets](/t/s4-maps-sets) | Understand it | entry API for group-by | the module |
-| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `Hash`/`Eq` on `Value` | the module |
-| [S6 Iterators](/t/s6-iterators) *(planned)* | Understand | iterator chains for joins | the module |
-| [S5 Queues & heaps](/t/s5-queues-heaps) *(planned)* | Understand | heaps for merge-style work | the module |
-| [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) *(planned)* | Right structure for the job | hash tables for joins | the module |
+| [S4 Maps & sets](/t/s4-maps-sets) | Understand it | `HashMap`, the `entry` API for group-by and for a join's multimap | 3f-02, 3f-04 |
+| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `Hash` and `Eq` that agree, on a key of `Value`s | 3f-01 |
+| [S6 Iterators](/t/s6-iterators) *(planned)* | Understand | pulling from iterators by hand; a cursor over a `Vec` | 3f-02, 3f-03 |
+| [S5 Queues & heaps](/t/s5-queues-heaps) *(planned)* | Understand | `VecDeque` as a buffer of pending output | 3f-03, 3f-04 |
+| [F4 Hashing & purpose-built structures](/t/f4-hashing-structures) *(planned)* | Right structure for the job | hash tables for grouping and joining; when a scan or an index is better | 3f-02, 3f-04, 3f-05 |
+| [L4 Traits & dispatch](/t/l4-traits-dispatch) | Static vs dynamic | `Box<dyn Index>` behind a join | 3f-05 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Build it | differential tests: three algorithms against each other and a naive one | 3f-01, 3f-02, 3f-03, 3f-04, 3f-05, 3f-06 |
 
 ### 3G · Sorting, limits and window functions
 
@@ -366,7 +368,7 @@ The planned tracks, sorted by the first module that needs them (then by how many
 
 | # | Track | First needed by | Used by |
 |---|---|---|---|
-| 1 | [Y5 Testing & verification](/t/y5-testing-verification) | R | 19 modules |
+| 1 | [Y5 Testing & verification](/t/y5-testing-verification) | R | 20 modules |
 | 2 | [L8 Error design](/t/l8-error-design) | R | 8 modules |
 | 3 | [S9 I/O & filesystem](/t/s9-io-filesystem) | R | 4 modules |
 | 4 | [C1 Threads & shared state](/t/c1-threads-shared-state) | 1A | 10 modules |

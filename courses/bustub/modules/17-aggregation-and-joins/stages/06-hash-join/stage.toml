@@ -1,7 +1,0 @@
-id = "3f-06"
-title = "Hash join"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_3f::s3f_06"]
-learn = ["build and probe phases", "join keys that skip NULLs", "the same result as a nested loop in far fewer comparisons"]
-concepts = ["join-algorithms", "hashing-values-and-keys", "hash-aggregation", "eq-hash-ord-contracts"]

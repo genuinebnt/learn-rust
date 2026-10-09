@@ -127,9 +127,9 @@ fn a_left_row_that_matches_several_right_rows_appears_for_each() {
 
 ### In the exercises
 
-- **3f-03, 3f-04:** nested loop join: inner, then left with NULL padding; the right child is re-initialised for each left tuple.
-- **3f-05, 3f-06:** hash join: build, probe, NULL keys; inner, then left.
-- **3f-07:** nested index join: probe the inner table's index for each outer tuple.
+- **3f-03:** nested loop join: inner, then left with NULL padding; the right child is re-initialised for each left tuple.
+- **3f-04:** hash join: build, probe, NULL keys; inner, then left.
+- **3f-05:** nested index join: probe the inner table's index for each outer tuple.
 - **Module 3h:** the optimizer rule that turns an equality nested loop join into a hash join.
 
 ### Where it is used

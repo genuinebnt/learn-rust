@@ -40,24 +40,24 @@ impl<'e> HashJoinExecutor<'e> {
 
     /// The join key of a tuple: the key expressions evaluated on it with the schema of its side. `None` if any part is NULL.
     fn join_key(exprs: &[ExprRef], tuple: &Tuple, schema: &Schema) -> Result<Option<AggregateKey>> {
-        todo!("3f-06: evaluate every key expression on the tuple; None if any value is NULL, else the AggregateKey of the values")
+        todo!("3f-04: evaluate every key expression on the tuple; None if any value is NULL, else the AggregateKey of the values")
     }
 
     /// What to output for a left tuple that found no match: for a LEFT join, its values and a NULL for every right column.
     fn unmatched_output(&self, left: &Tuple) -> Option<Tuple> {
-        None // 3f-07: for a LEFT join: the left values, then a NULL of the right column's type for every right column
+        None // 3f-04: for a LEFT join: the left values, then a NULL of the right column's type for every right column
     }
 }
 
 impl Executor for HashJoinExecutor<'_> {
     fn init(&mut self) -> Result<()> {
-        todo!("3f-06: initialise both children; empty the table and the pending output; build: for every right tuple with a non-NULL key (join_key with the right keys and the right schema) add it to the table under its key")
+        todo!("3f-04: initialise both children; empty the table and the pending output; build: for every right tuple with a non-NULL key (join_key with the right keys and the right schema) add it to the table under its key")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
-        todo!("3f-06: until the batch is full: hand out pending output first; take the next left tuple (none: stop); its key (join_key with the left keys) looks up the table: for every match queue the left values followed by the right values; with no match (or a NULL key) queue unmatched_output(..) if it gives something")
+        todo!("3f-04: until the batch is full: hand out pending output first; take the next left tuple (none: stop); its key (join_key with the left keys) looks up the table: for every match queue the left values followed by the right values; with no match (or a NULL key) queue unmatched_output(..) if it gives something")
     }
 
     fn output_schema(&self) -> &Schema {

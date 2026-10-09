@@ -1,0 +1,8 @@
+id = "3f-01"
+title = "Group keys and aggregate values"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3f::s3f_01"]
+learn = ["Eq and Hash that agree: equal keys hash alike", "NULLs form one group", "count, sum, min and max with NULL inputs", "a hash table of running values, one per group"]
+concepts = []
+concepts_optional = ["hash-aggregation", "eq-hash-ord-contracts", "hashing-values-and-keys", "sql-types-and-three-valued-logic", "model-based-testing", "property-testing-and-fuzzing"]

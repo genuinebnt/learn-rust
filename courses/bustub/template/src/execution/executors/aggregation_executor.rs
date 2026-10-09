@@ -81,7 +81,7 @@ impl SimpleAggregationHashTable {
 
     /// Folds one input row (the values of the aggregate expressions) into the running values.
     pub fn combine_aggregate_values(&self, result: &mut AggregateValue, input: &AggregateValue) -> Result<()> {
-        todo!("3f-02: for each aggregate: count(*) adds 1 for every row; for the others a NULL input changes nothing; count(x): 1 if nothing seen yet else +1; sum: x if nothing seen yet else running + x; min/max likewise with Value::min / Value::max")
+        todo!("3f-01: for each aggregate: count(*) adds 1 for every row; for the others a NULL input changes nothing; count(x): 1 if nothing seen yet else +1; sum: x if nothing seen yet else running + x; min/max likewise with Value::min / Value::max")
     }
 
     /// Finds (or creates) the group of `key` and folds `value` into it.
@@ -133,24 +133,24 @@ impl<'e> AggregationExecutor<'e> {
 
     /// The group a child tuple belongs to.
     fn make_aggregate_key(&self, tuple: &Tuple) -> Result<AggregateKey> {
-        todo!("3f-03: every group-by expression evaluated on the tuple (with the child's output schema)")
+        todo!("3f-02: every group-by expression evaluated on the tuple (with the child's output schema)")
     }
 
     /// The values the aggregates are computed from, for a child tuple.
     fn make_aggregate_value(&self, tuple: &Tuple) -> Result<AggregateValue> {
-        todo!("3f-03: every aggregate expression evaluated on the tuple")
+        todo!("3f-02: every aggregate expression evaluated on the tuple")
     }
 }
 
 impl Executor for AggregationExecutor<'_> {
     fn init(&mut self) -> Result<()> {
-        todo!("3f-03: initialise the child; empty the table; fold every child tuple into the table (make_aggregate_key / make_aggregate_value / insert_combine); if the table is still empty and there is no GROUP BY add the group of the empty key with insert_initial; build one output tuple per group (group-by values, then aggregates, with the plan's output schema) into self.results; cursor = 0")
+        todo!("3f-02: initialise the child; empty the table; fold every child tuple into the table (make_aggregate_key / make_aggregate_value / insert_combine); if the table is still empty and there is no GROUP BY add the group of the empty key with insert_initial; build one output tuple per group (group-by values, then aggregates, with the plan's output schema) into self.results; cursor = 0")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
-        todo!("3f-03: hand out the next at most batch_size result tuples (and a default rid for each)")
+        todo!("3f-02: hand out the next at most batch_size result tuples (and a default rid for each)")
     }
 
     fn output_schema(&self) -> &Schema {

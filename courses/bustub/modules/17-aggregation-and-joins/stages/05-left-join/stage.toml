@@ -1,8 +1,0 @@
-id = "3f-05"
-title = "Left join"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3f::s3f_05"]
-learn = ["NULL padding with the right column types", "when a left tuple counts as matched", "a predicate that is NULL is not a match"]
-concepts = ["join-algorithms", "sql-types-and-three-valued-logic"]
-concepts_optional = ["hashing-values-and-keys"]

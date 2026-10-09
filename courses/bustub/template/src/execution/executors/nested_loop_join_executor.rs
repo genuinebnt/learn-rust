@@ -62,19 +62,19 @@ impl<'e> NestedLoopJoinExecutor<'e> {
     /// What to output when the right side is exhausted for `left`: for a LEFT join and a left tuple that matched nothing, the left
     /// values followed by a NULL for every right column; otherwise nothing.
     fn unmatched_output(&self, left: &Tuple) -> Option<Tuple> {
-        None // 3f-05: for a LEFT join and a left tuple that never matched: its values, then a NULL of the right column's type for every right column
+        None // 3f-03: for a LEFT join and a left tuple that never matched: its values, then a NULL of the right column's type for every right column
     }
 }
 
 impl Executor for NestedLoopJoinExecutor<'_> {
     fn init(&mut self) -> Result<()> {
-        todo!("3f-04: initialise both children (through the TupleStreams) and forget the current left tuple, whether it matched, and any pending output")
+        todo!("3f-03: initialise both children (through the TupleStreams) and forget the current left tuple, whether it matched, and any pending output")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
-        todo!("3f-04: until the batch is full: hand out pending output first; if there is no current left tuple take the next one (end: stop) and init the right side; take the next right tuple and, if the predicate (evaluate_join) is TRUE, queue left+right values; when the right side is exhausted queue unmatched_output(..) if it gives something and drop the left tuple")
+        todo!("3f-03: until the batch is full: hand out pending output first; if there is no current left tuple take the next one (end: stop) and init the right side; take the next right tuple and, if the predicate (evaluate_join) is TRUE, queue left+right values; when the right side is exhausted queue unmatched_output(..) if it gives something and drop the left tuple")
     }
 
     fn output_schema(&self) -> &Schema {

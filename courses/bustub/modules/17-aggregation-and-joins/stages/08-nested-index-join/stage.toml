@@ -1,7 +1,0 @@
-id = "3f-08"
-title = "Nested index join"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_3f::s3f_08"]
-learn = ["probing an index for each outer row", "borrowing a table and an index from the catalog", "the optimizer rule that chooses this join"]
-concepts = ["join-algorithms", "access-paths-index-vs-seq-scan", "maintaining-indexes-on-writes"]

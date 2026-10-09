@@ -237,11 +237,13 @@ MODULES = [
         ("Y5", "Build it", "a model of SQL in plain vectors; random sessions of statements", ["3e-01", "3e-02", "3e-03", "3e-04", "3e-05"]),
     ]),
     ("3f", "Aggregation and joins", [
-        ("S4", "Understand it", "entry API for group-by", None),
-        ("S8", "Implement by hand", "`Hash`/`Eq` on `Value`", None),
-        ("S6", "Understand", "iterator chains for joins", None),
-        ("S5", "Understand", "heaps for merge-style work", None),
-        ("F4", "Right structure for the job", "hash tables for joins", None),
+        ("S4", "Understand it", "`HashMap`, the `entry` API for group-by and for a join's multimap", ["3f-02", "3f-04"]),
+        ("S8", "Implement by hand", "`Hash` and `Eq` that agree, on a key of `Value`s", ["3f-01"]),
+        ("S6", "Understand", "pulling from iterators by hand; a cursor over a `Vec`", ["3f-02", "3f-03"]),
+        ("S5", "Understand", "`VecDeque` as a buffer of pending output", ["3f-03", "3f-04"]),
+        ("F4", "Right structure for the job", "hash tables for grouping and joining; when a scan or an index is better", ["3f-02", "3f-04", "3f-05"]),
+        ("L4", "Static vs dynamic", "`Box<dyn Index>` behind a join", ["3f-05"]),
+        ("Y5", "Build it", "differential tests: three algorithms against each other and a naive one", ["3f-01", "3f-02", "3f-03", "3f-04", "3f-05", "3f-06"]),
     ]),
     ("3g", "Sorting, limits and window functions", [
         ("S5", "Understand", "`BinaryHeap` + `Reverse` for top-N", None),

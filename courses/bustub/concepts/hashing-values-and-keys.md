@@ -108,8 +108,8 @@ fn composite_keys_compare_column_by_column() {
 
 ### In the exercises
 
-- **3f-02:** the aggregation's `AggregateKey` (group-by values) needs exactly this: NULLs together.
-- **3f-05:** the hash join's key is the same idea, with the opposite NULL rule: a NULL key never matches.
+- **3f-01:** the aggregation's `AggregateKey` (group-by values) needs exactly this: NULLs together.
+- **3f-04:** the hash join's key is the same idea, with the opposite NULL rule: a NULL key never matches.
 
 ### Where it is used
 

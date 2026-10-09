@@ -1,8 +1,0 @@
-id = "3f-01"
-title = "Group keys"
-kind = "learn"
-difficulty = "easy"
-tests = ["stages_3f::s3f_01"]
-learn = ["Hash and Eq as the definition of 'the same group'", "NULLs group together, unlike NULL = NULL", "a hash that must agree with equality"]
-concepts = ["hashing-values-and-keys", "sql-types-and-three-valued-logic", "enums-with-data-and-match", "eq-hash-ord-contracts"]
-concepts_optional = ["hash-aggregation"]

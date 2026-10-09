@@ -121,7 +121,7 @@ fn reverse_gives_a_descending_set() {
 ### In the exercises
 
 - **2b:** hash table keys and `GenericKey` comparators.
-- **3f-01 / 3f-06:** group-by and hash-join keys: equality with NULLs as one group.
+- **3f-01 / 3f-04:** group-by and hash-join keys: equality with NULLs as one group.
 - **0a-01:** `BTreeMap<char, ..>` children; **0c-01:** the key hash trait; **0d-06:** `BTreeSet<(T, Uid)>`.
 - **1d:** `BTreeSet` of eviction candidates ordered by a tuple.
 

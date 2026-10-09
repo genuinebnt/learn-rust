@@ -112,6 +112,37 @@
 .cx-tn{font:500 13px var(--mono);color:var(--fg);overflow-wrap:anywhere}.cx-td{margin-top:3px;color:var(--mut)}
 .cx-fail{display:flex;gap:10px;margin-top:8px;font:400 12.5px var(--mono);color:var(--mut)}.cx-fail span{color:var(--bad);flex:none}.cx-fail code{background:none;padding:0;color:var(--fg);overflow-wrap:anywhere}
 .cx-cause{margin-top:6px;font-size:13.5px;color:var(--mut)}.cx-cause b{color:var(--warn);font-weight:600}.cx-cause a{color:var(--warn)!important}
+/* the Run tab (docs/mockups/course-run-tab.html): summary, failures open, passes folded */
+.cx-rsum{display:grid;gap:14px;margin-top:14px;padding:18px 20px;border:1px solid var(--line2);border-radius:10px;background:var(--panel)}
+.cx-rsum.bad{border-color:color-mix(in oklab,var(--bad) 45%,var(--line2))}.cx-rsum.ok{border-color:color-mix(in oklab,var(--grn) 50%,var(--line2))}.cx-rsum.warn{border-color:color-mix(in oklab,var(--warn) 45%,var(--line2))}
+.cx-rtop{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.cx-rbig{font:600 22px var(--sans);letter-spacing:-.01em}.cx-rbig em{font-style:normal}
+.cx-rsum.bad .cx-rbig em{color:var(--bad)}.cx-rsum.ok .cx-rbig em{color:var(--grn)}.cx-rsum.warn .cx-rbig em{color:var(--warn)}
+.cx-rmeta{font:500 12px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.cx-rbar{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:3px}.cx-rbar i{height:6px;border-radius:2px;background:var(--grn)}.cx-rbar i.b{background:var(--bad)}
+.cx-rcmd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font:500 12px var(--mono);color:var(--dim)}
+.cx-rcmd code{padding:3px 8px;border-radius:4px;background:var(--raise);color:var(--fg);overflow-wrap:anywhere}
+.cx-rcmd button{height:24px;padding:0 9px;border:1px solid var(--line2);border-radius:4px;font:500 11px var(--mono);letter-spacing:.1em;color:var(--dim)}.cx-rcmd button:hover{color:var(--fg);border-color:var(--line)}
+.cx-rsec{margin:26px 0 10px;font:600 10.5px var(--mono);letter-spacing:.2em;color:var(--dim)}.cx-rsec.bad{color:var(--bad)}.cx-rsec.ok{color:var(--grn)}.cx-rsec.warn{color:var(--warn)}
+.cx-rfail,.cx-rprob,.cx-rfold{border:1px solid var(--line2);border-radius:8px;background:var(--panel);overflow:hidden}
+.cx-rfail{border-color:color-mix(in oklab,var(--bad) 40%,var(--line2))}.cx-rfail+.cx-rfail{margin-top:10px}
+.cx-rprob{border-color:color-mix(in oklab,var(--warn) 45%,var(--line2))}
+.cx-rhead{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:14px;align-items:start;padding:12px 16px}
+.cx-rhead small{font:500 11px var(--mono);color:var(--dim)}
+.cx-rfail .cx-rhead{background:var(--bad-bg)}.cx-rfail .cx-sq{background:var(--bad)}
+.cx-rprob .cx-rhead{background:color-mix(in oklab,var(--warn) 12%,transparent)}.cx-rprob .cx-sq{background:var(--warn)}
+.cx-rhead .cx-sq{margin-top:5px}
+.cx-rbody{padding:12px 16px 14px 40px;border-top:1px solid color-mix(in oklab,var(--bad) 25%,var(--line2))}
+.cx-prose .cx-rbody pre,.cx-prose .cx-rprob pre{margin:0;padding:0;border:0;border-radius:0;background:none;font:400 12.5px/1.6 var(--code);color:var(--fg);white-space:pre-wrap;overflow-wrap:anywhere}
+.cx-prose .cx-rprob pre{padding:14px 16px;white-space:pre;overflow-x:auto;scrollbar-width:none}.cx-rprob pre::-webkit-scrollbar{display:none}
+.cx-rprob .er{color:var(--bad)}.cx-rprob .pt{color:var(--acc)}.cx-rprob .dm{color:var(--dim)}
+.cx-rshared{margin:0 0 8px;font:500 11px var(--mono);color:var(--warn)}
+.cx-rfoldh{width:100%;display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 16px;text-align:left;color:var(--fg)}
+.cx-rfoldh .cx-tn{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cx-rfoldh .cx-sq{margin-top:0}
+.cx-rchev{font:500 12px var(--mono);color:var(--dim);transition:transform .15s}.cx-rfold.open .cx-rchev{transform:rotate(90deg)}
+.cx-rlist{border-top:1px solid var(--line2)}
+.cx-rrow{display:grid;grid-template-columns:10px minmax(0,1fr);gap:14px;padding:9px 16px;font:500 12.5px var(--mono);color:var(--mut);overflow-wrap:anywhere}.cx-rrow+.cx-rrow{border-top:1px solid var(--line2)}.cx-rrow .cx-sq{margin-top:5px}
+@media (max-width:560px){.cx-rbody{padding-left:16px}}
 .cx-mist{margin:18px 0;display:flex;flex-direction:column;gap:10px}
 .cx-mist>div{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;padding:14px 16px;border:1px solid var(--line2);border-radius:8px;font-size:14.5px}
 .cx-mist>div:target{border-color:var(--warn);background:var(--warn-bg)}

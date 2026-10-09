@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { api, type CourseStagePage as Page, type CourseStageRow, type SolutionFile } from "../api";
+import { api, type CourseRun, type CourseStagePage as Page, type CourseStageRow, type SolutionFile } from "../api";
 import { Header } from "../components/Header";
 import { DIFFICULTY_COLOR, SplitTitle } from "./CoursePage";
 import { renderMd } from "./courseMd";
@@ -101,6 +101,145 @@ function ago(iso: string) {
     if (s < 3600) return `${Math.floor(s / 60)} min ago`;
     if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
     return `${Math.floor(s / 86400)} d ago`;
+}
+
+/** The Run tab: a summary with one segment per test, failures first and open, passes folded, compiler output in its own block. */
+function RunPanel({ run, stageId }: { run: CourseRun; stageId: string }) {
+    const failed = run.tests.map((t, i) => ({ ...t, i })).filter((t) => !t.ok);
+    const passed = run.tests.filter((t) => t.ok);
+    const [open, setOpen] = useState(failed.length === 0 && !run.problem);
+    const [copied, setCopied] = useState(false);
+    const same = new Map<string, number>();
+    for (const t of failed) same.set(t.detail.trim(), (same.get(t.detail.trim()) ?? 0) + 1);
+    const first = failed[0];
+    const cmd = run.problem ? `anneal course test ${stageId}` : first ? `anneal course test ${stageId} --only -f ${first.name}` : null;
+    const copy = () => {
+        const done = () => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+        };
+        try {
+            navigator.clipboard.writeText(cmd ?? "").then(done, done);
+        } catch {
+            done();
+        }
+    };
+    const errors = run.problem ? (run.problem.match(/^error(\[|:)/gm) ?? []).length : 0;
+    const tone = run.problem ? "warn" : failed.length > 0 ? "bad" : "ok";
+    return (
+        <>
+            <div className={`cx-rsum ${tone}`}>
+                <div className="cx-rtop">
+                    <span className="cx-rbig">
+                        {run.problem ? (
+                            <em>Did not run</em>
+                        ) : failed.length > 0 ? (
+                            <>
+                                <em>{failed.length} failed</em> · {passed.length} passed
+                            </>
+                        ) : (
+                            <em>
+                                {run.passed} of {run.total} passed
+                            </em>
+                        )}
+                    </span>
+                    <span className="cx-rmeta">
+                        {ago(run.at)}
+                        {run.commit_sha ? ` · commit ${run.commit_sha.slice(0, 7)}` : ""} · {(run.duration_ms / 1000).toFixed(1)}s
+                    </span>
+                </div>
+                {!run.problem && run.tests.length > 0 && (
+                    <div className="cx-rbar" aria-hidden>
+                        {run.tests.map((t, i) => (
+                            <i key={i} className={t.ok ? "" : "b"} />
+                        ))}
+                    </div>
+                )}
+                {cmd && (
+                    <div className="cx-rcmd">
+                        <span>{run.problem ? "compile locally" : "run again"}</span>
+                        <code>{cmd}</code>
+                        <button onClick={copy}>{copied ? "COPIED" : "COPY"}</button>
+                    </div>
+                )}
+            </div>
+
+            {run.problem && (
+                <>
+                    <div className="cx-rsec warn">COMPILER OUTPUT</div>
+                    <div className="cx-rprob">
+                        <div className="cx-rhead">
+                            <span className="cx-sq" />
+                            <span className="cx-tn">{errors > 0 ? `${errors} error${errors === 1 ? "" : "s"}` : "no tests ran"}</span>
+                            <small>as the compiler printed it</small>
+                        </div>
+                        <pre>
+                            {run.problem.split("\n").map((l, i) => (
+                                <div key={i} className={/^error(\[|:)/.test(l) ? "er" : /^\s*-->/.test(l) ? "pt" : /^\s*(\d+\s*)?\|/.test(l) ? "dm" : undefined}>
+                                    {l || " "}
+                                </div>
+                            ))}
+                        </pre>
+                    </div>
+                </>
+            )}
+
+            {failed.length > 0 && (
+                <>
+                    <div className="cx-rsec bad">FAILED · {failed.length}</div>
+                    {failed.map((t) => {
+                        const n = (same.get(t.detail.trim()) ?? 1) - 1;
+                        return (
+                            <div className="cx-rfail" key={t.name}>
+                                <div className="cx-rhead">
+                                    <span className="cx-sq" />
+                                    <span className="cx-tn">{t.name}</span>
+                                    <small>
+                                        test {t.i + 1} of {run.tests.length}
+                                    </small>
+                                </div>
+                                {t.detail && (
+                                    <div className="cx-rbody">
+                                        {n > 0 && (
+                                            <p className="cx-rshared">
+                                                same message as {n} other test{n === 1 ? "" : "s"}
+                                            </p>
+                                        )}
+                                        <pre>{t.detail}</pre>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </>
+            )}
+
+            {passed.length > 0 && (
+                <>
+                    <div className="cx-rsec ok">PASSED · {passed.length}</div>
+                    <div className={`cx-rfold${open ? " open" : ""}`}>
+                        <button className="cx-rfoldh" onClick={() => setOpen(!open)} aria-expanded={open}>
+                            <span className="cx-sq" />
+                            <span className="cx-tn">
+                                {failed.length === 0 ? "all tests" : passed.length > 2 ? `${passed.slice(0, 2).map((t) => t.name).join(", ")} and ${passed.length - 2} more` : passed.map((t) => t.name).join(", ")}
+                            </span>
+                            <span className="cx-rchev">›</span>
+                        </button>
+                        {open && (
+                            <div className="cx-rlist">
+                                {passed.map((t) => (
+                                    <div className="cx-rrow" key={t.name}>
+                                        <span className="cx-sq" />
+                                        {t.name}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
+        </>
+    );
 }
 
 function Sidebar({ course, page }: { course: string; page: Page }) {
@@ -545,39 +684,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                             {tab === "run" && (
                                 <div className="cx-prose">
                                     {run ? (
-                                        <>
-                                            <p className="cx-quiet" style={{ margin: 0 }}>
-                                                {ago(run.at)}
-                                                {run.commit_sha ? ` · commit ${run.commit_sha.slice(0, 7)}` : ""} · {(run.duration_ms / 1000).toFixed(1)}s
-                                            </p>
-                                            {run.problem && (
-                                                <div className="cx-test bad" style={{ margin: "14px 0 0", padding: 0 }}>
-                                                    <span className="cx-sq" />
-                                                    <div>
-                                                        <div className="cx-tn">did not run</div>
-                                                        <div className="cx-fail">
-                                                            <code style={{ whiteSpace: "pre-wrap" }}>{run.problem}</code>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div className="cx-tests">
-                                                {run.tests.map((t) => (
-                                                    <div className={`cx-test ${t.ok ? "ok" : "bad"}`} key={t.name}>
-                                                        <span className="cx-sq" />
-                                                        <div>
-                                                            <div className="cx-tn">{t.name}</div>
-                                                            {!t.ok && t.detail && (
-                                                                <div className="cx-fail">
-                                                                    <span>failed</span>
-                                                                    <code style={{ whiteSpace: "pre-wrap" }}>{t.detail}</code>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </>
+                                        <RunPanel run={run} stageId={p.stage.id} />
                                     ) : (
                                         <div className="cx-empty">
                                             No run yet. In your repo, run <code>anneal course test</code>, or commit and push: each run is reported here.

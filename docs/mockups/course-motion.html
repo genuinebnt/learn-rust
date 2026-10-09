@@ -127,7 +127,7 @@ kbd{font:500 10.5px var(--mono);padding:1px 6px;border:1px solid var(--line);bor
 .pr .mini{width:100%}.pr:hover .l span{color:var(--fg)}
 .pr.act .l span{color:var(--fg)}
 /* ---------- STAGE PAGE ---------- */
-.stage{display:grid;grid-template-columns:240px minmax(0,1fr) 200px;gap:0;min-height:100vh}
+.stage{--lw:320px;--rw:320px;--l:var(--lw);--r:var(--rw);display:grid;grid-template-columns:var(--l) minmax(0,1fr) var(--r);gap:0;min-height:100vh}
 .tree{border-right:1px solid var(--line2);padding:18px 14px;position:sticky;top:46px;align-self:start;height:calc(100vh - 46px - 62px);overflow:auto;scrollbar-width:none}.tree::-webkit-scrollbar{display:none}
 .tree h6{margin:0 0 10px;font:500 10px var(--mono);letter-spacing:.2em;color:var(--dim)}
 .tl{display:grid;grid-template-columns:18px 24px minmax(0,1fr);gap:8px;align-items:center;padding:7px 8px;border-radius:7px;font-size:13px;color:var(--mut);transition:background .2s,color .2s,transform .2s var(--ease)}
@@ -192,7 +192,7 @@ h2.ttl{margin:8px 0 12px;font-size:clamp(28px,4vw,46px);line-height:1.05;letter-
 .toast{position:fixed;top:64px;left:50%;z-index:70;transform:translate(-50%,-20px);opacity:0;pointer-events:none;display:flex;gap:10px;align-items:center;padding:10px 18px;border-radius:999px;border:1px solid var(--bad);background:var(--panel);box-shadow:0 14px 30px -14px var(--shadow);font-size:14px;transition:opacity .3s,transform .4s var(--ease)}
 .toast.show{opacity:1;transform:translate(-50%,0)}.toast.ok{border-color:var(--grn)}
 .notes{max-width:1180px;margin:60px auto 0;padding:0 24px;display:grid;gap:10px;color:var(--mut);font-size:14px}.notes h2{margin:0;font-size:19px;color:var(--fg)}.notes li{margin-left:20px}.notes b{color:var(--fg)}
-@media (max-width:1100px){.stage{grid-template-columns:minmax(0,1fr)}.tree,.toc{display:none}.read2{padding:28px 20px}}
+@media (max-width:1100px){.stage,.stage.lc,.stage.rc{grid-template-columns:minmax(0,1fr)}.tree,.toc,.rz{display:none}.read2{padding:28px 20px}}
 @media (max-width:980px){.cmain,.hero{grid-template-columns:minmax(0,1fr)}.side{position:static}}
 @media (max-width:640px){.row{grid-template-columns:22px minmax(0,1fr) auto}.row .no,.next{display:none}.sb{width:90px}.proj{grid-template-columns:1fr}.stats div{padding:12px 16px}.stats b{font-size:24px}}
 
@@ -284,7 +284,7 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 
 /* ---------- SIDEBARS: collapse, rail, pinned vs hideable ---------- */
 .stage{transition:grid-template-columns .4s var(--ease)}
-.stage.lc{grid-template-columns:60px minmax(0,1fr) 220px}.stage.rc{grid-template-columns:240px minmax(0,1fr) 0}.stage.lc.rc{grid-template-columns:60px minmax(0,1fr) 0}
+.stage.lc{--l:64px}.stage.rc{--r:0px}.stage.dragging{transition:none;user-select:none;cursor:col-resize}
 .tree{display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden}
 .th2{display:flex;align-items:center;gap:8px;padding:14px 14px 10px}.th2 h6{margin:0;flex:1;white-space:nowrap}
 .sbtn{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:var(--dim);font:600 13px var(--mono);transition:background .2s,color .2s,transform .3s var(--ease)}.sbtn:hover{background:var(--raise);color:var(--fg)}
@@ -413,6 +413,52 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .cta.sec .kb{background:var(--raise)}
 .shake{animation:shk .45s}@keyframes shk{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 .cta.ok2{background:var(--grn)}
+
+/* ---------- WIDER, RESIZABLE PANELS ---------- */
+.tree,.toc{position:sticky;overflow:hidden}
+.rz{position:absolute;top:0;bottom:0;width:11px;z-index:6;cursor:col-resize;touch-action:none}
+.rz::after{content:"";position:absolute;top:0;bottom:0;left:5px;width:1px;background:transparent;transition:background .2s,width .2s,left .2s}
+.rz:hover::after,.stage.dragging .rz.act::after{background:var(--grn);width:3px;left:4px;border-radius:2px}
+.rz .grip{position:absolute;top:50%;left:1px;width:9px;height:34px;margin-top:-17px;border-radius:5px;background:var(--raise);box-shadow:inset 0 0 0 1px var(--line);opacity:0;transition:opacity .2s}
+.rz:hover .grip,.rz.act .grip{opacity:1}
+.rz.l{right:-6px}.rz.r{left:-6px}
+.tree{width:100%}
+.chead{display:flex;align-items:center;gap:14px;padding:16px 16px 12px}
+.cring{--p:0;width:46px;height:46px;border-radius:50%;flex:none;background:conic-gradient(var(--grn) calc(var(--p)*1%),var(--line2) 0);display:grid;place-items:center}
+.cring span{width:36px;height:36px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font:600 10.5px var(--mono);font-variant-numeric:tabular-nums}
+.chead b{display:block;font-size:14.5px;letter-spacing:-.01em;line-height:1.25}.chead small{font:500 11px var(--mono);color:var(--dim)}
+.lc .chead{padding:14px 9px}.lc .chead>div:not(.cring){display:none}.lc .cring{margin:auto}
+.tm{margin:0 8px 4px}
+.tmh{width:100%;display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 8px;border-radius:8px;text-align:left;transition:background .2s}
+.tmh:hover{background:var(--raise)}
+.tmh .chev{font-size:11px;transition:transform .3s var(--ease)}.tm.open .tmh .chev{transform:rotate(90deg);color:var(--grn)}
+.tmh b{font-size:13.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tmh small{font:500 10.5px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.tmb{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s var(--ease)}.tm.open .tmb{grid-template-rows:1fr}.tmb>div{overflow:hidden}
+.tl{grid-template-columns:18px 24px minmax(0,1fr) auto!important;margin:1px 0}
+.tl .dm{display:inline-flex;align-items:center;gap:8px;font:500 10.5px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.tl .dd{display:inline-flex;gap:2px;align-items:flex-end}.tl .dd s{width:3px;border-radius:1px;background:var(--line2);display:block}.tl .dd s:nth-child(1){height:5px}.tl .dd s:nth-child(2){height:8px}.tl .dd s:nth-child(3){height:11px}
+.tl .dd.e s:nth-child(1),.tl .dd.m s:nth-child(-n+2),.tl .dd.h s{background:var(--warn)}.tl .dd.e s:nth-child(1){background:var(--grn)}.tl .dd.h s{background:var(--bad)}
+.lc .tm,.lc .tsrch,.lc .tswitch{display:none}.lc .tlist2{display:grid;gap:4px;padding:0 8px}
+.rail{display:none}.lc .rail{display:grid;gap:6px;padding:4px 8px}.lc .rail .tl{display:grid;grid-template-columns:1fr!important;justify-items:center;padding:9px 0}
+.lc .tlist{display:none}
+/* right panel */
+.toc{padding:22px 20px 20px 14px;gap:14px}
+.rcard{border-radius:12px;padding:14px 16px}
+.rcard h6{margin:0 0 10px}
+.pcard{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
+.pring{--p:0;width:72px;height:72px;border-radius:50%;background:conic-gradient(var(--grn) calc(var(--p)*1%),var(--line2) 0);display:grid;place-items:center;transition:--p .8s}
+.pring span{width:58px;height:58px;border-radius:50%;background:var(--panel);display:grid;place-items:center;text-align:center;font:600 15px var(--mono);line-height:1.1;font-variant-numeric:tabular-nums}.pring small{display:block;font:500 9px var(--mono);letter-spacing:.14em;color:var(--dim)}
+.tbars{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:3px;margin-top:8px}.tbars i{height:5px;border-radius:2px;background:var(--grn)}.tbars i.f{background:var(--bad)}
+.cc2{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 10px;margin:0 -6px;border-radius:9px;transition:background .2s,transform .25s var(--ease);cursor:pointer}
+.cc2:hover{background:var(--raise);transform:translateX(2px)}
+.cc2 .ci{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--grn-bg);color:var(--grn);font:700 11px var(--mono)}
+.cc2.todo .ci{background:var(--raise);color:var(--dim)}
+.cc2 b{display:block;font-size:13.5px;font-weight:600;line-height:1.3}.cc2 small{font:500 10.5px var(--mono);color:var(--dim)}
+.cc2 .st4{font:600 9.5px var(--mono);letter-spacing:.1em;color:var(--dim)}.cc2:not(.todo) .st4{color:var(--grn)}
+.pincmd{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);font:500 12px var(--code);margin-bottom:10px}.pincmd span{flex:1;min-width:0;overflow-wrap:anywhere}
+.kv2{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--line2);font-size:13px;color:var(--mut)}.kv2:first-of-type{border-top:0}.kv2 b{font:600 12px var(--mono);color:var(--fg)}
+.hl2{display:flex;gap:6px;margin-top:2px}.hl2 i{flex:1;height:6px;border-radius:3px;background:var(--line2)}.hl2 i.on{background:var(--acc)}
+.rc .toc{padding:0}
 </style>
 </head>
 <body>
@@ -452,7 +498,7 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
     <div>
       <article class="cont rv" style="--i:4">
         <div class="k"><span class="pulse"></span>CONTINUE · STAGE 13 OF 163</div>
-        <div class="ring"><svg viewBox="0 0 64 64"><circle class="t" cx="32" cy="32" r="28"/><circle class="v" id="rv" cx="32" cy="32" r="28"/></svg><span>5/8</span></div>
+        <div class="ring"><svg viewBox="0 0 64 64"><circle class="t" cx="32" cy="32" r="28"/><circle class="v" id="rv" cx="32" cy="32" r="28"/></svg><span>3/8</span></div>
         <div class="grow"><h3>Grow the file and reuse slots</h3><small>1A · Disk manager · ~25 min</small></div>
         <button class="cta lg">Resume stage <span class="ar">→</span></button>
       </article>
@@ -482,11 +528,12 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 <div class="screen" id="s2">
   <div class="stage">
     <nav class="tree" id="treeN">
-      <div class="th2"><h6>1A · DISK MANAGER</h6><button class="sbtn lt" id="lt" aria-label="Collapse sidebar" title="Collapse (⌘B)">«</button></div>
-      <div class="tmod"><div class="mr"><span class="mini"><i data-w="63"></i></span><small>5 / 8</small></div></div>
+      <span class="rz l" id="rzl" title="Drag to resize · double-click to reset"><span class="grip"></span></span>
+      <div class="chead"><div class="cring" style="--p:7"><span>7%</span></div><div style="flex:1;min-width:0"><b>Build a DBMS: BusTub in Rust</b><small>12 of 163 stages passed</small></div><button class="sbtn lt" id="lt" aria-label="Collapse sidebar" title="Collapse (⌘B)">«</button></div>
       <label class="tsrch"><span>⌕</span><input id="tq" placeholder="filter stages…" autocomplete="off"></label>
       <div class="tlist" id="tree"></div>
-      <div class="tfoot"><div class="tswitch"><button class="sw on" id="swp" aria-label="Show passed"></button>show passed stages</div><button class="cta sm fx"><span class="lbl">Next: Counters</span> <span class="ar">→</span></button></div>
+      <div class="rail" id="rail"></div>
+      <div class="tfoot"><div class="tswitch"><button class="sw on" id="swp" aria-label="Show passed"></button>show passed stages</div><button class="cta sm fx"><span class="lbl">Next: Counters and the log</span> <span class="ar">→</span></button></div>
     </nav>
     <main class="read2" id="rd">
       <div class="eye rv" style="--i:0"><b>1A · STAGE 4 OF 8</b> / MEDIUM / #1a-04</div>
@@ -557,9 +604,15 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
       <section class="pane" id="p5"><p class="prose" style="color:var(--mut)">The last run is shown here: failures first, passes folded (the Run tab already built).</p></section>
     </main>
     <aside class="toc" id="tocN">
-      <div class="rcard"><h6>ON THIS PAGE <button class="sbtn" id="rt" aria-label="Hide sidebar" title="Hide (⌘.)">»</button></h6><div id="toc" style="position:relative;border-left:1px solid var(--line2);margin-top:8px"><span class="mk" id="mk"></span><a href="#a1" class="on">The task</a><a href="#a2">Tests</a><a href="#a3">Notes</a><a href="#a4">Code</a><a href="#a5">The C/C++ way</a><a href="#a6">Optional: performance</a><a href="#a7">Check yourself</a></div></div>
-      <div class="rcard"><h6>CONCEPTS <span class="pin req">REQUIRED</span></h6><div class="crow">Durability · fsync<small>9 min</small></div><div class="crow">Atomics and the log<small>7 min</small></div><div class="crow">Mutex owns its data<small>6 min</small></div></div>
-      <div class="rcard"><h6>THIS STAGE <span class="pin">PINNED</span></h6><div class="crow" style="cursor:default"><code style="font:500 11.5px var(--code)">anneal course test 1a-04</code></div><div class="crow"><span>Tests</span><small>4 / 6</small></div><div class="crow"><span>Hints used</span><small>0 / 3</small></div></div>
+      <span class="rz r" id="rzr" title="Drag to resize · double-click to reset"><span class="grip"></span></span>
+      <div class="rcard"><div class="pcard"><div class="pring" style="--p:67"><span><div>4/6<small>TESTS</small></div></span></div><div><b style="font-size:15px">Stage 4 of 8</b><div style="font:500 11.5px var(--mono);color:var(--dim);margin-top:2px">1A · Disk manager</div><div class="tbars" id="tbars"></div></div></div></div>
+      <div class="rcard"><h6>ON THIS PAGE <button class="sbtn" id="rt" aria-label="Hide sidebar" title="Hide (⌘.)">»</button></h6><div id="toc" style="position:relative;border-left:1px solid var(--line2)"><span class="mk" id="mk"></span><a href="#a1" class="on">The task</a><a href="#a2">Tests</a><a href="#a3">Notes</a><a href="#a4">Code</a><a href="#a5">The C/C++ way</a><a href="#a6">Optional: performance</a><a href="#a7">Check yourself</a></div></div>
+      <div class="rcard"><h6>CONCEPTS <span class="pin req">REQUIRED</span></h6>
+        <div class="cc2"><span class="ci">✓</span><div><b>Durability and fsync</b><small>9 min read</small></div><span class="st4">READ</span></div>
+        <div class="cc2 todo"><span class="ci">2</span><div><b>Atomics and the log</b><small>7 min read</small></div><span class="st4">TO READ</span></div>
+        <div class="cc2 todo"><span class="ci">3</span><div><b>Mutex owns its data</b><small>6 min read</small></div><span class="st4">TO READ</span></div></div>
+      <div class="rcard"><h6>THIS STAGE <span class="pin">PINNED</span></h6><div class="pincmd"><span>anneal course test 1a-04</span><button class="copy fx" data-c="anneal course test 1a-04">COPY</button></div>
+        <div class="kv2"><span>Last run</span><b>4 / 6 · 2 min ago</b></div><div class="kv2"><span>Hints used</span><b>0 / 3</b></div><div class="hl2"><i></i><i></i><i></i></div><div class="kv2" style="margin-top:6px"><span>Time on stage</span><b>18:42</b></div></div>
       <div class="rcard"><h6>SHORTCUTS</h6><div class="keys"><div><span>previous / next</span><span><kbd>[</kbd> <kbd>]</kbd></span></div><div><span>left sidebar</span><span><kbd>⌘B</kbd></span></div><div><span>right sidebar</span><span><kbd>⌘.</kbd></span></div><div><span>run tests</span><span><kbd>⌘↵</kbd></span></div></div></div>
     </aside>
   </div>
@@ -635,7 +688,7 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const MODS=[
- ['1a','Disk manager','Pages on disk: page-sized reads and writes at slot offsets, a page table, a free list, a log file.','P1',8,5,['Open the database file','Read and write one slot','write_page and read_page: the page table','Grow the file and reuse slots','Counters and the log','A trait for disks: DiskIo','The in-memory disks','Boss: shut_down and BusTub\'s disk_manager_test']],
+ ['1a','Disk manager','Pages on disk: page-sized reads and writes at slot offsets, a page table, a free list, a log file.','P1',8,3,['Open the database file','Read and write one slot','write_page and read_page: the page table','Grow the file and reuse slots','Counters and the log','A trait for disks: DiskIo','The in-memory disks','Boss: shut_down and BusTub\'s disk_manager_test']],
  ['1b','Disk scheduler','A blocking channel, a one-shot promise/future, a background worker, a reader-writer latch.','P1',5,0,['Channel and Promise: a queue and a one-shot result','DiskRequest, execute and the scheduler\'s worker','A clean shutdown, a panicking disk and the page latch','ShardedDiskScheduler: several workers, per-page order','Boss: BusTub\'s disk_scheduler_test and rwlatch_test']],
  ['1c','Simple replacers: LRU and CLOCK','A generational index list, an O(1) LRU replacer, and the CLOCK replacer.','P1',4,0,['IndexList: a linked list inside a Vec','The LRU replacer','The CLOCK replacer','Boss: BusTub\'s lru_replacer_test and clock_replacer_test']],
  ['1d','LRU-K replacer','The LRU-K eviction policy: a bounded access history per frame, backward k-distance.','P1',4,0,['LruKNode and the replacer\'s bookkeeping','set_evictable, evict and remove','Evict in O(log n): keep the frames in order','Boss: BusTub\'s lru_k_replacer_test']],
@@ -656,7 +709,7 @@ $('#ea').onclick=function(){const all=$$('.mod').some(m=>!m.classList.contains('
 const PR=[['P1',['1a','1b','1c','1d']],['P2',['2a']],['P3',['3a']],['P4',['4a']]];
 $('#map').innerHTML=PR.map(p=>`<div class="proj"><span>Project ${p[0].slice(1)}</span><div class="nodes">${p[1].map(c=>{const m=MODS.find(x=>x[0]===c),done=m[5]===m[4];return `<button class="node ${done?'done':''} ${c==='1a'?'cur':''}" data-j="${c}">${c.toUpperCase()}<span class="tip">${m[1]} · ${m[5]}/${m[4]}</span></button>`}).join('')}</div></div>`).join('');
 $('#map').onclick=e=>{const b=e.target.closest('.node');if(!b)return;const m=$('#m-'+b.dataset.j);m.classList.add('open');m.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'})};
-$('#prog').innerHTML=[['Project 1 · Buffer pool',16],['Project 2 · Indexes',0],['Project 3 · Query execution',0],['Project 4 · Concurrency control',6]].map((p,i)=>`<div class="pr ${i===0?'act':''}"><div class="l"><span>${p[0]}</span><b>${p[1]}%</b></div><div class="mini"><i data-w="${p[1]}"></i></div></div>`).join('');
+$('#prog').innerHTML=[['Project 1 · Buffer pool',9],['Project 2 · Indexes',0],['Project 3 · Query execution',0],['Project 4 · Concurrency control',6]].map((p,i)=>`<div class="pr ${i===0?'act':''}"><div class="l"><span>${p[0]}</span><b>${p[1]}%</b></div><div class="mini"><i data-w="${p[1]}"></i></div></div>`).join('');
 /* filter + search */
 const flt=$('#flt');let ff='all';
 function thumb(box){const on=box.querySelector('button.on'),t=box.querySelector('.thumb');t.style.width=on.offsetWidth+'px';t.style.transform=`translateX(${on.offsetLeft-3}px)`}
@@ -668,7 +721,7 @@ document.addEventListener('keydown',e=>{if(e.key==='/'&&!/INPUT/.test(document.a
 /* copy */
 document.addEventListener('click',e=>{const b=e.target.closest('.copy[data-c]');if(!b)return;const d=()=>{b.classList.add('ok');const o=b.textContent;b.textContent='COPIED';setTimeout(()=>{b.classList.remove('ok');b.textContent=o},1100)};try{navigator.clipboard.writeText(b.dataset.c).then(d,d)}catch(_){d()}});
 /* fills + count */
-function fills(){$$('.mini i').forEach(i=>{i.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>i.style.width=i.dataset.w+'%'))});const v=$('#rv');v.style.strokeDashoffset=176;requestAnimationFrame(()=>requestAnimationFrame(()=>v.style.strokeDashoffset=176*(1-5/8)))}
+function fills(){$$('.mini i').forEach(i=>{i.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>i.style.width=i.dataset.w+'%'))});const v=$('#rv');v.style.strokeDashoffset=176;requestAnimationFrame(()=>requestAnimationFrame(()=>v.style.strokeDashoffset=176*(1-3/8)))}
 function count(){$$('[data-n]').forEach(el=>{const n=+el.dataset.n;if(reduce||!document.body.classList.contains('motion')){el.textContent=n;return}const t0=performance.now();(function s(t){const k=Math.min(1,(t-t0)/1100);el.textContent=Math.round(n*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(s)})(t0)})}
 function replay(){$$('.screen.on .rv').forEach(el=>{el.style.animation='none';el.offsetWidth;el.style.animation=''});fills();count();slide()}
 /* screens */
@@ -723,7 +776,13 @@ function collapse(side){stg.classList.toggle(side==='l'?'lc':'rc');setTimeout(sl
 $('#lt').onclick=()=>collapse('l');$('#rt').onclick=()=>collapse('r');
 document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='b'){e.preventDefault();collapse('l')}if((e.metaKey||e.ctrlKey)&&e.key==='.'){e.preventDefault();collapse('r')}});
 $('#swp').onclick=function(){this.classList.toggle('on');drawTree()};
-function drawTree(){const q=$('#tq').value.toLowerCase(),sp=$('#swp').classList.contains('on');$('#tree').innerHTML=MODS[0][6].map((t,i)=>({t,i})).filter(o=>(sp||o.i>=3)&&o.t.toLowerCase().includes(q)).map(o=>`<a class="tl ${o.i===3?'cur':''}" title="${o.t}"><span class="ck ${o.i<3?'ok':''}">${o.i<3?'✓':''}</span><span class="no">${String(o.i+1).padStart(2,'0')}</span><span>${o.t.replace(/^Boss: /,'B: ')}</span></a>`).join('')}
+const DUR=[8,12,15,20,10,18,14,25];
+function drawTree(){const q=$('#tq').value.toLowerCase(),sp=$('#swp').classList.contains('on');
+  $('#tree').innerHTML=MODS.slice(0,4).map((m,mi)=>{const open=mi===0||(q&&true),rows=m[6].map((t,i)=>({t,i})).filter(o=>(sp||o.i>=m[5])&&o.t.toLowerCase().includes(q));
+    if(q&&!rows.length)return '';
+    return `<section class="tm ${open?'open':''}" data-m="${mi}"><button class="tmh"><span class="chev">›</span><span><b>${m[0].toUpperCase()} · ${m[1]}</b><div class="mini" style="width:100%;margin-top:5px"><i style="width:${Math.round(100*m[5]/m[4])}%"></i></div></span><small>${m[5]}/${m[4]}</small></button><div class="tmb"><div>${rows.map(o=>{const d=o.t.startsWith('Boss')?'e':DIF[(o.i+mi)%DIF.length];return `<a class="tl ${mi===0&&o.i===3?'cur':''}" title="${o.t}"><span class="ck ${o.i<m[5]?'ok':''}">${o.i<m[5]?'✓':''}</span><span class="no">${String(o.i+1).padStart(2,'0')}</span><span>${o.t.replace(/^Boss: /,'')}</span><span class="dm">${DUR[(o.i+mi)%DUR.length]}m<span class="dd ${d}"><s></s><s></s><s></s></span></span></a>`}).join('')}</div></div></section>`}).join('');
+  $('#rail').innerHTML=MODS[0][6].map((t,i)=>`<a class="tl ${i===3?'cur':''}" title="${t}"><span class="ck ${i<3?'ok':''}">${i<3?'✓':''}</span></a>`).join('')}
+$('#tree').addEventListener('click',e=>{const h=e.target.closest('.tmh');if(h)h.parentNode.classList.toggle('open')});
 $('#tq').oninput=drawTree;drawTree();
 /* callouts */
 document.addEventListener('click',e=>{const x=e.target.closest('.co .x');if(x)x.parentNode.classList.add('gone')});
@@ -776,6 +835,19 @@ function wsFailMsg(){return $('#wsFail').classList.contains('on')?'er':'in'}
 $('#wsFail').onclick=function(){this.classList.toggle('on');wsOK=false};
 /* sidenote markers on narrow screens */
 $$('.snm').forEach(m=>m.onclick=()=>{const n=m.closest('.snr').querySelector(`.sn[data-sn="${m.dataset.sn}"]`);n&&n.classList.toggle('open')});
+
+/* resizable panels */
+(function(){const st=$('.stage'),LIM={l:[250,480],r:[270,480]};
+  let w={l:320,r:320};try{const v=JSON.parse(localStorage.getItem('anneal-panels')||'null');if(v){w=v}}catch(_){}
+  const apply=()=>{st.style.setProperty('--lw',w.l+'px');st.style.setProperty('--rw',w.r+'px');setTimeout(slide,0)};apply();
+  const save=()=>{try{localStorage.setItem('anneal-panels',JSON.stringify(w))}catch(_){}};
+  [['l','#rzl'],['r','#rzr']].forEach(([k,sel])=>{const h=$(sel);
+    h.addEventListener('pointerdown',e=>{e.preventDefault();h.setPointerCapture(e.pointerId);const x0=e.clientX,w0=w[k];st.classList.add('dragging');h.classList.add('act');
+      const mv=ev=>{const d=ev.clientX-x0;w[k]=Math.max(LIM[k][0],Math.min(LIM[k][1],w0+(k==='l'?d:-d)));apply()};
+      const up=()=>{st.classList.remove('dragging');h.classList.remove('act');h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);save()};
+      h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up)});
+    h.addEventListener('dblclick',()=>{w[k]=320;apply();save()})})})();
+$('#tbars').innerHTML=TESTS.map(t=>`<i class="${t[1]==='bad'?'f':''}"></i>`).join('');
 addEventListener('resize',()=>{thumb(flt);slide()});
 addEventListener('load',()=>{if(!reduce&&!location.hash.startsWith('#static')){document.body.classList.add('motion')}else{$('#mot').classList.remove('on');$('#mot').textContent='MOTION OFF';document.body.classList.add('motion-off')}thumb(flt);slide();fills();count();if(location.hash==='#stage'||location.hash==='#static-stage')show(2);if(location.hash==='#kit'||location.hash==='#static-kit')show(3);if(location.hash==='#static-win'){show(2);openOv('ovWin')}kitFill()});
 </script>

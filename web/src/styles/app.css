@@ -412,3 +412,24 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .cm-editor .cm-tooltip-hover > .cm-tooltip-lint + .cm-tooltip-section,
 .cm-editor .cm-tooltip-hover > .cm-tooltip-section + .cm-tooltip-lint { border-top: 0; }
 .cm-editor .cm-tooltip-hover > .cm-lsp-hover-tooltip:not(:only-child) { border-top: 1px solid var(--line2); }
+
+/* Track table: filter box, sortable headers, keyboard row, status icons (docs/mockups/web-tables-and-run-strip.html) */
+.fbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.fbox { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 220px; max-width: 400px; height: 34px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 6px; background: var(--panel); color: var(--dim); }
+.fbox:focus-within { border-color: var(--vio); }
+.fbox input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--fg); font: 500 12.5px var(--mono); }
+.fbox kbd { font: 500 10.5px var(--mono); padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; color: var(--dim); }
+.fcount { font: 500 11.5px var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+.sreset { margin-left: auto; font: 500 11px var(--mono); letter-spacing: 0.1em; color: var(--dim); border: 1px solid var(--line2); border-radius: 4px; padding: 5px 9px; }
+.sreset:hover { color: var(--fg); border-color: var(--line); }
+.sortsel { display: none; height: 34px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 6px; background: var(--panel); color: var(--mut); font: 500 12px var(--mono); }
+.sorth { text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; font: inherit; letter-spacing: inherit; color: inherit; text-align: left; }
+.sorth:hover, .sorth[aria-sort="ascending"], .sorth[aria-sort="descending"] { color: var(--fg); }
+.sar { font-size: 9px; letter-spacing: 0; opacity: 0.35; }
+.sar.on { opacity: 1; color: var(--vio); }
+.tbl-co .pt mark { background: var(--acc-bg); color: var(--acc); border-radius: 2px; }
+.tbl-co .tags mark { background: var(--acc-bg); color: var(--acc); border-radius: 2px; }
+a.tr.kb, .tr.kb { background: var(--sel); box-shadow: inset 3px 0 0 var(--vio); }
+.sicon { flex: none; }
+.best.stat { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+@media (max-width: 760px) { .sortsel { display: block; } .fbox { max-width: none; } }

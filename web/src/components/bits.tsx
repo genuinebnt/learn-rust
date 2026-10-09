@@ -74,9 +74,28 @@ const PROGRESS: Record<Progress, [string, string, string]> = {
   assisted: ["solved, assisted", "var(--grn)", "linear-gradient(135deg,var(--grn) 50%,transparent 50%)"],
 };
 
-export function StatusBox({ progress }: { progress: Progress }) {
-  const [label, border, fill] = PROGRESS[progress];
-  return <span className="st" title={label} aria-label={label} style={{ borderColor: border, background: fill }} />;
+/** Status as a shape, so it reads without colour: empty box, half box, filled tick, dashed box (not written yet). */
+export function StatusIcon({ progress, draft = false, color }: { progress: Progress; draft?: boolean; color?: string }) {
+  const label = draft ? "not written" : PROGRESS[progress][0];
+  const c = color ?? "currentColor";
+  return (
+    <svg className="sicon" viewBox="0 0 16 16" width="15" height="15" role="img" aria-label={label} style={{ color: c }}>
+      <title>{label}</title>
+      {draft ? (
+        <rect x="2.5" y="2.5" width="11" height="11" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.2 2" />
+      ) : progress === "solved" || progress === "assisted" ? (
+        <>
+          <rect x="2" y="2" width="12" height="12" rx="3" fill="currentColor" opacity={progress === "assisted" ? 0.75 : 1} />
+          <path d="M5 8.3l2 2 4-4.3" fill="none" stroke="var(--panel)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      ) : (
+        <>
+          <rect x="2.5" y="2.5" width="11" height="11" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          {progress === "started" && <path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" />}
+        </>
+      )}
+    </svg>
+  );
 }
 
 export const progressLabel = (p: Progress) => PROGRESS[p][0];

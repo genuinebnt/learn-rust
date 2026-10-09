@@ -1,14 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Band, type StageView } from "../api";
 import { Header } from "../components/Header";
-import { Level, ModeTag, Phase, Sech, Segs, StatusBox, pad2, progressLabel } from "../components/bits";
+import { Level, ModeTag, Phase, Sech, Segs, StatusIcon, pad2, progressLabel } from "../components/bits";
 import { NAV_SECTIONS, SECTION_NAMES, type NavArea } from "../curriculum";
 
 const BANDS: Band[] = ["easy", "medium", "hard"];
 const TIER = { core: "CORE", light: "LIGHT", sde3: "SDE-3" } as const;
+
+type SortKey = "n" | "t" | "m" | "l" | "s";
+const BAND_RANK: Record<Band, number> = { easy: 0, medium: 1, hard: 2 };
+const PROGRESS_RANK = { not_started: 0, started: 1, solved: 2, assisted: 2 } as const;
+const SORT_LABELS: Record<SortKey, string> = { n: "#", t: "Problem", m: "Mode", l: "Level", s: "Status" };
+
+/** The matched part of `text` in a <mark>, for the filter box. */
+function Hl({ text, find }: { text: string; find: string }) {
+  const i = find ? text.toLowerCase().indexOf(find.toLowerCase()) : -1;
+  if (i < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, i)}
+      <mark>{text.slice(i, i + find.length)}</mark>
+      {text.slice(i + find.length)}
+    </>
+  );
+}
 
 function stageKind(s: StageView, isCurrent: boolean) {
   if (s.total > 0 && s.solved === s.total) return "done" as const;
@@ -22,6 +40,39 @@ export function TrackPage({ slug }: { slug: string }) {
   const [tag, setTag] = useState<string | null>(null);
   const [group, setGroup] = useState<string | null>(null);
   const [company, setCompany] = useState<string | null>(null);
+  const [find, setFind] = useState("");
+  const [sort, setSort] = useState<{ k: SortKey; dir: 1 | -1 } | null>(null);
+  const [cur, setCur] = useState(-1);
+  const navigate = useNavigate();
+  const findBox = useRef<HTMLInputElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  // the rows on screen, for the keyboard handler below (set on each render once the track has loaded)
+  const shownRef = useRef<{ id: string; ready: boolean }[]>([]);
+  const curRef = useRef(-1);
+  curRef.current = cur;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+        const el = document.activeElement as HTMLElement | null;
+        const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+        if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+        const rows = shownRef.current;
+        if (e.key === "/") {
+            e.preventDefault();
+            findBox.current?.focus();
+            findBox.current?.select();
+        } else if (e.key === "j" || e.key === "k") {
+            if (rows.length === 0) return;
+            const next = Math.max(0, Math.min(rows.length - 1, curRef.current + (e.key === "j" ? 1 : -1)));
+            setCur(next);
+            tableRef.current?.querySelector<HTMLElement>(`[data-row="${next}"]`)?.scrollIntoView({ block: "nearest" });
+        } else if (e.key === "Enter") {
+            const r = rows[curRef.current];
+            if (r?.ready) navigate({ to: "/p/$id", params: { id: r.id } });
+        }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navigate]);
   const t = q.data;
   const area = t ? ((Object.keys(NAV_SECTIONS) as NavArea[]).find((a) => (NAV_SECTIONS[a] as readonly string[]).includes(t.section)) ?? "dsa") : undefined;
 
@@ -45,7 +96,27 @@ export function TrackPage({ slug }: { slug: string }) {
   const inGroup = (p: { companies: string[] }, g: string) => p.companies.some((c) => t.company_groups.find((x) => x.name === g)?.companies.includes(c));
   const byCompany = (p: { companies: string[] }) => (company ? p.companies.includes(company) : group ? inGroup(p, group) : true);
   const inStage = t.problems.filter((p) => !selected || p.stage === selected);
-  const rows = inStage.filter((p) => (!tag || p.tags.includes(tag)) && byCompany(p));
+  const needle = find.trim().toLowerCase();
+  const matches = (p: { title: string; tags: string[]; companies: string[] }) => !needle || `${p.title} ${p.tags.join(" ")} ${p.companies.join(" ")}`.toLowerCase().includes(needle);
+  const filtered = inStage.filter((p) => (!tag || p.tags.includes(tag)) && byCompany(p) && matches(p));
+  const rows = sort
+    ? [...filtered].sort((a, b) => {
+          const key = { n: (p: typeof a) => p.order, t: (p: typeof a) => p.title.toLowerCase(), m: (p: typeof a) => p.mode as string, l: (p: typeof a) => BAND_RANK[p.level], s: (p: typeof a) => (p.status === "draft" ? 9 : PROGRESS_RANK[p.progress]) }[sort.k];
+          const x = key(a);
+          const y = key(b);
+          return (x < y ? -1 : x > y ? 1 : a.order - b.order) * sort.dir;
+      })
+    : filtered;
+  shownRef.current = rows.map((p) => ({ id: p.id, ready: p.status === "ready" }));
+  const clickSort = (k: SortKey) => setSort(!sort || sort.k !== k ? { k, dir: 1 } : sort.dir === 1 ? { k, dir: -1 } : null);
+  const sortHead = (k: SortKey) => (
+    <button className="sorth" onClick={() => clickSort(k)} aria-sort={sort?.k === k ? (sort.dir === 1 ? "ascending" : "descending") : "none"} title={`Sort by ${SORT_LABELS[k].toLowerCase()}`}>
+      {SORT_LABELS[k]}
+      <span className={`sar${sort?.k === k ? " on" : ""}`} aria-hidden="true">
+        {sort?.k === k && sort.dir === -1 ? "▼" : "▲"}
+      </span>
+    </button>
+  );
   const faang = new Set(t.company_groups.find((g) => g.name === "FAANG")?.companies ?? []);
   const tagged = inStage.filter((p) => p.companies.length > 0);
   const tags = [...new Set(t.problems.filter((p) => !selected || p.stage === selected).flatMap((p) => p.tags))];
@@ -204,31 +275,57 @@ export function TrackPage({ slug }: { slug: string }) {
                 </div>
               </div>
             )}
-            <div className="tblw">
+            <div className="fbar">
+              <label className="fbox">
+                <span aria-hidden="true">⌕</span>
+                <input ref={findBox} value={find} onChange={(e) => (setFind(e.target.value), setCur(-1))} placeholder="filter problems, tags, companies…" autoComplete="off" spellCheck={false} onKeyDown={(e) => e.key === "Escape" && e.currentTarget.blur()} aria-label="Filter problems" />
+                <kbd>/</kbd>
+              </label>
+              <span className="fcount">
+                {rows.length} of {inStage.length}
+              </span>
+              <select className="sortsel" value={sort ? `${sort.k}${sort.dir}` : ""} onChange={(e) => setSort(e.target.value ? { k: e.target.value[0] as SortKey, dir: e.target.value[1] === "-" ? -1 : 1 } : null)} aria-label="Sort problems">
+                <option value="">Sort: recommended order</option>
+                {(Object.keys(SORT_LABELS) as SortKey[]).flatMap((k) => [
+                  <option key={k + "1"} value={`${k}1`}>
+                    Sort: {SORT_LABELS[k]} ↑
+                  </option>,
+                  <option key={k + "-"} value={`${k}-1`}>
+                    Sort: {SORT_LABELS[k]} ↓
+                  </option>,
+                ])}
+              </select>
+              {sort && (
+                <button className="sreset" onClick={() => setSort(null)}>
+                  RESET ORDER
+                </button>
+              )}
+            </div>
+            <div className="tblw" ref={tableRef}>
               <div className="tbl tbl-co">
                 <div className="tr th" style={{ gridTemplateColumns: cols }}>
                   <span />
-                  <span>#</span>
-                  <span>PROBLEM</span>
-                  <span>MODE</span>
-                  <span>LEVEL</span>
+                  {sortHead("n")}
+                  {sortHead("t")}
+                  {sortHead("m")}
+                  {sortHead("l")}
                   <span>TAGS</span>
                   <span>COMPANIES</span>
-                  <span style={{ textAlign: "right" }}>STATUS</span>
+                  <span style={{ textAlign: "right", display: "flex", justifyContent: "flex-end" }}>{sortHead("s")}</span>
                 </div>
-                {rows.map((p) => {
+                {rows.map((p, ri) => {
                   const cells = (
                     <>
-                      <StatusBox progress={p.progress} />
+                      <span style={{ color: "var(--dim)", display: "inline-flex" }}><StatusIcon progress={p.progress} draft={p.status === "draft"} /></span>
                       <span className="num">{pad2(p.order)}</span>
-                      <span className="pt">{p.title}</span>
+                      <span className="pt"><Hl text={p.title} find={needle} /></span>
                       <span>
                         <ModeTag mode={p.mode} />
                       </span>
                       <span className="lvl">
                         <Level level={p.level} />
                       </span>
-                      <span className="tags">{p.tags.join(" · ")}</span>
+                      <span className="tags"><Hl text={p.tags.join(" · ")} find={needle} /></span>
                       {p.companies.length > 0 ? (
                         <span className="cos">
                           {p.companies.slice(0, 3).map((c) => (
@@ -241,22 +338,32 @@ export function TrackPage({ slug }: { slug: string }) {
                       ) : (
                         <span className="tags">—</span>
                       )}
-                      <span className="best" style={{ color: p.status === "draft" ? "var(--dim)" : p.progress === "not_started" ? "var(--mut)" : "var(--grn)" }}>
+                      <span className="best stat" style={{ color: p.status === "draft" ? "var(--dim)" : p.progress === "not_started" ? "var(--mut)" : p.progress === "started" ? "var(--warn)" : "var(--grn)" }}>
+                        <StatusIcon progress={p.progress} draft={p.status === "draft"} />
                         {p.status === "draft" ? "not written" : progressLabel(p.progress)}
                       </span>
                     </>
                   );
                   return p.status === "ready" ? (
-                    <Link key={p.id} className={`tr${p.progress === "started" ? " cur" : ""}`} to="/p/$id" params={{ id: p.id }} style={{ gridTemplateColumns: cols }}>
+                    <Link key={p.id} className={`tr${p.progress === "started" ? " cur" : ""}${ri === cur ? " kb" : ""}`} data-row={ri} to="/p/$id" params={{ id: p.id }} style={{ gridTemplateColumns: cols }}>
                       {cells}
                     </Link>
                   ) : (
-                    <div key={p.id} className="tr tr-draft" style={{ gridTemplateColumns: cols }}>
+                    <div key={p.id} className={`tr tr-draft${ri === cur ? " kb" : ""}`} data-row={ri} style={{ gridTemplateColumns: cols }}>
                       {cells}
                     </div>
                   );
                 })}
-                {rows.length === 0 && <div className="tr tr-empty">No problems here carry that company tag.</div>}
+                {rows.length === 0 && (
+                  <div className="tr tr-empty">
+                    No problem matches that filter.{" "}
+                    {find && (
+                      <button className="sreset" onClick={() => setFind("")}>
+                        CLEAR IT
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             {tagged.length > 0 && <p className="conote">Company tags reflect commonly reported interview questions. They are approximate, not an official list.</p>}

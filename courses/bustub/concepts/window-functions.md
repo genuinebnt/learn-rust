@@ -112,8 +112,8 @@ fn the_row_count_is_preserved_unlike_group_by() {
 
 ### In the exercises
 
-- **3g-08:** window aggregates without `order by`: the whole partition on every row, partitions found by hashing.
-- **3g-09:** with `order by`: running aggregates over the default frame (peers included) and `rank()`.
+- **3g-05:** window aggregates without `order by`: the whole partition on every row, partitions found by hashing.
+- **3g-05:** with `order by`: running aggregates over the default frame (peers included) and `rank()`.
 
 ### Where it is used
 

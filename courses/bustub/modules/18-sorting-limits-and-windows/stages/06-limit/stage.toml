@@ -1,8 +1,0 @@
-id = "3g-06"
-title = "Limit"
-kind = "build"
-difficulty = "easy"
-tests = ["stages_3g::s3g_06"]
-learn = ["a pipeline that stops early", "asking the child for no more than needed", "counting across batches"]
-concepts = ["the-iterator-model", "errors-as-values-with-result"]
-concepts_optional = ["top-n-with-a-bounded-heap"]

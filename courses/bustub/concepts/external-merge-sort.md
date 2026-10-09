@@ -114,10 +114,8 @@ fn duplicates_and_odd_counts_are_fine() {
 
 ### In the exercises
 
-- **3g-02:** `MergeSortRun`: tuples on pages, and an iterator over them.
-- **3g-03:** pass 0 (sorted runs of one page each).
-- **3g-04:** merging `K` runs into one.
-- **3g-05:** the executor: all passes in `init`, the final run read out in batches.
+- **3g-02:** `MergeSortRun`, tuples on pages with an iterator over them, and pass 0 (sorted runs of one page each).
+- **3g-03:** merging `K` runs into one, and the executor: all passes in `init`, the final run read out in batches.
 
 ### Where it is used
 

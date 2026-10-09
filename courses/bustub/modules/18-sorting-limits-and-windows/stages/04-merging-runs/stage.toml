@@ -1,7 +1,0 @@
-id = "3g-04"
-title = "Merging runs"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_3g::s3g_04"]
-learn = ["a k-way merge of sorted streams", "earlier runs win ties so the sort stays stable", "freeing the pages of consumed runs"]
-concepts = ["external-merge-sort", "ordered-sets-as-priority-queues", "raii-guards-and-lifetimes"]

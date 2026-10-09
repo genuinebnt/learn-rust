@@ -25,13 +25,13 @@ impl<'e> LimitExecutor<'e> {
 
 impl Executor for LimitExecutor<'_> {
     fn init(&mut self) -> Result<()> {
-        todo!("3g-06: start counting from zero and initialise the child")
+        todo!("3g-04: start counting from zero and initialise the child")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
-        todo!("3g-06: false once `limit` tuples were passed on; otherwise pull a batch from the child asking for no more than are still needed, truncate it to that (a child may return more), count what is passed on")
+        todo!("3g-04: false once `limit` tuples were passed on; otherwise pull a batch from the child asking for no more than are still needed, truncate it to that (a child may return more), count what is passed on")
     }
 
     fn output_schema(&self) -> &Schema {

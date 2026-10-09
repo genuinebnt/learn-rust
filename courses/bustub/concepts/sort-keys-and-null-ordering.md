@@ -131,9 +131,9 @@ fn later_keys_break_ties_and_the_sort_is_stable() {
 ### In the exercises
 
 - **3g-01:** `generate_sort_key` and `TupleComparator` are `compare_rows` over `Value`s.
-- **3g-02 to 3g-05:** the external merge sort compares sort entries with it.
-- **3g-07:** the top-N heap orders its entries with it.
-- **3g-08, 3g-09:** window functions sort and compare partitions with it.
+- **3g-02, 3g-03:** the external merge sort compares sort entries with it.
+- **3g-04:** the top-N heap orders its entries with it.
+- **3g-05:** window functions sort and compare partitions with it.
 
 ### Where it is used
 

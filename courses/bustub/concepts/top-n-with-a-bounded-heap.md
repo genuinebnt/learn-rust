@@ -99,8 +99,8 @@ fn edge_cases() {
 
 ### In the exercises
 
-- **3g-06:** the `LimitExecutor` is the simple cousin: pass on the first N and stop.
-- **3g-07:** the `TopNExecutor` is this heap over `(sort key, tuple)` entries, with the query's comparator.
+- **3g-04:** the `LimitExecutor` is the simple cousin: pass on the first N and stop.
+- **3g-04:** the `TopNExecutor` is this heap over `(sort key, tuple)` entries, with the query's comparator.
 - **Module 3h:** the optimizer rule that turns `Limit(Sort(x))` into `TopN(x)`.
 
 ### Where it is used

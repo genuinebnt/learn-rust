@@ -1,80 +1,103 @@
-A sort that works for tables bigger than memory has to put its intermediate results somewhere: on pages of the buffer pool, which spills to disk when memory is short. The building block is the **run**: a sorted sequence of tuples stored on a list of pages. This stage writes the storage format and the reader and writer; the next stages generate and merge runs.
+What if the table does not fit in memory? **External sorting** works in two phases. **Pass 0** reads the input a memory-sized piece at a time, sorts each piece in memory and writes it out as a **run**: a sorted sequence of tuples stored on pages. Later passes **merge** runs (stage 3) until one run remains. This stage builds the storage for runs and pass 0. A run is a list of page ids; each page holds a 4-byte tuple count followed by tuples, each stored as a 4-byte length and its bytes. The pages live in the buffer pool, so a big run is evicted and read back by the pool you built in module 1, not by code of the sort.
 
-A run page is `[count: u32][tuple][tuple]...`, each tuple as `Tuple::serialize_to` writes it (a 4-byte length and the bytes). A run is just the list of its page ids.
+> [!CHECK] A run builder is given tuples one at a time and the page is 8192 bytes. When does it start a new page, what does it do with a tuple larger than a page, and what is the largest tuple that still fits (with a 4-byte count and a 4-byte length)? If pass 0 fills memory with one page of tuples at a time, how many runs does it make for a table of 100 pages, and how does that choice affect the number of merge passes?
+> ||A new page starts when the next tuple (4 + length bytes) does not fit in what is left; a tuple that cannot fit even an empty page is an error (a sort cannot split a tuple); the largest is 8192 − 4 − 4 = 8184 bytes. With one-page runs, 100 pages of input give about 100 runs; merging K-way takes ⌈log_K 100⌉ passes, each reading and writing the whole data. Larger initial runs mean fewer runs and fewer passes, which is why real engines fill all available memory in pass 0.||
+>
+> - Who writes the count: the builder when it flushes?
+> - Where is a partly filled page kept before it is flushed?
+> - What does reading a page back cost with the pool full?
 
 ## The task
 
-In `src/execution/executors/external_merge_sort_executor.rs`:
-- `RunBuilder::flush_page(&mut self)`: if the buffer holds tuples, allocate a page with `bpm.new_page()`, write the count (4 bytes, little-endian) and then the buffered bytes into it through a write guard (`bpm.write_page(id)`, `guard.get_data_mut()`), remember the page id, and empty the buffer;
-- `RunBuilder::push(&mut self, tuple)`: a tuple that cannot fit even in an empty page is an `Execution` error; if it does not fit in what is left of the current page, flush the page first; then append the tuple's serialized bytes to the buffer and count it;
-- `MergeSortRun::read_page(&self, index) -> Vec<Tuple>`: read the page's count and that many tuples (`Tuple::deserialize_from`; each occupies `4 + length` bytes);
-- `RunIterator::next`: the next tuple of the current page; when the page is used up, load the next one with `read_page`; `None` after the last page.
+In `src/execution/executors/external_merge_sort_executor.rs` (`finish`, `from_tuples`, `delete_pages` and the constructor shapes are given):
 
-(`finish` and `from_tuples`, the constructor shapes and `delete_pages` are given.)
+- `RunBuilder::flush_page(&mut self)`: if the buffer holds tuples, allocate a page with `bpm.new_page()`, write the count (4 bytes, little-endian) and then the buffered bytes into it through a write guard, remember the page id and empty the buffer.
+- `RunBuilder::push(&mut self, tuple)`: a tuple that cannot fit even an empty page is an `Execution` error; if it does not fit in what is left of the current page, flush the page first; then append the tuple's serialized bytes to the buffer and count it.
+- `MergeSortRun::read_page(&self, index) -> Vec<Tuple>`: read the page's count and that many tuples (`Tuple::deserialize_from`; each occupies `4 + length` bytes).
+- `RunIterator::next`: the next tuple of the current page; when the page is used up, load the next with `read_page`; `None` after the last page.
+- `generate_initial_runs(&mut self) -> Result<Vec<MergeSortRun>>` (`write_sorted_run(entries)`, which sorts entries stably and writes them as a run, is given): initialise the child and read all its batches; keep `(sort key, tuple)` entries in a buffer for as long as their serialized sizes plus the 4-byte count fit in **one page**; when the next tuple would not fit (and the buffer is not empty) write the buffer as a run and start a new one with that tuple; write what is left; return the runs in order.
+
+The tests: exact scenarios (a few tuples fit one page and read back in order; a full page starts the next; an empty run has no pages; a tuple that cannot fit is an error and one that exactly fits is fine; a builder filled tuple by tuple; page-by-page reading matches the iterator; an empty input makes no runs; a small input is one sorted run of one page; a big input is cut into runs of one page each, sorted inside; a page is filled before a new run starts; descending order and stability inside a run; the sort can start again), and two properties: **for random tuple sizes a run reads back its tuples in order and uses exactly the pages the greedy-fill rule predicts**; and **pass 0 on random tables gives one-page runs, each sorted, which together hold exactly the input rows**.
+
+## Your freedom
+
+How the builder buffers (a `Vec<u8>` and a count, or writing into a pinned page directly), and how pass 0 decides a buffer is full (adding sizes, or trying to push).
+
+## The Rust toolbox
+
+**Little-endian bytes.** `(count as u32).to_le_bytes()` writes the count; `u32::from_le_bytes(page[0..4].try_into().unwrap())` reads it (module 2a).
+
+**A write guard for a page.** `let mut guard = bpm.write_page(id); guard.get_data_mut()[..n].copy_from_slice(&bytes);` the latch and the pin are released when `guard` goes out of scope.
+
+**`Vec::resize` and slices.** `buf.resize(at + size, 0); tuple.serialize_to(&mut buf[at..]);` grows the buffer then fills the new part.
+
+**A structure that borrows the pool.** `MergeSortRun<'e>` holds `&'e BufferPoolManager`: the run cannot outlive the pool, and the compiler checks it.
+
+**An iterator over pages.** `RunIterator` holds the run, the page index and the current page's tuples (a `VecDeque<Tuple>` or `vec::IntoIter`); `next` refills when empty.
+
+## If this is new
+
+- [S3 Vec & slices](/t/s3-vec-slices): `copy_from_slice`, `resize`, `to_le_bytes`.
+- [S6 Iterators](/t/s6-iterators): implementing `Iterator` for a struct with a buffer.
+- [L3 Lifetimes](/t/l3-lifetimes): a struct that borrows a pool.
+- [F7 I/O & serialization](/t/f7-io-serialization): length-prefixed records.
+- [S9 I/O & filesystem](/t/s9-io-filesystem): Understand: spilling to disk: bounded-memory reading and writing.
 
 ## Tests
 
-- A few tuples fit one page and read back equal and in order; an empty run has no pages and an empty iterator.
-- A full page starts the next: 1000-byte tuples give 8 per page (`4 + 8 × 1004 ≤ 8192`), so 20 give 8 + 8 + 4 over 3 pages.
-- A tuple too large for a page is an `Execution` error; one that exactly fills a page is fine.
-- 5,000 tuples written through a 24-frame pool come back complete.
-- Reading page by page and iterating agree.
+- Runs: a few tuples one page; a full page starts the next; empty runs; a too-large tuple is an error and an exact fit is fine; tuple by tuple; page by page.
+- Pass 0: empty input; a small input is one sorted run; a big input is cut into one-page runs; descending and stable; restartable.
+- Properties: greedy page fill and exact read-back; runs sorted and complete.
 
-## Syntax and methods
+## Hints
 
-```rust
-let page_id = self.bpm.new_page();                       // PageId
-let mut guard = self.bpm.write_page(page_id);            // WritePageGuard: pinned + latched
-guard.get_data_mut()[..4].copy_from_slice(&count.to_le_bytes());
-let guard = self.bpm.read_page(id); let data = guard.get_data();       // &[u8; 8192]
-tuple.serialize_to(&mut buf[at..]);  Tuple::deserialize_from(&data[at..])
-u32::from_le_bytes(data[..4].try_into().unwrap())
-```
+### Count the bytes
 
-## Notes
+A page holds `8192 − 4` bytes of tuples. A tuple occupies `4 + data.len()`. Write the arithmetic as a small function and use it in `push` and in pass 0.
 
-**Format: the simplest that works.** Tuples are variable-length and only read front to back, so no slot array is needed (unlike a table page): a count, then the tuples packed one after another. The reader walks the bytes: after each tuple the next starts `4 + len` bytes later.
+### Where is the partly filled page?
 
-**Buffer first, page second.** The builder accumulates a page's worth of bytes in a `Vec<u8>` and writes the page once when it is full. Allocating the page earlier would hold a pinned frame for the whole fill, and pin pressure is exactly what a spilling sort must avoid.
+In the builder's buffer, not in the pool: it is written once, by `flush_page`, when it is full or at `finish`. Reading is the opposite: `read_page` pins the page, copies the tuples out and lets go.
 
-**Pages are the only memory a run uses.** A run is a `Vec<PageId>`; its tuples live in the buffer pool and, when the pool is full, on disk. `delete_pages` returns them (stage 4 does it after a merge).
+### Sort the whole buffer, not each batch
 
-**Guards are released at the end of the scope.** A page guard unpins on drop; hold it as briefly as you can (`read_page` decodes the tuples and returns, so no guard escapes the function).
+Pass 0 sorts what it holds when the buffer is full, then writes it. Sorting each child batch separately and writing them gives sorted but tiny runs.
+
+## Performance
+
+Writing a run is sequential page writes through the pool; reading it back is sequential reads. With runs of one page each, a table of `N` pages makes `N` runs; every merge pass reads and writes `N` pages. The total I/O is `2N × passes`.
+
+**Measure it.** Count page writes (`DiskManager` counters from module 1a) for sorting tables of 100, 1 000 and 10 000 pages; plot against `N log N`.
+
+## Experiment
+
+Optional. Predict first, then run.
+
+1. **Bigger initial runs.** Let pass 0 collect 8 pages of tuples per run. How many runs and merge passes does a 1 000-page table need now?
+2. **Replacement selection.** Keep a heap and emit the smallest tuple that is not smaller than the last one written: runs become about twice memory. Sketch what changes in `generate_initial_runs`.
+
+## Other designs
+
+- **Page-sized initial runs (ours, BusTub's).**
+- **Memory-sized runs** (any real engine).
+- **Replacement selection:** runs of about twice memory on random input.
+- **Runs in temporary files** instead of the buffer pool.
 
 ## In BusTub
 
-`external_merge_sort_executor.h`: `class MergeSortRun { std::vector<page_id_t> pages_; BufferPoolManager *bpm_; class Iterator {... operator++ operator* operator== operator!= (all "TODO(P3): Add implementation.")} Begin() End() }`. BusTub leaves the page format to you; this port fixes the one described above so that the tests can check page counts.
+`external_merge_sort_executor.cpp`, `limit_executor.cpp`, `topn_executor.cpp` and `window_function_executor.cpp` are stubs in Project 3 (`UNIMPLEMENTED("TODO(P3): Add implementation.")`). The 2025 version of the project asks for an external merge sort (`MergeSortRun`, `ExternalMergeSortExecutor<K>`), a top-N executor with a bounded heap, and window functions.
 
 ## The C/C++ way
 
 | C / C++ | Rust |
 |---|---|
-| `auto page = bpm->WritePage(pid); memcpy(page.GetDataMut(), ...)` | `let mut g = bpm.write_page(pid); g.get_data_mut()[..n].copy_from_slice(..)` |
-| `class Iterator { operator++, operator*, operator!= }` and `Begin()/End()` | `impl Iterator for RunIterator` with `next() -> Option<Tuple>` |
-| reinterpret the page bytes as a struct | explicit little-endian reads and writes |
-| manual `bpm->DeletePage(pid)` for each page | `delete_pages(self)` consumes the run |
+| `class MergeSortRun { std::vector<page_id_t> pages_; }` | `struct MergeSortRun<'e> { pages: Vec<PageId>, bpm: &'e BufferPoolManager }` |
+| `WritePageGuard guard = bpm->WritePage(id); auto *data = guard.GetDataMut();` | `let mut guard = bpm.write_page(id); guard.get_data_mut()` |
+| `memcpy(data + 4, buf.data(), buf.size())` | `data[4..4 + n].copy_from_slice(&buf)` |
+| `class Iterator` with `operator++` | `impl Iterator for RunIterator` |
 
-**Port rule:** a C++ iterator class with `++`, `*`, `!=` is one `Iterator::next`.
+**Port rule:** a vector of page ids and a pool pointer become a `Vec<PageId>` and a borrowed reference; `memcpy` becomes `copy_from_slice`.
 
 ## Learn more
-- [`u32::to_le_bytes`](https://doc.rust-lang.org/std/primitive.u32.html#method.to_le_bytes) · [`slice::copy_from_slice`](https://doc.rust-lang.org/std/primitive.slice.html#method.copy_from_slice) · [External sorting](https://en.wikipedia.org/wiki/External_sorting)
 
-## Performance
-
-Each page is written once and read once per pass. With 8 KiB pages a run of a million 8-byte tuples is about 1,500 pages. Writing through the buffer pool means pages stay in memory while the pool has room and are flushed when it does not, so small sorts never touch the disk.
-
-**Measure it.** Write 1,000,000 tuples into a run with a 24-frame pool and time the write and the read; the pool's eviction is doing the spilling.
-
-## Hints
-
-### Count first, tuples after
-
-The count lives in the first 4 bytes, so the tuples start at offset 4 and the buffer you accumulate holds only tuples. Do not write the count until you flush.
-
-### The capacity check includes the count
-
-A page holds `8192 - 4` bytes of tuples. A tuple fits an empty page iff `4 + size ≤ 8192`; it fits the current page iff `4 + buffer.len() + size ≤ 8192`.
-
-### Do not hold a guard across calls
-
-`RunIterator::next` calls `read_page`, which reads, decodes and releases. Keeping a read guard alive in the iterator would pin a frame per open run: a K-way merge would pin K frames for nothing.
+- *Database Management Systems* (Ramakrishnan, Gehrke), external sorting · [`slice::copy_from_slice`](https://doc.rust-lang.org/std/primitive.slice.html#method.copy_from_slice)

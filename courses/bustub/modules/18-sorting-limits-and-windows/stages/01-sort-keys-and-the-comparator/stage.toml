@@ -1,7 +1,8 @@
 id = "3g-01"
 title = "Sort keys and the comparator"
-kind = "learn"
+kind = "build"
 difficulty = "medium"
 tests = ["stages_3g::s3g_01"]
-learn = ["one comparison function from ORDER BY items", "NULL ordering and NULLS FIRST/LAST", "Ordering combinators and stable sorting"]
-concepts = ["sort-keys-and-null-ordering", "sql-types-and-three-valued-logic", "expression-trees"]
+learn = ["a sort key is the values of the ORDER BY expressions", "NULL is the smallest value unless told otherwise", "the first key that differs decides", "a comparator that is a total preorder"]
+concepts = []
+concepts_optional = ["sort-keys-and-null-ordering", "eq-hash-ord-contracts", "sql-types-and-three-valued-logic", "model-based-testing", "property-testing-and-fuzzing"]

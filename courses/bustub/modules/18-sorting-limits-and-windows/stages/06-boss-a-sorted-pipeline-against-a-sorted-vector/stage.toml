@@ -1,0 +1,8 @@
+id = "3g-06"
+title = "Boss: a sorted pipeline against a sorted vector"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_3g::s3g_06", "sql_sort_and_window_test"]
+retest = true
+concepts = []
+concepts_optional = ["model-based-testing", "property-testing-and-fuzzing", "external-merge-sort"]

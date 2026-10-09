@@ -131,7 +131,7 @@ impl<'e, const K: usize> ExternalMergeSortExecutor<'e, K> {
     /// Pass 0: reads the whole child and cuts it into sorted runs of **one page each**: collect tuples while they fit in a page, sort
     /// them (a stable sort), write them as a run.
     pub fn generate_initial_runs(&mut self) -> Result<Vec<MergeSortRun<'e>>> {
-        todo!("3g-03: init the child and read all its batches; keep (sort key, tuple) entries (generate_sort_key) while their serialized sizes plus the 4-byte count fit in one page; when the next tuple would not fit, sort the entries (self.cmp.compare, a stable sort) and write them as a run (write_sorted_run); do the same for what is left at the end; return the runs")
+        todo!("3g-02: init the child and read all its batches; keep (sort key, tuple) entries (generate_sort_key) while their serialized sizes plus the 4-byte count fit in one page; when the next tuple would not fit, sort the entries (self.cmp.compare, a stable sort) and write them as a run (write_sorted_run); do the same for what is left at the end; return the runs")
     }
 
     /// Sorts the entries (stable) and writes them as a run, emptying `entries`.
@@ -145,19 +145,19 @@ impl<'e, const K: usize> ExternalMergeSortExecutor<'e, K> {
     /// Merges sorted runs into one sorted run: repeatedly take the smallest of the runs' current tuples. When tuples compare equal
     /// the one from the earlier run goes first (so that the whole sort is stable). The merged runs' pages are freed.
     pub fn merge_runs(&self, runs: Vec<MergeSortRun<'e>>) -> Result<MergeSortRun<'e>> {
-        todo!("3g-04: keep an iterator and a current (sort key, tuple) head per run; repeatedly pick the smallest head (the first one wins ties), push its tuple into a RunBuilder and refill that head from its run; when no heads are left finish the builder, free the input runs' pages (delete_pages) and return the merged run")
+        todo!("3g-03: keep an iterator and a current (sort key, tuple) head per run; repeatedly pick the smallest head (the first one wins ties), push its tuple into a RunBuilder and refill that head from its run; when no heads are left finish the builder, free the input runs' pages (delete_pages) and return the merged run")
     }
 }
 
 impl<const K: usize> Executor for ExternalMergeSortExecutor<'_, K> {
     fn init(&mut self) -> Result<()> {
-        todo!("3g-05: free the pages of an earlier sort; make the initial runs; while there is more than one run merge them K at a time (a group of one run is carried over as it is); keep the last run in self.sorted and start reading it from its first page (next_page = 0, nothing buffered)")
+        todo!("3g-03: free the pages of an earlier sort; make the initial runs; while there is more than one run merge them K at a time (a group of one run is carried over as it is); keep the last run in self.sorted and start reading it from its first page (next_page = 0, nothing buffered)")
     }
 
     fn next(&mut self, tuple_batch: &mut Vec<Tuple>, rid_batch: &mut Vec<Rid>, batch_size: usize) -> Result<bool> {
         tuple_batch.clear();
         rid_batch.clear();
-        todo!("3g-05: hand out the next at most batch_size tuples of the sorted run, a page at a time (read_page; keep the page's tuples in self.buffered and count pages in next_page), with a default rid for each; no run (an empty input) means nothing")
+        todo!("3g-03: hand out the next at most batch_size tuples of the sorted run, a page at a time (read_page; keep the page's tuples in self.buffered and count pages in next_page), with a default rid for each; no run (an empty input) means nothing")
     }
 
     fn output_schema(&self) -> &Schema {

@@ -1,6 +1,6 @@
 # Course UX proposals: CLI, tables and the web (2026-10-09)
 
-Status (2026-10-09): the CLI items 1, 2, 3 (`--watch`, `--filter`, `--only`), 5 (`status` progress and `--json`), 6 (the courses are compiled into the binary), 7 (a queue for runs that cannot be reported, `sync`), 8 (`doctor`) and 9 (`--version`, `completions`) are built; item 4 (a rendered `show`, `--hint`) and the table/web items are not. Written first as proposals (CLAUDE.md: propose extras with a recommendation, mock up UI changes first). Based on running the CLI as a
+Status (2026-10-09): the CLI items 1, 2, 3 (`--watch`, `--filter`, `--only`), 5 (`status` progress and `--json`), 6 (the courses are compiled into the binary), 7 (a queue for runs that cannot be reported, `sync`), 8 (`doctor`) and 9 (`--version`, `completions`) are built; item 4 is built except `show --web` (a rendered `show` with a pager, `show --hint N`; see below), and the table and web items are built or mocked up as listed under "What was built (web)". Written first as proposals (CLAUDE.md: propose extras with a recommendation, mock up UI changes first). Based on running the CLI as a
 learner (`anneal course init`, `status`, `show`, `test`) and reading the web styles; the web pages were **not** rendered in a browser for this
 review, so the UI items are from the CSS and need a screenshot pass before mockups. The CLI guidance follows the rust-skills CLI guide (stderr
 for errors, TTY and `NO_COLOR` detection, non-zero exit codes, `indicatif` progress, `clap_complete`).
@@ -85,5 +85,25 @@ popups; `#static`, `#static-stage`, `#static-kit`, `#static-win` open a state wi
   the next report or `anneal course sync`; the message says what happened and how many are waiting.
 - `anneal course doctor` (rust, cargo, git, curl, the hook, the queue, the size of `target/`, the login) and `anneal completions <shell>`.
 
-Not built: a rendered `show` with a pager and `--hint`, the device-code login (the passphrase prompt is unchanged), a template download from
+Not built: `show --web`, the device-code login (the passphrase prompt is unchanged), a template download from
 the web app (superseded by compiling the courses into the binary), and the table and web items above.
+
+## What was built (CLI, second round)
+
+- `anneal course show` renders the stage for the terminal (headings, wrapped paragraphs, lists, quotes, code with a bar, tables, links with
+  their address) and pages it through `ANNEAL_PAGER`, `PAGER` or `less -FRX` on a terminal; `--no-pager` and piping print it plainly.
+  Colour follows the usual rules (a terminal, no `NO_COLOR`).
+- It no longer prints the `## Hints` section, which used to leak every hint (bypassing the website's "passed with help" record). It lists the
+  hint titles instead, as the website does.
+- `anneal course show <stage> --hint N` opens hint N **through the server**, which records the stage as helped; it needs `anneal course login`,
+  says when it opened something new, and does not re-open a hint you already have. Out-of-range numbers are refused with the count.
+
+## What was built (web)
+
+Built and covered by browser tests (`web/e2e`, run in CI before every deploy): the track table (filter box, sortable headers, `j`/`k`/Enter,
+status icons, sticky header, phone cards); the pinned run strip and case icons in the Tests pane; the course Run tab (summary, failures first,
+passes folded, run-again command, compiler block); the test command under a stage title; per-tab scroll position; the module ring on the
+continue card; highlighted code and a copy button in the C++/Rust tables.
+
+Mocked up, waiting for the owner: everything in [mockups/course-motion.html](mockups/course-motion.html) and
+[mockups/section-page.html](mockups/section-page.html). What each needs from the data: [COURSE_UX_DATA_NEEDS.md](COURSE_UX_DATA_NEEDS.md).

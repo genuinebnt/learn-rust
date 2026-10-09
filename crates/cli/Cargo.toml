@@ -25,3 +25,5 @@ toml.workspace = true
 tokio.workspace = true
 indicatif = "0.17"
 clap_complete.workspace = true
+pulldown-cmark = { version = "0.13.4", default-features = false }
+terminal_size = "0.4.4"

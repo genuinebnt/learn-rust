@@ -1,7 +1,8 @@
 //! Terminal output for the learner's commands: colour only on a terminal (and never under `NO_COLOR`), a spinner on stderr while cargo
 //! compiles, and the cleaning of libtest's panic text into the lines that tell a learner what went wrong.
 
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Write};
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -86,6 +87,45 @@ pub fn clean_detail(detail: &str) -> Vec<String> {
 /// The part of a cleaned failure that says *what* went wrong, without the location: used to spot failures that repeat.
 pub fn reason(lines: &[String]) -> String {
     lines.iter().filter(|l| !l.starts_with("at ")).cloned().collect::<Vec<_>>().join("\n")
+}
+
+/// How wide to wrap text: the terminal's width (at most 100, so lines stay readable), or 80 when output goes to a file or a pipe.
+pub fn text_width() -> usize {
+    if !std::io::stdout().is_terminal() {
+        return 80;
+    }
+    terminal_size::terminal_size().map_or(100, |(w, _)| usize::from(w.0)).clamp(40, 100)
+}
+
+/// Prints `text`, through a pager when stdout is a terminal: `ANNEAL_PAGER`, else `PAGER`, else `less` (which quits at once if the text
+/// fits one screen). `cat` or an empty value turns the pager off, as does `no_pager`; a pager that cannot start falls back to printing.
+pub fn page(text: &str, no_pager: bool) {
+    if no_pager || !std::io::stdout().is_terminal() {
+        print!("{text}");
+        return;
+    }
+    let spec = std::env::var("ANNEAL_PAGER").or_else(|_| std::env::var("PAGER")).unwrap_or_else(|_| "less".to_owned());
+    let mut parts = spec.split_whitespace();
+    let Some(program) = parts.next().filter(|p| *p != "cat") else {
+        print!("{text}");
+        return;
+    };
+    let mut cmd = Command::new(program);
+    cmd.args(parts);
+    if std::env::var_os("LESS").is_none() {
+        // F: quit if it fits one screen · R: keep colours · X: leave the text on screen afterwards
+        cmd.env("LESS", "FRX");
+    }
+    match cmd.stdin(Stdio::piped()).spawn() {
+        Ok(mut child) => {
+            if let Some(mut stdin) = child.stdin.take() {
+                // Quitting the pager early closes the pipe; that is not an error.
+                let _ = stdin.write_all(text.as_bytes());
+            }
+            let _ = child.wait();
+        }
+        Err(_) => print!("{text}"),
+    }
 }
 
 #[cfg(test)]

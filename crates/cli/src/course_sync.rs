@@ -297,3 +297,35 @@ pub fn session_status() -> Option<(String, anyhow::Result<u16>)> {
 pub fn queued_runs(repo: &Path) -> usize {
     queued(repo).len()
 }
+
+/// Opens hints up to the `n`th (1-based) through the server, which records that the stage was helped, and returns the `n`th as
+/// (title, markdown) with whether this call opened it. Needs the sign-in from `anneal course login`.
+pub fn open_hint(course: &str, stage: &str, n: usize) -> anyhow::Result<(String, String, bool)> {
+    let s = load_session().context("opening a hint is recorded on the website: sign in first with `anneal course login <url>`")?;
+    let base = format!("{}/api/courses/{course}/stages/{stage}", s.url.trim_end_matches('/'));
+    let read = |status: u16, body: &str| -> anyhow::Result<serde_json::Value> {
+        match status {
+            200 => Ok(serde_json::from_str(body)?),
+            401 => bail!("the session expired: run `anneal course login {}`", s.url),
+            404 => bail!("the server does not publish stage {stage} yet"),
+            _ => bail!("the server answered {status}: {}", body.trim()),
+        }
+    };
+    let (status, _, body) = curl("GET", &base, Some(&s.token), None)?;
+    let mut page = read(status, &body)?;
+    let total = page["hints"]["total"].as_u64().unwrap_or(0) as usize;
+    if total == 0 {
+        bail!("stage {stage} has no hints written yet");
+    }
+    if n == 0 || n > total {
+        bail!("stage {stage} has {total} hint{}: pick 1 to {total}", if total == 1 { "" } else { "s" });
+    }
+    let mut opened = false;
+    while page["hints"]["revealed"].as_array().map_or(0, Vec::len) < n {
+        let (status, _, body) = curl("POST", &format!("{base}/hints"), Some(&s.token), Some("{}"))?;
+        page = read(status, &body)?;
+        opened = true;
+    }
+    let hint = &page["hints"]["revealed"][n - 1];
+    Ok((hint["title"].as_str().unwrap_or("").to_owned(), hint["md"].as_str().unwrap_or("").to_owned(), opened))
+}

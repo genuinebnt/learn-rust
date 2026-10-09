@@ -16,6 +16,7 @@ use clap::Subcommand;
 
 use crate::course_sync;
 use crate::course_unlock;
+use crate::{render, term};
 use serde::{Deserialize, Serialize};
 
 #[derive(Subcommand)]
@@ -64,8 +65,17 @@ pub enum CourseCmd {
         #[arg(long)]
         json: bool,
     },
-    /// Print a stage's README (default: the current stage).
-    Show { stage: Option<String> },
+    /// Print a stage's README (default: the current stage), formatted for the terminal and paged on a terminal.
+    Show {
+        /// A stage id, e.g. 1a-03.
+        stage: Option<String>,
+        /// Open the Nth hint of the stage. The website records that the stage was helped, so this needs `anneal course login`.
+        #[arg(long, value_name = "N")]
+        hint: Option<usize>,
+        /// Print everything at once instead of through a pager (the `PAGER` environment variable picks the pager).
+        #[arg(long)]
+        no_pager: bool,
+    },
     /// Run a stage's tests (default: the current stage, then the earlier stages as a regression check).
     Test {
         /// A stage id, e.g. 1a-03.
@@ -726,7 +736,7 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
         CourseCmd::Lint { course, courses, all } => lint(&course, &courses, all),
         CourseCmd::Solutions { course, courses, out, stages } => solutions(&course, &courses, out, &stages),
         CourseCmd::Status { json } => status(json),
-        CourseCmd::Show { stage } => show(stage.as_deref()),
+        CourseCmd::Show { stage, hint, no_pager } => show(stage.as_deref(), hint, no_pager),
         CourseCmd::Test { stage, all, only, verbose, filter, watch } => test_command(stage.as_deref(), TestOpts { all, only, verbose, hook: false }, filter.as_deref(), watch),
         CourseCmd::Next => next(),
         CourseCmd::Doctor => doctor(),
@@ -1187,7 +1197,7 @@ fn status(json: bool) -> anyhow::Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn show(stage: Option<&str>) -> anyhow::Result<ExitCode> {
+fn show(stage: Option<&str>, hint: Option<usize>, no_pager: bool) -> anyhow::Result<ExitCode> {
     let repo = find_repo()?;
     let course = learner_course(&repo)?;
     let progress = load_progress(&repo);
@@ -1195,8 +1205,22 @@ fn show(stage: Option<&str>) -> anyhow::Result<ExitCode> {
         Some(id) => course.stage(id)?,
         None => current(&course, &progress).context("every stage is done")?,
     };
-    print_stage(s);
+    match hint {
+        Some(n) => print_hint(&course.meta.id, s, n, no_pager)?,
+        None => print_stage(s, no_pager),
+    }
     Ok(ExitCode::SUCCESS)
+}
+
+/// One hint, opened through the server so that the website knows the stage was helped.
+fn print_hint(course_id: &str, s: &Stage, n: usize, no_pager: bool) -> anyhow::Result<()> {
+    let (title, md, opened) = course_sync::open_hint(course_id, &s.def.id, n)?;
+    if opened {
+        eprintln!("Hint {n} opened. When stage {} passes, the website will count it as passed with help.", s.def.id);
+    }
+    let text = format!("{}\n\n{}", term::bold(&format!("Stage {} · hint {n}: {title}", s.def.id)), render::render(&md, term::text_width(), term::color_on()));
+    term::page(&text, no_pager);
+    Ok(())
 }
 
 fn difficulty_label(d: &str) -> &'static str {
@@ -1208,14 +1232,29 @@ fn difficulty_label(d: &str) -> &'static str {
     }
 }
 
-fn print_stage(s: &Stage) {
-    println!("{} · {}\nStage {}: {}\n{}  [{}]\n", s.module, s.module_title, s.def.id, s.def.title, difficulty_label(&s.def.difficulty), s.def.kind);
-    println!("{}", s.readme.trim_end());
-    println!("\nYour way: the tests call only the public items named above. How you build the inside is up to you; change the given structs and helpers if you want a different design.");
+fn print_stage(s: &Stage, no_pager: bool) {
+    let (body, hints) = render::split_hints(&s.readme);
+    let (color, width) = (term::color_on(), term::text_width());
+    let mut text = format!(
+        "{} · {}\n{}\n{}  [{}]\n\n",
+        s.module,
+        s.module_title,
+        term::bold(&format!("Stage {}: {}", s.def.id, s.def.title)),
+        difficulty_label(&s.def.difficulty),
+        s.def.kind
+    );
+    text.push_str(&render::render(body, width, color));
+    text.push('\n');
+    text.push_str(&render::render("Your way: the tests call only the public items named above. How you build the inside is up to you; change the given structs and helpers if you want a different design.", width, color));
     if !s.resources.is_empty() {
-        println!("\nModule resources\n{}", s.resources.trim_end());
+        text.push_str(&format!("\n{}\n{}\n", term::bold("Module resources"), s.resources.trim_end()));
     }
-    println!("\nTests: {}", s.def.tests.iter().map(|t| format!("cargo test --test {}", t.replace("::", " -- "))).collect::<Vec<_>>().join("   "));
+    text.push_str(&format!("\n{} {}\n", term::bold("Tests:"), s.def.tests.iter().map(|t| format!("cargo test --test {}", t.replace("::", " -- "))).collect::<Vec<_>>().join("   ")));
+    if !hints.is_empty() {
+        let titles = hints.iter().enumerate().map(|(i, (t, _))| format!("{}. {t}", i + 1)).collect::<Vec<_>>().join("  ");
+        text.push_str(&format!("\n{} {titles}\n{}\n", term::bold("Hints:"), term::dim(&format!("open one with `anneal course show {} --hint 1`; the website then counts the stage as passed with help once it passes", s.def.id))));
+    }
+    term::page(&text, no_pager);
 }
 
 fn next() -> anyhow::Result<ExitCode> {
@@ -1225,7 +1264,7 @@ fn next() -> anyhow::Result<ExitCode> {
     maybe_unlock(&repo, &course, &progress)?;
     match current(&course, &progress) {
         Some(s) => {
-            print_stage(s);
+            print_stage(s, false);
             Ok(ExitCode::SUCCESS)
         }
         None => {

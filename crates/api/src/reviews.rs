@@ -325,7 +325,13 @@ pub fn schedule(
     let days = item.interval.round().max(1.0) as u64;
     let ideal = today + Days::new(days);
     let only = if prev.is_none() { settings.consolidation_day() } else { None };
-    Ok(Scheduled { memory: item.memory, ideal_days: item.interval, due: snap(ideal, today, item.interval, settings, only, load) })
+    let mut due = snap(ideal, today, item.interval, settings, only, load);
+    // A break day counts as 1000 reviews (see `review_context`). If the weekday restriction left only break days to choose from,
+    // drop the restriction rather than schedule onto the break.
+    if only.is_some() && load(due) >= 1000 {
+        due = snap(ideal, today, item.interval, settings, None, load);
+    }
+    Ok(Scheduled { memory: item.memory, ideal_days: item.interval, due })
 }
 
 /// The day with room closest to `ideal`, within a window that grows with the interval. A day a little early costs

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { marked } from "marked";
 import { ApiError, api, type Diagnostic, type ProblemDetail, type RunOutcome, type RunView, type ScratchResult, type TestOutcome } from "../api";
 import { Header } from "../components/Header";
+import { Celebration, celebrateOff } from "../components/kit";
 import { BAND_LABEL, LEVEL_COLOR, modeColor, pad2 } from "../components/bits";
 import { NAV_SECTIONS, SECTION_NAMES, type NavArea } from "../curriculum";
 import { Editor, GOTO_EVENT } from "./Editor";
@@ -111,6 +112,9 @@ function Loaded({ p }: { p: ProblemDetail }) {
   const lanesOn = editorSettings.borrow_lanes && !py;
   const setLanesOn = (on: boolean) => saveEditor({ ...editorSettings, borrow_lanes: on });
   const [selected, setSelected] = useState<number | null>(null);
+  const nav = useNavigate();
+  // A Submit that passes: the popup offers the next problem or staying here.
+  const [win, setWin] = useState<{ passed: number; total: number; ms: number; hints: number; assisted: boolean } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [cursor, setCursor] = useState([1, 1]);
   const [confirm, setConfirm] = useState<"reset" | "solution" | null>(null);
@@ -229,6 +233,9 @@ function Loaded({ p }: { p: ProblemDetail }) {
     // Solving unlocks the hidden tests, which only the full problem carries.
     if (out.run.status === "passed" && !p.hidden_tests) qc.invalidateQueries({ queryKey: ["problem", p.id] });
     setSelected(null);
+    if (out.run.kind === "submit" && out.run.status === "passed" && !celebrateOff()) {
+      setWin({ passed: out.run.passed, total: out.run.total, ms: out.run.duration_ms, hints: out.attempt.hints_revealed, assisted: out.attempt.assisted });
+    }
     const firstFail = out.run.tests.find((t) => t.outcome !== "passed");
     setOpen(firstFail ? (firstFail.suite === "hidden" ? "hidden:" : "") + firstFail.name : null);
     setLastAction("tests");
@@ -301,6 +308,25 @@ function Loaded({ p }: { p: ProblemDetail }) {
   return (
     <>
       <Header area={area} />
+      {win && (
+        <Celebration
+          title="Problem solved"
+          message={win.assisted ? "All tests pass. Solved with help, so it counts as assisted." : "All tests pass, unassisted."}
+          stats={[
+            { value: `${win.passed}/${win.total}`, label: "tests" },
+            { value: `${(win.ms / 1000).toFixed(1)}s`, label: "run time" },
+            { value: String(win.hints), label: "hints" },
+          ]}
+          next={p.next ? { kicker: "NEXT PROBLEM", title: "Keep going in this track" } : { kicker: "TRACK DONE", title: `Back to ${p.track.name}` }}
+          goLabel={p.next ? "Next problem" : `Back to ${p.track.name}`}
+          onGo={() => {
+            setWin(null);
+            if (p.next) nav({ to: "/p/$id", params: { id: p.next } });
+            else nav({ to: "/t/$track", params: { track: p.track.slug } });
+          }}
+          onClose={() => setWin(null)}
+        />
+      )}
       <main>
         {p.attempt.resolve && (
           <div className="resolve-bar">

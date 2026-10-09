@@ -10,7 +10,8 @@ test("the run result stays pinned above the cases while they scroll", async ({ p
     // the button reads "Testing…" while the run is in progress and the strip then shows its result
     await expect(strip.getByRole("button", { name: "Run tests" })).toBeEnabled({ timeout: 60_000 });
     await expect(strip).toContainText("Doesn't compile");
-    await expect(strip.locator(".passbar span")).toHaveCount(5);
+    // one segment per test; a solved problem also shows its hidden tests, so this must not depend on what ran before
+    expect(await strip.locator(".passbar span").count()).toBeGreaterThanOrEqual(5);
 
     const body = page.locator(".pane.r .pbody");
     await body.evaluate((e) => (e.scrollTop = e.scrollHeight));

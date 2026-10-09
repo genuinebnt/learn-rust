@@ -19,6 +19,7 @@ import { COURSE_ID, CoursePage } from "./pages/CoursePage";
 import { CourseStagePage } from "./pages/CourseStagePage";
 import { CourseConceptPage } from "./pages/CourseConceptPage";
 import { Workspace } from "./workspace/Workspace";
+import { installPressEffects } from "./components/kit";
 import "./styles/design.css";
 import "./styles/app.css";
 import "./styles/catalog.css";
@@ -29,6 +30,7 @@ import "./styles/lessons.css";
 import "./styles/review.css";
 import "./styles/problem.css";
 import "./styles/calendar.css";
+import "./styles/kit.css";
 import "./styles/course.css";
 
 const rootRoute = createRootRoute({ component: Outlet });
@@ -138,6 +140,7 @@ declare module "@tanstack/react-router" {
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5_000, refetchOnWindowFocus: false } } });
 
+installPressEffects();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

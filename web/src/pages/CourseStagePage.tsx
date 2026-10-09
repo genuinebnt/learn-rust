@@ -5,6 +5,7 @@ import { api, type CourseRun, type CourseStagePage as Page, type CourseStageRow,
 import { Header } from "../components/Header";
 import { DIFFICULTY_COLOR, SplitTitle } from "./CoursePage";
 import { renderMd } from "./courseMd";
+import { Celebration, celebrateOff } from "../components/kit";
 
 const md = renderMd;
 type Tab = "instructions" | "hints" | "solution" | "concepts" | "run";
@@ -354,6 +355,8 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     const p = q.data;
     const [active, setActive] = useState("s-top");
     const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+    // The tests-passed popup (unless "don't show again" is on, then the toast below says it).
+    const [win, setWin] = useState(false);
     const seenRun = useRef<number | null>(null);
     const tabFromHash = (): Tab => {
         const h = location.hash.slice(1);
@@ -390,6 +393,10 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
         const fresh = Date.now() - new Date(lastRun.at).getTime() < 30_000;
         if (first && !fresh) return;
         qc.invalidateQueries({ queryKey: ["course", course] });
+        if (lastRun.ok && !celebrateOff()) {
+            setWin(true);
+            return;
+        }
         setToast(
             lastRun.ok
                 ? { ok: true, text: "Tests passed" }
@@ -508,6 +515,26 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
                     </span>
                 </div>
             </div>
+            {win && lastRun?.ok && (
+                <Celebration
+                    title="Stage passed"
+                    message={`All ${lastRun.total} tests pass.${p.hints.revealed.length === 0 ? " Nicely done: no hints used." : ""}`}
+                    stats={[
+                        { value: `${lastRun.passed}/${lastRun.total}`, label: "tests" },
+                        { value: `${(lastRun.duration_ms / 1000).toFixed(1)}s`, label: "run time" },
+                        { value: String(p.hints.revealed.length), label: "hints" },
+                    ]}
+                    next={p.next ? { kicker: "NEXT STAGE", title: p.next.title } : undefined}
+                    goLabel={p.next ? "Go to next stage" : "Back to the course"}
+                    onGo={() => {
+                        setWin(false);
+                        if (p.next) nav({ to: "/courses/$course/$stage", params: { course, stage: p.next.id } });
+                        else nav({ to: "/courses/$course", params: { course } });
+                    }}
+                    review={p.solution.available ? { label: "Review solution", onReview: () => (setWin(false), pick("solution")) } : undefined}
+                    onClose={() => setWin(false)}
+                />
+            )}
             {toast && (
                 <div className={`cx-toast ${toast.ok ? "ok" : "bad"}`} role="status">
                     <i>{toast.ok ? "✓" : "!"}</i>

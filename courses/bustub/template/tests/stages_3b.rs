@@ -1,444 +1,534 @@
-//! Tests for the schema, tuple and table page stages (3b-01 … 3b-06). A test named `s3b_03_…` belongs to stage 3b-03.
+//! Tests for module 3b, schemas, tuples and table pages. A test name starts with its stage: `s3b_02_…` belongs to stage 3b-02, and
+//! `anneal course test` runs just those.
+//!
+//! Random schemas and rows are built from a strategy: columns of every type (and variable-length text), values that match (NULLs
+//! included). Tuples are checked by round trip: whatever row went in comes out of `get_value` column by column. A table page is
+//! checked against a plain `Vec` of what it should hold; how many tuples fit is checked against generous bounds, not a layout (the page's
+//! layout is yours). Page tests copy the page's bytes to a fresh buffer to prove the page is self-describing: all its state is in its bytes.
 
 use bustub::catalog::column::Column;
 use bustub::catalog::schema::Schema;
 use bustub::common::config::{PageId, BUSTUB_PAGE_SIZE};
+use bustub::common::exception::ExceptionType;
 use bustub::common::rid::Rid;
 use bustub::storage::page::table_page::TablePage;
 use bustub::storage::table::tuple::{Tuple, TupleMeta};
-use bustub::types::type_id::TypeId::*;
-use bustub::types::value::Value;
+use bustub::types::type_id::TypeId::{self, *};
+use bustub::types::value::{CmpBool, Value};
+use proptest::prelude::*;
 
-fn mixed_schema() -> Schema {
-    Schema::new(vec![Column::new("a", Integer), Column::new_varchar("b", 20), Column::new("c", BigInt), Column::new_varchar("d", 16), Column::new("e", Boolean)])
-}
-
-fn mixed_values() -> Vec<Value> {
-    vec![Value::integer(7), Value::varchar("hi"), Value::bigint(9), Value::varchar("world!"), Value::boolean(true)]
+fn config() -> ProptestConfig {
+    ProptestConfig { cases: 128, max_shrink_iters: 2000, ..ProptestConfig::default() }
 }
 
 fn meta(is_deleted: bool) -> TupleMeta {
     TupleMeta { ts: 0, is_deleted }
 }
 
-// ---- 3b-01 · Columns --------------------------------------------------------------------------------------------------------------
+fn same(a: &Value, b: &Value) -> bool {
+    a.type_id() == b.type_id() && a.compare_exactly_equals(b)
+}
+
+// ---- Random schemas and rows ----------------------------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
+enum Col {
+    Fixed(TypeId),
+    Text(u32),
+}
+
+fn col() -> impl Strategy<Value = Col> {
+    prop_oneof![
+        3 => prop::sample::select(vec![Boolean, TinyInt, SmallInt, Integer, BigInt, Decimal, Timestamp]).prop_map(Col::Fixed),
+        2 => (1u32..40).prop_map(Col::Text),
+    ]
+}
+
+fn schema_of(cols: &[Col]) -> Schema {
+    Schema::new(cols.iter().enumerate().map(|(i, c)| match c {
+        Col::Fixed(t) => Column::new(&format!("c{i}"), *t),
+        Col::Text(n) => Column::new_varchar(&format!("c{i}"), *n),
+    }).collect())
+}
+
+/// A value for a column from some random bits; about one in six is a NULL.
+fn value_for(c: &Col, bits: u64) -> Value {
+    if bits % 6 == 0 {
+        return match c { Col::Fixed(t) => Value::null(*t), Col::Text(_) => Value::null(Varchar) };
+    }
+    match c {
+        Col::Fixed(Boolean) => Value::boolean(bits >> 8 & 1 == 1),
+        Col::Fixed(TinyInt) => Value::tinyint((bits >> 8) as i8),
+        Col::Fixed(SmallInt) => Value::smallint((bits >> 8) as i16),
+        Col::Fixed(Integer) => Value::integer((bits >> 8) as i32),
+        Col::Fixed(BigInt) => Value::bigint((bits >> 8) as i64),
+        Col::Fixed(Decimal) => Value::decimal(((bits >> 8) % 1_000_000) as f64 / 8.0 - 60_000.0),
+        Col::Fixed(Timestamp) => Value::timestamp((bits >> 8) % 1_000_000_000),
+        Col::Text(n) => Value::varchar(&"é𝄞x".chars().cycle().take(((bits >> 8) % (*n as u64 + 1)) as usize % 12).collect::<String>()),
+        Col::Fixed(_) => unreachable!(),
+    }
+}
+
+fn schema_and_rows() -> impl Strategy<Value = (Vec<Col>, Vec<Vec<u64>>)> {
+    prop::collection::vec(col(), 1..8).prop_flat_map(|cols| {
+        let n = cols.len();
+        (Just(cols), prop::collection::vec(prop::collection::vec(any::<u64>(), n), 1..12))
+    })
+}
+
+fn row(cols: &[Col], bits: &[u64]) -> Vec<Value> {
+    cols.iter().zip(bits).map(|(c, b)| value_for(c, *b)).collect()
+}
+
+// ---- 3b-01 · Columns and schemas ------------------------------------------------------------------------------------------
 
 #[test]
-fn s3b_01_a_fixed_size_column_has_its_types_size() {
+fn s3b_01_a_column_has_its_types_size_or_its_declared_length() {
     for (t, size) in [(Boolean, 1), (TinyInt, 1), (SmallInt, 2), (Integer, 4), (BigInt, 8), (Decimal, 8), (Timestamp, 8)] {
         let c = Column::new("x", t);
-        assert_eq!((c.name(), c.type_id(), c.storage_size(), c.offset()), ("x", t, size, 0), "{t:?}");
-        assert!(c.is_inlined(), "{t:?}");
+        assert_eq!((c.name(), c.type_id(), c.storage_size(), c.offset(), c.is_inlined()), ("x", t, size, 0, true), "{t:?}");
     }
+    let v = Column::new_varchar("name", 32);
+    assert_eq!((v.type_id(), v.storage_size(), v.is_inlined()), (Varchar, 32, false));
+    let r = v.with_column_name("renamed");
+    assert_eq!((r.name(), r.type_id(), r.storage_size()), ("renamed", Varchar, 32));
+    assert_eq!(v.name(), "name");
 }
 
 #[test]
-fn s3b_01_a_varchar_column_has_its_declared_length_and_is_not_inlined() {
-    let c = Column::new_varchar("name", 32);
-    assert_eq!((c.type_id(), c.storage_size(), c.is_inlined()), (Varchar, 32, false), "a varchar column has its declared length and is not inlined");
+fn s3b_01_wrong_constructors_are_bugs_and_panic() {
+    assert!(std::panic::catch_unwind(|| Column::new("name", Varchar)).is_err(), "a varchar needs a length");
+    assert!(std::panic::catch_unwind(|| Column::new("x", Invalid)).is_err(), "the invalid type is not a column type");
+    assert!(std::panic::catch_unwind(|| Schema::new(vec![Column::new("a", Integer)]).col_idx("nope")).is_err(), "a missing column by name is a bug");
 }
 
 #[test]
-#[should_panic]
-fn s3b_01_a_varchar_needs_a_length() {
-    Column::new("name", Varchar);
-}
-
-#[test]
-#[should_panic]
-fn s3b_01_the_invalid_type_is_not_a_column_type() {
-    Column::new("x", Invalid);
-}
-
-#[test]
-fn s3b_01_renaming_keeps_everything_else() {
-    let c = Column::new_varchar("old", 10);
-    let r = c.with_column_name("new");
-    assert_eq!((r.name(), r.type_id(), r.storage_size(), r.offset()), ("new", Varchar, 10, 0), "renaming keeps everything else");
-    assert_eq!(c.name(), "old", "the original is unchanged");
-}
-
-#[test]
-fn s3b_01_columns_print_in_two_formats() {
-    assert_eq!(Column::new("a", Integer).to_string(true), "a:INTEGER", "columns print in two formats");
-    assert_eq!(Column::new_varchar("b", 20).to_string(true), "b:VARCHAR(20)", "columns print in two formats");
-    assert_eq!(Column::new("c", BigInt).to_string(false), "Column[c, BIGINT, Offset:0, Length:8]", "columns print in two formats");
-    assert_eq!(Column::new_varchar("d", 5).to_string(false), "Column[d, VARCHAR, Offset:0, Length:5]", "columns print in two formats");
-}
-
-// ---- 3b-02 · Schemas --------------------------------------------------------------------------------------------------------------
-
-#[test]
-fn s3b_02_columns_get_consecutive_offsets_and_a_varchar_takes_four_bytes() {
-    let s = mixed_schema();
-    let offsets: Vec<u32> = s.columns().iter().map(|c| c.offset()).collect();
-    assert_eq!(offsets, vec![0, 4, 8, 16, 20], "a(4) b(offset: 4) c(8) d(offset: 4) e(1)");
-    assert_eq!(s.inlined_storage_size(), 21, "columns get consecutive offsets and a varchar takes four bytes");
-    assert_eq!(s.column_count(), 5, "columns get consecutive offsets and a varchar takes four bytes");
-}
-
-#[test]
-fn s3b_02_the_schema_remembers_which_columns_are_not_inlined() {
-    let s = mixed_schema();
-    assert_eq!(s.uninlined_columns(), &[1, 3], "the schema remembers which columns are not inlined");
-    assert_eq!(s.uninlined_column_count(), 2, "the schema remembers which columns are not inlined");
-    assert!(!s.is_inlined(), "the schema remembers which columns are not inlined: expected `!s.is_inlined()`");
-    let fixed = Schema::new(vec![Column::new("x", Integer), Column::new("y", Decimal)]);
-    assert!(fixed.is_inlined() && fixed.uninlined_columns().is_empty(), "the schema remembers which columns are not inlined: expected `fixed.is_inlined() && fixed.uninlined_columns().is_empty()`");
-    assert_eq!(fixed.inlined_storage_size(), 12, "the schema remembers which columns are not inlined");
-}
-
-#[test]
-fn s3b_02_columns_are_found_by_name() {
-    let s = Schema::new(vec![Column::new("a", Integer), Column::new("b", Integer), Column::new("a", BigInt)]);
-    assert_eq!(s.try_col_idx("b"), Some(1), "columns are found by name");
-    assert_eq!(s.try_col_idx("a"), Some(0), "the first column with the name");
-    assert_eq!(s.try_col_idx("zzz"), None, "columns are found by name");
-    assert_eq!(s.col_idx("b"), 1, "columns are found by name");
-    assert_eq!(s.column(2).type_id(), BigInt, "columns are found by name");
-}
-
-#[test]
-#[should_panic]
-fn s3b_02_asking_for_a_missing_column_by_name_is_a_bug() {
-    mixed_schema().col_idx("nope");
-}
-
-#[test]
-fn s3b_02_copy_schema_picks_columns_and_recomputes_the_offsets() {
-    let s = mixed_schema();
-    let k = Schema::copy_schema(&s, &[2, 0]);
-    assert_eq!(k.columns().iter().map(|c| c.name()).collect::<Vec<_>>(), vec!["c", "a"], "copy schema picks columns and recomputes the offsets");
-    assert_eq!(k.columns().iter().map(|c| c.offset()).collect::<Vec<_>>(), vec![0, 8], "offsets are those of the new schema");
-    assert_eq!(k.inlined_storage_size(), 12, "copy schema picks columns and recomputes the offsets");
-    assert!(k.is_inlined(), "copy schema picks columns and recomputes the offsets: expected `k.is_inlined()`");
-    assert_eq!(s.column(2).offset(), 8, "the source schema is unchanged");
-}
-
-#[test]
-fn s3b_02_schemas_print_in_two_formats_and_an_empty_schema_is_fine() {
+fn s3b_01_columns_and_schemas_print_like_bustub() {
+    assert_eq!(Column::new("a", Integer).to_string(true), "a:INTEGER");
+    assert_eq!(Column::new_varchar("b", 20).to_string(true), "b:VARCHAR(20)");
+    assert_eq!(Column::new("c", BigInt).to_string(false), "Column[c, BIGINT, Offset:0, Length:8]");
     let s = Schema::new(vec![Column::new("a", Integer), Column::new_varchar("b", 20)]);
-    assert_eq!(s.to_string(true), "(a:INTEGER, b:VARCHAR(20))", "schemas print in two formats and an empty schema is fine");
-    assert_eq!(
-        s.to_string(false),
-        "Schema[NumColumns:2, IsInlined:0, Length:8] :: (Column[a, INTEGER, Offset:0, Length:4], Column[b, VARCHAR, Offset:4, Length:20])", "schemas print in two formats and an empty schema is fine"
-    );
+    assert_eq!(s.to_string(true), "(a:INTEGER, b:VARCHAR(20))");
+    assert_eq!(s.to_string(false), "Schema[NumColumns:2, IsInlined:0, Length:8] :: (Column[a, INTEGER, Offset:0, Length:4], Column[b, VARCHAR, Offset:4, Length:20])");
     let e = Schema::new(vec![]);
-    assert_eq!((e.column_count(), e.inlined_storage_size(), e.is_inlined()), (0, 0, true), "schemas print in two formats and an empty schema is fine");
-    assert_eq!(e.to_string(true), "()", "schemas print in two formats and an empty schema is fine");
+    assert_eq!((e.column_count(), e.inlined_storage_size(), e.is_inlined(), e.to_string(true).as_str()), (0, 0, true, "()"));
 }
 
-// ---- 3b-03 · Building a tuple -----------------------------------------------------------------------------------------------------
+proptest! {
+    #![proptest_config(config())]
 
-#[test]
-fn s3b_03_a_fixed_size_tuple_is_its_values_one_after_another() {
-    let s = Schema::new(vec![Column::new("a", Integer), Column::new("b", BigInt), Column::new("c", Boolean)]);
-    let t = Tuple::new(&[Value::integer(1), Value::bigint(2), Value::boolean(true)], &s);
-    assert_eq!(t.get_length(), 13, "a fixed size tuple is its values one after another");
-    assert_eq!(t.data(), &[1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1], "a fixed size tuple is its values one after another");
+    /// Each column starts where the previous one ended: a fixed column takes its type's size, a text column a 4-byte slot (where its bytes
+    /// are found); the schema's length is the total; it knows which columns are not inlined.
+    #[test]
+    fn s3b_01_columns_get_consecutive_offsets(cols in prop::collection::vec(col(), 0..10)) {
+        let s = schema_of(&cols);
+        let mut at = 0;
+        let mut text = vec![];
+        for (i, c) in cols.iter().enumerate() {
+            prop_assert_eq!(s.column(i as u32).offset(), at, "column {}", i);
+            at += match c { Col::Fixed(t) => t.type_size().unwrap() as u32, Col::Text(_) => { text.push(i as u32); 4 } };
+        }
+        prop_assert_eq!(s.inlined_storage_size(), at);
+        prop_assert_eq!(s.uninlined_columns(), &text[..]);
+        prop_assert_eq!((s.column_count() as usize, s.uninlined_column_count() as usize, s.is_inlined()), (cols.len(), text.len(), text.is_empty()));
+    }
+
+    /// Columns are found by name (the first one with that name); `copy_schema` picks columns in the order given and recomputes the offsets.
+    #[test]
+    fn s3b_01_copy_schema_picks_columns_and_lays_them_out_again(cols in prop::collection::vec(col(), 1..9), picks in prop::collection::vec(0usize..9, 0..8)) {
+        let s = schema_of(&cols);
+        let attrs: Vec<u32> = picks.iter().map(|p| (p % cols.len()) as u32).collect();
+        let k = Schema::copy_schema(&s, &attrs);
+        prop_assert_eq!(k.column_count() as usize, attrs.len());
+        let direct = Schema::new(attrs.iter().map(|&i| s.column(i).clone()).collect());
+        prop_assert_eq!(k.inlined_storage_size(), direct.inlined_storage_size());
+        for (j, &i) in attrs.iter().enumerate() {
+            prop_assert_eq!(k.column(j as u32).name(), s.column(i).name());
+            prop_assert_eq!(k.column(j as u32).type_id(), s.column(i).type_id());
+        }
+        for (i, c) in s.columns().iter().enumerate() {
+            let first = s.columns().iter().position(|d| d.name() == c.name()).unwrap() as u32;
+            prop_assert_eq!(s.try_col_idx(c.name()), Some(first), "column {}", i);
+        }
+        prop_assert_eq!(s.try_col_idx("no such column"), None);
+    }
 }
 
-#[test]
-fn s3b_03_a_varchar_is_stored_after_the_fixed_part_and_its_slot_holds_where() {
-    let s = Schema::new(vec![Column::new("a", Integer), Column::new_varchar("b", 20), Column::new("c", BigInt)]);
-    let t = Tuple::new(&[Value::integer(7), Value::varchar("hi"), Value::bigint(9)], &s);
-    // fixed part: a(4) + offset(4) + c(8) = 16; then the string: length 3 (text + zero byte), 'h', 'i', 0
-    assert_eq!(t.get_length(), 16 + 4 + 3, "a varchar is stored after the fixed part and its slot holds where");
-    assert_eq!(&t.data()[0..4], &[7, 0, 0, 0], "a varchar is stored after the fixed part and its slot holds where");
-    assert_eq!(&t.data()[4..8], &16u32.to_le_bytes(), "the string starts at byte 16");
-    assert_eq!(&t.data()[8..16], &9i64.to_le_bytes(), "a varchar is stored after the fixed part and its slot holds where");
-    assert_eq!(&t.data()[16..], &[3, 0, 0, 0, b'h', b'i', 0], "a varchar is stored after the fixed part and its slot holds where");
-}
+// ---- 3b-02 · Tuples --------------------------------------------------------------------------------------------------------
 
-#[test]
-fn s3b_03_several_varchars_follow_each_other_in_column_order() {
-    let s = Schema::new(vec![Column::new_varchar("x", 10), Column::new("n", SmallInt), Column::new_varchar("y", 10)]);
-    let t = Tuple::new(&[Value::varchar("ab"), Value::smallint(5), Value::varchar("c")], &s);
-    assert_eq!(s.inlined_storage_size(), 10, "several varchars follow each other in column order");
-    assert_eq!(&t.data()[0..4], &10u32.to_le_bytes(), "several varchars follow each other in column order");
-    assert_eq!(&t.data()[6..10], &17u32.to_le_bytes(), "the second string starts after the first: 10 + (4 + 3)");
-    assert_eq!(t.get_length(), 10 + 7 + 6, "several varchars follow each other in column order");
-}
+proptest! {
+    #![proptest_config(config())]
 
-#[test]
-fn s3b_03_a_null_varchar_takes_only_its_four_byte_marker() {
-    let s = Schema::new(vec![Column::new_varchar("x", 10), Column::new("n", Integer)]);
-    let t = Tuple::new(&[Value::null(Varchar), Value::integer(1)], &s);
-    assert_eq!(t.get_length(), 8 + 4, "a null varchar takes only its four byte marker");
-    assert_eq!(&t.data()[8..], &u32::MAX.to_le_bytes(), "a null varchar takes only its four byte marker");
-    let u = Tuple::new(&[Value::varchar(""), Value::integer(1)], &s);
-    assert_eq!(u.get_length(), 8 + 5, "an empty string is a length and a zero byte; a NULL is not");
-}
+    /// Whatever row goes into a tuple comes out of it, column by column, with its type: every type, every NULL, strings of any length.
+    #[test]
+    fn s3b_02_every_value_comes_back_from_its_tuple((cols, rows) in schema_and_rows()) {
+        let s = schema_of(&cols);
+        for bits in rows {
+            let values = row(&cols, &bits);
+            let t = Tuple::new(&values, &s);
+            for (i, v) in values.iter().enumerate() {
+                let got = t.get_value(&s, i as u32);
+                prop_assert!(same(&got, v), "column {} of {}: put {:?}, got {:?}", i, s.to_string(true), v, got);
+                prop_assert_eq!(t.is_null(&s, i as u32), v.is_null());
+            }
+        }
+    }
 
-#[test]
-fn s3b_03_a_nulls_slot_holds_its_reserved_pattern() {
-    let s = Schema::new(vec![Column::new("a", Integer), Column::new("b", Decimal)]);
-    let t = Tuple::new(&[Value::null(Integer), Value::null(Decimal)], &s);
-    assert_eq!(&t.data()[0..4], &i32::MIN.to_le_bytes(), "a nulls slot holds its reserved pattern");
-    assert_eq!(&t.data()[4..12], &f64::MIN.to_le_bytes(), "a nulls slot holds its reserved pattern");
-}
+    /// A tuple is as small as it can sensibly be: no more than the fixed part plus each text value's stored size, and no less than the fixed part.
+    #[test]
+    fn s3b_02_a_tuple_is_the_fixed_part_plus_its_text((cols, rows) in schema_and_rows()) {
+        let s = schema_of(&cols);
+        for bits in rows {
+            let values = row(&cols, &bits);
+            let t = Tuple::new(&values, &s);
+            let texts: usize = s.uninlined_columns().iter().map(|&i| values[i as usize].storage_size()).sum();
+            prop_assert!(t.get_length() as usize >= s.inlined_storage_size() as usize);
+            prop_assert!(t.get_length() as usize <= s.inlined_storage_size() as usize + texts, "{} bytes for a fixed part of {} and texts of {}", t.get_length(), s.inlined_storage_size(), texts);
+            prop_assert_eq!(t.data().len(), t.get_length() as usize);
+            prop_assert!(!t.get_rid().page_id().is_valid(), "a new tuple is in no table");
+        }
+    }
 
-#[test]
-#[should_panic]
-fn s3b_03_a_tuple_needs_one_value_per_column() {
-    Tuple::new(&[Value::integer(1)], &mixed_schema());
-}
+    /// A key tuple holds the chosen columns, laid out by the key schema.
+    #[test]
+    fn s3b_02_a_key_tuple_has_the_chosen_columns((cols, rows) in schema_and_rows(), picks in prop::collection::vec(0usize..8, 1..4)) {
+        let s = schema_of(&cols);
+        let attrs: Vec<u32> = picks.iter().map(|p| (p % cols.len()) as u32).collect();
+        let key_schema = Schema::copy_schema(&s, &attrs);
+        let values = row(&cols, &rows[0]);
+        let t = Tuple::new(&values, &s);
+        let key = t.key_from_tuple(&s, &key_schema, &attrs);
+        for (j, &i) in attrs.iter().enumerate() {
+            prop_assert!(same(&key.get_value(&key_schema, j as u32), &values[i as usize]));
+        }
+    }
 
-#[test]
-#[should_panic]
-fn s3b_03_a_value_must_have_its_columns_type() {
-    let s = Schema::new(vec![Column::new("a", Integer)]);
-    Tuple::new(&[Value::varchar("x")], &s);
-}
-
-#[test]
-fn s3b_03_a_new_tuple_has_no_record_id_and_can_be_made_from_bytes() {
-    let s = Schema::new(vec![Column::new("a", Integer)]);
-    let t = Tuple::new(&[Value::integer(5)], &s);
-    assert_eq!(t.get_rid(), Rid::default(), "a new tuple has no record id and can be made from bytes");
-    let c = Tuple::from_bytes(Rid::new(PageId(3), 4), t.data());
-    assert_eq!(c.get_rid(), Rid::new(PageId(3), 4), "a new tuple has no record id and can be made from bytes");
-    assert_eq!(c.data(), t.data(), "a new tuple has no record id and can be made from bytes");
-    assert_eq!(Tuple::empty().get_length(), 0, "a new tuple has no record id and can be made from bytes");
-}
-
-// ---- 3b-04 · Reading a tuple ------------------------------------------------------------------------------------------------------
-
-#[test]
-fn s3b_04_every_value_comes_back() {
-    let s = mixed_schema();
-    let values = mixed_values();
-    let t = Tuple::new(&values, &s);
-    for (i, v) in values.iter().enumerate() {
-        assert_eq!(&t.get_value(&s, i as u32), v, "column {i}");
+    /// A tuple serialised with its length prefix comes back byte for byte.
+    #[test]
+    fn s3b_02_a_tuple_serialises_with_a_length_prefix((cols, rows) in schema_and_rows(), offset in 0usize..8) {
+        let s = schema_of(&cols);
+        let t = Tuple::new(&row(&cols, &rows[0]), &s);
+        let mut buf = vec![0xEEu8; offset + 4 + t.data().len() + 10];
+        t.serialize_to(&mut buf[offset..]);
+        prop_assert_eq!(&buf[offset..offset + 4], &(t.get_length() as i32).to_le_bytes(), "a 4-byte little-endian length first");
+        prop_assert!(buf[offset + 4 + t.data().len()..].iter().all(|&b| b == 0xEE), "nothing written past the tuple");
+        let back = Tuple::deserialize_from(&buf[offset..]);
+        prop_assert_eq!(back.data(), t.data());
     }
 }
 
 #[test]
-fn s3b_04_every_type_and_null_round_trips_through_a_tuple() {
-    let s = Schema::new(vec![
-        Column::new("b", Boolean),
-        Column::new("t", TinyInt),
-        Column::new("s", SmallInt),
-        Column::new("i", Integer),
-        Column::new("l", BigInt),
-        Column::new("d", Decimal),
-        Column::new("ts", Timestamp),
-        Column::new_varchar("v", 50),
-    ]);
-    let rows = [
-        vec![Value::boolean(false), Value::tinyint(-5), Value::smallint(300), Value::integer(-70_000), Value::bigint(1 << 40), Value::decimal(2.5), Value::timestamp(99), Value::varchar("héllo")],
-        vec![Value::null(Boolean), Value::null(TinyInt), Value::null(SmallInt), Value::null(Integer), Value::null(BigInt), Value::null(Decimal), Value::null(Timestamp), Value::null(Varchar)],
-    ];
-    for row in rows {
-        let t = Tuple::new(&row, &s);
-        let back: Vec<Value> = (0..8).map(|i| t.get_value(&s, i)).collect();
-        assert_eq!(back, row, "every type and null round trips through a tuple");
-    }
+fn s3b_02_a_tuple_needs_one_value_per_column_of_the_right_type() {
+    let s = Schema::new(vec![Column::new("a", Integer), Column::new_varchar("b", 10)]);
+    assert!(std::panic::catch_unwind(|| Tuple::new(&[Value::integer(1)], &s)).is_err(), "too few values");
+    assert!(std::panic::catch_unwind(|| Tuple::new(&[Value::integer(1), Value::varchar("x"), Value::integer(2)], &s)).is_err(), "too many values");
+    assert!(std::panic::catch_unwind(|| Tuple::new(&[Value::varchar("x"), Value::integer(1)], &s)).is_err(), "values of the wrong types");
 }
 
 #[test]
-fn s3b_04_is_null_and_to_string() {
+fn s3b_02_tuples_print_and_can_be_made_from_bytes() {
     let s = Schema::new(vec![Column::new("a", Integer), Column::new_varchar("b", 10), Column::new("c", Decimal)]);
     let t = Tuple::new(&[Value::integer(4), Value::null(Varchar), Value::decimal(1.5)], &s);
-    assert!(!t.is_null(&s, 0) && t.is_null(&s, 1) && !t.is_null(&s, 2), "is null and to string: expected `!t.is_null(&s, 0) && t.is_null(&s, 1) && !t.is_null(&s, 2)`");
-    assert_eq!(t.to_string(&s), "(4, <NULL>, 1.500000)", "is null and to string");
-    let u = Tuple::new(&[Value::integer(-1), Value::varchar("x y"), Value::decimal(0.0)], &s);
-    assert_eq!(u.to_string(&s), "(-1, x y, 0.000000)", "is null and to string");
+    assert!(!t.is_null(&s, 0) && t.is_null(&s, 1));
+    assert_eq!(t.to_string(&s), "(4, <NULL>, 1.500000)");
+    assert_eq!(Tuple::new(&[Value::integer(-1), Value::varchar("x y"), Value::decimal(0.0)], &s).to_string(&s), "(-1, x y, 0.000000)");
+    let copy = Tuple::from_bytes(Rid::new(PageId(3), 4), t.data());
+    assert_eq!((copy.get_rid(), copy.data()), (Rid::new(PageId(3), 4), t.data()));
+    assert_eq!(copy.to_string(&s), t.to_string(&s));
+    assert!(!Tuple::empty().get_rid().page_id().is_valid());
+}
+
+// ---- 3b-03 · A table page: inserting ---------------------------------------------------------------------------------------
+
+fn blob(n: u8, len: usize) -> Tuple {
+    Tuple::from_bytes(Rid::default(), &vec![n; len])
 }
 
 #[test]
-fn s3b_04_a_key_tuple_has_the_chosen_columns_under_the_key_schema() {
-    let s = mixed_schema();
-    let t = Tuple::new(&mixed_values(), &s);
-    let key_schema = Schema::copy_schema(&s, &[2, 1]);
-    let key = t.key_from_tuple(&s, &key_schema, &[2, 1]);
-    assert_eq!(key.get_value(&key_schema, 0), Value::bigint(9), "a key tuple has the chosen columns under the key schema");
-    assert_eq!(key.get_value(&key_schema, 1), Value::varchar("hi"), "a key tuple has the chosen columns under the key schema");
-    assert_eq!(key.to_string(&key_schema), "(9, hi)", "a key tuple has the chosen columns under the key schema");
+fn s3b_03_a_fresh_page_is_empty() {
+    let mut bytes = [0xFFu8; BUSTUB_PAGE_SIZE]; // a recycled page full of garbage
+    let mut page = TablePage::new(&mut bytes[..]);
+    page.init();
+    assert_eq!((page.get_num_tuples(), page.get_num_deleted_tuples(), page.get_next_page_id()), (0, 0, None));
 }
 
 #[test]
-fn s3b_04_a_tuple_serialises_with_a_length_prefix() {
-    let s = mixed_schema();
-    let t = Tuple::new(&mixed_values(), &s);
-    let mut buf = vec![0xEEu8; t.data().len() + 10];
-    t.serialize_to(&mut buf);
-    assert_eq!(&buf[..4], &(t.get_length() as i32).to_le_bytes(), "a tuple serialises with a length prefix");
-    let back = Tuple::deserialize_from(&buf);
-    assert_eq!(back.data(), t.data(), "a tuple serialises with a length prefix");
-    assert_eq!(back.get_value(&s, 3), Value::varchar("world!"), "a tuple serialises with a length prefix");
-}
-
-#[test]
-fn s3b_04_many_random_tuples_round_trip() {
-    let s = Schema::new(vec![Column::new("a", Integer), Column::new_varchar("b", 30), Column::new("c", BigInt), Column::new_varchar("d", 30)]);
-    let mut x = 12345u64;
-    let mut next = || { x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407); (x >> 33) as usize };
-    for _ in 0..300 {
-        let (a, c) = (next() as i32 / 2, next() as i64 * 1_000);
-        let (b, d) = ("x".repeat(next() % 20), "é".repeat(next() % 5));
-        let row = vec![Value::integer(a), if next() % 4 == 0 { Value::null(Varchar) } else { Value::varchar(&b) }, Value::bigint(c), Value::varchar(&d)];
-        let t = Tuple::new(&row, &s);
-        assert_eq!((0..4).map(|i| t.get_value(&s, i)).collect::<Vec<_>>(), row, "many random tuples round trip");
+fn s3b_03_tuples_get_consecutive_slot_numbers() {
+    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
+    let mut page = TablePage::new(&mut bytes[..]);
+    page.init();
+    for i in 0..20u16 {
+        assert_eq!(page.insert_tuple(&meta(false), &blob(i as u8, 50)), Some(i));
+        assert_eq!(page.get_num_tuples(), i as u32 + 1);
     }
 }
 
-// ---- 3b-05 · A table page: inserting tuples ---------------------------------------------------------------------------------------
-
-fn fixed_tuple(n: i64, len: usize) -> Tuple {
-    Tuple::from_bytes(Rid::default(), &vec![n as u8; len])
-}
-
 #[test]
-fn s3b_05_a_fresh_page_is_empty() {
-    let mut bytes = [0xFFu8; BUSTUB_PAGE_SIZE];
-    let mut page = TablePage::new(&mut bytes[..]);
-    page.init();
-    assert_eq!((page.get_num_tuples(), page.get_num_deleted_tuples(), page.get_next_page_id()), (0, 0, None), "a fresh page is empty");
-}
-
-#[test]
-fn s3b_05_inserted_tuples_get_consecutive_slots_and_grow_from_the_end_of_the_page() {
+fn s3b_03_the_next_page_id_is_kept_and_can_be_cleared() {
     let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
     let mut page = TablePage::new(&mut bytes[..]);
     page.init();
-    assert_eq!(page.get_next_tuple_offset(&meta(false), &fixed_tuple(0, 100)), Some(8092), "inserted tuples get consecutive slots and grow from the end of the page");
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(1, 100)), Some(0), "inserted tuples get consecutive slots and grow from the end of the page");
-    assert_eq!(page.get_next_tuple_offset(&meta(false), &fixed_tuple(0, 50)), Some(8092 - 50), "inserted tuples get consecutive slots and grow from the end of the page");
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(2, 50)), Some(1), "inserted tuples get consecutive slots and grow from the end of the page");
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(3, 10)), Some(2), "inserted tuples get consecutive slots and grow from the end of the page");
-    assert_eq!(page.get_num_tuples(), 3, "inserted tuples get consecutive slots and grow from the end of the page");
-    drop(page);
-    assert_eq!(&bytes[8092..8192], &[1u8; 100][..], "the first tuple is at the very end of the page");
-    assert_eq!(&bytes[8042..8092], &[2u8; 50][..], "inserted tuples get consecutive slots and grow from the end of the page");
-}
-
-#[test]
-fn s3b_05_a_page_is_full_when_the_slots_and_the_tuples_would_meet() {
-    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
-    let mut page = TablePage::new(&mut bytes[..]);
-    page.init();
-    // header 8 + n * (24 + 100) <= 8192  =>  n = 66
-    for i in 0..66 {
-        assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(i, 100)), Some(i as u16), "tuple {i}");
-    }
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(66, 100)), None, "no room for a 67th");
-    assert_eq!(page.get_num_tuples(), 66, "a failed insert changes nothing");
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(66, 1)), None, "66 tuples of 100 bytes fill the page exactly: not even one byte more");
-}
-
-#[test]
-fn s3b_05_the_free_space_is_what_is_between_the_slots_and_the_tuples() {
-    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
-    let mut page = TablePage::new(&mut bytes[..]);
-    page.init();
-    for i in 0..60 {
-        page.insert_tuple(&meta(false), &fixed_tuple(i, 100));
-    }
-    // 8 + 60 * 124 = 7448 used: 744 bytes left, of which a new slot takes 24
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(60, 721)), None, "the free space is what is between the slots and the tuples");
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(60, 720)), Some(60), "the free space is what is between the slots and the tuples");
-}
-
-#[test]
-fn s3b_05_a_tuple_too_big_for_any_page_is_refused_and_the_boundary_is_exact() {
-    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
-    let mut page = TablePage::new(&mut bytes[..]);
-    page.init();
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(0, 9000)), None, "bigger than the page: not an underflow panic");
-    let biggest = BUSTUB_PAGE_SIZE - 8 - 24;
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(0, biggest + 1)), None, "a tuple too big for any page is refused and the boundary is exact");
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(0, biggest)), Some(0), "the largest tuple that fits an empty page: 8160 bytes");
-    assert_eq!(page.insert_tuple(&meta(false), &fixed_tuple(1, 1)), None, "a tuple too big for any page is refused and the boundary is exact");
-}
-
-#[test]
-fn s3b_05_the_next_page_id_is_stored_in_the_header() {
-    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
-    let mut page = TablePage::new(&mut bytes[..]);
-    page.init();
-    page.set_next_page_id(Some(PageId(0)));
-    assert_eq!(page.get_next_page_id(), Some(PageId(0)), "page 0 is a real page");
-    page.insert_tuple(&meta(false), &fixed_tuple(1, 10));
-    assert_eq!(page.get_next_page_id(), Some(PageId(0)), "the next page id is stored in the header");
+    page.set_next_page_id(Some(PageId(7)));
+    page.insert_tuple(&meta(false), &blob(1, 10));
+    assert_eq!(page.get_next_page_id(), Some(PageId(7)), "inserting does not disturb it");
     page.set_next_page_id(None);
-    assert_eq!(page.get_next_page_id(), None, "the next page id is stored in the header");
+    assert_eq!(page.get_next_page_id(), None);
 }
 
-// ---- 3b-06 · Reading and updating tuples in a page --------------------------------------------------------------------------------
-
-fn page_with_three(bytes: &mut [u8; BUSTUB_PAGE_SIZE]) -> TablePage<&mut [u8]> {
+#[test]
+fn s3b_03_a_tuple_larger_than_the_page_is_refused_and_the_page_is_unchanged() {
+    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
     let mut page = TablePage::new(&mut bytes[..]);
     page.init();
-    for (i, len) in [30, 12, 77].into_iter().enumerate() {
-        page.insert_tuple(&TupleMeta { ts: i as i64, is_deleted: false }, &fixed_tuple(i as i64 + 1, len));
+    page.insert_tuple(&meta(false), &blob(1, 100)).unwrap();
+    assert!(page.get_next_tuple_offset(&meta(false), &blob(2, BUSTUB_PAGE_SIZE)).is_none());
+    assert_eq!(page.insert_tuple(&meta(false), &blob(2, BUSTUB_PAGE_SIZE)), None);
+    assert_eq!(page.get_num_tuples(), 1);
+    // the biggest tuple an empty page can take is almost the whole page (the header and one slot are the only overhead)
+    let mut other = [0u8; BUSTUB_PAGE_SIZE];
+    let mut empty = TablePage::new(&mut other[..]);
+    empty.init();
+    let biggest = (BUSTUB_PAGE_SIZE - 200..BUSTUB_PAGE_SIZE).rev().find(|&len| empty.get_next_tuple_offset(&meta(false), &blob(0, len)).is_some());
+    assert!(biggest.is_some_and(|b| b >= BUSTUB_PAGE_SIZE - 100), "an empty page should take a tuple of nearly {BUSTUB_PAGE_SIZE} bytes; the largest found was {biggest:?}");
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// Insert tuples of one size until the page is full: the count is within sensible bounds (the page wastes no more than a header and
+    /// 32 bytes a tuple, and cannot hold more than its bytes), and `get_next_tuple_offset` says "no room" exactly when `insert_tuple` does.
+    #[test]
+    fn s3b_03_a_page_fills_up_to_sensible_bounds(len in 1usize..400) {
+        let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
+        let mut page = TablePage::new(&mut bytes[..]);
+        page.init();
+        let mut count = 0u32;
+        loop {
+            let t = blob(count as u8, len);
+            let fits = page.get_next_tuple_offset(&meta(false), &t).is_some();
+            let slot = page.insert_tuple(&meta(false), &t);
+            prop_assert_eq!(fits, slot.is_some(), "offset and insert disagree at tuple {}", count);
+            match slot {
+                Some(s) => { prop_assert_eq!(s as u32, count); count += 1; }
+                None => break,
+            }
+        }
+        prop_assert_eq!(page.get_num_tuples(), count);
+        let at_least = (BUSTUB_PAGE_SIZE - 64) / (len + 32);
+        prop_assert!(count as usize >= at_least, "{} tuples of {} bytes fit; at least {} should", count, len, at_least);
+        prop_assert!(count as usize <= BUSTUB_PAGE_SIZE / len, "{} tuples of {} bytes cannot fit in a page", count, len);
     }
-    page
+
+    /// A page of mixed-size tuples keeps counting right and never overwrites: refused inserts leave the page as it was.
+    #[test]
+    fn s3b_03_a_refused_insert_changes_nothing(lens in prop::collection::vec(1usize..2000, 1..40)) {
+        let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
+        let mut page = TablePage::new(&mut bytes[..]);
+        page.init();
+        let mut stored = 0;
+        for (i, &len) in lens.iter().enumerate() {
+            match page.insert_tuple(&meta(false), &blob(i as u8, len)) {
+                Some(slot) => { prop_assert_eq!(slot as u32, stored); stored += 1; }
+                None => prop_assert_eq!(page.get_num_tuples(), stored),
+            }
+        }
+        prop_assert_eq!(page.get_num_tuples(), stored);
+    }
 }
 
-#[test]
-fn s3b_06_a_tuple_and_its_meta_come_back_by_slot() {
-    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
-    let page = page_with_three(&mut bytes);
-    for (slot, (len, byte)) in [(30, 1u8), (12, 2), (77, 3)].into_iter().enumerate() {
-        let rid = Rid::new(PageId(5), slot as u32);
-        let (m, t) = page.get_tuple(rid).unwrap();
-        assert_eq!(m, TupleMeta { ts: slot as i64, is_deleted: false }, "a tuple and its meta come back by slot");
-        assert_eq!(t.data(), vec![byte; len].as_slice(), "a tuple and its meta come back by slot");
-        assert_eq!(t.get_rid(), rid, "the tuple knows where it came from");
-        assert_eq!(page.get_tuple_meta(rid).unwrap(), m, "a tuple and its meta come back by slot");
+// ---- 3b-04 · A table page: reading and updating ----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug)]
+enum PageOp {
+    Insert(u8, usize),
+    Get(usize),
+    Delete(usize),
+    Overwrite(usize, u8),
+    Resize(usize),
+}
+
+fn page_ops() -> impl Strategy<Value = Vec<PageOp>> {
+    prop::collection::vec(
+        prop_oneof![
+            4 => (any::<u8>(), 1usize..120).prop_map(|(b, l)| PageOp::Insert(b, l)),
+            3 => (0usize..40).prop_map(PageOp::Get),
+            2 => (0usize..40).prop_map(PageOp::Delete),
+            2 => (0usize..40, any::<u8>()).prop_map(|(i, b)| PageOp::Overwrite(i, b)),
+            1 => (0usize..40).prop_map(PageOp::Resize),
+        ],
+        1..120,
+    )
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    /// A page against a `Vec` of `(meta, bytes)`: any mix of inserts, reads, deletes and in-place overwrites. A slot past the last tuple is an
+    /// error and not a panic; a deleted tuple keeps its bytes; an overwrite of another length is refused and changes nothing; the deleted
+    /// count goes up each time a live tuple is marked deleted.
+    #[test]
+    fn s3b_04_a_page_behaves_like_a_vec_of_tuples(ops in page_ops()) {
+        let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
+        let mut page = TablePage::new(&mut bytes[..]);
+        page.init();
+        let mut model: Vec<(TupleMeta, Vec<u8>)> = Vec::new();
+        let mut newly_deleted = 0usize; // each time a live tuple becomes deleted (a later un-delete does not take it back)
+        for op in ops {
+            match op {
+                PageOp::Insert(b, len) => {
+                    if let Some(slot) = page.insert_tuple(&meta(false), &blob(b, len)) {
+                        prop_assert_eq!(slot as usize, model.len());
+                        model.push((meta(false), vec![b; len]));
+                    }
+                }
+                PageOp::Get(i) => {
+                    let rid = Rid::new(PageId(5), i as u32);
+                    match (page.get_tuple(rid), model.get(i)) {
+                        (Ok((m, t)), Some((mm, data))) => {
+                            prop_assert_eq!(m, *mm);
+                            prop_assert_eq!(t.data(), &data[..]);
+                            prop_assert_eq!(t.get_rid(), rid, "the tuple knows its record id");
+                            prop_assert_eq!(page.get_tuple_meta(rid).unwrap(), *mm);
+                        }
+                        (Err(e), None) => { prop_assert!(page.get_tuple_meta(rid).is_err()); let _ = e; }
+                        (got, want) => prop_assert!(false, "slot {}: page says {:?}, model says {:?}", i, got.map(|x| x.0), want),
+                    }
+                }
+                PageOp::Delete(i) => {
+                    let rid = Rid::new(PageId(5), i as u32);
+                    let r = page.update_tuple_meta(&meta(true), rid);
+                    match model.get_mut(i) {
+                        Some(entry) => { prop_assert!(r.is_ok()); if !entry.0.is_deleted { newly_deleted += 1; } entry.0 = meta(true); }
+                        None => prop_assert!(r.is_err()),
+                    }
+                }
+                PageOp::Overwrite(i, b) => {
+                    let rid = Rid::new(PageId(5), i as u32);
+                    let len = model.get(i).map(|e| e.1.len()).unwrap_or(10);
+                    let r = page.update_tuple_in_place_unsafe(&TupleMeta { ts: 9, is_deleted: false }, &blob(b, len), rid);
+                    match model.get_mut(i) {
+                        Some(entry) => { prop_assert!(r.is_ok()); *entry = (TupleMeta { ts: 9, is_deleted: false }, vec![b; len]); } // revives a deleted tuple
+                        None => prop_assert!(r.is_err()),
+                    }
+                }
+                PageOp::Resize(i) => {
+                    let rid = Rid::new(PageId(5), i as u32);
+                    if let Some(entry) = model.get(i) {
+                        prop_assert!(page.update_tuple_in_place_unsafe(&meta(false), &blob(1, entry.1.len() + 1), rid).is_err(), "another length is refused");
+                    }
+                }
+            }
+            prop_assert_eq!(page.get_num_tuples() as usize, model.len());
+            prop_assert_eq!(page.get_num_deleted_tuples() as usize, newly_deleted, "the deleted count goes up each time a live tuple is marked deleted");
+        }
     }
 }
 
 #[test]
-fn s3b_06_a_slot_past_the_last_tuple_is_an_error_not_a_panic() {
+fn s3b_04_marking_deleted_counts_once_and_keeps_the_bytes() {
     let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
-    let mut page = page_with_three(&mut bytes);
-    let bad = Rid::new(PageId(1), 3);
-    assert!(page.get_tuple(bad).is_err(), "a slot past the last tuple is an error not a panic: expected `page.get_tuple(bad).is_err()`");
-    assert!(page.get_tuple_meta(bad).is_err(), "a slot past the last tuple is an error not a panic: expected `page.get_tuple_meta(bad).is_err()`");
-    assert!(page.update_tuple_meta(&meta(true), bad).is_err(), "a slot past the last tuple is an error not a panic: expected `page.update_tuple_meta(&meta(true), bad).is_err()`");
-    assert!(page.update_tuple_in_place_unsafe(&meta(false), &fixed_tuple(0, 30), bad).is_err(), "a slot past the last tuple is an error not a panic: expected `page.update_tuple_in_place_unsafe(&meta(false), &fixed_tuple(0, 30), bad).is_err()`");
-}
-
-#[test]
-fn s3b_06_marking_a_tuple_deleted_counts_it_once_and_keeps_its_bytes() {
-    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
-    let mut page = page_with_three(&mut bytes);
-    let rid = Rid::new(PageId(1), 1);
-    page.update_tuple_meta(&TupleMeta { ts: 9, is_deleted: true }, rid).unwrap();
-    assert_eq!(page.get_num_deleted_tuples(), 1, "marking a tuple deleted counts it once and keeps its bytes");
-    assert_eq!(page.get_tuple_meta(rid).unwrap(), TupleMeta { ts: 9, is_deleted: true }, "marking a tuple deleted counts it once and keeps its bytes");
-    page.update_tuple_meta(&TupleMeta { ts: 10, is_deleted: true }, rid).unwrap();
-    assert_eq!(page.get_num_deleted_tuples(), 1, "deleting a deleted tuple does not count twice");
-    let (_, t) = page.get_tuple(rid).unwrap();
-    assert_eq!(t.data(), vec![2u8; 12].as_slice(), "the bytes stay: only the flag changed");
-    assert_eq!(page.get_num_tuples(), 3, "a deleted tuple still has its slot: record ids stay valid");
-    assert!(!page.get_tuple_meta(Rid::new(PageId(1), 0)).unwrap().is_deleted, "marking a tuple deleted counts it once and keeps its bytes: expected `!page.get_tuple_meta(Rid::new(PageId(1), 0)).unwrap().is_deleted`");
-}
-
-#[test]
-fn s3b_06_a_tuple_of_the_same_length_can_be_replaced_in_place() {
-    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
-    let mut page = page_with_three(&mut bytes);
-    let rid = Rid::new(PageId(1), 2);
-    page.update_tuple_in_place_unsafe(&TupleMeta { ts: 5, is_deleted: false }, &fixed_tuple(9, 77), rid).unwrap();
+    let mut page = TablePage::new(&mut bytes[..]);
+    page.init();
+    let rid = Rid::new(PageId(1), page.insert_tuple(&meta(false), &blob(7, 30)).unwrap() as u32);
+    page.update_tuple_meta(&meta(true), rid).unwrap();
+    page.update_tuple_meta(&meta(true), rid).unwrap();
+    assert_eq!(page.get_num_deleted_tuples(), 1, "a tuple is counted once however often it is marked");
     let (m, t) = page.get_tuple(rid).unwrap();
-    assert_eq!((m.ts, t.data()), (5, vec![9u8; 77].as_slice()), "a tuple of the same length can be replaced in place");
-    assert_eq!(page.get_tuple(Rid::new(PageId(1), 1)).unwrap().1.data(), vec![2u8; 12].as_slice(), "its neighbours are untouched");
-    page.update_tuple_in_place_unsafe(&meta(true), &fixed_tuple(9, 77), rid).unwrap();
-    assert_eq!(page.get_num_deleted_tuples(), 1, "a tuple of the same length can be replaced in place");
+    assert!(m.is_deleted && t.data() == &[7u8; 30][..]);
 }
 
 #[test]
-fn s3b_06_a_tuple_of_another_length_is_refused_and_changes_nothing() {
+fn s3b_04_a_page_is_nothing_but_its_bytes() {
     let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
-    let mut page = page_with_three(&mut bytes);
-    let rid = Rid::new(PageId(1), 0);
-    let before = page.get_tuple(rid).unwrap();
-    assert!(page.update_tuple_in_place_unsafe(&meta(true), &fixed_tuple(7, 31), rid).is_err(), "a tuple of another length is refused and changes nothing: expected `page.update_tuple_in_place_unsafe(&meta(true), &fixed_tuple(7, 31), rid).is_err()`");
-    assert!(page.update_tuple_in_place_unsafe(&meta(true), &fixed_tuple(7, 29), rid).is_err(), "a tuple of another length is refused and changes nothing: expected `page.update_tuple_in_place_unsafe(&meta(true), &fixed_tuple(7, 29), rid).is_err()`");
-    assert_eq!(page.get_tuple(rid).unwrap(), before, "a tuple of another length is refused and changes nothing");
-    assert_eq!(page.get_num_deleted_tuples(), 0, "a refused update does not mark anything deleted");
+    {
+        let mut page = TablePage::new(&mut bytes[..]);
+        page.init();
+        page.set_next_page_id(Some(PageId(3)));
+        for i in 0..30u8 {
+            page.insert_tuple(&TupleMeta { ts: i as i64, is_deleted: i % 4 == 0 }, &blob(i, 20 + i as usize)).unwrap();
+        }
+    }
+    let copy = bytes; // the page's bytes copied somewhere else, as the buffer pool does when it writes and reads a page
+    let page = TablePage::new(&copy[..]);
+    assert_eq!((page.get_num_tuples(), page.get_next_page_id()), (30, Some(PageId(3))));
+    for i in 0..30u8 {
+        let (m, t) = page.get_tuple(Rid::new(PageId(0), i as u32)).unwrap();
+        assert_eq!((m.ts, m.is_deleted, t.data()), (i as i64, i % 4 == 0, &vec![i; 20 + i as usize][..]));
+    }
+}
+
+#[test]
+fn s3b_04_changing_the_metadata_keeps_the_bytes_and_a_same_length_overwrite_keeps_the_neighbours() {
+    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
+    let mut page = TablePage::new(&mut bytes[..]);
+    page.init();
+    let rids: Vec<Rid> = (0..5u8).map(|i| Rid::new(PageId(0), page.insert_tuple(&meta(false), &blob(i, 30)).unwrap() as u32)).collect();
+    page.update_tuple_meta(&TupleMeta { ts: 77, is_deleted: false }, rids[2]).unwrap();
+    assert_eq!(page.get_tuple(rids[2]).unwrap().1.data(), &[2u8; 30][..], "new metadata, same bytes");
+    page.update_tuple_in_place_unsafe(&meta(false), &blob(9, 30), rids[2]).unwrap();
+    for (i, rid) in rids.iter().enumerate() {
+        let want = if i == 2 { 9 } else { i as u8 };
+        assert_eq!(page.get_tuple(*rid).unwrap().1.data(), &[want; 30][..], "slot {i}");
+    }
+}
+
+#[test]
+fn s3b_04_errors_from_a_bad_slot_have_a_kind() {
+    let mut bytes = [0u8; BUSTUB_PAGE_SIZE];
+    let mut page = TablePage::new(&mut bytes[..]);
+    page.init();
+    let e = page.get_tuple(Rid::new(PageId(0), 0)).unwrap_err();
+    assert_eq!(e.kind, ExceptionType::Invalid);
+}
+
+// ---- 3b-05 · Boss: everything together ------------------------------------------------------------------------------------
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 48, ..config() })]
+
+    /// A table is a chain of pages: fill pages with random tuples (starting another when one is full), copy every page's bytes, follow the
+    /// chain, and read every row back by its record id.
+    #[test]
+    fn s3b_05_rows_survive_a_chain_of_pages((cols, rows) in schema_and_rows(), copies in 20usize..80) {
+        let s = schema_of(&cols);
+        let mut pages: Vec<[u8; BUSTUB_PAGE_SIZE]> = vec![[0; BUSTUB_PAGE_SIZE]];
+        TablePage::new(&mut pages[0][..]).init();
+        let mut stored: Vec<(Rid, Vec<Value>)> = vec![];
+        for n in 0..copies {
+            let values = row(&cols, &rows[n % rows.len()]);
+            let tuple = Tuple::new(&values, &s);
+            let last = pages.len() - 1;
+            let (page_no, slot) = match TablePage::new(&mut pages[last][..]).insert_tuple(&meta(false), &tuple) {
+                Some(slot) => (last, slot),
+                None => {
+                    pages.push([0; BUSTUB_PAGE_SIZE]);
+                    TablePage::new(&mut pages[last + 1][..]).init();
+                    TablePage::new(&mut pages[last][..]).set_next_page_id(Some(PageId(last as i32 + 1)));
+                    (last + 1, TablePage::new(&mut pages[last + 1][..]).insert_tuple(&meta(false), &tuple).expect("a tuple that fits an empty page"))
+                }
+            };
+            stored.push((Rid::new(PageId(page_no as i32), slot as u32), values));
+        }
+        let copied = pages.clone();
+        let (mut at, mut total) = (Some(PageId(0)), 0);
+        while let Some(id) = at {
+            let page = TablePage::new(&copied[id.0 as usize][..]);
+            total += page.get_num_tuples() as usize;
+            at = page.get_next_page_id();
+        }
+        prop_assert_eq!(total, copies, "following the chain finds every tuple once");
+        for (rid, values) in stored {
+            let (_, t) = TablePage::new(&copied[rid.page_id().0 as usize][..]).get_tuple(rid).unwrap();
+            for (i, v) in values.iter().enumerate() {
+                prop_assert!(same(&t.get_value(&s, i as u32), v));
+            }
+        }
+    }
+}
+
+#[test]
+fn s3b_05_comparing_values_read_from_a_tuple_works_like_comparing_the_originals() {
+    let s = Schema::new(vec![Column::new("a", Integer), Column::new_varchar("b", 10)]);
+    let t = Tuple::new(&[Value::integer(7), Value::varchar("7")], &s);
+    assert_eq!(t.get_value(&s, 0).compare_equals(&t.get_value(&s, 1)).unwrap(), CmpBool::True, "7 = '7' even after a trip through bytes");
 }

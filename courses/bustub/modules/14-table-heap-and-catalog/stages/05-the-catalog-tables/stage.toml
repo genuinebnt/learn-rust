@@ -1,7 +1,0 @@
-id = "3c-05"
-title = "The catalog: tables"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3c::s3c_05"]
-learn = ["metadata as maps from name and number to shared info", "Option as the answer to \"does it exist?\"", "Arc to share what executors will read"]
-concepts = ["the-catalog", "structs-and-accessors"]

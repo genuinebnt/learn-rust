@@ -1,0 +1,8 @@
+id = "3c-05"
+title = "Boss: a table, an index and BusTub's table test"
+kind = "boss"
+difficulty = "easy"
+tests = ["stages_3c::s3c_05", "tuple_test"]
+retest = true
+concepts = []
+concepts_optional = ["the-catalog", "heap-files", "model-based-testing"]

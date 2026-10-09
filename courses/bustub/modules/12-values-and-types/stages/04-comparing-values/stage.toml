@@ -1,7 +1,0 @@
-id = "3a-04"
-title = "Comparing values: true, false and NULL"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3a::s3a_04"]
-learn = ["three-valued comparison results", "comparing across types by converting one side", "Ordering and the closures that turn it into a boolean"]
-concepts = ["sql-types-and-three-valued-logic", "enums-with-data-and-match", "errors-as-values-with-result"]

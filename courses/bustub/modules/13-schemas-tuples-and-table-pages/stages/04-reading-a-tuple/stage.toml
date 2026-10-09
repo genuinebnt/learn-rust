@@ -1,7 +1,0 @@
-id = "3b-04"
-title = "Reading a tuple"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3b::s3b_04"]
-learn = ["finding a column's bytes by its offset, directly or through a stored offset", "projecting a tuple onto a key", "a length-prefixed byte format"]
-concepts = ["tuple-layout-fixed-and-variable-parts", "serialization-of-values", "sql-types-and-three-valued-logic"]

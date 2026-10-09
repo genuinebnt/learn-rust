@@ -11,7 +11,7 @@ The owner has limited Rust knowledge, and the course gives creative freedom, so 
 | L1 Ownership & moves | `l1-ownership-moves` | written | core | R, 1a, 1b, 1g, 0a |
 | L2 Borrowing | `l2-borrowing` | written | core | R, 1e, 1f, 1g |
 | L3 Lifetimes | `l3-lifetimes` | written | core | 1g, 2c, 3c |
-| L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3e, 3h |
+| L4 Traits & dispatch | `l4-traits-dispatch` | written | core | 1a, 1b, 1c, 1f, 2a, 3c, 3e, 3h |
 | L5 Generics & associated types | `l5-generics` | written | core | 1c, 2a, 2b, 2c, 2d |
 | L6 Closures & functional Rust | `l6-closures` | planned | core | 1b, 2c, 3e |
 | L7 Enums & pattern matching | `l7-enums-patterns` | planned | core | 2c, 2d, 3a, 3b, 3d, 3h, 4a, 0a |
@@ -209,32 +209,33 @@ Do the rows top to bottom; a module's first rows are the ones its first stages n
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums as design | a `Value` enum with data, `match` on pairs of values | the module |
-| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `PartialOrd`/`Ord` with `total_cmp`, `From`/`TryFrom` | the module |
-| [L8 Error design](/t/l8-error-design) *(planned)* | Custom errors | overflow and cast errors as values | the module |
-| [S2 Strings & text](/t/s2-strings-text) | Understand | UTF-8, case mapping, comparing strings | the module |
-| [D13 Matrix, bits & math](/t/d13-matrix-bits-math) *(planned)* | Matrix, bits & math | `checked_*`, `wrapping_*`, overflow in debug and release | the module |
-| [F7 I/O & serialization](/t/f7-io-serialization) *(planned)* | Encodings | a value as bytes | the module |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Enums as design | a `Value` enum with data, `match` on pairs of values | 3a-01, 3a-03 |
+| [S8 The core traits](/t/s8-core-traits) *(planned)* | Implement by hand | `PartialOrd`/`Ord` with `total_cmp`, `From`/`TryFrom` | 3a-02, 3a-03 |
+| [L8 Error design](/t/l8-error-design) *(planned)* | Custom errors | overflow and cast errors as values | 3a-02, 3a-04 |
+| [S2 Strings & text](/t/s2-strings-text) | Understand | UTF-8, case mapping, comparing strings | 3a-01, 3a-03 |
+| [D13 Matrix, bits & math](/t/d13-matrix-bits-math) *(planned)* | Matrix, bits & math | `checked_*`, `wrapping_*`, overflow in debug and release | 3a-04 |
+| [F7 I/O & serialization](/t/f7-io-serialization) *(planned)* | Encodings | a value as bytes | 3a-05 |
 
 ### 3B · Schemas, tuples and table pages
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [F2 Data layout](/t/f2-data-layout) | Locality | the slotted page: header, slot array, cell heap | the module |
-| [F7 I/O & serialization](/t/f7-io-serialization) *(planned)* | Encodings | fixed and variable parts of a row | the module |
-| [S3 Vec & slices](/t/s3-vec-slices) | Understand it | sub-slices, `split_at` | the module |
-| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Patterns in depth | matching on column types | the module |
-| [S2 Strings & text](/t/s2-strings-text) | Understand | strings stored in a page | the module |
+| [F2 Data layout](/t/f2-data-layout) | Locality | the slotted page: header, slot array, cell heap | 3b-03 |
+| [F7 I/O & serialization](/t/f7-io-serialization) *(planned)* | Encodings | fixed and variable parts of a row | 3b-02 |
+| [S3 Vec & slices](/t/s3-vec-slices) | Understand it | sub-slices, `split_at` | 3b-03, 3b-04 |
+| [L7 Enums & pattern matching](/t/l7-enums-patterns) *(planned)* | Patterns in depth | matching on column types | 3b-01, 3b-02 |
+| [S2 Strings & text](/t/s2-strings-text) | Understand | strings stored in a page | 3b-02 |
 
 ### 3C · Table heap, iterator and catalog
 
 | Track | Stage of the track | Practise | Needed by |
 |---|---|---|---|
-| [S6 Iterators](/t/s6-iterators) *(planned)* | Understand | an iterator that holds a position; `IntoIterator` for a borrowed collection | the module |
-| [L3 Lifetimes](/t/l3-lifetimes) | Structs holding refs | an iterator that borrows the heap | the module |
-| [S4 Maps & sets](/t/s4-maps-sets) | Use it | the catalog's maps | the module |
-| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | sharing a catalog across threads | the module |
-| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it | the Halloween problem as a property | the module |
+| [S6 Iterators](/t/s6-iterators) *(planned)* | Understand | an iterator that holds a position; `IntoIterator` for a borrowed collection | 3c-02 |
+| [L3 Lifetimes](/t/l3-lifetimes) | Structs holding refs | an iterator that borrows the heap | 3c-01, 3c-02 |
+| [S4 Maps & sets](/t/s4-maps-sets) | Use it | the catalog's maps | 3c-04 |
+| [C1 Threads & shared state](/t/c1-threads-shared-state) *(planned)* | Understand it | a lock around the last page; threads inserting at once | 3c-01 |
+| [Y5 Testing & verification](/t/y5-testing-verification) *(planned)* | Understand it | a heap checked against a `Vec`; the Halloween problem as a property | 3c-01, 3c-02, 3c-03, 3c-04 |
+| [L4 Traits & dispatch](/t/l4-traits-dispatch) | Static vs dynamic | `Box<dyn Index>`, one trait over several key sizes | 3c-03, 3c-04 |
 
 ### 3D · Expressions and the SQL front end
 

@@ -128,7 +128,7 @@ fn an_empty_scan_returns_nothing_and_inserts_nothing() {
 
 ### In the exercises
 
-- **3c-03:** `make_iterator` records the heap's last rid in `stop_at_rid`; `advance` ends the scan when it passes it. `make_eager_iterator` leaves the bound out for callers that want the live end.
+- **3c-02:** `make_iterator` records the heap's last rid in `stop_at_rid`; `advance` ends the scan when it passes it. `make_eager_iterator` leaves the bound out for callers that want the live end.
 - **Module 4b** (the update executor): a pipeline `Update <- Seq Scan` over the same table depends on this bound to terminate.
 - **Module 4a** (MVCC): the same guarantee comes from timestamps instead.
 

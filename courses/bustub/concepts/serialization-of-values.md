@@ -164,7 +164,7 @@ fn a_null_bitmap_loses_no_values_and_nulls_take_no_room() {
 
 ### In the exercises
 
-- **3a-06:** `serialize_to`, `deserialize_from` and `storage_size` are the first test's `write`, `read` and `encoded_len`; the stage's tests are its golden bytes and its round trip.
+- **3a-05:** `serialize_to`, `deserialize_from` and `storage_size` are the first test's `write`, `read` and size: the round trip at any offset is the property.
 - **Module 3b:** a tuple is its values' encodings one after another (fixed-size fields inline, strings by offset), so the codec is the base of `Tuple::new` and `get_value`.
 - **The bitmap alternative** is what you would add if the reserved-number trade-off (stage 2) bothered you.
 

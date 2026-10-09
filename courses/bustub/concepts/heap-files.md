@@ -117,8 +117,8 @@ fn a_scan_follows_the_chain_in_insertion_order() {
 ### In the exercises
 
 - **3c-01:** `TableHeap::new` allocates the first page; `insert_tuple` is `insert` (with a real page, a lock around the last-page pointer and an error when the tuple can never fit).
-- **3c-02:** `get_tuple` and `get_tuple_meta` are `get`; the rid is the address.
-- **3c-03:** the iterator is `scan`, turned inside out so it can pause between rows.
+- **3c-01:** `get_tuple` and `get_tuple_meta` are `get`; the rid is the address.
+- **3c-02:** the iterator is `scan`, turned inside out so it can pause between rows.
 
 ### Where it is used
 

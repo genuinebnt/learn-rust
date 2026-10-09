@@ -48,11 +48,11 @@ impl TypeId {
 
     /// The smallest value of the type (`BUSTUB_INT32_MIN`, an empty string, ...). Errors with `MismatchType` for `Invalid`.
     pub fn min_value(self) -> Result<Value> {
-        todo!("3a-02: the smallest usable value of each type (one above the reserved NULL encoding for the integers); VARCHAR: the empty string; INVALID: a MismatchType error")
+        todo!("3a-01: the smallest usable value of each type (one above the reserved NULL encoding for the integers); VARCHAR: the empty string; INVALID: a MismatchType error")
     }
 
     /// The largest value of the type (a `VARCHAR`'s is NULL: there is no largest string). Errors with `MismatchType` for `Invalid`.
     pub fn max_value(self) -> Result<Value> {
-        todo!("3a-02: the largest value of each type; VARCHAR: NULL; INVALID: a MismatchType error")
+        todo!("3a-01: the largest value of each type; VARCHAR: NULL; INVALID: a MismatchType error")
     }
 }

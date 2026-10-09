@@ -149,8 +149,7 @@ fn compacting_changes_offsets_but_not_slot_numbers() {
 
 ### In the exercises
 
-- **3b-05:** `get_next_tuple_offset` is `next_offset` (a `checked_sub` and the slot-array comparison) and `insert_tuple` is `insert`; the "full when they meet" test is the second test.
-- **3b-06:** `get_tuple` and `update_tuple_meta` index the slot array; deleting is a flag, not a compaction (BusTub never compacts).
+- **3b-03, 3b-04:** the slot array growing from the front and the tuples from the back, `get_next_tuple_offset` (a `checked_sub` and the slot-array limit), reading a slot, and deleting as a flag so that record ids never move.
 - **Module 3c:** `Rid(page_id, slot)` is the record id; the table heap and the iterator walk pages and slots.
 
 ### Where it is used

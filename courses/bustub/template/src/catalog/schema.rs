@@ -26,12 +26,12 @@ impl Schema {
     /// Builds the schema of `columns`, read left to right: each column gets its offset (a VARCHAR takes 4 bytes in the fixed part), the
     /// schema's length is the total, and it remembers which columns are not inlined.
     pub fn new(columns: Vec<Column>) -> Schema {
-        todo!("3b-02: walk the columns keeping a running offset: set each column's offset (Column::set_offset), advance by its size (a VARCHAR: 4 bytes), remember the VARCHARs' indexes; the final offset is the fixed length")
+        todo!("3b-01: walk the columns keeping a running offset: set each column's offset (Column::set_offset), advance by its size (a VARCHAR: 4 bytes), remember the VARCHARs' indexes; the final offset is the fixed length")
     }
 
     /// A schema of some of `from`'s columns, in the order of `attrs`. BusTub's `Schema::CopySchema`.
     pub fn copy_schema(from: &Schema, attrs: &[u32]) -> Schema {
-        todo!("3b-02: a new schema (new offsets!) of the chosen columns")
+        todo!("3b-01: a new schema (new offsets!) of the chosen columns")
     }
 
     pub fn columns(&self) -> &[Column] {
@@ -44,12 +44,12 @@ impl Schema {
 
     /// The index of the first column called `name`, or `None`. BusTub's `TryGetColIdx`.
     pub fn try_col_idx(&self, name: &str) -> Option<u32> {
-        todo!("3b-02: the position of the first column with that name")
+        todo!("3b-01: the position of the first column with that name")
     }
 
     /// Like `try_col_idx`, but a missing column is a bug (panic). BusTub's `GetColIdx`.
     pub fn col_idx(&self, name: &str) -> u32 {
-        todo!("3b-02: try_col_idx, or a panic if there is no such column")
+        todo!("3b-01: try_col_idx, or a panic if there is no such column")
     }
 
     /// The indexes of the VARCHAR columns.
@@ -77,6 +77,6 @@ impl Schema {
 
     /// `simplified`: `(a:INTEGER, b:VARCHAR(20))`. Otherwise `Schema[NumColumns:2, IsInlined:0, Length:8] :: (Column[...], ...)`.
     pub fn to_string(&self, simplified: bool) -> String {
-        todo!("3b-02: the two formats in the doc comment (IsInlined is 0 or 1)")
+        todo!("3b-01: the two formats in the doc comment (IsInlined is 0 or 1)")
     }
 }

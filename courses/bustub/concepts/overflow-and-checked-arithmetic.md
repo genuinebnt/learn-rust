@@ -123,8 +123,7 @@ fn the_result_type_decides_whether_it_fits() {
 
 ### In the exercises
 
-- **3a-03:** `cast_integer` is the range check against `[MIN + 1, MAX]`; `cast_decimal` bounds in `f64`.
-- **3a-05:** `arithmetic` computes in `i128` and calls `cast_integer` with the *result* type; `checked_*` is the std alternative when you stay in one width.
+- **3a-02, 3a-04:** `cast_integer` is the range check against `[MIN + 1, MAX]`; arithmetic computes in `i128` and checks against the *result* type.
 - **Module 3b:** aggregation `SUM` overflows the same way and is the same error.
 
 ### Where it is used

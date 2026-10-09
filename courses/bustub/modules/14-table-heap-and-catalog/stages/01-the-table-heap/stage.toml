@@ -1,0 +1,8 @@
+id = "3c-01"
+title = "The table heap"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3c::s3c_01"]
+learn = ["a table as a chain of pages in the buffer pool", "a lock that makes inserts take turns", "record ids that never change"]
+concepts = []
+concepts_optional = ["heap-files", "raii-guards-and-lifetimes", "coarse-and-fine-grained-locking", "errors-as-values-with-result", "model-based-testing"]

@@ -1,0 +1,8 @@
+id = "3a-06"
+title = "Boss: values end to end and BusTub's type test"
+kind = "boss"
+difficulty = "easy"
+tests = ["stages_3a::s3a_06", "type_test"]
+retest = true
+concepts = []
+concepts_optional = ["model-based-testing", "sql-types-and-three-valued-logic", "serialization-of-values"]

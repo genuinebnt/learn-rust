@@ -1,8 +1,0 @@
-id = "3c-03"
-title = "The iterator and the Halloween problem"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_3c::s3c_03"]
-learn = ["a cursor over a chain of pages", "a stopping point recorded when the scan starts", "implementing Iterator for a type that borrows its table"]
-concepts = ["halloween-problem", "lifetimes-in-structs", "range-scans-and-the-leaf-chain"]
-concepts_optional = ["heap-files"]

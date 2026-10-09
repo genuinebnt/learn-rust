@@ -1,7 +1,0 @@
-id = "3b-03"
-title = "Building a tuple"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3b::s3b_03"]
-learn = ["laying values out in a byte buffer by a schema", "offsets into a variable part", "asserting a precondition that a type cannot express"]
-concepts = ["tuple-layout-fixed-and-variable-parts", "serialization-of-values", "bytes-endianness-and-views"]

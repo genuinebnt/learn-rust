@@ -1,0 +1,8 @@
+id = "3a-05"
+title = "Storing values as bytes"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3a::s3a_05"]
+learn = ["a stable byte format for every value, NULL included", "length-prefixed text", "round-trip properties at any offset"]
+concepts = []
+concepts_optional = ["serialization-of-values", "bytes-endianness-and-views", "integers-and-casts", "model-based-testing", "errors-as-values-with-result"]

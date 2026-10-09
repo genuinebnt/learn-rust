@@ -147,9 +147,7 @@ fn derives_give_the_c_plus_plus_special_members_and_display_gives_the_stream_ope
 
 ### In the exercises
 
-- **3b-01:** `Column`'s fields are private; `name`, `offset` and friends are accessors; `with_column_name` is struct update syntax; `set_offset` is `pub(crate)` for the schema.
-- **3b-02:** `Schema::new` sets offsets through `set_offset`; `SchemaRef = Arc<Schema>`.
-- **3b-06:** `TupleMeta` is a plain `Copy` struct with `pub` fields (no invariant to protect); `Rid` is the second test's type.
+- **3b-01, 3b-04:** `Column`'s and `Schema`'s fields are private with accessors (`name`, `offset`, ...); `SchemaRef = Arc<Schema>`; `TupleMeta` is a plain `Copy` struct with `pub` fields (no invariant to protect).
 - **Later modules:** plan nodes, executors and the catalog are structs with `Arc<Schema>` fields and accessor methods.
 
 ### Where it is used

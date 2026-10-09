@@ -2,7 +2,7 @@
 //! is added to the last page, and when that page is full a new page is allocated and linked after it. A tuple is found by its
 //! [`Rid`] (page, slot); because slots never move (module 3b), a rid stays valid.
 
-use std::sync::Mutex;
+// TODO(3c-01): your imports go here.
 
 use super::table_iterator::TableIterator;
 use super::tuple::{Tuple, TupleMeta};
@@ -14,9 +14,7 @@ use crate::storage::page::table_page::TablePage;
 
 pub struct TableHeap<'a> {
     pub(crate) bpm: &'a BufferPoolManager,
-    first_page_id: PageId,
-    /// The id of the last page of the table; the lock also serialises inserts (one at a time, or two inserters could both extend the table).
-    last_page_id: Mutex<PageId>,
+    // TODO(3c-01): the fields are yours: where the table starts, where it ends, and what makes inserts take turns.
 }
 
 impl<'a> TableHeap<'a> {
@@ -27,7 +25,7 @@ impl<'a> TableHeap<'a> {
 
     /// The id of the first page of the table.
     pub fn get_first_page_id(&self) -> PageId {
-        self.first_page_id
+        todo!("3c-01: the id of the first page")
     }
 
     /// Adds the tuple at the end of the table and returns where it went. If the last page has no room, a new page is allocated and linked
@@ -39,23 +37,23 @@ impl<'a> TableHeap<'a> {
 
     /// Replaces the metadata of the tuple at `rid` (for instance to mark it deleted).
     pub fn update_tuple_meta(&self, meta: &TupleMeta, rid: Rid) -> Result<()> {
-        todo!("3c-02: write-latch the rid's page and update the slot's metadata")
+        todo!("3c-01: write-latch the rid's page and update the slot's metadata")
     }
 
     /// The tuple at `rid` and its metadata (read together under one latch). The tuple carries `rid`.
     pub fn get_tuple(&self, rid: Rid) -> Result<(TupleMeta, Tuple)> {
-        todo!("3c-02: read-latch the rid's page and read the slot")
+        todo!("3c-01: read-latch the rid's page and read the slot")
     }
 
     /// Just the metadata of the tuple at `rid`.
     pub fn get_tuple_meta(&self, rid: Rid) -> Result<TupleMeta> {
-        todo!("3c-02: read-latch the rid's page and read the slot's metadata")
+        todo!("3c-01: read-latch the rid's page and read the slot's metadata")
     }
 
     /// Overwrites the tuple at `rid` with one of the same length, and its metadata, if `check` (when given) approves the old tuple.
     /// Returns whether it did. The check runs under the page's write latch, so nothing can change between the check and the write.
     pub fn update_tuple_in_place(&self, meta: &TupleMeta, tuple: &Tuple, rid: Rid, check: Option<&dyn Fn(&TupleMeta, &Tuple, Rid) -> bool>) -> Result<bool> {
-        todo!("3c-02: write-latch the page; read the old tuple; if there is no check or the check approves, overwrite in place and say true; otherwise false")
+        todo!("3c-01: write-latch the page; read the old tuple; if there is no check or the check approves, overwrite in place and say true; otherwise false")
     }
 
     /// Runs `f` on the table page of `rid` while holding its **read** latch (module 4a: reading a tuple and its version link together).
@@ -73,11 +71,11 @@ impl<'a> TableHeap<'a> {
     /// An iterator over the table as it is **now**: it stops at the last tuple that exists when it is created, so a statement that inserts
     /// into the table it scans (the "Halloween problem") does not see its own output. BusTub's `MakeIterator`.
     pub fn make_iterator(&self) -> TableIterator<'_> {
-        todo!("3c-03: remember the last page and how many tuples it has now; start at (first page, slot 0) and stop at (last page, that count)")
+        todo!("3c-02: remember the last page and how many tuples it has now; start at (first page, slot 0) and stop at (last page, that count)")
     }
 
     /// An iterator that sees tuples inserted while it runs: it goes on until the table's end. BusTub's `MakeEagerIterator`.
     pub fn make_eager_iterator(&self) -> TableIterator<'_> {
-        todo!("3c-03: start at (first page, slot 0) with no stopping point (an invalid rid)")
+        todo!("3c-02: start at (first page, slot 0) with no stopping point (an invalid rid)")
     }
 }

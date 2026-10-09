@@ -103,8 +103,8 @@ fn oids_count_up_and_a_duplicate_name_spends_none() {
 
 ### In the exercises
 
-- **3c-05:** `create_table`, `get_table` and `get_table_by_oid` are these three functions with a `TableHeap` inside the info.
-- **3c-06:** `create_index` adds a second pair of maps (`indexes`, and `index_names` keyed by table then index name) and *populates* the new index from the heap.
+- **3c-04:** `create_table`, `get_table` and `get_table_by_oid` are these three functions with a `TableHeap` inside the info.
+- **3c-04:** `create_index` adds a second pair of maps (`indexes`, and `index_names` keyed by table then index name) and *populates* the new index from the heap.
 - **Module 3d:** the binder asks the catalog for the table and its schema to resolve column references; `CREATE TABLE` in SQL ends in `create_table`.
 
 ### Where it is used

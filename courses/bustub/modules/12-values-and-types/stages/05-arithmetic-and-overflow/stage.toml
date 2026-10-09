@@ -1,7 +1,0 @@
-id = "3a-05"
-title = "Arithmetic, overflow and NULL"
-kind = "build"
-difficulty = "hard"
-tests = ["stages_3a::s3a_05"]
-learn = ["checked arithmetic by widening to i128", "the result type of mixed-width operations", "NULL propagation and division by zero as errors"]
-concepts = ["overflow-and-checked-arithmetic", "sql-types-and-three-valued-logic", "errors-as-values-with-result"]

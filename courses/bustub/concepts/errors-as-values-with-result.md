@@ -153,8 +153,7 @@ fn a_violated_invariant_is_a_panic_not_an_error() {
 
 ### In the exercises
 
-- **3a-01:** `type_size` returns `Result<u64>`; the `Invalid` arm is `Err(Exception::new(ExceptionType::UnknownType, ..))`; tests check `.unwrap_err().kind`.
-- **3a-03 to 3a-05:** `cast_as`, the comparisons and the arithmetic return `Result`; `?` chains the conversions; `out_of_range()` is the error constructor.
+- **3a-01 to 3a-04:** `type_size`, `cast_as`, the comparisons and the arithmetic return `Result`; `?` chains the checks, and the `Err` carries an `Exception` with a kind (`OutOfRange`, `Conversion`, `DivideByZero`, ...).
 - **Everything later**: executors return `Result<Option<Tuple>>` and an error aborts the query with its message printed by the shell (module 3b).
 
 ### Where it is used

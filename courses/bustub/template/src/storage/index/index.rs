@@ -37,7 +37,7 @@ pub struct IndexMetadata {
 impl IndexMetadata {
     /// The key schema is the table's columns `key_attrs`, as `Schema::copy_schema` makes it.
     pub fn new(name: &str, table_name: &str, tuple_schema: &Schema, key_attrs: Vec<u32>, is_primary_key: bool) -> IndexMetadata {
-        todo!("3c-04: remember the names and the key columns; the key schema is the table schema restricted to them (copy_schema)")
+        todo!("3c-03: remember the names and the key columns; the key schema is the table schema restricted to them (copy_schema)")
     }
 
     pub fn get_name(&self) -> &str {
@@ -87,7 +87,7 @@ pub trait Index: Send + Sync {
 
 /// The bytes of `tuple` as an index key of `N` bytes (zero padded). A key tuple that is longer than `N` is a bug.
 pub fn generic_key_from_tuple<const N: usize>(tuple: &Tuple) -> GenericKey<N> {
-    todo!("3c-04: a zeroed key with the tuple's bytes at the start (panic if the tuple is longer than N)")
+    todo!("3c-03: a zeroed key with the tuple's bytes at the start (panic if the tuple is longer than N)")
 }
 
 /// Reads column `column_idx` of a key as a value, using the key's schema (BusTub's `GenericKey::ToValue`).
@@ -110,7 +110,7 @@ impl<const N: usize> SchemaComparator<N> {
 
 impl<const N: usize> KeyComparator<GenericKey<N>> for SchemaComparator<N> {
     fn compare(&self, lhs: &GenericKey<N>, rhs: &GenericKey<N>) -> Ordering {
-        todo!("3c-04: compare column by column (key_to_value for each side): the first column that differs decides; all equal is Equal")
+        todo!("3c-03: compare column by column (key_to_value for each side): the first column that differs decides; all equal is Equal")
     }
 }
 
@@ -123,7 +123,7 @@ pub struct BPlusTreeIndex<'a, const N: usize> {
 impl<'a, const N: usize> BPlusTreeIndex<'a, N> {
     /// Allocates the tree's header page and builds an empty tree with the default node sizes.
     pub fn new(metadata: IndexMetadata, bpm: &'a BufferPoolManager) -> BPlusTreeIndex<'a, N> {
-        todo!("3c-04: allocate a page for the tree's header; a SchemaComparator over the key schema; a B+ tree with the default sizes")
+        todo!("3c-03: allocate a page for the tree's header; a SchemaComparator over the key schema; a B+ tree with the default sizes")
     }
 }
 
@@ -133,23 +133,23 @@ impl<const N: usize> Index for BPlusTreeIndex<'_, N> {
     }
 
     fn insert_entry(&self, key: &Tuple, rid: Rid) -> bool {
-        todo!("3c-04: the key tuple as a GenericKey, inserted into the tree")
+        todo!("3c-03: the key tuple as a GenericKey, inserted into the tree")
     }
 
     fn delete_entry(&self, key: &Tuple) {
-        todo!("3c-04: remove the key from the tree")
+        todo!("3c-03: remove the key from the tree")
     }
 
     fn scan_key(&self, key: &Tuple) -> Vec<Rid> {
-        todo!("3c-04: the tree's lookup of the key")
+        todo!("3c-03: the tree's lookup of the key")
     }
 
     fn scan_all(&self) -> Vec<Rid> {
-        todo!("3c-04: the rids of the tree's iterator, in order")
+        todo!("3c-03: the rids of the tree's iterator, in order")
     }
 
     fn scan_from(&self, key: &Tuple) -> Vec<Rid> {
-        todo!("3c-04: the rids from the tree's begin_at(key), in order")
+        todo!("3c-03: the rids from the tree's begin_at(key), in order")
     }
 }
 

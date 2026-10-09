@@ -1,7 +1,0 @@
-id = "3a-01"
-title = "Types and what is true of each"
-kind = "learn"
-difficulty = "easy"
-tests = ["stages_3a::s3a_01"]
-learn = ["modelling a closed set of alternatives with an enum", "errors as values: Result and a custom exception type", "tables as exhaustive match expressions"]
-concepts = ["enums-with-data-and-match", "errors-as-values-with-result", "integers-and-casts"]

@@ -140,9 +140,7 @@ fn rusts_own_strings_use_the_same_idea() {
 
 ### In the exercises
 
-- **3b-02:** `Schema::new` is `layout`: a running offset, 4 bytes for a text slot, and the fixed length at the end.
-- **3b-03:** `Tuple::new` is `encode`: size first, then write the fixed values and the heap, slot by slot.
-- **3b-04:** `Tuple::get_value` is `column`: the offset from the schema, one hop for a `VARCHAR`.
+- **3b-01, 3b-02:** `Schema::new` lays the columns out (a running offset, 4 bytes for a text slot); `Tuple::new` sizes the tuple and writes the fixed part and the variable part; `get_value` finds the column's bytes through the schema's offset, following the slot for text.
 - **Module 3b executors**: projections and joins build new tuples with new schemas, so every operator that outputs rows does `encode`.
 
 ### Where it is used

@@ -131,8 +131,7 @@ fn option_and_result_are_enums_with_the_same_tools() {
 
 ### In the exercises
 
-- **3a-01:** `TypeId` is a plain enum and `type_size`, `type_id_to_string` and `is_coercable_from` are `match` expressions over it.
-- **3a-02 to 3a-06:** `Value` is the enum; every operation is a `match` on the variant (or on a pair of them), and `as_i64`/`as_f64` are the "payload or `None`" accessors.
+- **3a-01 to 3a-05:** `TypeId` is a plain enum and `Value` the enum with data; every operation is a `match` on the variant (or on a pair of variants).
 - **Module 3b onward:** plan nodes (`PlanNode`) and expressions (`Expression`) are enums too: each executor is a `match` on the kind of node.
 
 ### Where it is used

@@ -129,7 +129,7 @@ fn tools_for_scanning_text() {
 
 ### In the exercises
 
-- **3a-03:** `cast_text` handles `Varchar` to numbers with the given `leading_number` (the prefix scan) plus `parse`; the first test is the strict behaviour you must *not* use for the prefix rule, the second is the rule.
+- **3a-02:** casting text to a number reads the leading number of the string (a sign, digits, for decimals a fraction and an exponent) and ignores the rest.
 - **Module 3b:** the SQL front end gives you literals as text; the planner converts them with the same casts.
 
 ### Where it is used

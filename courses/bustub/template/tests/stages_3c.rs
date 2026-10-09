@@ -1,4 +1,6 @@
-//! Tests for the table heap, index and catalog stages (3c-01 … 3c-06). A test named `s3c_03_…` belongs to stage 3c-03.
+//! Tests for module 3c, the table heap, its iterator, indexes over tuples and the catalog. A test name starts with its stage: `s3c_02_…`
+//! belongs to stage 3c-02, and `anneal course test` runs just those. Each stage also has a property that runs random operations against a
+//! plain model: a `Vec` of what the table should hold, a `BTreeMap` for an index, a `HashMap` for the catalog.
 
 use std::sync::Arc;
 use std::thread;
@@ -17,6 +19,8 @@ use bustub::storage::table::table_heap::TableHeap;
 use bustub::storage::table::tuple::{Tuple, TupleMeta};
 use bustub::types::type_id::TypeId::*;
 use bustub::types::value::Value;
+use proptest::prelude::*;
+use std::collections::{BTreeMap, HashMap};
 
 fn bpm(frames: usize) -> BufferPoolManager {
     BufferPoolManager::new(frames, Arc::new(DiskManagerUnlimitedMemory::new()))
@@ -158,10 +162,10 @@ fn s3c_01_threads_inserting_at_once_never_share_a_slot() {
     }
 }
 
-// ---- 3c-02 · Getting and updating -----------------------------------------------------------------------------------------------
+// ---- 3c-01 · Getting and updating -----------------------------------------------------------------------------------------------
 
 #[test]
-fn s3c_02_a_tuple_and_its_meta_come_back_by_rid() {
+fn s3c_01_a_tuple_and_its_meta_come_back_by_rid() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     let rid = heap.insert_tuple(&TupleMeta { ts: 7, is_deleted: false }, &bytes_tuple(5, 30)).unwrap();
@@ -171,7 +175,7 @@ fn s3c_02_a_tuple_and_its_meta_come_back_by_rid() {
 }
 
 #[test]
-fn s3c_02_a_bad_rid_is_an_error() {
+fn s3c_01_a_bad_rid_is_an_error() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     let rid = heap.insert_tuple(&meta(false), &bytes_tuple(1, 8)).unwrap();
@@ -183,7 +187,7 @@ fn s3c_02_a_bad_rid_is_an_error() {
 }
 
 #[test]
-fn s3c_02_marking_a_tuple_deleted_changes_only_its_meta() {
+fn s3c_01_marking_a_tuple_deleted_changes_only_its_meta() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     let rids: Vec<Rid> = (0..4).map(|i| heap.insert_tuple(&meta(false), &bytes_tuple(i, 12)).unwrap()).collect();
@@ -194,7 +198,7 @@ fn s3c_02_marking_a_tuple_deleted_changes_only_its_meta() {
 }
 
 #[test]
-fn s3c_02_an_in_place_update_runs_its_check_under_the_latch() {
+fn s3c_01_an_in_place_update_runs_its_check_under_the_latch() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     let rid = heap.insert_tuple(&TupleMeta { ts: 1, is_deleted: false }, &bytes_tuple(1, 16)).unwrap();
@@ -216,7 +220,7 @@ fn s3c_02_an_in_place_update_runs_its_check_under_the_latch() {
 }
 
 #[test]
-fn s3c_02_an_in_place_update_must_keep_the_length() {
+fn s3c_01_an_in_place_update_must_keep_the_length() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     let rid = heap.insert_tuple(&meta(false), &bytes_tuple(1, 16)).unwrap();
@@ -225,7 +229,7 @@ fn s3c_02_an_in_place_update_must_keep_the_length() {
 }
 
 #[test]
-fn s3c_02_every_tuple_of_a_big_table_is_found_by_its_rid() {
+fn s3c_01_every_tuple_of_a_big_table_is_found_by_its_rid() {
     let bpm = bpm(20);
     let heap = TableHeap::new(&bpm);
     let schema = heap_test_schema();
@@ -236,10 +240,10 @@ fn s3c_02_every_tuple_of_a_big_table_is_found_by_its_rid() {
     }
 }
 
-// ---- 3c-03 · The iterator -------------------------------------------------------------------------------------------------------
+// ---- 3c-02 · The iterator -------------------------------------------------------------------------------------------------------
 
 #[test]
-fn s3c_03_an_empty_table_has_nothing_to_iterate() {
+fn s3c_02_an_empty_table_has_nothing_to_iterate() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     let mut it = heap.make_iterator();
@@ -249,7 +253,7 @@ fn s3c_03_an_empty_table_has_nothing_to_iterate() {
 }
 
 #[test]
-fn s3c_03_the_iterator_visits_every_tuple_in_insertion_order_across_pages() {
+fn s3c_02_the_iterator_visits_every_tuple_in_insertion_order_across_pages() {
     let bpm = bpm(20);
     let heap = TableHeap::new(&bpm);
     let schema = heap_test_schema();
@@ -265,7 +269,7 @@ fn s3c_03_the_iterator_visits_every_tuple_in_insertion_order_across_pages() {
 }
 
 #[test]
-fn s3c_03_a_cursor_can_be_driven_by_hand() {
+fn s3c_02_a_cursor_can_be_driven_by_hand() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     let rids: Vec<Rid> = (0..3).map(|i| heap.insert_tuple(&meta(false), &bytes_tuple(i, 10)).unwrap()).collect();
@@ -281,7 +285,7 @@ fn s3c_03_a_cursor_can_be_driven_by_hand() {
 }
 
 #[test]
-fn s3c_03_deleted_tuples_are_returned_with_their_meta() {
+fn s3c_02_deleted_tuples_are_returned_with_their_meta() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     let rids: Vec<Rid> = (0..6).map(|i| heap.insert_tuple(&meta(false), &bytes_tuple(i, 10)).unwrap()).collect();
@@ -293,7 +297,7 @@ fn s3c_03_deleted_tuples_are_returned_with_their_meta() {
 }
 
 #[test]
-fn s3c_03_an_iterator_stops_where_the_table_ended_when_it_was_made() {
+fn s3c_02_an_iterator_stops_where_the_table_ended_when_it_was_made() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     for i in 0..5 {
@@ -311,7 +315,7 @@ fn s3c_03_an_iterator_stops_where_the_table_ended_when_it_was_made() {
 }
 
 #[test]
-fn s3c_03_the_stopping_point_can_be_a_page_boundary_and_the_eager_iterator_has_none() {
+fn s3c_02_the_stopping_point_can_be_a_page_boundary_and_the_eager_iterator_has_none() {
     let bpm = bpm(10);
     let heap = TableHeap::new(&bpm);
     for i in 0..66 {
@@ -332,7 +336,7 @@ fn s3c_03_the_stopping_point_can_be_a_page_boundary_and_the_eager_iterator_has_n
     assert_eq!(n, 68, "the eager iterator also sees a tuple inserted while it runs");
 }
 
-// ---- 3c-04 · Indexes --------------------------------------------------------------------------------------------------------------
+// ---- 3c-03 · Indexes --------------------------------------------------------------------------------------------------------------
 
 fn three_ints() -> Schema {
     Schema::new(vec![Column::new("a", Integer), Column::new("b", Integer), Column::new("c", Integer)])
@@ -343,7 +347,7 @@ fn key(schema: &Schema, values: &[i32]) -> Tuple {
 }
 
 #[test]
-fn s3c_04_index_metadata_knows_its_key_schema() {
+fn s3c_03_index_metadata_knows_its_key_schema() {
     let table = three_ints();
     let m = IndexMetadata::new("idx", "t", &table, vec![2, 0], false);
     assert_eq!((m.get_name(), m.get_table_name(), m.get_key_attrs(), m.get_index_column_count(), m.is_primary_key()), ("idx", "t", &[2u32, 0][..], 2, false), "index metadata knows its key schema");
@@ -353,7 +357,7 @@ fn s3c_04_index_metadata_knows_its_key_schema() {
 }
 
 #[test]
-fn s3c_04_a_key_tuple_becomes_the_bytes_of_a_fixed_size_key() {
+fn s3c_03_a_key_tuple_becomes_the_bytes_of_a_fixed_size_key() {
     let ks = Schema::new(vec![Column::new("a", Integer)]);
     let k4 = generic_key_from_tuple::<4>(&key(&ks, &[0x0102_0304]));
     assert_eq!(k4.data, [4, 3, 2, 1], "a key tuple becomes the bytes of a fixed size key");
@@ -363,13 +367,13 @@ fn s3c_04_a_key_tuple_becomes_the_bytes_of_a_fixed_size_key() {
 
 #[test]
 #[should_panic]
-fn s3c_04_a_key_bigger_than_the_index_key_is_a_bug() {
+fn s3c_03_a_key_bigger_than_the_index_key_is_a_bug() {
     let ks = Schema::new(vec![Column::new("a", Integer), Column::new("b", Integer)]);
     generic_key_from_tuple::<4>(&key(&ks, &[1, 2]));
 }
 
 #[test]
-fn s3c_04_keys_compare_column_by_column_as_numbers() {
+fn s3c_03_keys_compare_column_by_column_as_numbers() {
     let ks = Arc::new(Schema::new(vec![Column::new("a", Integer), Column::new("b", Integer)]));
     let cmp = SchemaComparator::<8>::new(ks.clone());
     let k = |a, b| generic_key_from_tuple::<8>(&key(&ks, &[a, b]));
@@ -383,7 +387,7 @@ fn s3c_04_keys_compare_column_by_column_as_numbers() {
 }
 
 #[test]
-fn s3c_04_an_index_inserts_scans_and_deletes() {
+fn s3c_03_an_index_inserts_scans_and_deletes() {
     let bpm = bpm(50);
     let table = three_ints();
     let index = BPlusTreeIndex::<4>::new(IndexMetadata::new("i", "t", &table, vec![0], false), &bpm);
@@ -401,7 +405,7 @@ fn s3c_04_an_index_inserts_scans_and_deletes() {
 }
 
 #[test]
-fn s3c_04_a_scan_returns_rids_in_key_order_even_for_negative_and_composite_keys() {
+fn s3c_03_a_scan_returns_rids_in_key_order_even_for_negative_and_composite_keys() {
     let bpm = bpm(50);
     let table = three_ints();
     let index = BPlusTreeIndex::<8>::new(IndexMetadata::new("i", "t", &table, vec![0, 1], false), &bpm);
@@ -418,10 +422,10 @@ fn s3c_04_a_scan_returns_rids_in_key_order_even_for_negative_and_composite_keys(
     assert_eq!(from, vec![3, 2, 0, 5], "keys from (0, 0) on: (0,0) (2,-1) (2,1) (7,7) are slots 3, 2, 0, 5");
 }
 
-// ---- 3c-05 · The catalog: tables --------------------------------------------------------------------------------------------------
+// ---- 3c-04 · The catalog: tables --------------------------------------------------------------------------------------------------
 
 #[test]
-fn s3c_05_a_created_table_can_be_found_by_name_and_by_oid() {
+fn s3c_04_a_created_table_can_be_found_by_name_and_by_oid() {
     let bpm = bpm(20);
     let mut catalog = Catalog::new(&bpm);
     let schema = three_ints();
@@ -433,7 +437,7 @@ fn s3c_05_a_created_table_can_be_found_by_name_and_by_oid() {
 }
 
 #[test]
-fn s3c_05_oids_are_handed_out_in_creation_order_and_names_are_unique() {
+fn s3c_04_oids_are_handed_out_in_creation_order_and_names_are_unique() {
     let bpm = bpm(20);
     let mut catalog = Catalog::new(&bpm);
     let schema = three_ints();
@@ -447,7 +451,7 @@ fn s3c_05_oids_are_handed_out_in_creation_order_and_names_are_unique() {
 }
 
 #[test]
-fn s3c_05_every_table_has_its_own_heap() {
+fn s3c_04_every_table_has_its_own_heap() {
     let bpm = bpm(20);
     let mut catalog = Catalog::new(&bpm);
     let schema = three_ints();
@@ -460,7 +464,7 @@ fn s3c_05_every_table_has_its_own_heap() {
 }
 
 #[test]
-fn s3c_05_a_new_catalog_has_no_tables_and_names_are_case_sensitive() {
+fn s3c_04_a_new_catalog_has_no_tables_and_names_are_case_sensitive() {
     let bpm = bpm(20);
     let mut catalog = Catalog::new(&bpm);
     assert!(catalog.get_table_names().is_empty(), "a new catalog has no tables and names are case sensitive: expected `catalog.get_table_names().is_empty()`");
@@ -473,7 +477,7 @@ fn s3c_05_a_new_catalog_has_no_tables_and_names_are_case_sensitive() {
 }
 
 #[test]
-fn s3c_05_many_tables_are_each_found_by_name_and_by_oid() {
+fn s3c_04_many_tables_are_each_found_by_name_and_by_oid() {
     let bpm = bpm(20);
     let mut catalog = Catalog::new(&bpm);
     let schema = three_ints();
@@ -489,7 +493,7 @@ fn s3c_05_many_tables_are_each_found_by_name_and_by_oid() {
     assert_eq!(catalog.get_table_names().len(), 100, "many tables are each found by name and by oid");
 }
 
-// ---- 3c-06 · The catalog: indexes -------------------------------------------------------------------------------------------------
+// ---- 3c-04 · The catalog: indexes -------------------------------------------------------------------------------------------------
 
 fn table_with_rows<'a>(catalog: &mut Catalog<'a>, name: &str, n: i32) -> Schema {
     let schema = three_ints();
@@ -501,7 +505,7 @@ fn table_with_rows<'a>(catalog: &mut Catalog<'a>, name: &str, n: i32) -> Schema 
 }
 
 #[test]
-fn s3c_06_a_new_index_is_filled_with_the_rows_the_table_already_has() {
+fn s3c_04_a_new_index_is_filled_with_the_rows_the_table_already_has() {
     let bpm = bpm(50);
     let mut catalog = Catalog::new(&bpm);
     let schema = table_with_rows(&mut catalog, "t", 300);
@@ -518,7 +522,7 @@ fn s3c_06_a_new_index_is_filled_with_the_rows_the_table_already_has() {
 }
 
 #[test]
-fn s3c_06_deleted_rows_are_not_indexed_and_duplicate_keys_keep_the_first() {
+fn s3c_04_deleted_rows_are_not_indexed_and_duplicate_keys_keep_the_first() {
     let bpm = bpm(50);
     let mut catalog = Catalog::new(&bpm);
     let schema = three_ints();
@@ -532,7 +536,7 @@ fn s3c_06_deleted_rows_are_not_indexed_and_duplicate_keys_keep_the_first() {
 }
 
 #[test]
-fn s3c_06_creating_an_index_can_fail_without_an_error() {
+fn s3c_04_creating_an_index_can_fail_without_an_error() {
     let bpm = bpm(50);
     let mut catalog = Catalog::new(&bpm);
     table_with_rows(&mut catalog, "t", 10);
@@ -544,7 +548,7 @@ fn s3c_06_creating_an_index_can_fail_without_an_error() {
 }
 
 #[test]
-fn s3c_06_only_integer_keys_of_at_most_64_bytes() {
+fn s3c_04_only_integer_keys_of_at_most_64_bytes() {
     let bpm = bpm(50);
     let mut catalog = Catalog::new(&bpm);
     let schema = Schema::new(vec![Column::new("n", Integer), Column::new_varchar("s", 10), Column::new("d", Decimal)]);
@@ -559,7 +563,7 @@ fn s3c_06_only_integer_keys_of_at_most_64_bytes() {
 }
 
 #[test]
-fn s3c_06_indexes_are_found_by_name_by_oid_and_by_table() {
+fn s3c_04_indexes_are_found_by_name_by_oid_and_by_table() {
     let bpm = bpm(50);
     let mut catalog = Catalog::new(&bpm);
     table_with_rows(&mut catalog, "t", 5);
@@ -579,7 +583,7 @@ fn s3c_06_indexes_are_found_by_name_by_oid_and_by_table() {
 }
 
 #[test]
-fn s3c_06_a_composite_index_scans_in_key_order() {
+fn s3c_04_a_composite_index_scans_in_key_order() {
     let bpm = bpm(50);
     let mut catalog = Catalog::new(&bpm);
     let schema = table_with_rows(&mut catalog, "t", 100);
@@ -590,4 +594,202 @@ fn s3c_06_a_composite_index_scans_in_key_order() {
     expected.sort_by_key(|i| (i % 10, *i));
     assert_eq!(order, expected, "a composite index scans in key order");
     let _ = IndexType::BPlusTreeIndex;
+}
+
+// ---- Properties against models ---------------------------------------------------------------------------------------------
+
+fn pconfig() -> ProptestConfig {
+    ProptestConfig { cases: 48, max_shrink_iters: 2000, ..ProptestConfig::default() }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum HeapOp {
+    Insert(u8, usize),
+    Delete(usize),
+    Get(usize),
+    Overwrite(usize, u8),
+}
+
+fn heap_ops() -> impl Strategy<Value = Vec<HeapOp>> {
+    prop::collection::vec(
+        prop_oneof![
+            5 => (any::<u8>(), 1usize..900).prop_map(|(b, l)| HeapOp::Insert(b, l)),
+            2 => (0usize..400).prop_map(HeapOp::Delete),
+            3 => (0usize..400).prop_map(HeapOp::Get),
+            1 => (0usize..400, any::<u8>()).prop_map(|(i, b)| HeapOp::Overwrite(i, b)),
+        ],
+        1..150,
+    )
+}
+
+proptest! {
+    #![proptest_config(pconfig())]
+
+    /// A heap is a growing list: every insert gets its own record id, every rid reads back what was put there (and its metadata), a
+    /// deleted tuple is still readable, and an overwrite changes only that tuple. Tuples up to 900 bytes make pages fill and chain.
+    #[test]
+    fn s3c_01_a_heap_behaves_like_a_vec_of_tuples(ops in heap_ops()) {
+        let bpm = bpm(20);
+        let heap = TableHeap::new(&bpm);
+        let mut model: Vec<(Rid, TupleMeta, Vec<u8>)> = Vec::new();
+        for op in ops {
+            match op {
+                HeapOp::Insert(b, len) => {
+                    let rid = heap.insert_tuple(&meta(false), &bytes_tuple(b, len)).unwrap();
+                    prop_assert!(model.iter().all(|m| m.0 != rid), "record id {:?} handed out twice", rid);
+                    model.push((rid, meta(false), vec![b; len]));
+                }
+                HeapOp::Delete(i) => { let n = model.len().max(1); if let Some(m) = model.get_mut(i % n) {
+                    heap.update_tuple_meta(&meta(true), m.0).unwrap();
+                    m.1 = meta(true);
+                } },
+                HeapOp::Get(i) => if let Some(m) = model.get(i % model.len().max(1)) {
+                    let (got_meta, t) = heap.get_tuple(m.0).unwrap();
+                    prop_assert_eq!((got_meta, t.data(), t.get_rid()), (m.1, &m.2[..], m.0));
+                    prop_assert_eq!(heap.get_tuple_meta(m.0).unwrap(), m.1);
+                },
+                HeapOp::Overwrite(i, b) => { let n = model.len().max(1); if let Some(m) = model.get_mut(i % n) {
+                    let new = bytes_tuple(b, m.2.len());
+                    prop_assert!(heap.update_tuple_in_place(&meta(false), &new, m.0, None).unwrap());
+                    m.1 = meta(false);
+                    m.2 = vec![b; m.2.len()];
+                } },
+            }
+        }
+        for (rid, m, bytes) in &model {
+            let (got_meta, t) = heap.get_tuple(*rid).unwrap();
+            prop_assert_eq!((got_meta, t.data()), (*m, &bytes[..]));
+        }
+    }
+
+    /// An iterator returns every tuple, deleted ones included with their metadata, in insertion order; one made before more inserts stops
+    /// where the table ended and an eager one goes on to the end (the table has a tuple when the iterators are made: on an empty table both are at the end).
+    #[test]
+    fn s3c_02_an_iterator_visits_the_table_in_insertion_order(first in prop::collection::vec((any::<u8>(), 1usize..700, any::<bool>()), 1..80), more in prop::collection::vec((any::<u8>(), 1usize..700), 0..30)) {
+        let bpm = bpm(20);
+        let heap = TableHeap::new(&bpm);
+        let mut model: Vec<(bool, Vec<u8>)> = vec![];
+        for (b, len, deleted) in &first {
+            let rid = heap.insert_tuple(&meta(false), &bytes_tuple(*b, *len)).unwrap();
+            if *deleted { heap.update_tuple_meta(&meta(true), rid).unwrap(); }
+            model.push((*deleted, vec![*b; *len]));
+        }
+        let snapshot = heap.make_iterator();
+        let eager = heap.make_eager_iterator();
+        for (b, len) in &more {
+            heap.insert_tuple(&meta(false), &bytes_tuple(*b, *len)).unwrap();
+        }
+        let seen: Vec<(bool, Vec<u8>)> = snapshot.map(|(m, t)| (m.is_deleted, t.data().to_vec())).collect();
+        prop_assert_eq!(&seen, &model, "an iterator made before the later inserts must not see them");
+        let all: Vec<(bool, Vec<u8>)> = eager.map(|(m, t)| (m.is_deleted, t.data().to_vec())).collect();
+        let mut expected = model.clone();
+        expected.extend(more.iter().map(|(b, len)| (false, vec![*b; *len])));
+        prop_assert_eq!(all, expected, "an eager iterator sees them");
+        prop_assert_eq!(heap.make_iterator().count(), model.len() + more.len());
+    }
+
+    /// An index over two integer columns behaves like a `BTreeMap` from the key to a record id: inserts refuse a key that is there, deletes of
+    /// missing keys are fine, and every scan is in key order (negative numbers first).
+    #[test]
+    fn s3c_03_an_index_behaves_like_a_btreemap(ops in prop::collection::vec((-6i32..6, -6i32..6, 0u8..3), 1..120), probe in (-7i32..7, -7i32..7)) {
+        let bpm = bpm(50);
+        let table = three_ints();
+        let index = BPlusTreeIndex::<8>::new(IndexMetadata::new("i", "t", &table, vec![0, 1], false), &bpm);
+        let ks = index.metadata().get_key_schema().clone();
+        let mut model: BTreeMap<(i32, i32), Rid> = BTreeMap::new();
+        for (n, (a, b, op)) in ops.into_iter().enumerate() {
+            let rid = Rid::new(PageId(2), n as u32);
+            match op {
+                0 | 1 => {
+                    let fresh = !model.contains_key(&(a, b));
+                    prop_assert_eq!(index.insert_entry(&key(&ks, &[a, b]), rid), fresh);
+                    if fresh { model.insert((a, b), rid); }
+                }
+                _ => { index.delete_entry(&key(&ks, &[a, b])); model.remove(&(a, b)); }
+            }
+            prop_assert_eq!(index.scan_key(&key(&ks, &[a, b])), model.get(&(a, b)).copied().into_iter().collect::<Vec<_>>());
+        }
+        prop_assert_eq!(index.scan_all(), model.values().copied().collect::<Vec<_>>());
+        prop_assert_eq!(index.scan_from(&key(&ks, &[probe.0, probe.1])), model.range(probe..).map(|(_, r)| *r).collect::<Vec<_>>());
+    }
+
+    /// The catalog hands out oids in creation order, refuses a name that is in use (names are case sensitive), and finds every table by name
+    /// and by oid; an index created on a table with rows holds exactly the live rows' keys.
+    #[test]
+    fn s3c_04_a_catalog_behaves_like_maps(names in prop::collection::vec("[a-cA-C]{1,2}", 1..25), rows in prop::collection::vec((-30i32..30, any::<bool>()), 0..50)) {
+        let bpm = bpm(40);
+        let mut catalog = Catalog::new(&bpm);
+        let schema = three_ints();
+        let mut model: HashMap<String, u32> = HashMap::new();
+        for name in &names {
+            let created = catalog.create_table(name, &schema);
+            if model.contains_key(name) {
+                prop_assert!(created.is_none(), "{:?} is already a table", name);
+            } else {
+                let info = created.unwrap();
+                prop_assert_eq!(info.oid as usize, model.len(), "oids count up from zero in creation order");
+                model.insert(name.clone(), info.oid);
+            }
+        }
+        for (name, oid) in &model {
+            prop_assert_eq!(catalog.get_table(name).unwrap().oid, *oid);
+            prop_assert_eq!(&catalog.get_table_by_oid(*oid).unwrap().name, name);
+        }
+        let mut listed = catalog.get_table_names();
+        listed.sort();
+        let mut expected: Vec<String> = model.keys().cloned().collect();
+        expected.sort();
+        prop_assert_eq!(listed, expected);
+        // an index over a table with rows
+        let t = catalog.get_table(&names[0]).unwrap();
+        let mut live: BTreeMap<i32, Rid> = BTreeMap::new();
+        for (v, deleted) in &rows {
+            let rid = t.table.insert_tuple(&meta(false), &key(&schema, &[*v, 0, 0])).unwrap();
+            if *deleted { t.table.update_tuple_meta(&meta(true), rid).unwrap(); } else { live.entry(*v).or_insert(rid); }
+        }
+        // a deleted row is not indexed; of several rows with the same key the first live one is
+        let first_live: BTreeMap<i32, Rid> = {
+            let mut m = BTreeMap::new();
+            for (meta_, tuple) in t.table.make_iterator() {
+                if !meta_.is_deleted { m.entry(tuple.get_value(&schema, 0).as_i64().unwrap() as i32).or_insert(tuple.get_rid()); }
+            }
+            m
+        };
+        let index = catalog.create_index("idx", &names[0], vec![0], false).unwrap().unwrap();
+        prop_assert_eq!(index.index.scan_all(), first_live.values().copied().collect::<Vec<_>>());
+        prop_assert_eq!(live.len(), first_live.len());
+    }
+}
+
+// ---- 3c-05 · Boss: a table, its index and the catalog together ----------------------------------------------------------------
+
+#[test]
+fn s3c_05_a_table_and_its_index_agree_after_inserts_and_deletes_through_the_catalog() {
+    let bpm = bpm(60);
+    let mut catalog = Catalog::new(&bpm);
+    let schema = three_ints();
+    let table = catalog.create_table("orders", &schema).unwrap();
+    let index = catalog.create_index("orders_pk", "orders", vec![0], true).unwrap().unwrap();
+    let mut live: BTreeMap<i32, Rid> = BTreeMap::new();
+    for i in 0..400 {
+        let k = (i * 37) % 401;
+        let tuple = key(&schema, &[k, i, 0]);
+        let rid = table.table.insert_tuple(&meta(false), &tuple).unwrap();
+        assert!(index.index.insert_entry(&key(&index.key_schema, &[k]), rid));
+        live.insert(k, rid);
+    }
+    for k in (0..401).step_by(3) {
+        if let Some(rid) = live.remove(&k) {
+            table.table.update_tuple_meta(&meta(true), rid).unwrap();
+            index.index.delete_entry(&key(&index.key_schema, &[k]));
+        }
+    }
+    assert_eq!(index.index.scan_all(), live.values().copied().collect::<Vec<_>>(), "the index lists the live rows in key order");
+    let scanned: Vec<i32> = table.table.make_iterator().filter(|(m, _)| !m.is_deleted).map(|(_, t)| t.get_value(&schema, 0).as_i64().unwrap() as i32).collect();
+    let mut sorted = scanned.clone();
+    sorted.sort();
+    assert_eq!(sorted, live.keys().copied().collect::<Vec<_>>(), "a scan of the table finds the same rows");
+    for (k, rid) in &live {
+        assert_eq!(table.table.get_tuple(*rid).unwrap().1.get_value(&schema, 0), Value::integer(*k));
+    }
 }

@@ -133,9 +133,7 @@ fn not_in_with_a_null_is_never_true() {
 
 ### In the exercises
 
-- **3a-02:** a NULL is a value of a type; `is_null` and the typed NULL constructors.
-- **3a-04:** `CmpBool` and the comparisons: any NULL gives `Null`; `compare_exactly_equals` is the grouping equality (two NULLs equal).
-- **3a-05:** arithmetic with a NULL is a NULL (`operate_null`).
+- **3a-01, 3a-03, 3a-04:** a NULL is a value of a type (`is_null`, the typed NULL constructors); `CmpBool` and the comparisons answer `Null` for any NULL; arithmetic with a NULL is a NULL of the result type.
 - **Module 3b:** the filter executor passes a row when the predicate is `True`; aggregation skips NULLs; the group-by hash table uses `compare_exactly_equals`.
 
 ### Where it is used

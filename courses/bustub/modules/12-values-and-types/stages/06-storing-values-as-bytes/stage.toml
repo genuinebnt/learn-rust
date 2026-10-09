@@ -1,8 +1,0 @@
-id = "3a-06"
-title = "Storing values as bytes"
-kind = "build"
-difficulty = "medium"
-tests = ["stages_3a::s3a_06"]
-learn = ["fixed-width little-endian encodings and a length-prefixed string", "NULL as a reserved bit pattern", "round-tripping a value through a byte buffer"]
-concepts = ["serialization-of-values", "bytes-endianness-and-views", "integers-and-casts"]
-concepts_optional = ["enums-with-data-and-match"]

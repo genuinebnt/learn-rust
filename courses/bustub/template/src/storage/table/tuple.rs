@@ -47,7 +47,7 @@ impl Tuple {
     /// for a VARCHAR, the offset where its bytes will be), then each VARCHAR's bytes in column order. Panics if there is not one value
     /// of the right type per column.
     pub fn new(values: &[Value], schema: &Schema) -> Tuple {
-        todo!("3b-03: size = the fixed part + each VARCHAR's storage_size; write inlined values at their column's offset; for a VARCHAR write the offset of its bytes (u32, little-endian) in the column's slot and the value's bytes there, advancing the offset")
+        todo!("3b-02: size = the fixed part + each VARCHAR's storage_size; write inlined values at their column's offset; for a VARCHAR write the offset of its bytes (u32, little-endian) in the column's slot and the value's bytes there, advancing the offset")
     }
 
     pub fn get_rid(&self) -> Rid {
@@ -74,31 +74,31 @@ impl Tuple {
 
     /// The value of column `column_idx`. An inlined column is read where it is; a VARCHAR through the offset stored in its slot.
     pub fn get_value(&self, schema: &Schema, column_idx: u32) -> Value {
-        todo!("3b-04: the position of the column's bytes (the column's offset; for a VARCHAR the u32 stored there), then Value::deserialize_from the column's type")
+        todo!("3b-02: the position of the column's bytes (the column's offset; for a VARCHAR the u32 stored there), then Value::deserialize_from the column's type")
     }
 
     pub fn is_null(&self, schema: &Schema, column_idx: u32) -> bool {
-        todo!("3b-04: is the column's value NULL")
+        todo!("3b-02: is the column's value NULL")
     }
 
     /// The key tuple of an index: the values of the columns `key_attrs` of this tuple, arranged by `key_schema`.
     pub fn key_from_tuple(&self, schema: &Schema, key_schema: &Schema, key_attrs: &[u32]) -> Tuple {
-        todo!("3b-04: read the key columns' values, then build a tuple of them under key_schema")
+        todo!("3b-02: read the key columns' values, then build a tuple of them under key_schema")
     }
 
     /// `(1, hello, <NULL>)`: the values separated by `, ` in parentheses, a NULL as `<NULL>`.
     pub fn to_string(&self, schema: &Schema) -> String {
-        todo!("3b-04: the format in the doc comment")
+        todo!("3b-02: the format in the doc comment")
     }
 
     /// Writes the tuple at the start of `storage`: a 4-byte length (little-endian), then the bytes.
     pub fn serialize_to(&self, storage: &mut [u8]) {
-        todo!("3b-04: a 4-byte length, then the tuple's bytes")
+        todo!("3b-02: a 4-byte length, then the tuple's bytes")
     }
 
     /// Reads a tuple written by `serialize_to` (a copy of the bytes; the record id is not stored).
     pub fn deserialize_from(storage: &[u8]) -> Tuple {
-        todo!("3b-04: read the length, then copy that many bytes")
+        todo!("3b-02: read the length, then copy that many bytes")
     }
 }
 

@@ -133,8 +133,8 @@ fn the_data_is_freed_when_the_last_owner_goes() {
 
 ### In the exercises
 
-- **3c-03:** `TableIterator<'a>` holds `&'a TableHeap<'a>`; `get_tuple` returns owned `(TupleMeta, Tuple)`, so nothing borrowed leaves the iterator.
-- **3c-04:** `BPlusTreeIndex<'a, N>` borrows the buffer pool the same way; the catalog stores `Box<dyn Index + 'a>`, so the `'a` is part of the catalog's type too.
+- **3c-02:** `TableIterator<'a>` holds `&'a TableHeap<'a>`; `get_tuple` returns owned `(TupleMeta, Tuple)`, so nothing borrowed leaves the iterator.
+- **3c-03:** `BPlusTreeIndex<'a, N>` borrows the buffer pool the same way; the catalog stores `Box<dyn Index + 'a>`, so the `'a` is part of the catalog's type too.
 - **Everywhere since 1g:** a guard is `PageGuard<'a>`, borrowed from the pool.
 
 ### Where it is used

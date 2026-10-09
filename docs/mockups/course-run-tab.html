@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Course stage: Run tab (mockup)</title>
+<style>
+:root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--mono:'JetBrains Mono',ui-monospace,Menlo,monospace;--code:'Fira Code',ui-monospace,Menlo,monospace;--sans:'Plus Jakarta Sans',system-ui,sans-serif;color-scheme:dark}
+:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.58 0.13 50);--grn:oklch(0.54 0.12 165);--grn-bg:oklch(0.54 0.12 165 / 0.11);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.58 0.12 75);color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans);padding:40px 24px 80px}
+.page{max-width:880px;margin:0 auto;display:grid;gap:48px}
+h1{margin:0;font-size:26px;letter-spacing:-.01em}
+.lede{color:var(--mut);margin:8px 0 0;max-width:68ch}
+.theme{float:right;background:var(--panel);border:1px solid var(--line2);color:var(--mut);font:500 11px var(--mono);letter-spacing:.12em;padding:6px 12px;border-radius:5px;cursor:pointer}
+.cap{font:500 10.5px var(--mono);letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin:0 0 14px;display:flex;gap:12px;align-items:center}
+.cap b{color:var(--acc);font-weight:600}
+.cap::after{content:"";flex:1;height:1px;background:var(--line2)}
+.card{padding:22px 24px;border:1px solid var(--line2);border-radius:10px;background:color-mix(in oklab,var(--panel) 60%,var(--bg))}
+code,.mono{font-family:var(--code)}
+
+/* ---- as built today ---- */
+.quiet{color:var(--dim);font-size:13.5px;margin:0}
+.tests{margin:14px 0 0;border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:var(--panel)}
+.t{display:grid;grid-template-columns:10px minmax(0,1fr);gap:14px;padding:14px 18px;font-size:14.5px}.t+.t{border-top:1px solid var(--line2)}
+.sq{width:8px;height:8px;margin-top:7px;background:var(--grn)}.t.bad .sq{background:var(--bad)}
+.tn{font:500 13px var(--mono)}
+.fail{display:flex;gap:10px;margin-top:8px;font:400 12.5px var(--mono);color:var(--mut)}.fail span{color:var(--bad);flex:none}.fail code{color:var(--fg);overflow-wrap:anywhere;white-space:pre-wrap}
+
+/* ---- proposed ---- */
+.sum{display:grid;gap:14px;padding:18px 20px;border:1px solid var(--line2);border-radius:10px;background:var(--panel)}
+.sum.fail-s{border-color:color-mix(in oklab,var(--bad) 45%,var(--line2))}
+.sum.pass-s{border-color:color-mix(in oklab,var(--grn) 50%,var(--line2))}
+.sumtop{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.big{font:600 22px var(--sans);letter-spacing:-.01em}
+.big em{font-style:normal;color:var(--bad)}.big.ok em{color:var(--grn)}
+.meta{font:500 12px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.bar{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:3px}
+.bar i{height:6px;border-radius:2px;background:var(--grn)}.bar i.b{background:var(--bad)}
+.cmd{display:flex;align-items:center;gap:10px;font:500 12px var(--mono);color:var(--dim)}
+.cmd code{padding:3px 8px;border-radius:4px;background:var(--raise);color:var(--fg)}
+.cmd button,.fold button{font:500 11px var(--mono);letter-spacing:.1em;color:var(--dim);background:none;border:1px solid var(--line2);border-radius:4px;padding:3px 8px;cursor:pointer}
+.cmd button:hover,.fold button:hover{color:var(--fg);border-color:var(--line)}
+.sec{margin:26px 0 10px;font:600 10.5px var(--mono);letter-spacing:.2em;color:var(--dim);display:flex;gap:10px;align-items:center}
+.sec b{color:var(--bad)}.sec.g b{color:var(--grn)}
+.fcard{border:1px solid color-mix(in oklab,var(--bad) 40%,var(--line2));border-radius:8px;background:var(--panel);overflow:hidden}
+.fcard+.fcard{margin-top:10px}
+.fhead{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:14px;align-items:start;padding:12px 16px;background:var(--bad-bg)}
+.fhead .sq{background:var(--bad)}
+.fhead .n{font:500 13px var(--mono)}
+.fhead small{font:500 11px var(--mono);color:var(--dim)}
+.fbody{padding:12px 16px 14px 40px;border-top:1px solid color-mix(in oklab,var(--bad) 25%,var(--line2))}
+.fbody pre{margin:0;font:400 12.5px/1.6 var(--code);color:var(--fg);white-space:pre-wrap;overflow-wrap:anywhere}
+.fbody .hint{margin-top:10px;color:var(--dim);font-size:13px}
+.fbody .l{color:var(--bad)}
+.shared{margin:0 0 8px;font:500 11px var(--mono);color:var(--warn)}
+.fold{border:1px solid var(--line2);border-radius:8px;background:var(--panel);overflow:hidden}
+.foldh{width:100%;display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 16px;text-align:left;background:none;border:0;color:var(--fg);font:inherit;cursor:pointer}
+.foldh .sq{background:var(--grn)}
+.foldh .n{font:500 13px var(--mono);color:var(--mut)}
+.foldh .chev{font:500 12px var(--mono);color:var(--dim);transition:transform .15s}
+.fold.open .chev{transform:rotate(90deg)}
+.fold .list{display:none;border-top:1px solid var(--line2)}.fold.open .list{display:block}
+.row{display:grid;grid-template-columns:10px minmax(0,1fr);gap:14px;padding:9px 16px;font:500 12.5px var(--mono);color:var(--mut)}.row+.row{border-top:1px solid var(--line2)}
+.row .sq{background:var(--grn);margin-top:5px}
+.prob{border:1px solid color-mix(in oklab,var(--warn) 45%,var(--line2));border-radius:8px;background:var(--panel);overflow:hidden}
+.prob .fhead{background:color-mix(in oklab,var(--warn) 12%,transparent)}
+.prob .fhead .sq{background:var(--warn)}
+.prob pre{margin:0;padding:14px 16px;font:400 12.5px/1.6 var(--code);overflow-x:auto;scrollbar-width:none}
+.prob pre::-webkit-scrollbar{display:none}
+.er{color:var(--bad)}.pt{color:var(--acc)}.dm{color:var(--dim)}
+.notes{display:grid;gap:8px;margin:0;padding-left:20px;color:var(--mut);font-size:14px}
+.notes b{color:var(--fg)}
+.note{padding:12px 16px;border-left:2px solid var(--warn);background:color-mix(in oklab,var(--warn) 8%,transparent);color:var(--mut);font-size:13.5px;border-radius:0 6px 6px 0}
+@media (max-width:560px){.fbody{padding-left:16px}.sumtop{gap:6px}}
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <button class="theme" onclick="var r=document.documentElement;r.dataset.theme=r.dataset.theme==='light'?'dark':'light'">THEME</button>
+  <h1>Run tab: failures first, passes folded</h1>
+  <p class="lede">Mockup for approval. Same data as today (name, pass/fail, detail, one total duration); nothing about the API or the CLI report changes. Stage 4A-04 &ldquo;Reconstructing a tuple&rdquo;, shown after <code>anneal course test</code> has been reported.</p>
+</header>
+
+<section>
+  <p class="cap"><b>Today</b> flat list, in test order</p>
+  <div class="card">
+    <p class="quiet">3 min ago · commit 4f1c9ab · 2.4s</p>
+    <div class="tests">
+      <div class="t"><span class="sq"></span><div class="tn">no_logs_returns_the_base_tuple</div></div>
+      <div class="t bad"><span class="sq"></span><div><div class="tn">deleted_base_is_none</div><div class="fail"><span>failed</span><code>assertion `left == right` failed
+  left: Some(Tuple(..))
+ right: None</code></div></div></div>
+      <div class="t"><span class="sq"></span><div class="tn">one_log_restores_changed_columns</div></div>
+      <div class="t"><span class="sq"></span><div class="tn">logs_apply_front_first</div></div>
+      <div class="t bad"><span class="sq"></span><div><div class="tn">delete_log_then_restore_log</div><div class="fail"><span>failed</span><code>assertion `left == right` failed
+  left: Some(Tuple(..))
+ right: None</code></div></div></div>
+      <div class="t"><span class="sq"></span><div class="tn">partial_schema_columns_in_order</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="cap"><b>Proposed</b> 1 · some tests fail</p>
+  <div class="sum fail-s">
+    <div class="sumtop"><span class="big"><em>2 failed</em> · 4 passed</span><span class="meta">3 min ago · commit 4f1c9ab · 2.4s</span></div>
+    <div class="bar"><i></i><i class="b"></i><i></i><i></i><i class="b"></i><i></i></div>
+    <div class="cmd"><span>run again</span><code>anneal course test --only deleted</code><button onclick="navigator.clipboard&&navigator.clipboard.writeText('anneal course test --only deleted')">COPY</button></div>
+  </div>
+
+  <div class="sec"><b>FAILED · 2</b></div>
+  <div class="fcard">
+    <div class="fhead"><span class="sq"></span><span class="n">deleted_base_is_none</span><small>test 2 of 6</small></div>
+    <div class="fbody">
+      <p class="shared">same message as 1 other test</p>
+      <pre><span class="l">assertion `left == right` failed</span>
+  left: Some(Tuple(..))
+ right: None</pre>
+      <div class="hint">The base tuple is marked deleted, so the answer is <code>None</code> before any log is read.</div>
+    </div>
+  </div>
+  <div class="fcard">
+    <div class="fhead"><span class="sq"></span><span class="n">delete_log_then_restore_log</span><small>test 5 of 6</small></div>
+    <div class="fbody"><pre><span class="l">assertion `left == right` failed</span>
+  left: Some(Tuple(..))
+ right: None</pre></div>
+  </div>
+
+  <div class="sec g"><b>PASSED · 4</b></div>
+  <div class="fold" id="f1">
+    <button class="foldh" onclick="this.parentNode.classList.toggle('open')"><span class="sq"></span><span class="n">no_logs_returns_the_base_tuple, one_log_restores_changed_columns and 2 more</span><span class="chev">›</span></button>
+    <div class="list">
+      <div class="row"><span class="sq"></span>no_logs_returns_the_base_tuple</div>
+      <div class="row"><span class="sq"></span>one_log_restores_changed_columns</div>
+      <div class="row"><span class="sq"></span>logs_apply_front_first</div>
+      <div class="row"><span class="sq"></span>partial_schema_columns_in_order</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="cap"><b>Proposed</b> 2 · everything passes</p>
+  <div class="sum pass-s">
+    <div class="sumtop"><span class="big ok"><em>6 of 6 passed</em></span><span class="meta">just now · commit 91be0d2 · 1.9s</span></div>
+    <div class="bar"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+  <div class="sec g" style="margin-top:20px"><b>PASSED · 6</b></div>
+  <div class="fold open">
+    <button class="foldh" onclick="this.parentNode.classList.toggle('open')"><span class="sq"></span><span class="n">all tests</span><span class="chev">›</span></button>
+    <div class="list">
+      <div class="row"><span class="sq"></span>no_logs_returns_the_base_tuple</div>
+      <div class="row"><span class="sq"></span>deleted_base_is_none</div>
+      <div class="row"><span class="sq"></span>one_log_restores_changed_columns</div>
+      <div class="row"><span class="sq"></span>logs_apply_front_first</div>
+      <div class="row"><span class="sq"></span>delete_log_then_restore_log</div>
+      <div class="row"><span class="sq"></span>partial_schema_columns_in_order</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="cap"><b>Proposed</b> 3 · the tests did not run</p>
+  <div class="sum">
+    <div class="sumtop"><span class="big" style="color:var(--warn)">Did not run</span><span class="meta">8 min ago · commit c70aa13</span></div>
+    <div class="cmd"><span>compile locally</span><code>anneal course test</code></div>
+  </div>
+  <div class="sec" style="margin-top:20px"><b style="color:var(--warn)">COMPILER OUTPUT</b></div>
+  <div class="prob">
+    <div class="fhead"><span class="sq"></span><span class="n">2 errors</span><small>as the compiler printed it</small></div>
+<pre><span class="er">error[E0308]</span>: mismatched types
+  <span class="pt">--&gt;</span> src/execution/execution_common.rs:41:9
+   <span class="dm">|</span>
+<span class="dm">41 |</span>         Some(values)
+   <span class="dm">|</span>         <span class="er">^^^^^^^^^^^^</span> expected <code>Option&lt;Tuple&gt;</code>, found <code>Option&lt;Vec&lt;Value&gt;&gt;</code></pre>
+  </div>
+</section>
+
+<section>
+  <p class="cap"><b>What changes</b></p>
+  <ol class="notes">
+    <li><b>Failures first and open.</b> A failing test shows its message without a click; tests that share the same message are marked, as the CLI report already does.</li>
+    <li><b>Passes folded.</b> One row summarises them; click to see every name. When nothing fails the list opens by itself.</li>
+    <li><b>Segmented bar</b> with one segment per test in test order, so a run reads at a glance.</li>
+    <li><b>Run-again command</b> with a copy button; <code>--only</code> is the filter the CLI already has.</li>
+    <li><b>Compiler errors</b> in their own block, as the stage page's compiler panel shows them.</li>
+  </ol>
+  <p class="note" style="margin-top:16px"><b>Not in this mockup, and why:</b> per-test durations and grouping by stage. A reported run is for one stage and carries only the total time; <code>cargo test</code> gives per-test times only on nightly. Both would need the runner and the report format to change, so I left them out. The hint line under the first failure is optional: it would come from an optional <code>why</code> on the stage&rsquo;s test list, which does not exist today.</p>
+</section>
+</div>
+</body>
+</html>

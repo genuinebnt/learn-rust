@@ -388,3 +388,10 @@
 @keyframes cx-toast-in{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
 @media (prefers-reduced-motion:reduce){.cx-toast{animation:none}}
 @media (max-width:760px){.cx-toast{top:100px;border-radius:14px;flex-wrap:wrap}}
+
+/* comparison tables: a code cell is highlighted, rows line up, a copy button shows on hover (docs/mockups/web-tables-and-run-strip.html) */
+.cx-prose .cx-tbl.versus td{position:relative;vertical-align:middle}
+.cx-prose .cx-tbl.versus td code.src{display:block;padding:0 46px 0 0;background:none;font:400 13px/1.55 var(--code);white-space:pre-wrap;overflow-wrap:anywhere}
+.cx-prose .cx-tbl.versus td .cx-copy{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--panel);border-color:var(--line2)}
+.cx-prose .cx-tbl.versus td:hover .cx-copy,.cx-prose .cx-tbl.versus td .cx-copy:focus-visible{opacity:1}
+@media (hover:none){.cx-prose .cx-tbl.versus td .cx-copy{opacity:1}}

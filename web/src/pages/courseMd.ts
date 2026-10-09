@@ -207,15 +207,24 @@ const marked: Marked = new Marked({
             const heads = token.header.map((h) => h.text);
             const headless = heads.every((h) => !h.trim());
             const kinds: Col[] = heads.map(columnKind);
-            const cell = (c: Tokens.TableCell) => this.parser.parseInline(c.tokens);
+            const versus = kinds.includes("c") && kinds.includes("rust");
+            // In a C++/Rust comparison, a cell that is only a code span is highlighted as that language and gets a copy button.
+            const cell = (c: Tokens.TableCell, i = -1) => {
+                const only = c.tokens.length === 1 ? c.tokens[0] : undefined;
+                const kind = kinds[i];
+                if (versus && only?.type === "codespan" && (kind === "c" || kind === "rust")) {
+                    const src = only.raw.replace(/^`+ ?/, "").replace(/ ?`+$/, "");
+                    return `<code class="src">${(kind === "c" ? highlightCpp : highlightRust)(src)}</code><button class="cx-copy" type="button" data-code="${esc(src)}">copy</button>`;
+                }
+                return this.parser.parseInline(c.tokens);
+            };
             const cls = (i: number) => {
                 const k = kinds[i] ?? "other";
                 return k === "other" ? (headless && i === 0 ? "key" : "") : k;
             };
             const thead = headless ? "" : `<thead><tr>${token.header.map((h, i) => `<th class="${cls(i)}">${cell(h)}</th>`).join("")}</tr></thead>`;
-            const rows = token.rows.map((r) => `<tr>${r.map((c, i) => `<td class="${cls(i)}">${cell(c)}</td>`).join("")}</tr>`).join("");
-            const versus = kinds.includes("c") && kinds.includes("rust") ? " versus" : "";
-            return `<div class="cx-tbl${versus}"><table>${thead}<tbody>${rows}</tbody></table></div>`;
+            const rows = token.rows.map((r) => `<tr>${r.map((c, i) => `<td class="${cls(i)}">${cell(c, i)}</td>`).join("")}</tr>`).join("");
+            return `<div class="cx-tbl${versus ? " versus" : ""}"><table>${thead}<tbody>${rows}</tbody></table></div>`;
         },
     },
 });

@@ -4,14 +4,14 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Accent, type EditorSettings, type Settings } from "./api";
 
-export const DEFAULT_EDITOR: EditorSettings = { font_size: 13, font_family: "JetBrains Mono", vim: false, autocomplete: true, rust_analyzer: true, borrow_lanes: false, live_clippy: true, format_on_pause: false, ligatures: false };
+export const DEFAULT_EDITOR: EditorSettings = { font_size: 13, font_family: "Fira Code", vim: false, autocomplete: true, rust_analyzer: true, borrow_lanes: false, live_clippy: true, format_on_pause: false, ligatures: false };
 
 const STACK: Record<string, string> = {
   system: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
 };
 const stack = (family: string) => STACK[family] ?? `'${family}', ui-monospace, monospace`;
 
-/** Google Fonts families loaded on demand; JetBrains Mono is already in index.html. */
+/** Google Fonts families loaded on demand; JetBrains Mono and Fira Code are already in index.html. */
 const GOOGLE: Record<string, string> = {
   "Fira Code": "Fira+Code:wght@400;500",
   "IBM Plex Mono": "IBM+Plex+Mono:wght@400;500",

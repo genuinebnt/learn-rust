@@ -9,7 +9,7 @@ use crate::AppState;
 use crate::error::{ApiError, ApiResult};
 
 /// Font families the web app knows how to load. `system` is the OS monospace font.
-pub const FONT_FAMILIES: &[&str] = &["JetBrains Mono", "Fira Code", "IBM Plex Mono", "Source Code Pro", "Roboto Mono", "system"];
+pub const FONT_FAMILIES: &[&str] = &["Fira Code", "JetBrains Mono", "IBM Plex Mono", "Source Code Pro", "Roboto Mono", "system"];
 pub const FONT_SIZES: std::ops::RangeInclusive<u8> = 10..=24;
 /// Accent colours the web app has palettes for. Copper is the design's own.
 pub const ACCENTS: &[&str] = &["copper", "rose", "sky", "teal"];
@@ -49,7 +49,7 @@ impl Default for EditorSettings {
     fn default() -> Self {
         EditorSettings {
             font_size: 13,
-            font_family: "JetBrains Mono".into(),
+            font_family: "Fira Code".into(),
             vim: false,
             autocomplete: true,
             rust_analyzer: true,

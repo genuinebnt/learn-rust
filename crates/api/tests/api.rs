@@ -541,7 +541,7 @@ async fn editor_settings_round_trip_and_validate(db: PgPool) {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         s["editor"],
-        json!({ "font_size": 13, "font_family": "JetBrains Mono", "vim": false, "autocomplete": true, "rust_analyzer": true, "borrow_lanes": false, "live_clippy": true, "format_on_pause": false, "ligatures": false })
+        json!({ "font_size": 13, "font_family": "Fira Code", "vim": false, "autocomplete": true, "rust_analyzer": true, "borrow_lanes": false, "live_clippy": true, "format_on_pause": false, "ligatures": false })
     );
     assert!(s["font_families"].as_array().unwrap().contains(&json!("Fira Code")));
 

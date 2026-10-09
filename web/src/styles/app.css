@@ -21,7 +21,7 @@ a.tile:hover { border-color: var(--line); }
 .md p { margin: 0 0 12px; text-wrap: pretty; }
 .md p:last-child { margin-bottom: 0; }
 .md code { font-size: 12.5px; }
-.md pre { margin: 0 0 12px; padding: 12px 14px; background: var(--raise); border-radius: 4px; font: 400 12px/1.6 var(--mono); color: var(--fg); overflow-x: auto; }
+.md pre { margin: 0 0 12px; padding: 12px 14px; background: var(--raise); border-radius: 4px; font: 400 12px/1.6 var(--code); color: var(--fg); overflow-x: auto; }
 .md pre code { font-size: inherit; }
 .md ul { margin: 0 0 12px; padding-left: 18px; }
 .md strong { color: var(--fg); }
@@ -42,7 +42,7 @@ a.tile:hover { border-color: var(--line); }
 .rulebox { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 4px; background: var(--warn-bg); font-size: 12.5px; line-height: 1.55; color: var(--fg); }
 .errbox { padding: 12px 14px; border-radius: 4px; background: var(--bad-bg); font-size: 12.5px; line-height: 1.55; color: var(--fg); }
 .tpanic { display: block; white-space: pre-wrap; color: var(--bad); }
-.compiler pre { margin: 0 0 14px; font: 400 11.5px/1.6 var(--mono); white-space: pre; overflow-x: auto; color: var(--mut); }
+.compiler pre { margin: 0 0 14px; font: 400 11.5px/1.6 var(--code); white-space: pre; overflow-x: auto; color: var(--mut); }
 .compiler pre.err { color: var(--fg); }
 .diff { min-height: 40px; }
 
@@ -152,7 +152,7 @@ a.tile:hover { border-color: var(--line); }
 .console-toggle { width: 28px; height: 26px; border-radius: 5px; color: var(--dim); font-size: 13px; }
 .console-toggle:hover { background: var(--raise); color: var(--fg); }
 .console-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; font-size: 13px; color: var(--mut); }
-.compiler pre.out { margin: 0 0 10px; padding: 10px 12px; border-radius: 4px; background: var(--bg); font: 400 12px/1.55 var(--mono); color: var(--fg); white-space: pre-wrap; word-break: break-word; }
+.compiler pre.out { margin: 0 0 10px; padding: 10px 12px; border-radius: 4px; background: var(--bg); font: 400 12px/1.55 var(--code); color: var(--fg); white-space: pre-wrap; word-break: break-word; }
 .compiler pre.out.err { color: var(--bad); }
 .ftabs { overflow: visible; } /* the Aa popover hangs below the bar; .ftab-list scrolls the tabs itself */
 .ftabs .tools { flex: none; }
@@ -195,7 +195,7 @@ a.tile:hover { border-color: var(--line); }
 .tline-run .sq { display: flex; gap: 2px; flex-wrap: wrap; }
 .tline-run .sq i { width: 7px; height: 7px; border-radius: 1px; }
 .tline-diff { min-height: 0; overflow: auto; }
-.diffx { font: 400 12px/1.6 var(--mono); border-radius: 4px; background: var(--bg); padding: 6px 0; }
+.diffx { font: 400 12px/1.6 var(--code); border-radius: 4px; background: var(--bg); padding: 6px 0; }
 .diffx div { padding: 0 12px; white-space: pre-wrap; word-break: break-word; }
 .diffx div span { display: inline-block; width: 16px; color: inherit; }
 .diffx .add { color: var(--grn); background: var(--grn-bg); }

@@ -29,6 +29,7 @@ git config user.email t@example.com
 git config user.name t
 "$A" course status | head -6
 if "$A" course test | grep -q "^✓ Stage .* complete"; then echo "BUG: stage 1 passed on the stub"; exit 1; fi
+if "$A" course test >/dev/null 2>&1; then echo "BUG: a failing stage exits 0"; exit 1; fi
 
 echo "== only the first module is in the learner's repo"
 test ! -e src/storage/disk/disk_scheduler.rs || { echo "BUG: module 1b's file is visible at the start"; exit 1; }

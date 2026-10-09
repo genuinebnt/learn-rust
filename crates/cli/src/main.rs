@@ -1,6 +1,7 @@
 mod course;
 mod course_sync;
 mod course_unlock;
+mod term;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -77,6 +78,7 @@ enum Command {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<ExitCode> {
+    term::quiet_broken_pipe();
     let cli = Cli::parse();
     if let Command::Passphrase = cli.command {
         return passphrase();

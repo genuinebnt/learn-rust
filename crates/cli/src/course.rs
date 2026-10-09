@@ -69,6 +69,12 @@ pub enum CourseCmd {
         /// Run every passed stage's tests too (the default for the current stage) and nothing is skipped.
         #[arg(long)]
         all: bool,
+        /// Only this stage's tests: skip the regression run of the stages you already passed.
+        #[arg(long)]
+        only: bool,
+        /// Show every failure in full (the default shows each distinct failure once, cleaned of thread ids and backtrace notes).
+        #[arg(short, long)]
+        verbose: bool,
     },
     /// Show the next stage's README. Run after the current stage passes.
     Next,
@@ -483,7 +489,7 @@ fn run_entries(repo: &Path, entries: &[String], target_dir: Option<&Path>, timeo
         build.env("CARGO_TARGET_DIR", t);
     }
     let mut report = RunReport::default();
-    let (stdout, stderr, code) = match run_with_timeout(build, timeout.max(Duration::from_secs(600))) {
+    let (stdout, stderr, code) = match crate::term::with_spinner("compiling", || run_with_timeout(build, timeout.max(Duration::from_secs(600)))) {
         Err(e) => {
             report.problem = Some(format!("{}: {e}", bins.first().copied().unwrap_or("build")));
             return report;
@@ -707,7 +713,7 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
         CourseCmd::Solutions { course, courses, out, stages } => solutions(&course, &courses, out, &stages),
         CourseCmd::Status => status(),
         CourseCmd::Show { stage } => show(stage.as_deref()),
-        CourseCmd::Test { stage, all } => test(stage.as_deref(), all, false),
+        CourseCmd::Test { stage, all, only, verbose } => test(stage.as_deref(), TestOpts { all, only, verbose, hook: false }),
         CourseCmd::Next => next(),
         CourseCmd::Update { course, courses } => update(&course, &courses),
         CourseCmd::Hooks => {
@@ -716,7 +722,7 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         CourseCmd::Hook { name } => match name.as_str() {
-            "pre-push" => test(None, false, true),
+            "pre-push" => test(None, TestOpts { all: false, only: false, verbose: false, hook: true }),
             other => bail!("no hook {other:?}"),
         },
         CourseCmd::Build { stage, full, out, course, courses } => {
@@ -1089,7 +1095,32 @@ fn next() -> anyhow::Result<ExitCode> {
     }
 }
 
-fn test(stage: Option<&str>, all: bool, hook: bool) -> anyhow::Result<ExitCode> {
+/// What `anneal course test` was asked to do.
+#[derive(Clone, Copy)]
+struct TestOpts {
+    all: bool,
+    only: bool,
+    verbose: bool,
+    /// Called by the pre-push hook: a failure blocks the push only if the repo's config says so.
+    hook: bool,
+}
+
+/// The exit code for a stage that did not pass: 1 for failing tests, 2 when nothing could run (a compile error or a timeout). The
+/// pre-push hook is the exception: it exits 0 unless the repo asked to block pushes.
+fn failure_code(opts: TestOpts, block_on_fail: bool, nothing_ran: bool) -> ExitCode {
+    if opts.hook {
+        if block_on_fail { ExitCode::FAILURE } else { ExitCode::SUCCESS }
+    } else if nothing_ran {
+        ExitCode::from(2)
+    } else {
+        ExitCode::FAILURE
+    }
+}
+
+fn test(stage: Option<&str>, opts: TestOpts) -> anyhow::Result<ExitCode> {
+    use crate::term::{bold, dim, green, red};
+    let TestOpts { all, only, verbose, .. } = opts;
+    crate::term::enable_progress();
     let repo = find_repo()?;
     let course = learner_course(&repo)?;
     let mut progress = load_progress(&repo);
@@ -1104,76 +1135,115 @@ fn test(stage: Option<&str>, all: bool, hook: bool) -> anyhow::Result<ExitCode> 
             }
         },
     };
-    println!("Stage {} · {}\n", target.def.id, target.def.title);
+    let done = progress.passed.len();
+    println!("{}  {}\n", bold(&format!("Stage {} · {}", target.def.id, target.def.title)), dim(&format!("({done} of {} stages done)", course.stages.len())));
     let started = Instant::now();
     let report = run_entries(&repo, &target.def.tests, None, Duration::from_secs(180));
-    print_report(&report);
+    print_report(&report, verbose);
     let ok = report.passed();
     {
         let tests: Vec<(String, bool, String)> = report.tests.iter().map(|t| (t.name.clone(), t.ok, t.detail.lines().filter(|l| !l.trim().is_empty()).take(6).collect::<Vec<_>>().join("\n"))).collect();
         course_sync::report_run(&course.meta.id, &target.def.id, &tests, report.problem.as_deref(), &head_commit(&repo), started.elapsed().as_millis() as u64);
     }
     if !ok {
-        println!("\nNot yet. `anneal course show {}` has the task and hints.", target.def.id);
-        return Ok(if hook && cfg.block_on_fail { ExitCode::FAILURE } else { ExitCode::SUCCESS });
+        println!("\n{} `anneal course show {}` has the task and hints; `-v` shows every failure in full.", red("Not yet."), target.def.id);
+        return Ok(failure_code(opts, cfg.block_on_fail, report.tests.is_empty()));
     }
     let ms = started.elapsed().as_millis() as u64;
     // Regression: everything that already passed must still pass.
-    let earlier: Vec<String> = course
-        .stages
-        .iter()
-        .filter(|s| s.rank < target.rank && (all || progress.passed.contains_key(&s.def.id)))
-        .flat_map(|s| s.def.tests.clone())
-        .collect();
+    let earlier: Vec<String> = if only {
+        Vec::new()
+    } else {
+        course.stages.iter().filter(|s| s.rank < target.rank && (all || progress.passed.contains_key(&s.def.id))).flat_map(|s| s.def.tests.clone()).collect()
+    };
     if !earlier.is_empty() {
         let mut uniq = earlier;
         uniq.sort();
         uniq.dedup();
+        println!("\n{}", dim("Checking the stages you already passed..."));
         let reg = run_entries(&repo, &uniq, None, Duration::from_secs(300));
         let broken: Vec<&TestOutcome> = reg.tests.iter().filter(|t| !t.ok).collect();
         if let Some(p) = &reg.problem {
             println!("\nRegression run failed: {p}");
-            return Ok(if hook && cfg.block_on_fail { ExitCode::FAILURE } else { ExitCode::SUCCESS });
+            return Ok(failure_code(opts, cfg.block_on_fail, true));
         }
         if !broken.is_empty() {
             println!("\nThis stage passes, but you broke earlier stages:");
             for t in broken {
-                println!("  ✗ {}", t.name);
+                println!("  {} {}", red("✗"), t.name);
             }
-            return Ok(if hook && cfg.block_on_fail { ExitCode::FAILURE } else { ExitCode::SUCCESS });
+            return Ok(failure_code(opts, cfg.block_on_fail, false));
         }
-        println!("\nEarlier stages: {} tests still pass.", reg.tests.len());
+        println!("{} earlier tests still pass.", reg.tests.len());
     }
     if !progress.passed.contains_key(&target.def.id) {
         let at = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
         progress.passed.insert(target.def.id.clone(), Passed { at, commit: head_commit(&repo), ms });
         save_progress(&repo, &progress)?;
-        println!("\n✓ Stage {} complete.", target.def.id);
+        println!("\n{}", green(&format!("✓ Stage {} complete.", target.def.id)));
+        let before_module = target.module.clone();
         maybe_unlock(&repo, &course, &progress)?;
         match current(&course, &progress) {
-            Some(n) => println!("Next: {} · {}  (`anneal course next`)", n.def.id, n.def.title),
+            Some(n) => {
+                if n.module != before_module {
+                    println!("{}", bold(&format!("Module {} · {} is done. Next module: {} · {}.", before_module, target.module_title, n.module, n.module_title)));
+                }
+                println!("Next: {} · {}  (`anneal course next`)", n.def.id, n.def.title)
+            }
             None => println!("That was the last stage."),
         }
     } else {
-        println!("\n✓ Stage {} passes (already recorded).", target.def.id);
+        println!("\n{}", green(&format!("✓ Stage {} passes (already recorded).", target.def.id)));
     }
     Ok(ExitCode::SUCCESS)
 }
 
-fn print_report(r: &RunReport) {
-    for t in &r.tests {
-        let short = t.name.rsplit("::").next().unwrap_or(&t.name);
-        if t.ok {
-            println!("  ✓ {short}");
-        } else {
-            println!("  ✗ {short}");
-            for l in t.detail.lines().filter(|l| !l.trim().is_empty()).take(8) {
-                println!("      {l}");
-            }
+/// The tests of one run: the passing ones a line each, the failing ones grouped by their message (a stage whose stub panics with the same
+/// `todo!` in twelve tests shows that message once, with the twelve names under it), then a count. `verbose` shows every failure in full.
+fn print_report(r: &RunReport, verbose: bool) {
+    use crate::term::{clean_detail, dim, green, reason, red};
+    let mut tests: Vec<&TestOutcome> = r.tests.iter().collect();
+    tests.sort_by(|a, b| a.name.cmp(&b.name));
+    let short = |t: &TestOutcome| t.name.rsplit("::").next().unwrap_or(&t.name).to_owned();
+    for t in tests.iter().filter(|t| t.ok) {
+        println!("  {} {}", green("✓"), short(t));
+    }
+    // failing tests grouped by what they say: (message lines, test names)
+    let mut groups: Vec<(String, Vec<String>, Vec<String>)> = Vec::new();
+    for t in tests.iter().filter(|t| !t.ok) {
+        let lines = clean_detail(&t.detail);
+        let why = if verbose { t.name.clone() } else { reason(&lines) };
+        match groups.iter_mut().find(|g| !why.is_empty() && g.0 == why) {
+            Some(g) => g.2.push(short(t)),
+            None => groups.push((why, lines, vec![short(t)])),
         }
+    }
+    let mut hidden = 0;
+    for (k, (_, lines, names)) in groups.iter().enumerate() {
+        if names.len() == 1 {
+            println!("  {} {}", red("✗"), names[0]);
+        } else {
+            println!("  {} {} tests fail the same way:", red("✗"), names.len());
+            names.iter().for_each(|n| println!("      {}", dim(n)));
+        }
+        if verbose || k < 4 {
+            let shown = if verbose { lines.len() } else { 6 };
+            lines.iter().take(shown).for_each(|l| println!("        {l}"));
+        } else {
+            hidden += 1;
+        }
+    }
+    if hidden > 0 {
+        println!("        {}", dim(&format!("({hidden} more groups of failures without their messages: run with -v to see them)")));
     }
     if let Some(p) = &r.problem {
         println!("\n{p}");
+    }
+    let total = tests.len();
+    let passed = tests.iter().filter(|t| t.ok).count();
+    if total > 0 {
+        let line = format!("{passed} of {total} tests passed");
+        println!("\n{}", if passed == total { green(&line) } else { red(&line) });
     }
 }
 

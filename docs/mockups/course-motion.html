@@ -461,6 +461,7 @@ a.tl,.toc a,.pn a,.read-first{text-decoration:none;color:inherit}.toc a{color:va
 .kv2{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--line2);font-size:13px;color:var(--mut)}.kv2:first-of-type{border-top:0}.kv2 b{font:600 12px var(--mono);color:var(--fg)}
 .hl2{display:flex;gap:6px;margin-top:2px}.hl2 i{flex:1;height:6px;border-radius:3px;background:var(--line2)}.hl2 i.on{background:var(--acc)}
 .rc .toc{padding:0}
+.toc .rcard{flex:none}
 
 /* rich sidenotes (code, lists) and asides */
 .sn p{margin:6px 0 0;color:inherit}.sn ul{margin:6px 0 0;padding-left:16px}.sn li{margin:2px 0}
@@ -657,7 +658,6 @@ free.<span class="fnn">push</span>(<span class="nm">7</span>);
     </main>
     <aside class="toc" id="tocN">
       <span class="rz r" id="rzr" title="Drag to resize · double-click to reset"><span class="grip"></span></span>
-      <div class="rcard"><div class="pcard"><div class="pring" style="--p:67"><span><div>4/6<small>TESTS</small></div></span></div><div><b style="font-size:15px">Stage 4 of 8</b><div style="font:500 11.5px var(--mono);color:var(--dim);margin-top:2px">1A · Disk manager</div><div class="tbars" id="tbars"></div></div></div></div>
       <div class="rcard"><h6>ON THIS PAGE <button class="sbtn" id="rt" aria-label="Hide sidebar" title="Hide (⌘.)">»</button></h6><div id="toc" style="position:relative;border-left:1px solid var(--line2)"><span class="mk" id="mk"></span><a href="#a1" class="on">The task</a><a href="#a2">Tests</a><a href="#a3">Notes</a><a href="#a4">Code</a><a href="#a5">The C/C++ way</a><a href="#a6">Optional: performance</a><a href="#a7">Check yourself</a></div></div>
       <div class="rcard" id="notesCard"><h6>NOTES <span class="pin" id="nCount">3</span></h6><div id="nlist"></div></div>
       <div class="rcard"><h6>CONCEPTS <span class="pin req">REQUIRED</span></h6>
@@ -666,7 +666,6 @@ free.<span class="fnn">push</span>(<span class="nm">7</span>);
         <div class="cc2 todo"><span class="ci">3</span><div><b>Mutex owns its data</b><small>6 min read</small></div><span class="st4">TO READ</span></div></div>
       <div class="rcard"><h6>THIS STAGE <span class="pin">PINNED</span></h6><div class="pincmd"><span>anneal course test 1a-04</span><button class="copy fx" data-c="anneal course test 1a-04">COPY</button></div>
         <div class="kv2"><span>Last run</span><b>4 / 6 · 2 min ago</b></div><div class="kv2"><span>Hints used</span><b>0 / 3</b></div><div class="hl2"><i></i><i></i><i></i></div></div>
-      
     </aside>
   </div>
   <div class="strip" id="strip">
@@ -918,7 +917,7 @@ addEventListener('scroll',noteSpy,{passive:true});setTimeout(noteSpy,100);
       const up=()=>{st.classList.remove('dragging');h.classList.remove('act');h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);save()};
       h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up)});
     h.addEventListener('dblclick',()=>{w[k]=300;apply();save()})})})();
-$('#tbars').innerHTML=TESTS.map(t=>`<i class="${t[1]==='bad'?'f':''}"></i>`).join('');
+
 
 /* rich sidenotes expand, aside toggle */
 $$('.sx').forEach(b=>b.onclick=()=>{const r=b.closest('.snr');r.classList.toggle('wide');b.textContent=r.classList.contains('wide')?'COLLAPSE ⤡':'EXPAND ⤢'});

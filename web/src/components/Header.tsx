@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { ACCENTS, useAppearance, usePageWidth } from "../settings";
+import { isRustSection } from "../curriculum";
 import { StatsBar } from "./StatsBar";
 
 // The header has two tiers (docs/mockups/navbar-v2.html). The first answers "where in the product am I": the three areas as one switcher
@@ -111,7 +112,7 @@ export function Header({ area, compact = false, stats = true }: { area?: AreaId;
     const [paletteOpen, setPaletteOpen] = useState(false);
 
     const rust = useMemo(() => {
-        const t = tracks.data ?? [];
+        const t = (tracks.data ?? []).filter((x) => isRustSection(x.section)); // the DSA tracks live in the DSA area
         const total = t.reduce((n, x) => n + x.total, 0);
         const solved = t.reduce((n, x) => n + x.solved, 0);
         return { total, solved };

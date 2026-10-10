@@ -101,3 +101,18 @@ html.has-sb body{padding-bottom:30px}
 .k-root .k-node.k-part{border-color:color-mix(in oklab,var(--grn) 55%,var(--line2));color:var(--fg)}
 .k-root .k-node.k-done{background:var(--grn)}
 @media (max-width:760px){.k-root .k-proj{grid-template-columns:1fr auto}.k-root .k-nodes{grid-column:1/-1;order:3}}
+
+/* filters: search, view switch and the filters button share one height and radius; chips one size */
+.s-root .s-tools{gap:10px;align-items:stretch}
+.s-root .s-search,.s-root .s-seg,.s-root .s-tools>.d-fbtn{height:40px;border-radius:8px}
+.s-root .s-seg{align-items:stretch;padding:3px}
+.s-root .s-seg button{padding:0 14px;display:inline-flex;align-items:center;gap:6px;border-radius:6px}
+.d-fbtn{display:inline-flex;align-items:center;gap:8px;padding:0 14px;border:1px solid var(--line2);background:var(--panel);font:500 12px var(--mono);color:var(--mut);transition:border-color .15s,color .15s,background .15s}
+.d-fbtn:hover{border-color:var(--line);color:var(--fg)}
+.d-fbtn i{font-style:normal;min-width:18px;height:18px;padding:0 5px;display:inline-grid;place-items:center;border-radius:9px;background:var(--acc);color:var(--on-acc);font-weight:700;font-size:10.5px}
+.d-fbtn kbd{font:600 10px var(--mono);padding:1px 5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;color:var(--dim);background:var(--bg)}
+.s-root .s-chips{gap:8px}
+.s-root .s-chip{height:30px;padding:0 12px;border-radius:999px;gap:6px}
+.s-root .s-flab{margin-bottom:12px}
+/* the filter rail: rows with room, counts that line up */
+.d-rail label,.d-fopt{min-height:34px}

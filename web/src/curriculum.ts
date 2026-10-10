@@ -82,6 +82,9 @@ export const NAV_SECTIONS = {
 
 export type NavArea = keyof typeof NAV_SECTIONS;
 
+/** Is this section part of the Rust area? (The DSA tracks have their own area.) */
+export const isRustSection = (s: Section) => (NAV_SECTIONS.rust as readonly Section[]).includes(s);
+
 export const sectionOf = (code: string) => code[0] as Section;
 
 /** One line per track: what interviewers probe. Written tracks show their own summary instead. */

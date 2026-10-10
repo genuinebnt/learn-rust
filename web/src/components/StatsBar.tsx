@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
+import { isRustSection, PLANNED, sectionOf } from "../curriculum";
 import { niceDate } from "../dsa";
 
 type AreaId = "dsa" | "rust" | "courses";
@@ -44,11 +45,11 @@ export function StatsBar({ area }: { area: AreaId }) {
             const listed = o.problems.filter((x) => !x.lists.every((l) => l === "practice"));
             out.push({ key: "bank", label: "BANK", value: String(o.problems.length), note: `${listed.length} in the lists · ${o.patterns.length} patterns` });
         } else if (area === "rust" && tracks.data) {
-            const t = tracks.data;
+            const t = tracks.data.filter((x) => isRustSection(x.section));
             const total = t.reduce((n, x) => n + x.total, 0);
             const solved = t.reduce((n, x) => n + x.solved, 0);
             out.push({ key: "rs", label: "RUST PROBLEMS", value: String(solved), of: `/${total}`, bar: pct(solved, total), tone: "ok" });
-            out.push({ key: "tr", label: "TRACKS", value: String(t.length) });
+            out.push({ key: "tr", label: "TRACKS", value: String(PLANNED.filter((x) => isRustSection(sectionOf(x.code))).length) });
             const open = t.find((x) => x.solved < x.total);
             if (open) out.push({ key: "op", label: "IN PROGRESS", value: open.name, note: `${open.solved}/${open.total}` });
             if (p) out.push({ key: "st", label: "STREAK", value: plural(p.streak, "day"), tone: p.streak > 0 ? "hot" : undefined, spark });

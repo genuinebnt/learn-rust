@@ -235,6 +235,843 @@ pitfalls = [
     "The version with two arrays (left_max[i], right_max[i]) is easier to explain. Offer it first.",
 ]
 
+[[extra]]
+id = "Two Pointers:triples-count"
+name = "Count triples or pairs under a bound"
+group = "K-sum on sorted arrays"
+signals = [
+    "how many triples form a triangle, have a sum below a target, or have a sum closest to it",
+    "sort, fix one element, and move two pointers: when a pair works, every pair between the pointers works too",
+    "a counted pair (lo, hi) means all of lo..hi - 1 pair with hi",
+]
+template_name = "Valid triangle number"
+template = '''
+def triangle_number(nums):
+    nums.sort()
+    count = 0
+    for k in range(len(nums) - 1, 1, -1):  # nums[k] is the longest side
+        lo, hi = 0, k - 1
+        while lo < hi:
+            if nums[lo] + nums[hi] > nums[k]:
+                count += hi - lo  # every lo..hi-1 works with hi
+                hi -= 1
+            else:
+                lo += 1
+    return count
+'''
+pitfalls = [
+    "Fix the largest side: then the triangle rule needs only the two smaller sides to add up to more than it.",
+    "When nums[lo] + nums[hi] is big enough, all indexes from lo to hi - 1 work too: add hi - lo.",
+    "Sorting costs O(n log n); the scan is O(n^2).",
+]
+examples = ["valid-triangle-number", "3sum-closest", "3sum-smaller", "number-of-arithmetic-triplets"]
+
+[[extra.variant]]
+name = "3Sum closest"
+note = "Fix one element and move two pointers towards the target, remembering the closest sum."
+template = '''
+def three_sum_closest(nums, target):
+    nums.sort()
+    best = nums[0] + nums[1] + nums[2]
+    for i in range(len(nums) - 2):
+        lo, hi = i + 1, len(nums) - 1
+        while lo < hi:
+            s = nums[i] + nums[lo] + nums[hi]
+            if abs(s - target) < abs(best - target):
+                best = s
+            if s < target:
+                lo += 1
+            elif s > target:
+                hi -= 1
+            else:
+                return s  # an exact hit
+    return best
+'''
+
+[[extra.variant]]
+name = "3Sum smaller"
+note = "When the sum is below the target, every partner between lo and hi works."
+template = '''
+def three_sum_smaller(nums, target):
+    nums.sort()
+    count = 0
+    for i in range(len(nums) - 2):
+        lo, hi = i + 1, len(nums) - 1
+        while lo < hi:
+            if nums[i] + nums[lo] + nums[hi] < target:
+                count += hi - lo  # (lo, lo+1 .. hi) all work
+                lo += 1
+            else:
+                hi -= 1
+    return count
+'''
+
+[[extra.variant]]
+name = "Arithmetic triplets"
+note = "A set of the values makes each (x, x + d, x + 2d) test O(1)."
+template = '''
+def arithmetic_triplets(nums, diff):
+    seen = set(nums)
+    return sum(1 for x in nums if x + diff in seen and x + 2 * diff in seen)
+'''
+
+[[extra]]
+id = "Two Pointers:compare-back"
+name = "Compare from the end, skipping as you go"
+group = "String pointers"
+signals = [
+    "compare two strings after backspaces, or check a typed name against the real one",
+    "a pointer on each string, walking backwards; a skip counter handles the characters that do not count",
+    "O(1) extra memory, unlike building the final strings with a stack",
+]
+template_name = "Backspace string compare"
+template = '''
+def backspace_compare(s, t):
+    def next_char(x, i):  # the next kept character at or before i
+        skip = 0
+        while i >= 0:
+            if x[i] == "#":
+                skip += 1
+            elif skip:
+                skip -= 1  # this letter was erased
+            else:
+                return i
+            i -= 1
+        return -1
+
+    i, j = len(s) - 1, len(t) - 1
+    while True:
+        i, j = next_char(s, i), next_char(t, j)
+        if i < 0 or j < 0:
+            return i < 0 and j < 0  # both exhausted at the same time
+        if s[i] != t[j]:
+            return False
+        i, j = i - 1, j - 1
+'''
+pitfalls = [
+    "Walk from the end: a backspace affects what comes before it, so reading backwards you know what to skip.",
+    "Both strings must end at the same time: check both indexes after skipping.",
+    "A stack version is simpler but uses O(n) memory.",
+]
+examples = ["backspace-string-compare", "long-pressed-name", "valid-word-abbreviation", "is-subsequence"]
+
+[[extra.variant]]
+name = "Long pressed name"
+note = "Match letters in order; an extra copy of the previous letter is allowed in the typed string."
+template = '''
+def is_long_pressed_name(name, typed):
+    i = 0
+    for j, ch in enumerate(typed):
+        if i < len(name) and name[i] == ch:
+            i += 1  # the next expected letter
+        elif j == 0 or typed[j - 1] != ch:
+            return False  # a different letter that is not a long press
+    return i == len(name)
+'''
+
+[[extra.variant]]
+name = "Valid word abbreviation"
+note = "Read digits as a number to skip; letters must match exactly. A leading zero is not allowed."
+template = '''
+def valid_word_abbreviation(word, abbr):
+    i = j = 0
+    while i < len(word) and j < len(abbr):
+        if abbr[j].isdigit():
+            if abbr[j] == "0":
+                return False  # no leading zero
+            num = 0
+            while j < len(abbr) and abbr[j].isdigit():
+                num = num * 10 + int(abbr[j])
+                j += 1
+            i += num  # skip that many letters
+        else:
+            if word[i] != abbr[j]:
+                return False
+            i, j = i + 1, j + 1
+    return i == len(word) and j == len(abbr)
+'''
+
+[[extra]]
+id = "Two Pointers:merge-scan"
+name = "Merge-like scans over two sorted lists"
+group = "Merge-like walks"
+signals = [
+    "combine two sorted lists of (key, value) pairs, summing equal keys",
+    "find the first time slot that fits both calendars",
+    "advance the pointer of the smaller key; when keys are equal use both and advance both",
+]
+template_name = "Merge two 2D arrays by summing"
+template = '''
+def merge_arrays(nums1, nums2):
+    i = j = 0
+    out = []
+    while i < len(nums1) and j < len(nums2):
+        (k1, v1), (k2, v2) = nums1[i], nums2[j]
+        if k1 == k2:
+            out.append([k1, v1 + v2])  # same key: add
+            i, j = i + 1, j + 1
+        elif k1 < k2:
+            out.append([k1, v1])
+            i += 1
+        else:
+            out.append([k2, v2])
+            j += 1
+    out.extend(nums1[i:])  # one list is left
+    out.extend(nums2[j:])
+    return out
+'''
+pitfalls = [
+    "Equal keys advance both pointers; otherwise advance the one with the smaller key.",
+    "After the loop at most one list has items left: append the rest.",
+    "Inputs must be sorted by key; sort first if they are not.",
+]
+examples = ["merge-two-2d-arrays-by-summing-values", "meeting-scheduler", "product-of-two-run-length-encoded-arrays", "merge-sorted-array"]
+
+[[extra.variant]]
+name = "Meeting scheduler"
+note = "The overlap of two slots is [max of starts, min of ends]; advance the slot that ends first."
+template = '''
+def min_available_duration(slots1, slots2, duration):
+    slots1.sort()
+    slots2.sort()
+    i = j = 0
+    while i < len(slots1) and j < len(slots2):
+        start = max(slots1[i][0], slots2[j][0])
+        end = min(slots1[i][1], slots2[j][1])
+        if end - start >= duration:
+            return [start, start + duration]  # the earliest fit
+        if slots1[i][1] < slots2[j][1]:
+            i += 1  # this slot ends first: nothing later can use it
+        else:
+            j += 1
+    return []
+'''
+
+[[extra.variant]]
+name = "Product of run-length encoded arrays"
+note = "Walk both lists of (value, count) pairs; consume the smaller count and merge equal products."
+template = '''
+def find_rle_product(encoded1, encoded2):
+    i = j = 0
+    left1, left2 = encoded1[0][1], encoded2[0][1]  # counts left in each run
+    out = []
+    while i < len(encoded1) and j < len(encoded2):
+        take = min(left1, left2)
+        prod = encoded1[i][0] * encoded2[j][0]
+        if out and out[-1][0] == prod:
+            out[-1][1] += take  # same value as the last run
+        else:
+            out.append([prod, take])
+        left1 -= take
+        left2 -= take
+        if left1 == 0:
+            i += 1
+            left1 = encoded1[i][1] if i < len(encoded1) else 0
+        if left2 == 0:
+            j += 1
+            left2 = encoded2[j][1] if j < len(encoded2) else 0
+    return out
+'''
+
+[[extra]]
+id = "Two Pointers:reverse-in-place"
+name = "Reverse in place with two pointers"
+group = "Rotation and reversal"
+signals = [
+    "reverse only the vowels or only the letters of a string, every k characters, or each word",
+    "a pointer from each end; skip positions that do not take part; swap and move both inward",
+    "reversing a whole string then each word reverses the order of the words",
+]
+template_name = "Reverse vowels of a string"
+template = '''
+def reverse_vowels(s):
+    chars, vowels = list(s), set("aeiouAEIOU")
+    lo, hi = 0, len(chars) - 1
+    while lo < hi:
+        if chars[lo] not in vowels:
+            lo += 1  # skip non-vowels on the left
+        elif chars[hi] not in vowels:
+            hi -= 1
+        else:
+            chars[lo], chars[hi] = chars[hi], chars[lo]
+            lo, hi = lo + 1, hi - 1
+    return "".join(chars)
+'''
+pitfalls = [
+    "Move only the pointer that points to a character that does not take part, then swap when both do.",
+    "Strings are immutable in Python: work on a list of characters.",
+    "A swap moves both pointers; the loop ends when they meet or cross.",
+]
+examples = ["reverse-vowels-of-a-string", "reverse-only-letters", "reverse-string-ii", "reverse-words-in-a-string-iii", "reverse-words-in-a-string"]
+
+[[extra.variant]]
+name = "Reverse only letters"
+note = "The same skipping, with isalpha as the test."
+template = '''
+def reverse_only_letters(s):
+    chars = list(s)
+    lo, hi = 0, len(chars) - 1
+    while lo < hi:
+        if not chars[lo].isalpha():
+            lo += 1
+        elif not chars[hi].isalpha():
+            hi -= 1
+        else:
+            chars[lo], chars[hi] = chars[hi], chars[lo]
+            lo, hi = lo + 1, hi - 1
+    return "".join(chars)
+'''
+
+[[extra.variant]]
+name = "Reverse string II (every 2k)"
+note = "Reverse the first k of every block of 2k characters."
+template = '''
+def reverse_str(s, k):
+    chars = list(s)
+    for start in range(0, len(chars), 2 * k):
+        chars[start:start + k] = chars[start:start + k][::-1]
+    return "".join(chars)
+'''
+
+[[extra.variant]]
+name = "Reverse each word"
+note = "Reverse the characters of each word, keeping the order of the words."
+template = '''
+def reverse_words(s):
+    return " ".join(word[::-1] for word in s.split(" "))
+'''
+
+[[extra]]
+id = "Two Pointers:fill-larger"
+name = "Sorted input: fill the answer from the larger end"
+group = "Opposite-end pointers"
+signals = [
+    "squares or a polynomial of a sorted array: the largest values are at the two ends",
+    "two pointers at the ends choose the larger value and write it from the back of the result",
+    "negative numbers make the order of squares V-shaped",
+]
+template_name = "Squares of a sorted array"
+template = '''
+def sorted_squares(nums):
+    out = [0] * len(nums)
+    lo, hi = 0, len(nums) - 1
+    for pos in range(len(nums) - 1, -1, -1):  # fill from the largest
+        if abs(nums[lo]) > abs(nums[hi]):
+            out[pos] = nums[lo] * nums[lo]
+            lo += 1
+        else:
+            out[pos] = nums[hi] * nums[hi]
+            hi -= 1
+    return out
+'''
+pitfalls = [
+    "The largest square is at one of the two ends: compare absolute values.",
+    "Write the result from the back so it comes out ascending.",
+    "A quadratic with a positive leading coefficient is the same shape: the largest values are at the ends.",
+]
+examples = ["squares-of-a-sorted-array", "sort-transformed-array"]
+
+[[extra.variant]]
+name = "Sort transformed array"
+note = "For a x^2 + b x + c: if a > 0 the extremes are at the ends (fill from the back); if a < 0 fill from the front."
+template = '''
+def sort_transformed_array(nums, a, b, c):
+    def f(x):
+        return a * x * x + b * x + c
+
+    out = [0] * len(nums)
+    lo, hi = 0, len(nums) - 1
+    if a >= 0:
+        for pos in range(len(nums) - 1, -1, -1):  # largest at the ends
+            if f(nums[lo]) > f(nums[hi]):
+                out[pos] = f(nums[lo])
+                lo += 1
+            else:
+                out[pos] = f(nums[hi])
+                hi -= 1
+    else:
+        for pos in range(len(nums)):  # smallest values are at the ends
+            if f(nums[lo]) < f(nums[hi]):
+                out[pos] = f(nums[lo])
+                lo += 1
+            else:
+                out[pos] = f(nums[hi])
+                hi -= 1
+    return out
+'''
+
+[[extra]]
+id = "Two Pointers:partition-in-place"
+name = "Partition in place with two pointers"
+group = "Partition pointers"
+signals = [
+    "put the evens before the odds, the zeros at the end, or place numbers at even and odd positions",
+    "one pointer scans, another marks the next slot to fill",
+    "positions with a fixed parity: two pointers, one for each kind of slot",
+]
+template_name = "Sort array by parity II"
+template = '''
+def sort_array_by_parity_ii(nums):
+    j = 1  # the next odd position
+    for i in range(0, len(nums), 2):  # even positions
+        if nums[i] % 2:  # an odd number sits at an even position
+            while nums[j] % 2:
+                j += 2  # find an odd position holding an even number
+            nums[i], nums[j] = nums[j], nums[i]
+    return nums
+'''
+pitfalls = [
+    "Walk the even positions; only when one holds an odd number look for a wrong number at an odd position.",
+    "The two pointers move in steps of two and never move back: linear time.",
+    "A stable partition (keeping the order inside each part) needs extra space or a different method.",
+]
+examples = ["sort-array-by-parity-ii", "sort-array-by-parity", "rearrange-array-elements-by-sign", "partition-array-according-to-given-pivot", "move-zeroes", "apply-operations-to-an-array"]
+
+[[extra.variant]]
+name = "Rearrange by sign (alternating)"
+note = "Positives at even positions and negatives at odd positions, each in the original order."
+template = '''
+def rearrange_array(nums):
+    out = [0] * len(nums)
+    pos, neg = 0, 1  # the next free even and odd position
+    for x in nums:
+        if x > 0:
+            out[pos] = x
+            pos += 2
+        else:
+            out[neg] = x
+            neg += 2
+    return out
+'''
+
+[[extra.variant]]
+name = "Partition around a pivot"
+note = "Smaller values, then equal, then larger, each in the original order."
+template = '''
+def pivot_array(nums, pivot):
+    small = [x for x in nums if x < pivot]
+    equal = [x for x in nums if x == pivot]
+    large = [x for x in nums if x > pivot]
+    return small + equal + large
+'''
+
+[[extra.variant]]
+name = "Move zeroes"
+note = "A writer pointer collects the non-zeros; the rest is filled with zeros."
+template = '''
+def move_zeroes(nums):
+    write = 0
+    for x in nums:
+        if x:
+            nums[write] = x  # keep the non-zero numbers in order
+            write += 1
+    for i in range(write, len(nums)):
+        nums[i] = 0
+'''
+
+[[extra]]
+id = "Two Pointers:nearest-sorted"
+name = "Nearest on the other side of a sorted list"
+group = "Pointer + binary search"
+signals = [
+    "the smallest radius so that every house is covered, the closest partner for each element",
+    "sort both lists, and a pointer into the second list moves forward only",
+    "pairs with a fixed difference or a ratio bound: one pointer per side of the pair",
+]
+template_name = "Heaters"
+template = '''
+def find_radius(houses, heaters):
+    houses.sort()
+    heaters.sort()
+    radius, j = 0, 0
+    for h in houses:
+        # move to the last heater that is not past the house
+        while j + 1 < len(heaters) and heaters[j + 1] <= h:
+            j += 1
+        nearest = abs(heaters[j] - h)
+        if j + 1 < len(heaters):
+            nearest = min(nearest, abs(heaters[j + 1] - h))
+        radius = max(radius, nearest)  # the farthest house sets the radius
+    return radius
+'''
+pitfalls = [
+    "Houses are sorted, so the best heater index never goes back: j only increases.",
+    "Check the heater just before and just after the house.",
+    "The answer is the largest of the per-house distances.",
+]
+examples = ["heaters", "k-diff-pairs-in-an-array", "check-if-n-and-its-double-exist", "friends-of-appropriate-ages"]
+
+[[extra.variant]]
+name = "K-diff pairs"
+note = "Two pointers on the sorted array, with the second always ahead of the first."
+template = '''
+def find_pairs(nums, k):
+    nums.sort()
+    count, i, j = 0, 0, 1
+    while i < len(nums) and j < len(nums):
+        if i == j or nums[j] - nums[i] < k:
+            j += 1
+        elif nums[j] - nums[i] > k:
+            i += 1
+        else:
+            count += 1
+            i += 1
+            while i < len(nums) and nums[i] == nums[i - 1]:
+                i += 1  # count each distinct pair once
+    return count
+'''
+
+[[extra.variant]]
+name = "Friends of appropriate ages"
+note = "Sort the ages; for each age the valid partners are a contiguous range, found with two pointers."
+template = '''
+def num_friend_requests(ages):
+    ages.sort()
+    total, lo, hi = 0, 0, 0
+    for i, a in enumerate(ages):
+        if a <= 14:
+            continue  # nobody is allowed to be asked
+        while ages[lo] <= 0.5 * a + 7:
+            lo += 1  # too young
+        while hi + 1 < len(ages) and ages[hi + 1] <= a:
+            hi += 1  # not older than a
+        total += hi - lo  # everybody in [lo, hi] except a itself
+    return total
+'''
+
+[[extra]]
+id = "Two Pointers:k-sum-pairs"
+name = "Pair up for a target: sort, then two ends"
+group = "Pointers and greedy"
+signals = [
+    "the most pairs that add to k, or pair the numbers to minimise the largest pair sum",
+    "sort; the smallest is best paired with the largest",
+    "equal skill teams: every pair must have the same sum",
+]
+template_name = "Max number of k-sum pairs"
+template = '''
+def max_operations(nums, k):
+    nums.sort()
+    lo, hi, count = 0, len(nums) - 1, 0
+    while lo < hi:
+        s = nums[lo] + nums[hi]
+        if s == k:
+            count += 1  # remove the pair
+            lo, hi = lo + 1, hi - 1
+        elif s < k:
+            lo += 1  # too small: use a bigger left number
+        else:
+            hi -= 1
+    return count
+'''
+pitfalls = [
+    "A pair uses two different elements: stop when the pointers meet.",
+    "A hash map of counts does the same in one pass without sorting.",
+    "To minimise the largest pair sum pair the smallest with the largest.",
+]
+examples = ["max-number-of-k-sum-pairs", "minimize-maximum-pair-sum-in-array", "divide-players-into-teams-of-equal-skill", "largest-positive-integer-that-exists-with-its-negative"]
+
+[[extra.variant]]
+name = "Minimize the maximum pair sum"
+note = "After sorting, pair the i-th smallest with the i-th largest and take the largest sum."
+template = '''
+def min_pair_sum(nums):
+    nums.sort()
+    return max(nums[i] + nums[-1 - i] for i in range(len(nums) // 2))
+'''
+
+[[extra.variant]]
+name = "Teams of equal skill"
+note = "Every pair must add up to the same total: the smallest with the largest fixes it."
+template = '''
+def divide_players(skill):
+    skill.sort()
+    target = skill[0] + skill[-1]
+    total = 0
+    for i in range(len(skill) // 2):
+        if skill[i] + skill[-1 - i] != target:
+            return -1
+        total += skill[i] * skill[-1 - i]  # the chemistry of the team
+    return total
+'''
+
+[[extra]]
+id = "Two Pointers:expand-center"
+name = "Expand around each center"
+group = "Center expansion"
+signals = [
+    "the longest palindromic substring, or how many palindromic substrings there are",
+    "a palindrome grows outward from its center: 2n - 1 centers (letters and gaps between letters)",
+    "O(n^2) time and O(1) memory, simpler than a DP table",
+]
+template_name = "Longest palindromic substring"
+template = '''
+def longest_palindrome(s):
+    best = ""
+
+    def expand(lo, hi):
+        while lo >= 0 and hi < len(s) and s[lo] == s[hi]:
+            lo, hi = lo - 1, hi + 1  # grow while the ends match
+        return s[lo + 1:hi]
+
+    for i in range(len(s)):
+        for cand in (expand(i, i), expand(i, i + 1)):  # odd, even
+            if len(cand) > len(best):
+                best = cand
+    return best
+'''
+pitfalls = [
+    "Try two kinds of centers: a letter (odd length) and the gap between two letters (even length).",
+    "Return the substring between the pointers after the loop: they have gone one step too far.",
+    "Manacher's algorithm gets it down to O(n).",
+]
+examples = ["longest-palindromic-substring", "palindromic-substrings"]
+
+[[extra.variant]]
+name = "Count palindromic substrings"
+note = "Every successful step of an expansion is one more palindrome."
+template = '''
+def count_substrings(s):
+    count = 0
+    for center in range(2 * len(s) - 1):
+        lo = center // 2
+        hi = lo + center % 2  # even centers start with hi = lo + 1
+        while lo >= 0 and hi < len(s) and s[lo] == s[hi]:
+            count += 1  # the current window is a palindrome
+            lo, hi = lo - 1, hi + 1
+    return count
+'''
+
+[[extra]]
+id = "Two Pointers:order-pieces"
+name = "Pieces that keep their relative order"
+group = "String pointers"
+signals = [
+    "can one string become another when pieces (L and R, or letters) may only move in one direction",
+    "the pieces appear in the same order in both strings, and each can only move one way",
+    "two pointers skip the blanks and compare piece by piece, checking their positions",
+]
+template_name = "Move pieces to obtain a string"
+template = '''
+def can_change(start, target):
+    i = j = 0
+    n = len(start)
+    while i < n or j < n:
+        while i < n and start[i] == "_":
+            i += 1  # skip blanks in both strings
+        while j < n and target[j] == "_":
+            j += 1
+        if i == n or j == n:
+            return i == j  # both must run out together
+        if start[i] != target[j]:
+            return False  # a different piece
+        if start[i] == "L" and i < j:
+            return False  # L can only move left
+        if start[i] == "R" and i > j:
+            return False  # R can only move right
+        i, j = i + 1, j + 1
+    return True
+'''
+pitfalls = [
+    "Without the blanks both strings must be the same sequence of pieces.",
+    "An L can only move to the left: its target position must not be to the right of its start.",
+    "Advance both pointers after a matching piece.",
+]
+examples = ["move-pieces-to-obtain-a-string", "swap-adjacent-in-lr-string", "make-string-a-subsequence-using-cyclic-increments"]
+
+[[extra.variant]]
+name = "Subsequence with cyclic increments"
+note = "A letter of str1 may match its target or the one before it (z follows a)."
+template = '''
+def can_make_subsequence(str1, str2):
+    j = 0
+    for ch in str1:
+        nxt = chr((ord(ch) - 97 + 1) % 26 + 97)  # the letter after ch
+        if j < len(str2) and str2[j] in (ch, nxt):
+            j += 1  # matched, possibly after one increment
+    return j == len(str2)
+'''
+
+[[extra]]
+id = "Two Pointers:compress"
+name = "Compress runs in place"
+group = "In-place dedupe and compaction"
+signals = [
+    "rewrite a character array as letter and count, in the same array",
+    "a read pointer finds the end of each run; a write pointer lays down the result",
+    "the write pointer can never overtake the read pointer",
+]
+template_name = "String compression"
+template = '''
+def compress(chars):
+    write = read = 0
+    while read < len(chars):
+        ch, start = chars[read], read
+        while read < len(chars) and chars[read] == ch:
+            read += 1  # the end of this run
+        chars[write] = ch
+        write += 1
+        if read - start > 1:  # write the count digit by digit
+            for d in str(read - start):
+                chars[write] = d
+                write += 1
+    return write
+'''
+pitfalls = [
+    "Write the letter first, and the count only when the run is longer than one.",
+    "A count of 12 takes two characters: write each digit separately.",
+    "The write position never passes the read position, so it is safe in place.",
+]
+examples = ["string-compression", "string-compression-iii"]
+
+[[extra.variant]]
+name = "String compression III"
+note = "Runs longer than 9 are split into runs of at most 9."
+template = '''
+def compressed_string(word):
+    out, i = [], 0
+    while i < len(word):
+        j = i
+        while j < len(word) and word[j] == word[i] and j - i < 9:
+            j += 1  # at most 9 equal letters
+        out.append(str(j - i) + word[i])
+        i = j
+    return "".join(out)
+'''
+
+[[extra]]
+id = "Two Pointers:shrink-ends"
+name = "Shrink matching ends"
+group = "Opposite-end pointers"
+signals = [
+    "delete a matching prefix and suffix again and again, and ask for what remains",
+    "two strings that are equal after inserting a sentence: compare the common prefix and suffix of the words",
+    "pointers at both ends, moving inward while the ends agree",
+]
+template_name = "Minimum length after deleting similar ends"
+template = '''
+def minimum_length(s):
+    lo, hi = 0, len(s) - 1
+    while lo < hi and s[lo] == s[hi]:
+        ch = s[lo]
+        while lo <= hi and s[lo] == ch:
+            lo += 1  # delete the whole prefix of this letter
+        while hi >= lo and s[hi] == ch:
+            hi -= 1  # and the whole suffix
+    return hi - lo + 1
+'''
+pitfalls = [
+    "Delete all copies of the letter at each end, not just one.",
+    "Keep lo <= hi when moving: the two ends can eat the whole string.",
+    "The remaining length is hi - lo + 1, which can be 0.",
+]
+examples = ["minimum-length-of-string-after-deleting-similar-ends", "sentence-similarity-iii", "valid-palindrome-ii"]
+
+[[extra.variant]]
+name = "Sentence similarity III"
+note = "One sentence is the other with a sentence inserted: match words from the front, then from the back."
+template = '''
+def are_sentences_similar(sentence1, sentence2):
+    a, b = sentence1.split(), sentence2.split()
+    if len(a) > len(b):
+        a, b = b, a  # a is the shorter one
+    i = 0
+    while i < len(a) and a[i] == b[i]:
+        i += 1  # the common prefix
+    j = 0
+    while j < len(a) - i and a[-1 - j] == b[-1 - j]:
+        j += 1  # the common suffix
+    return i + j == len(a)
+'''
+
+[[extra]]
+id = "Two Pointers:tokens"
+name = "Walk two strings by tokens"
+group = "String pointers"
+signals = [
+    "compare version numbers, or insert spaces at given positions in one pass",
+    "split on a separator and compare piece by piece, treating a missing piece as zero",
+    "a pointer into the list of positions moves forward while the text index advances",
+]
+template_name = "Compare version numbers"
+template = '''
+def compare_version(version1, version2):
+    a = version1.split(".")
+    b = version2.split(".")
+    for i in range(max(len(a), len(b))):
+        x = int(a[i]) if i < len(a) else 0  # a missing part counts as 0
+        y = int(b[i]) if i < len(b) else 0
+        if x != y:
+            return 1 if x > y else -1
+    return 0
+'''
+pitfalls = [
+    "Compare as integers: '01' and '1' are equal.",
+    "Pad the shorter list with zeros: '1.0' equals '1'.",
+    "Return at the first difference.",
+]
+examples = ["compare-version-numbers", "adding-spaces-to-a-string"]
+
+[[extra.variant]]
+name = "Adding spaces to a string"
+note = "A pointer into the sorted list of positions; insert a space before each listed index."
+template = '''
+def add_spaces(s, spaces):
+    out, j = [], 0
+    for i, ch in enumerate(s):
+        if j < len(spaces) and i == spaces[j]:
+            out.append(" ")
+            j += 1  # the next position to split at
+        out.append(ch)
+    return "".join(out)
+'''
+
+[[extra]]
+id = "Two Pointers:fill-back"
+name = "Fill from the back"
+group = "Same-direction pointers (reader / writer, fast / slow)"
+signals = [
+    "merge into an array that has free space at the end, or duplicate items in place",
+    "writing from the front would overwrite values you still need: write from the back",
+    "the read pointers start at the last real element of each input",
+]
+template_name = "Merge sorted array"
+template = '''
+def merge(nums1, m, nums2, n):
+    i, j, k = m - 1, n - 1, m + n - 1  # last element of each, last slot
+    while j >= 0:  # what is left of nums1 is already in place
+        if i >= 0 and nums1[i] > nums2[j]:
+            nums1[k] = nums1[i]
+            i -= 1
+        else:
+            nums1[k] = nums2[j]
+            j -= 1
+        k -= 1
+'''
+pitfalls = [
+    "Fill from the largest: the free slots are at the end, so nothing is overwritten before it is read.",
+    "Stop when nums2 is used up: the rest of nums1 is already sorted and in place.",
+    "Merging from the front would need a copy of nums1.",
+]
+examples = ["merge-sorted-array", "duplicate-zeros"]
+
+[[extra.variant]]
+name = "Duplicate zeros"
+note = "Count how many slots the result needs, then write from the back, skipping what falls off the end."
+template = '''
+def duplicate_zeros(arr):
+    n, zeros = len(arr), arr.count(0)
+    for i in range(n - 1, -1, -1):
+        pos = i + zeros  # where arr[i] goes in the expanded array
+        if arr[i] == 0:
+            zeros -= 1
+            if pos < n:
+                arr[pos] = 0
+            pos -= 1  # the first copy of the zero
+        if pos < n:
+            arr[pos] = arr[i]
+'''
+
 [[listed]]
 name = "Converging pair on a sorted array / palindrome check / palindrome with one deletion / move the shorter side / fill the output from both ends / trapping water with a left and right max / shrink matching ends / farthest pair / swap ends inward"
 group = "Opposite-end pointers"

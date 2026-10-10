@@ -10534,3 +10534,519 @@ def _(ns):
         s = "".join(r.choice("ab") for _ in range(r.randint(1, 10)))
         want = any(len(s) % k == 0 and s == s[:k] * (len(s) // k) for k in range(1, len(s)))
         assert f(s) is want
+
+
+# ---- two pointers (extras) ------------------------------------------------------------------------------------------
+
+TP = "Two Pointers"
+
+
+@test(f"{TP}:triples-count")
+def _(ns):
+    f = ns["triangle_number"]
+    assert f([2, 2, 3, 4]) == 3 and f([4, 2, 3, 4]) == 4
+    r = random.Random(1400)
+    for _ in range(200):
+        a = [r.randint(0, 8) for _ in range(r.randint(0, 8))]
+        want = sum(1 for x, y, z in _it.combinations(a, 3) if x + y > z and x + z > y and y + z > x)
+        assert f(a[:]) == want
+
+
+@test(f"{TP}:triples-count#3Sum closest")
+def _(ns):
+    f = ns["three_sum_closest"]
+    assert f([-1, 2, 1, -4], 1) == 2 and f([0, 0, 0], 1) == 0
+    r = random.Random(1401)
+    for _ in range(200):
+        a = [r.randint(-6, 8) for _ in range(r.randint(3, 8))]
+        t = r.randint(-15, 15)
+        best = min((sum(c) for c in _it.combinations(a, 3)), key=lambda s: (abs(s - t), s))
+        assert abs(f(a[:], t) - t) == abs(best - t)
+
+
+@test(f"{TP}:triples-count#3Sum smaller")
+def _(ns):
+    f = ns["three_sum_smaller"]
+    assert f([-2, 0, 1, 3], 2) == 2 and f([], 0) == 0
+    r = random.Random(1402)
+    for _ in range(200):
+        a = [r.randint(-5, 6) for _ in range(r.randint(0, 8))]
+        t = r.randint(-8, 10)
+        assert f(a[:], t) == sum(1 for c in _it.combinations(a, 3) if sum(c) < t)
+
+
+@test(f"{TP}:triples-count#Arithmetic triplets")
+def _(ns):
+    f = ns["arithmetic_triplets"]
+    assert f([0, 1, 4, 6, 7, 10], 3) == 2 and f([4, 5, 6, 7, 8, 9], 2) == 2
+
+
+@test(f"{TP}:compare-back")
+def _(ns):
+    f = ns["backspace_compare"]
+    assert f("ab#c", "ad#c") is True and f("ab##", "c#d#") is True and f("a#c", "b") is False
+
+    def build(x):
+        out = []
+        for ch in x:
+            if ch == "#":
+                if out:
+                    out.pop()
+            else:
+                out.append(ch)
+        return out
+
+    r = random.Random(1403)
+    for _ in range(400):
+        s = "".join(r.choice("ab#") for _ in range(r.randint(0, 7)))
+        t = "".join(r.choice("ab#") for _ in range(r.randint(0, 7)))
+        assert f(s, t) is (build(s) == build(t)), (s, t)
+
+
+@test(f"{TP}:compare-back#Long pressed name")
+def _(ns):
+    f = ns["is_long_pressed_name"]
+    assert f("alex", "aaleex") is True and f("saeed", "ssaaedd") is False
+    import re
+    r = random.Random(1404)
+    for _ in range(300):
+        name = "".join(r.choice("ab") for _ in range(r.randint(1, 4)))
+        typed = "".join(r.choice("ab") for _ in range(r.randint(1, 7)))
+        pattern = "".join(c + "+" for c in name)
+        assert f(name, typed) is (re.fullmatch(pattern, typed) is not None)
+
+
+@test(f"{TP}:compare-back#Valid word abbreviation")
+def _(ns):
+    f = ns["valid_word_abbreviation"]
+    assert f("internationalization", "i12iz4n") is True and f("apple", "a2e") is False and f("substitution", "s010n") is False
+    import re
+    r = random.Random(1405)
+    for _ in range(300):
+        word = "".join(r.choice("ab") for _ in range(r.randint(1, 6)))
+        abbr = "".join(r.choice(["a", "b", "1", "2", "3", "10", "01"]) for _ in range(r.randint(1, 4)))
+        # reference: digits (no leading zero) skip that many letters
+        i = j = 0
+        ok = True
+        while j < len(abbr) and ok:
+            if abbr[j].isdigit():
+                k = j
+                while k < len(abbr) and abbr[k].isdigit():
+                    k += 1
+                num = abbr[j:k]
+                if num[0] == "0":
+                    ok = False
+                else:
+                    i += int(num)
+                j = k
+            else:
+                ok = i < len(word) and word[i] == abbr[j]
+                i, j = i + 1, j + 1
+        ok = ok and i == len(word)
+        assert f(word, abbr) is ok, (word, abbr)
+
+
+@test(f"{TP}:merge-scan")
+def _(ns):
+    f = ns["merge_arrays"]
+    assert f([[1, 2], [2, 3], [4, 5]], [[1, 4], [3, 2], [4, 1]]) == [[1, 6], [2, 3], [3, 2], [4, 6]]
+    r = random.Random(1406)
+    for _ in range(200):
+        def gen():
+            keys = sorted(r.sample(range(10), r.randint(0, 5)))
+            return [[k, r.randint(1, 9)] for k in keys]
+        a, b = gen(), gen()
+        d = {}
+        for k, v in a + b:
+            d[k] = d.get(k, 0) + v
+        assert f([x[:] for x in a], [x[:] for x in b]) == [[k, d[k]] for k in sorted(d)]
+
+
+@test(f"{TP}:merge-scan#Meeting scheduler")
+def _(ns):
+    f = ns["min_available_duration"]
+    assert f([[10, 50], [60, 120], [140, 210]], [[0, 15], [60, 70]], 8) == [60, 68] and f([[10, 50], [60, 120], [140, 210]], [[0, 15], [60, 70]], 12) == []
+    r = random.Random(1407)
+    for _ in range(200):
+        def gen():
+            pts = sorted(r.sample(range(0, 30), 2 * r.randint(0, 3)))
+            return [[pts[i], pts[i + 1]] for i in range(0, len(pts), 2)]
+        a, b, d = gen(), gen(), r.randint(1, 5)
+        want = []
+        for t in range(0, 30):
+            if any(s <= t and t + d <= e for s, e in a) and any(s <= t and t + d <= e for s, e in b):
+                want = [t, t + d]
+                break
+        assert f([x[:] for x in a], [x[:] for x in b], d) == want
+
+
+@test(f"{TP}:merge-scan#Product of run-length encoded arrays")
+def _(ns):
+    f = ns["find_rle_product"]
+    assert f([[1, 3], [2, 3]], [[6, 3], [3, 3]]) == [[6, 6]] and f([[1, 3], [2, 1], [3, 2]], [[2, 3], [3, 3]]) == [[2, 3], [6, 1], [9, 2]]
+    r = random.Random(1408)
+    for _ in range(200):
+        n = r.randint(1, 8)
+
+        def make(vals):
+            runs = []
+            for v in vals:
+                if runs and runs[-1][0] == v:
+                    runs[-1][1] += 1
+                else:
+                    runs.append([v, 1])
+            return runs
+
+        a = [r.randint(1, 3) for _ in range(n)]
+        b = [r.randint(1, 3) for _ in range(n)]
+        assert f(make(a), make(b)) == make([x * y for x, y in zip(a, b)])
+
+
+@test(f"{TP}:reverse-in-place")
+def _(ns):
+    f = ns["reverse_vowels"]
+    assert f("hello") == "holle" and f("leetcode") == "leotcede"
+    r = random.Random(1409)
+    for _ in range(200):
+        s = "".join(r.choice("abcAEi") for _ in range(r.randint(0, 9)))
+        v = [c for c in s if c in "aeiouAEIOU"][::-1]
+        it = iter(v)
+        assert f(s) == "".join(next(it) if c in "aeiouAEIOU" else c for c in s)
+
+
+@test(f"{TP}:reverse-in-place#Reverse only letters")
+def _(ns):
+    f = ns["reverse_only_letters"]
+    assert f("ab-cd") == "dc-ba" and f("a-bC-dEf-ghIj") == "j-Ih-gfE-dCba"
+    r = random.Random(1410)
+    for _ in range(200):
+        s = "".join(r.choice("ab-1") for _ in range(r.randint(0, 9)))
+        v = [c for c in s if c.isalpha()][::-1]
+        it = iter(v)
+        assert f(s) == "".join(next(it) if c.isalpha() else c for c in s)
+
+
+@test(f"{TP}:reverse-in-place#Reverse string II (every 2k)")
+def _(ns):
+    f = ns["reverse_str"]
+    assert f("abcdefg", 2) == "bacdfeg" and f("abcd", 2) == "bacd"
+
+
+@test(f"{TP}:reverse-in-place#Reverse each word")
+def _(ns):
+    f = ns["reverse_words"]
+    assert f("Let's take LeetCode contest") == "s'teL ekat edoCteeL tsetnoc"
+
+
+@test(f"{TP}:fill-larger")
+def _(ns):
+    f = ns["sorted_squares"]
+    r = random.Random(1411)
+    for _ in range(200):
+        a = sorted(r.randint(-9, 9) for _ in range(r.randint(1, 9)))
+        assert f(a[:]) == sorted(x * x for x in a)
+
+
+@test(f"{TP}:fill-larger#Sort transformed array")
+def _(ns):
+    f = ns["sort_transformed_array"]
+    assert f([-4, -2, 2, 4], 1, 3, 5) == [3, 9, 15, 33] and f([-4, -2, 2, 4], -1, 3, 5) == [-23, -5, 1, 7]
+    r = random.Random(1412)
+    for _ in range(300):
+        a = sorted(r.sample(range(-8, 9), r.randint(1, 8)))
+        c = (r.randint(-3, 3), r.randint(-4, 4), r.randint(-5, 5))
+        assert f(a[:], *c) == sorted(c[0] * x * x + c[1] * x + c[2] for x in a)
+
+
+@test(f"{TP}:partition-in-place")
+def _(ns):
+    f = ns["sort_array_by_parity_ii"]
+    r = random.Random(1413)
+    for _ in range(200):
+        n = r.randint(1, 5)
+        a = [2 * r.randint(0, 5) for _ in range(n)] + [2 * r.randint(0, 5) + 1 for _ in range(n)]
+        r.shuffle(a)
+        out = f(a[:])
+        assert sorted(out) == sorted(a) and all(out[i] % 2 == i % 2 for i in range(len(out)))
+
+
+@test(f"{TP}:partition-in-place#Rearrange by sign (alternating)")
+def _(ns):
+    f = ns["rearrange_array"]
+    assert f([3, 1, -2, -5, 2, -4]) == [3, -2, 1, -5, 2, -4]
+    r = random.Random(1414)
+    for _ in range(200):
+        pos = [r.randint(1, 9) for _ in range(r.randint(1, 4))]
+        neg = [-r.randint(1, 9) for _ in pos]
+        nums = pos + neg
+        r.shuffle(nums)
+        want = []
+        p, q = [x for x in nums if x > 0], [x for x in nums if x < 0]
+        for a, b in zip(p, q):
+            want += [a, b]
+        assert f(nums[:]) == want
+
+
+@test(f"{TP}:partition-in-place#Partition around a pivot")
+def _(ns):
+    f = ns["pivot_array"]
+    assert f([9, 12, 5, 10, 14, 3, 10], 10) == [9, 5, 3, 10, 10, 12, 14]
+
+
+@test(f"{TP}:partition-in-place#Move zeroes")
+def _(ns):
+    f = ns["move_zeroes"]
+    r = random.Random(1415)
+    for _ in range(200):
+        a = [r.choice([0, 0, r.randint(1, 5)]) for _ in range(r.randint(0, 9))]
+        b = a[:]
+        f(b)
+        assert b == [x for x in a if x] + [0] * a.count(0)
+
+
+@test(f"{TP}:nearest-sorted")
+def _(ns):
+    f = ns["find_radius"]
+    assert f([1, 2, 3], [2]) == 1 and f([1, 2, 3, 4], [1, 4]) == 1 and f([1, 5], [2]) == 3
+    r = random.Random(1416)
+    for _ in range(300):
+        h = [r.randint(0, 15) for _ in range(r.randint(1, 6))]
+        g = [r.randint(0, 15) for _ in range(r.randint(1, 4))]
+        assert f(h[:], g[:]) == max(min(abs(x - y) for y in g) for x in h)
+
+
+@test(f"{TP}:nearest-sorted#K-diff pairs")
+def _(ns):
+    f = ns["find_pairs"]
+    assert f([3, 1, 4, 1, 5], 2) == 2 and f([1, 2, 3, 4, 5], 1) == 4 and f([1, 3, 1, 5, 4], 0) == 1
+    r = random.Random(1417)
+    for _ in range(300):
+        a = [r.randint(0, 6) for _ in range(r.randint(1, 8))]
+        k = r.randint(0, 4)
+        want = len({(min(x, y), max(x, y)) for i, x in enumerate(a) for j, y in enumerate(a) if i < j and abs(x - y) == k})
+        assert f(a[:], k) == want
+
+
+@test(f"{TP}:nearest-sorted#Friends of appropriate ages")
+def _(ns):
+    f = ns["num_friend_requests"]
+    assert f([16, 16]) == 2 and f([16, 17, 18]) == 2 and f([20, 30, 100, 110, 120]) == 3
+    r = random.Random(1418)
+    for _ in range(300):
+        ages = [r.randint(1, 60) for _ in range(r.randint(1, 8))]
+        want = sum(1 for i, a in enumerate(ages) for j, b in enumerate(ages) if i != j and not (b <= 0.5 * a + 7 or b > a or (b > 100 and a < 100)))
+        assert f(ages[:]) == want
+
+
+@test(f"{TP}:k-sum-pairs")
+def _(ns):
+    f = ns["max_operations"]
+    assert f([1, 2, 3, 4], 5) == 2 and f([3, 1, 3, 4, 3], 6) == 1
+    r = random.Random(1419)
+    for _ in range(300):
+        a = [r.randint(1, 6) for _ in range(r.randint(0, 9))]
+        k = r.randint(2, 10)
+        from collections import Counter
+        c, want = Counter(a), 0
+        for v in list(c):
+            w = k - v
+            if v < w:
+                want += min(c[v], c[w])
+            elif v == w:
+                want += c[v] // 2
+        assert f(a[:], k) == want
+
+
+@test(f"{TP}:k-sum-pairs#Minimize the maximum pair sum")
+def _(ns):
+    f = ns["min_pair_sum"]
+    assert f([3, 5, 2, 3]) == 7 and f([3, 5, 4, 2, 4, 6]) == 8
+    r = random.Random(1420)
+    for _ in range(100):
+        a = [r.randint(1, 9) for _ in range(2 * r.randint(1, 3))]
+
+        def best(rest):
+            if not rest:
+                return 0
+            first = rest[0]
+            return min(max(first + rest[i], best(rest[1:i] + rest[i + 1:])) for i in range(1, len(rest)))
+
+        assert f(a[:]) == best(a)
+
+
+@test(f"{TP}:k-sum-pairs#Teams of equal skill")
+def _(ns):
+    f = ns["divide_players"]
+    assert f([3, 2, 5, 1, 3, 4]) == 22 and f([3, 4]) == 12 and f([1, 1, 2, 3]) == -1
+
+
+@test(f"{TP}:expand-center")
+def _(ns):
+    f = ns["longest_palindrome"]
+    assert f("babad") in ("bab", "aba") and f("cbbd") == "bb" and f("a") == "a"
+    r = random.Random(1421)
+    for _ in range(300):
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 10)))
+        best = max(len(s[i:j]) for i in range(len(s)) for j in range(i + 1, len(s) + 1) if s[i:j] == s[i:j][::-1])
+        out = f(s)
+        assert len(out) == best and out == out[::-1] and out in s
+
+
+@test(f"{TP}:expand-center#Count palindromic substrings")
+def _(ns):
+    f = ns["count_substrings"]
+    assert f("abc") == 3 and f("aaa") == 6
+    r = random.Random(1422)
+    for _ in range(300):
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 10)))
+        assert f(s) == sum(1 for i in range(len(s)) for j in range(i + 1, len(s) + 1) if s[i:j] == s[i:j][::-1])
+
+
+@test(f"{TP}:order-pieces")
+def _(ns):
+    f = ns["can_change"]
+    assert f("_L__R__R_", "L______RR") is True and f("R_L_", "__LR") is False and f("_R", "R_") is False
+    r = random.Random(1423)
+    for _ in range(300):
+        n = r.randint(1, 6)
+        a = "".join(r.choice("LR_") for _ in range(n))
+        b = "".join(r.choice("LR_") for _ in range(n))
+        # brute force over moves: L moves left into '_', R moves right into '_'
+        seen, stack = {a}, [a]
+        while stack:
+            s = stack.pop()
+            for i in range(n):
+                if s[i] == "L" and i > 0 and s[i - 1] == "_":
+                    t = s[:i - 1] + "L_" + s[i + 1:]
+                elif s[i] == "R" and i + 1 < n and s[i + 1] == "_":
+                    t = s[:i] + "_R" + s[i + 2:]
+                else:
+                    continue
+                if t not in seen:
+                    seen.add(t)
+                    stack.append(t)
+        assert f(a, b) is (b in seen), (a, b)
+
+
+@test(f"{TP}:order-pieces#Subsequence with cyclic increments")
+def _(ns):
+    f = ns["can_make_subsequence"]
+    assert f("abc", "ad") is True and f("zc", "ad") is True and f("ab", "d") is False
+    r = random.Random(1424)
+    for _ in range(300):
+        s1 = "".join(r.choice("abz") for _ in range(r.randint(1, 6)))
+        s2 = "".join(r.choice("abcz") for _ in range(r.randint(1, 4)))
+        nxt = lambda c: chr((ord(c) - 97 + 1) % 26 + 97)
+        j = 0
+        for ch in s1:
+            if j < len(s2) and s2[j] in (ch, nxt(ch)):
+                j += 1
+        ok = any(
+            all(x == y or nxt(x) == y for x, y in zip((s1[i] for i in idx), s2))
+            for idx in _it.combinations(range(len(s1)), len(s2))
+        ) if len(s2) <= len(s1) else False
+        assert f(s1, s2) is ok
+
+
+@test(f"{TP}:compress")
+def _(ns):
+    f = ns["compress"]
+    a = list("aabbccc")
+    n = f(a)
+    assert a[:n] == list("a2b2c3") and n == 6
+    a = list("a" * 12 + "b")
+    n = f(a)
+    assert "".join(a[:n]) == "a12b"
+    r = random.Random(1425)
+    for _ in range(200):
+        s = "".join(r.choice("abc") * r.randint(1, 12) for _ in range(r.randint(1, 4)))
+        want = ""
+        i = 0
+        while i < len(s):
+            j = i
+            while j < len(s) and s[j] == s[i]:
+                j += 1
+            want += s[i] + (str(j - i) if j - i > 1 else "")
+            i = j
+        c = list(s)
+        n = f(c)
+        assert "".join(c[:n]) == want
+
+
+@test(f"{TP}:compress#String compression III")
+def _(ns):
+    f = ns["compressed_string"]
+    assert f("abcde") == "1a1b1c1d1e" and f("aaaaaaaaaaaaaabb") == "9a5a2b"
+
+
+@test(f"{TP}:shrink-ends")
+def _(ns):
+    f = ns["minimum_length"]
+    assert f("ca") == 2 and f("cabaabac") == 0 and f("aabccabba") == 3
+    r = random.Random(1426)
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 9)))
+        t = s
+        while len(t) > 1 and t[0] == t[-1]:
+            ch = t[0]
+            i, j = 0, len(t) - 1
+            while i <= j and t[i] == ch:
+                i += 1
+            while j >= i and t[j] == ch:
+                j -= 1
+            t = t[i:j + 1]
+        assert f(s) == len(t), s
+
+
+@test(f"{TP}:shrink-ends#Sentence similarity III")
+def _(ns):
+    f = ns["are_sentences_similar"]
+    assert f("My name is Haley", "My Haley") is True and f("of", "A lot of words") is False and f("Eating right now", "Eating") is True
+
+
+@test(f"{TP}:tokens")
+def _(ns):
+    f = ns["compare_version"]
+    assert f("1.2", "1.10") == -1 and f("1.01", "1.001") == 0 and f("1.0", "1.0.0.0") == 0 and f("0.1", "1.1") == -1
+    r = random.Random(1427)
+    for _ in range(200):
+        a = [r.randint(0, 3) for _ in range(r.randint(1, 4))]
+        b = [r.randint(0, 3) for _ in range(r.randint(1, 4))]
+        n = max(len(a), len(b))
+        x, y = a + [0] * (n - len(a)), b + [0] * (n - len(b))
+        assert f(".".join(map(str, a)), ".".join(map(str, b))) == (x > y) - (x < y)
+
+
+@test(f"{TP}:tokens#Adding spaces to a string")
+def _(ns):
+    f = ns["add_spaces"]
+    assert f("LeetcodeHelpsMeLearn", [8, 13, 15]) == "Leetcode Helps Me Learn" and f("spacing", [0, 1, 2, 3, 4, 5, 6]) == " s p a c i n g"
+
+
+@test(f"{TP}:fill-back")
+def _(ns):
+    f = ns["merge"]
+    r = random.Random(1428)
+    for _ in range(200):
+        a = sorted(r.randint(0, 9) for _ in range(r.randint(0, 6)))
+        b = sorted(r.randint(0, 9) for _ in range(r.randint(0, 6)))
+        n1 = a + [0] * len(b)
+        f(n1, len(a), b[:], len(b))
+        assert n1 == sorted(a + b)
+
+
+@test(f"{TP}:fill-back#Duplicate zeros")
+def _(ns):
+    f = ns["duplicate_zeros"]
+    a = [1, 0, 2, 3, 0, 4, 5, 0]
+    f(a)
+    assert a == [1, 0, 0, 2, 3, 0, 0, 4]
+    r = random.Random(1429)
+    for _ in range(300):
+        a = [r.choice([0, 0, 1, 2, 3]) for _ in range(r.randint(1, 9))]
+        want = []
+        for x in a:
+            want += [0, 0] if x == 0 else [x]
+        b = a[:]
+        f(b)
+        assert b == want[:len(a)]

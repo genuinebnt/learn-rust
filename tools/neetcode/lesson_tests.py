@@ -3219,3 +3219,1288 @@ def _(ns):
             if all(not (mask >> i & 1 and mask >> j & 1) for i, j in edges):
                 want = max(want, sum(vals[i] for i in range(n) if mask >> i & 1))
         assert f(nodes[0]) == want, (vals, edges)
+
+
+# ---- greedy (extras) ------------------------------------------------------------------------------------------------
+
+def _is_perm_of(a, b):
+    return sorted(a) == sorted(b)
+
+
+@test("Greedy:kadane#Circular array")
+def _(ns):
+    f = ns["max_subarray_circular"]
+    assert f([1, -2, 3, -2]) == 3 and f([5, -3, 5]) == 10 and f([-3, -2, -3]) == -2
+    r = random.Random(190)
+    for _ in range(300):
+        a = [r.randint(-6, 6) for _ in range(r.randint(1, 8))]
+        n = len(a)
+        want = max(sum(a[(i + j) % n] for j in range(k)) for i in range(n) for k in range(1, n + 1))
+        assert f(a[:]) == want, a
+
+
+@test("Greedy:kadane#Maximum product")
+def _(ns):
+    f = ns["max_product"]
+    assert f([2, 3, -2, 4]) == 6 and f([-2, 0, -1]) == 0
+    r = random.Random(191)
+    for _ in range(300):
+        a = [r.randint(-3, 3) for _ in range(r.randint(1, 7))]
+        want = max(_prod(a[i:j]) for i in range(len(a)) for j in range(i + 1, len(a) + 1))
+        assert f(a[:]) == want, a
+
+
+def _prod(xs):
+    out = 1
+    for x in xs:
+        out *= x
+    return out
+
+
+@test("Greedy:rank-match")
+def _(ns):
+    f = ns["find_content_children"]
+    assert f([1, 2, 3], [1, 1]) == 1 and f([1, 2], [1, 2, 3]) == 2
+    r = random.Random(192)
+    for _ in range(200):
+        g = [r.randint(1, 5) for _ in range(r.randint(0, 5))]
+        s = [r.randint(1, 5) for _ in range(r.randint(0, 5))]
+        want = 0
+        for k in range(min(len(g), len(s)), 0, -1):
+            if any(all(a <= b for a, b in zip(sorted(cg), sorted(cs))) for cg in _it.combinations(g, k) for cs in _it.combinations(s, k)):
+                want = k
+                break
+        assert f(g[:], s[:]) == want, (g, s)
+
+
+@test("Greedy:rank-match#Pair the lightest with the heaviest")
+def _(ns):
+    f = ns["num_rescue_boats"]
+    assert f([1, 2], 3) == 1 and f([3, 2, 2, 1], 3) == 3 and f([3, 5, 3, 4], 5) == 4
+    r = random.Random(193)
+    for _ in range(200):
+        limit = r.randint(3, 9)
+        p = [r.randint(1, limit) for _ in range(r.randint(1, 7))]
+
+        def brute(rest):
+            if not rest:
+                return 0
+            first, tail = rest[0], rest[1:]
+            best = 1 + brute(tail)
+            for i, x in enumerate(tail):
+                if first + x <= limit:
+                    best = min(best, 1 + brute(tail[:i] + tail[i + 1:]))
+            return best
+
+        assert f(p[:], limit) == brute(p), (p, limit)
+
+
+@test("Greedy:comparator-sort")
+def _(ns):
+    f = ns["largest_number"]
+    assert f([10, 2]) == "210" and f([3, 30, 34, 5, 9]) == "9534330" and f([0, 0]) == "0"
+    r = random.Random(194)
+    for _ in range(200):
+        a = [r.choice([0, 1, 2, 9, 10, 11, 12, 34, 30, 3, 99]) for _ in range(r.randint(1, 6))]
+        want = max("".join(map(str, p)) for p in _it.permutations(a))
+        want = "0" if set(want) == {"0"} else want
+        assert f(a[:]) == want, a
+
+
+@test("Greedy:comparator-sort#Queue reconstruction")
+def _(ns):
+    f = ns["reconstruct_queue"]
+    assert f([[7, 0], [4, 4], [7, 1], [5, 0], [6, 1], [5, 2]]) == [[5, 0], [7, 0], [5, 2], [6, 1], [4, 4], [7, 1]]
+    r = random.Random(195)
+    for _ in range(100):
+        n = r.randint(1, 7)
+        heights = [r.randint(1, 5) for _ in range(n)]
+        order = heights[:]
+        r.shuffle(order)
+        people = [[h, sum(1 for x in order[:i] if x >= h)] for i, h in enumerate(order)]
+        r.shuffle(people)
+        got = f([p[:] for p in people])
+        assert sorted(map(tuple, got)) == sorted(map(tuple, people))
+        assert all(sum(1 for x in got[:i] if x[0] >= h) == k for i, (h, k) in enumerate(got))
+
+
+@test("Greedy:gain-diff")
+def _(ns):
+    f = ns["two_city_sched_cost"]
+    assert f([[10, 20], [30, 200], [400, 50], [30, 20]]) == 110
+    r = random.Random(196)
+    for _ in range(200):
+        n = 2 * r.randint(1, 4)
+        c = [[r.randint(1, 30), r.randint(1, 30)] for _ in range(n)]
+        want = min(sum(c[i][0] if i in a else c[i][1] for i in range(n)) for a in _it.combinations(range(n), n // 2))
+        assert f([x[:] for x in c]) == want
+
+
+@test("Greedy:gain-diff#Put marbles in bags")
+def _(ns):
+    f = ns["put_marbles"]
+    assert f([1, 3, 5, 1], 2) == 4 and f([1, 3], 2) == 0
+    r = random.Random(197)
+    for _ in range(200):
+        w = [r.randint(1, 9) for _ in range(r.randint(1, 8))]
+        k = r.randint(1, len(w))
+        scores = []
+        for cuts in _it.combinations(range(1, len(w)), k - 1):
+            bounds = [0] + list(cuts) + [len(w)]
+            scores.append(sum(w[a] + w[b - 1] for a, b in zip(bounds, bounds[1:])))
+        assert f(w[:], k) == max(scores) - min(scores)
+
+
+@test("Greedy:interval-stab")
+def _(ns):
+    f = ns["find_min_arrow_shots"]
+    assert f([[10, 16], [2, 8], [1, 6], [7, 12]]) == 2 and f([[1, 2], [3, 4], [5, 6], [7, 8]]) == 4 and f([[1, 2], [2, 3], [3, 4], [4, 5]]) == 2
+    r = random.Random(198)
+    for _ in range(200):
+        iv = []
+        for _ in range(r.randint(1, 6)):
+            a = r.randint(0, 8)
+            iv.append([a, a + r.randint(0, 4)])
+        pts = range(0, 13)
+        want = min(k for k in range(1, len(iv) + 1) if any(all(any(a <= p <= b for p in ps) for a, b in iv) for ps in _it.combinations(pts, k)))
+        assert f([x[:] for x in iv]) == want, iv
+
+
+@test("Greedy:interval-stab#Fewest removals (keep the most)")
+def _(ns):
+    f = ns["erase_overlap_intervals"]
+    assert f([[1, 2], [2, 3], [3, 4], [1, 3]]) == 1 and f([[1, 2], [1, 2], [1, 2]]) == 2 and f([[1, 2], [2, 3]]) == 0
+    r = random.Random(199)
+    for _ in range(200):
+        iv = []
+        for _ in range(r.randint(1, 7)):
+            a = r.randint(0, 8)
+            iv.append([a, a + r.randint(1, 4)])
+        best = max(len(c) for k in range(len(iv) + 1) for c in _it.combinations(iv, k)
+                   if all(a[1] <= b[0] or b[1] <= a[0] for a, b in _it.combinations(c, 2)))
+        assert f([x[:] for x in iv]) == len(iv) - best
+
+
+@test("Greedy:interval-cover")
+def _(ns):
+    f = ns["video_stitching"]
+    assert f([[0, 2], [4, 6], [8, 10], [1, 9], [1, 5], [5, 9]], 10) == 3 and f([[0, 1], [1, 2]], 5) == -1
+    r = random.Random(200)
+    for _ in range(200):
+        t = r.randint(1, 8)
+        clips = []
+        for _ in range(r.randint(1, 6)):
+            a = r.randint(0, t)
+            clips.append([a, min(t + 2, a + r.randint(1, 5))])
+
+        def covers(c):
+            reach = 0
+            for a, b in sorted(c):
+                if a > reach:
+                    break
+                reach = max(reach, b)
+            return reach >= t
+
+        want = next((k for k in range(1, len(clips) + 1) if any(covers(c) for c in _it.combinations(clips, k))), -1)
+        assert f([x[:] for x in clips], t) == want, (clips, t)
+
+
+@test("Greedy:interval-cover#Garden taps")
+def _(ns):
+    f = ns["min_taps"]
+    assert f(5, [3, 4, 1, 1, 0, 0]) == 1 and f(3, [0, 0, 0, 0]) == -1
+    r = random.Random(201)
+    for _ in range(200):
+        n = r.randint(1, 7)
+        ranges = [r.randint(0, 3) for _ in range(n + 1)]
+        want = -1
+        for k in range(1, n + 2):
+            ok = False
+            for c in _it.combinations(range(n + 1), k):
+                covered = [False] * n
+                for i in c:
+                    for x in range(max(0, i - ranges[i]), min(n, i + ranges[i])):
+                        covered[x] = True
+                if all(covered):
+                    ok = True
+                    break
+            if ok:
+                want = k
+                break
+        assert f(n, ranges[:]) == want, (n, ranges)
+
+
+@test("Greedy:earliest-deadline")
+def _(ns):
+    f = ns["max_events"]
+    assert f([[1, 2], [2, 3], [3, 4]]) == 3 and f([[1, 2], [2, 3], [3, 4], [1, 2]]) == 4
+    r = random.Random(202)
+    for _ in range(200):
+        ev = []
+        for _ in range(r.randint(1, 6)):
+            a = r.randint(1, 6)
+            ev.append([a, a + r.randint(0, 3)])
+        best = 0
+        for k in range(len(ev), 0, -1):
+            if any(any(len(set(days)) == k for days in _it.product(*[range(a, b + 1) for a, b in c])) for c in _it.combinations(ev, k)):
+                best = k
+                break
+        assert f([e[:] for e in ev]) == best, ev
+
+
+@test("Greedy:regret-heap")
+def _(ns):
+    f = ns["schedule_course"]
+    assert f([[100, 200], [200, 1300], [1000, 1250], [2000, 3200]]) == 3 and f([[1, 2]]) == 1 and f([[3, 2], [4, 3]]) == 0
+    r = random.Random(203)
+    for _ in range(200):
+        c = [[r.randint(1, 5), r.randint(1, 12)] for _ in range(r.randint(1, 7))]
+        best = 0
+        for k in range(len(c), 0, -1):
+            ok = False
+            for sub in _it.combinations(c, k):
+                t = 0
+                good = True
+                for d, dl in sorted(sub, key=lambda x: x[1]):
+                    t += d
+                    if t > dl:
+                        good = False
+                        break
+                if good:
+                    ok = True
+                    break
+            if ok:
+                best = k
+                break
+        assert f([x[:] for x in c]) == best, c
+
+
+@test("Greedy:regret-heap#Refuel stops")
+def _(ns):
+    f = ns["min_refuel_stops"]
+    assert f(1, 1, []) == 0 and f(100, 1, [[10, 100]]) == -1 and f(100, 10, [[10, 60], [20, 30], [30, 30], [60, 40]]) == 2
+    r = random.Random(204)
+    for _ in range(200):
+        target = r.randint(5, 30)
+        pos = sorted(r.sample(range(1, target), r.randint(0, min(5, target - 1))))
+        st = [[p, r.randint(1, 15)] for p in pos]
+        fuel = r.randint(1, 12)
+        want = -1
+        for k in range(len(st) + 1):
+            for sub in _it.combinations(st, k):
+                tank, prev, ok = fuel, 0, True
+                for p, g in list(sub) + [[target, 0]]:
+                    tank -= p - prev
+                    if tank < 0:
+                        ok = False
+                        break
+                    tank += g
+                    prev = p
+                if ok:
+                    want = k
+                    break
+            if want != -1:
+                break
+        assert f(target, fuel, [s[:] for s in st]) == want, (target, fuel, st)
+
+
+@test("Greedy:regret-heap#Bricks and ladders")
+def _(ns):
+    f = ns["furthest_building"]
+    assert f([4, 2, 7, 6, 9, 14, 12], 5, 1) == 4 and f([4, 12, 2, 7, 3, 18, 20, 3, 19], 10, 2) == 7 and f([14, 3, 19, 3], 17, 0) == 3
+    r = random.Random(205)
+    for _ in range(200):
+        h = [r.randint(1, 9) for _ in range(r.randint(1, 8))]
+        bricks, ladders = r.randint(0, 8), r.randint(0, 3)
+        best = 0
+        for end in range(len(h)):
+            climbs = sorted((max(0, h[i + 1] - h[i]) for i in range(end)), reverse=True)
+            if sum(climbs[ladders:]) <= bricks:
+                best = end
+        assert f(h[:], bricks, ladders) == best, (h, bricks, ladders)
+
+
+@test("Greedy:unlock-best")
+def _(ns):
+    f = ns["find_maximized_capital"]
+    assert f(2, 0, [1, 2, 3], [0, 1, 1]) == 4 and f(3, 0, [1, 2, 3], [0, 1, 2]) == 6
+    r = random.Random(206)
+    for _ in range(200):
+        n = r.randint(1, 6)
+        profits = [r.randint(0, 6) for _ in range(n)]
+        capital = [r.randint(0, 8) for _ in range(n)]
+        k, w = r.randint(1, 4), r.randint(0, 4)
+
+        def best(left, w, k):
+            if k == 0:
+                return w
+            out = w
+            for i in left:
+                if capital[i] <= w:
+                    out = max(out, best(left - {i}, w + profits[i], k - 1))
+            return out
+
+        assert f(k, w, profits[:], capital[:]) == best(frozenset(range(n)), w, k)
+
+
+def _valid_spaced(s, k=2):
+    return all(s[i] != s[j] for i in range(len(s)) for j in range(i + 1, min(len(s), i + k)))
+
+
+@test("Greedy:cooldown-heap")
+def _(ns):
+    f = ns["reorganize_string"]
+    assert f("aab") in ("aba",) and f("aaab") == ""
+    r = random.Random(207)
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 8)))
+        feasible = max(s.count(c) for c in set(s)) <= (len(s) + 1) // 2
+        got = f(s)
+        if feasible:
+            assert _is_perm_of(got, s) and _valid_spaced(got), (s, got)
+        else:
+            assert got == "", s
+
+
+@test("Greedy:cooldown-heap#Task scheduler (formula)")
+def _(ns):
+    f = ns["least_interval"]
+    assert f(list("AAABBB"), 2) == 8 and f(list("AAABBB"), 0) == 6 and f(list("AAAAAABCDEFG"), 2) == 16
+    r = random.Random(208)
+    for _ in range(80):
+        tasks = [r.choice("ABC") for _ in range(r.randint(1, 6))]
+        n = r.randint(0, 3)
+        letters = sorted(set(tasks))
+        start = tuple(tasks.count(c) for c in letters)
+        # breadth first over (remaining counts, time of last use): the fewest time units
+        seen, frontier, t = set(), {(start, (-10,) * len(letters))}, 0
+        while True:
+            t += 1
+            nxt = set()
+            done = False
+            for cnt, last in frontier:
+                moves = [None] + [i for i in range(len(letters)) if cnt[i] and t - last[i] > n]
+                for m in moves:
+                    c2, l2 = list(cnt), list(last)
+                    if m is not None:
+                        c2[m] -= 1
+                        l2[m] = t
+                    if not any(c2):
+                        done = True
+                    nxt.add((tuple(c2), tuple(l2)))
+            if done:
+                break
+            frontier = nxt
+        assert f(tasks[:], n) == t, (tasks, n)
+
+
+@test("Greedy:jump-bfs")
+def _(ns):
+    f = ns["can_reach"]
+    assert f([4, 2, 3, 0, 3, 1, 2], 5) is True and f([3, 0, 2, 1, 2], 2) is False
+    r = random.Random(209)
+    for _ in range(300):
+        a = [r.randint(0, 4) for _ in range(r.randint(1, 8))]
+        s = r.randrange(len(a))
+        adj = {i: [j for j in (i + a[i], i - a[i]) if 0 <= j < len(a)] for i in range(len(a))}
+        seen, st = {s}, [s]
+        while st:
+            u = st.pop()
+            for v in adj[u]:
+                if v not in seen:
+                    seen.add(v)
+                    st.append(v)
+        assert f(a[:], s) is any(a[i] == 0 for i in seen)
+
+
+@test("Greedy:jump-bfs#Jump game IV (equal values teleport)")
+def _(ns):
+    f = ns["min_jumps"]
+    assert f([100, -23, -23, 404, 100, 23, 23, 23, 3, 404]) == 3 and f([7]) == 0 and f([7, 6, 9, 6, 9, 6, 9, 7]) == 1
+    r = random.Random(210)
+    for _ in range(200):
+        a = [r.randint(0, 3) for _ in range(r.randint(1, 9))]
+        n = len(a)
+        dist = {0: 0}
+        q = [0]
+        for u in q:
+            for v in [u - 1, u + 1] + [j for j in range(n) if a[j] == a[u]]:
+                if 0 <= v < n and v not in dist:
+                    dist[v] = dist[u] + 1
+                    q.append(v)
+        assert f(a[:]) == dist[n - 1], a
+
+
+@test("Greedy:reach-number")
+def _(ns):
+    f = ns["reach_number"]
+    assert f(2) == 3 and f(3) == 2 and f(-2) == 3 and f(0) == 0
+    for target in range(-25, 26):
+        reach, k = {0}, 0
+        while target not in reach:
+            k += 1
+            reach = {x + s * k for x in reach for s in (1, -1)}
+        assert f(target) == k, target
+
+
+@test("Greedy:reach-number#Broken calculator (work backwards)")
+def _(ns):
+    f = ns["broken_calc"]
+    assert f(2, 3) == 2 and f(5, 8) == 2 and f(3, 10) == 3 and f(1024, 1) == 1023
+    for start in range(1, 12):
+        for target in range(1, 40):
+            dist, q = {start: 0}, [start]
+            for u in q:
+                for v in (u * 2, u - 1):
+                    if 1 <= v <= 100 and v not in dist:
+                        dist[v] = dist[u] + 1
+                        q.append(v)
+            assert f(start, target) == dist[target], (start, target)
+
+
+@test("Greedy:jump-window")
+def _(ns):
+    f = ns["max_result"]
+    assert f([1, -1, -2, 4, -7, 3], 2) == 7 and f([10, -5, -2, 4, 0, 3], 3) == 17 and f([1, -5, -20, 4, -1, 3, -6, -3], 2) == 0
+    r = random.Random(211)
+    for _ in range(300):
+        a = [r.randint(-9, 9) for _ in range(r.randint(1, 10))]
+        k = r.randint(1, 4)
+        best = [0] * len(a)
+        best[0] = a[0]
+        for i in range(1, len(a)):
+            best[i] = a[i] + max(best[j] for j in range(max(0, i - k), i))
+        assert f(a[:], k) == best[-1], (a, k)
+
+
+@test("Greedy:min-start")
+def _(ns):
+    f = ns["min_start_value"]
+    assert f([-3, 2, -3, 4, 2]) == 5 and f([1, 2]) == 1 and f([1, -2, -3]) == 5
+    r = random.Random(212)
+    for _ in range(200):
+        a = [r.randint(-6, 6) for _ in range(r.randint(1, 8))]
+        s = 1
+        while True:
+            t, ok = s, True
+            for x in a:
+                t += x
+                if t < 1:
+                    ok = False
+            if ok:
+                break
+            s += 1
+        assert f(a[:]) == s
+
+
+@test("Greedy:min-start#Minimum initial energy (order by gap)")
+def _(ns):
+    f = ns["minimum_effort"]
+    assert f([[1, 2], [2, 4], [4, 8]]) == 8 and f([[1, 3], [2, 4], [10, 11], [10, 12], [8, 9]]) == 32
+    r = random.Random(213)
+    for _ in range(200):
+        tasks = []
+        for _ in range(r.randint(1, 5)):
+            a = r.randint(1, 6)
+            tasks.append([a, a + r.randint(0, 5)])
+        best = min(max(max(0, 0), 0) or _need(p) for p in _it.permutations(tasks))
+        assert f([t[:] for t in tasks]) == best, tasks
+
+
+def _need(order):
+    """Smallest starting energy for the tasks done in this order."""
+    need = 0
+    spent = 0
+    for actual, minimum in order:
+        need = max(need, spent + minimum)
+        spent += actual
+    return need
+
+
+@test("Greedy:two-end-tokens")
+def _(ns):
+    f = ns["bag_of_tokens_score"]
+    assert f([100], 50) == 0 and f([100, 200], 150) == 1 and f([100, 200, 300, 400], 200) == 2
+    r = random.Random(214)
+    for _ in range(200):
+        t = [r.randint(1, 9) for _ in range(r.randint(0, 6))]
+        p = r.randint(0, 12)
+
+        def best(used, power, score):
+            out = score
+            for i in range(len(t)):
+                if i in used:
+                    continue
+                if power >= t[i]:
+                    out = max(out, best(used | {i}, power - t[i], score + 1))
+                if score > 0:
+                    out = max(out, best(used | {i}, power + t[i], score - 1))
+            return out
+
+        assert f(t[:], p) == best(frozenset(), p, 0), (t, p)
+
+
+@test("Greedy:best-pair-running")
+def _(ns):
+    f = ns["max_score_sightseeing_pair"]
+    assert f([8, 1, 5, 2, 6]) == 11 and f([1, 2]) == 2
+    r = random.Random(215)
+    for _ in range(200):
+        a = [r.randint(1, 20) for _ in range(r.randint(2, 9))]
+        assert f(a[:]) == max(a[i] + a[j] + i - j for i in range(len(a)) for j in range(i + 1, len(a)))
+
+
+def _stock_best(prices, fee=0, cooldown=0, k=None):
+    """Exhaustive: every sequence of actions, day by day."""
+    n = len(prices)
+
+    def go(day, holding, rest, left):
+        if day == n:
+            return 0
+        best = go(day + 1, holding, max(0, rest - 1), left)  # do nothing
+        if holding:
+            best = max(best, prices[day] - fee + go(day + 1, False, cooldown, left))
+        elif rest == 0 and (left is None or left > 0):
+            best = max(best, -prices[day] + go(day + 1, True, 0, None if left is None else left - 1))
+        return best
+
+    return go(0, False, 0, k)
+
+
+@test("Greedy:stock-states")
+def _(ns):
+    f = ns["max_profit_fee"]
+    assert f([1, 3, 2, 8, 4, 9], 2) == 8 and f([1, 3, 7, 5, 10, 3], 3) == 6
+    r = random.Random(216)
+    for _ in range(150):
+        p = [r.randint(1, 12) for _ in range(r.randint(1, 8))]
+        fee = r.randint(0, 4)
+        assert f(p[:], fee) == _stock_best(p, fee=fee), (p, fee)
+
+
+@test("Greedy:stock-states#With a cooldown")
+def _(ns):
+    f = ns["max_profit_cooldown"]
+    assert f([1, 2, 3, 0, 2]) == 3 and f([1]) == 0
+    r = random.Random(217)
+    for _ in range(150):
+        p = [r.randint(1, 12) for _ in range(r.randint(1, 8))]
+        assert f(p[:]) == _stock_best(p, cooldown=1), p
+
+
+@test("Greedy:stock-states#At most k transactions")
+def _(ns):
+    f = ns["max_profit_k"]
+    assert f(2, [2, 4, 1]) == 2 and f(2, [3, 2, 6, 5, 0, 3]) == 7 and f(2, [3, 3, 5, 0, 0, 3, 1, 4]) == 6
+    r = random.Random(218)
+    for _ in range(150):
+        p = [r.randint(1, 12) for _ in range(r.randint(1, 8))]
+        k = r.randint(1, 3)
+        assert f(k, p[:]) == _stock_best(p, k=k), (k, p)
+
+
+@test("Greedy:weighted-intervals")
+def _(ns):
+    f = ns["job_scheduling"]
+    assert f([1, 2, 3, 3], [3, 4, 5, 6], [50, 10, 40, 70]) == 120 and f([1, 1, 1], [2, 3, 4], [5, 6, 4]) == 6
+    r = random.Random(219)
+    for _ in range(200):
+        jobs = []
+        for _ in range(r.randint(1, 7)):
+            a = r.randint(1, 8)
+            jobs.append((a, a + r.randint(1, 4), r.randint(1, 9)))
+        best = max(sum(j[2] for j in c) for k in range(len(jobs) + 1) for c in _it.combinations(jobs, k)
+                   if all(a[1] <= b[0] or b[1] <= a[0] for a, b in _it.combinations(c, 2)))
+        s, e, p = zip(*jobs)
+        assert f(list(s), list(e), list(p)) == best, jobs
+
+
+@test("Greedy:knapsack-01")
+def _(ns):
+    f = ns["can_partition"]
+    assert f([1, 5, 11, 5]) is True and f([1, 2, 3, 5]) is False and f([2]) is False
+    r = random.Random(220)
+    for _ in range(300):
+        a = [r.randint(1, 9) for _ in range(r.randint(1, 9))]
+        total = sum(a)
+        want = total % 2 == 0 and any(sum(c) == total // 2 for k in range(len(a) + 1) for c in _it.combinations(a, k))
+        assert f(a[:]) is want, a
+
+
+@test("Greedy:knapsack-01#Count the ways (target sum)")
+def _(ns):
+    f = ns["find_target_sum_ways"]
+    assert f([1, 1, 1, 1, 1], 3) == 5 and f([1], 1) == 1
+    r = random.Random(221)
+    for _ in range(200):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 7))]
+        t = r.randint(-8, 8)
+        want = sum(1 for signs in _it.product((1, -1), repeat=len(a)) if sum(s * x for s, x in zip(signs, a)) == t)
+        assert f(a[:], t) == want
+
+
+@test("Greedy:wildcard")
+def _(ns):
+    import re
+    f = ns["is_match"]
+    assert f("aa", "a") is False and f("aa", "*") is True and f("cb", "?a") is False and f("adceb", "*a*b") is True
+    r = random.Random(222)
+    for _ in range(600):
+        s = "".join(r.choice("ab") for _ in range(r.randint(0, 7)))
+        p = "".join(r.choice("ab?*") for _ in range(r.randint(0, 7)))
+        rx = "".join("." if c == "?" else ".*" if c == "*" else c for c in p)
+        assert f(s, p) is (re.fullmatch(rx, s) is not None), (s, p)
+
+
+@test("Greedy:remove-k-digits")
+def _(ns):
+    f = ns["remove_k_digits"]
+    assert f("1432219", 3) == "1219" and f("10200", 1) == "200" and f("10", 2) == "0"
+    r = random.Random(223)
+    for _ in range(300):
+        num = "".join(r.choice("0123") for _ in range(r.randint(1, 7)))
+        k = r.randint(0, len(num))
+        keep = len(num) - k
+        want = str(min(int("".join(c) or "0") for c in _it.combinations(num, keep)))
+        assert f(num, k) == want, (num, k)
+
+
+@test("Greedy:remove-k-digits#Remove duplicate letters")
+def _(ns):
+    f = ns["remove_duplicate_letters"]
+    assert f("bcabc") == "abc" and f("cbacdcbc") == "acdb"
+    r = random.Random(224)
+    for _ in range(200):
+        s = "".join(r.choice("abcd") for _ in range(r.randint(1, 8)))
+        letters = set(s)
+        want = min("".join(c) for k in range(len(letters), len(letters) + 1) for c in _it.combinations(s, k) if set(c) == letters)
+        assert f(s) == want, s
+
+
+@test("Greedy:remove-k-digits#Most competitive subsequence")
+def _(ns):
+    f = ns["most_competitive"]
+    assert f([3, 5, 2, 6], 2) == [2, 6] and f([2, 4, 3, 3, 5, 4, 9, 6], 4) == [2, 3, 3, 4]
+    r = random.Random(225)
+    for _ in range(200):
+        a = [r.randint(1, 6) for _ in range(r.randint(1, 8))]
+        k = r.randint(1, len(a))
+        assert f(a[:], k) == list(min(_it.combinations(a, k))), (a, k)
+
+
+def _bal(s):
+    d = 0
+    for ch in s:
+        d += 1 if ch == "(" else -1
+        if d < 0:
+            return False
+    return d == 0
+
+
+def _fewest_insertions(s, valid, limit=7):
+    seen, frontier = {s}, {s}
+    for depth in range(limit + 1):
+        if any(valid(t) for t in frontier):
+            return depth
+        nxt = set()
+        for t in frontier:
+            for i in range(len(t) + 1):
+                for ch in "()":
+                    u = t[:i] + ch + t[i:]
+                    if u not in seen:
+                        seen.add(u)
+                        nxt.add(u)
+        frontier = nxt
+    return None
+
+
+@test("Greedy:bracket-repair")
+def _(ns):
+    f = ns["min_add_to_make_valid"]
+    assert f("())") == 1 and f("(((") == 3 and f("()") == 0
+    r = random.Random(226)
+    for _ in range(150):
+        s = "".join(r.choice("()") for _ in range(r.randint(0, 6)))
+        assert f(s) == _fewest_insertions(s, _bal), s
+
+
+@test("Greedy:bracket-repair#Each ( needs two )")
+def _(ns):
+    f = ns["min_insertions"]
+    assert f("(()))") == 1 and f("())") == 0 and f("))())(") == 3 and f("((((((") == 12
+
+    def valid2(t):  # every ( is closed by exactly two ) later on
+        i, stack = 0, 0
+        while i < len(t):
+            if t[i] == "(":
+                stack += 1
+                i += 1
+            else:
+                if t[i:i + 2] != "))" or stack == 0:
+                    return False
+                stack -= 1
+                i += 2
+        return stack == 0
+
+    r = random.Random(227)
+    for _ in range(100):
+        s = "".join(r.choice("()") for _ in range(r.randint(0, 4)))
+        assert f(s) == _fewest_insertions(s, valid2, 9), s
+
+
+@test("Greedy:create-maximum")
+def _(ns):
+    f = ns["max_number"]
+    assert f([3, 4, 6, 5], [9, 1, 2, 5, 8, 3], 5) == [9, 8, 6, 5, 3] and f([6, 7], [6, 0, 4], 5) == [6, 7, 6, 0, 4]
+    r = random.Random(228)
+
+    def merges(a, b):
+        if not a:
+            yield list(b)
+            return
+        if not b:
+            yield list(a)
+            return
+        for rest in merges(a[1:], b):
+            yield [a[0]] + rest
+        for rest in merges(a, b[1:]):
+            yield [b[0]] + rest
+
+    for _ in range(80):
+        a = [r.randint(0, 9) for _ in range(r.randint(1, 4))]
+        b = [r.randint(0, 9) for _ in range(r.randint(1, 4))]
+        k = r.randint(1, len(a) + len(b))
+        want = max(m for i in range(0, k + 1) if i <= len(a) and k - i <= len(b)
+                   for ca in _it.combinations(a, i) for cb in _it.combinations(b, k - i)
+                   for m in merges(list(ca), list(cb)))
+        assert f(a[:], b[:], k) == want, (a, b, k)
+
+
+@test("Greedy:di-string")
+def _(ns):
+    f = ns["di_string_match"]
+    for pat in ("IDID", "III", "DDI", "", "D", "IIDDI"):
+        got = f(pat)
+        assert sorted(got) == list(range(len(pat) + 1))
+        assert all((got[i] < got[i + 1]) == (c == "I") for i, c in enumerate(pat)), pat
+
+
+@test("Greedy:di-string#Smallest number from the pattern")
+def _(ns):
+    f = ns["smallest_number"]
+    assert f("IIIDIDDD") == "123549876" and f("DDD") == "4321"
+    r = random.Random(229)
+    for _ in range(200):
+        pat = "".join(r.choice("ID") for _ in range(r.randint(1, 7)))
+        want = min("".join(map(str, p)) for p in _it.permutations(range(1, len(pat) + 2))
+                   if all((p[i] < p[i + 1]) == (c == "I") for i, c in enumerate(pat)))
+        assert f(pat) == want, pat
+
+
+@test("Greedy:break-palindrome")
+def _(ns):
+    f = ns["break_palindrome"]
+    assert f("abccba") == "aaccba" and f("a") == "" and f("aa") == "ab" and f("aba") == "abb"
+    r = random.Random(230)
+    for _ in range(200):
+        half = "".join(r.choice("abc") for _ in range(r.randint(1, 4)))
+        p = half + (r.choice("abc") if r.random() < 0.5 else "") + half[::-1]
+        cands = [p[:i] + c + p[i + 1:] for i in range(len(p)) for c in "abcdefghijklmnopqrstuvwxyz" if c != p[i]]
+        cands = [c for c in cands if c != c[::-1]]
+        assert f(p) == (min(cands) if cands else ""), p
+
+
+@test("Greedy:parity-sort")
+def _(ns):
+    f = ns["largest_integer"]
+    assert f(1234) == 3412 and f(65875) == 87655
+    r = random.Random(231)
+    for _ in range(200):
+        num = r.randint(1, 99999)
+        digits = list(str(num))
+        best = 0
+        for p in set(_it.permutations(digits)):
+            if all((int(a) % 2) == (int(b) % 2) for a, b in zip(p, digits)):
+                best = max(best, int("".join(p)))
+        assert f(num) == best
+
+
+@test("Greedy:digit-sum-target")
+def _(ns):
+    f = ns["make_integer_beautiful"]
+    assert f(16, 6) == 4 and f(467, 6) == 33 and f(1, 1) == 0
+    r = random.Random(232)
+    for _ in range(300):
+        n = r.randint(1, 5000)
+        t = r.randint(1, 20)
+        x = 0
+        while sum(map(int, str(n + x))) > t:
+            x += 1
+        assert f(n, t) == x, (n, t)
+
+
+@test("Greedy:cut-when-forced")
+def _(ns):
+    f = ns["partition_string"]
+    assert f("abacaba") == 4 and f("ssssss") == 6 and f("abc") == 1
+    r = random.Random(233)
+    for _ in range(200):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 9)))
+        want = min(len(parts) for mask in range(1 << (len(s) - 1))
+                   for parts in [[s[a:b] for a, b in zip([0] + [i + 1 for i in range(len(s) - 1) if mask >> i & 1],
+                                                          [i + 1 for i in range(len(s) - 1) if mask >> i & 1] + [len(s)])]]
+                   if all(len(set(x)) == len(x) for x in parts))
+        assert f(s) == want, s
+
+
+@test("Greedy:cut-when-forced#Range at most k (sort first)")
+def _(ns):
+    f = ns["partition_array"]
+    assert f([3, 6, 1, 2, 5], 2) == 2 and f([1, 2, 3], 1) == 2 and f([2, 2, 4, 5], 0) == 3
+    r = random.Random(234)
+    for _ in range(200):
+        a = [r.randint(0, 9) for _ in range(r.randint(1, 7))]
+        k = r.randint(0, 4)
+        best = len(a)
+
+        def go(i, groups):
+            nonlocal best
+            if len(groups) >= best:
+                return
+            if i == len(a):
+                best = len(groups)
+                return
+            for g in groups:
+                if max(g + [a[i]]) - min(g + [a[i]]) <= k:
+                    g.append(a[i])
+                    go(i + 1, groups)
+                    g.pop()
+            groups.append([a[i]])
+            go(i + 1, groups)
+            groups.pop()
+
+        go(0, [])
+        assert f(a[:], k) == best, (a, k)
+
+
+@test("Greedy:two-pass")
+def _(ns):
+    f = ns["candy"]
+    assert f([1, 0, 2]) == 5 and f([1, 2, 2]) == 4 and f([1]) == 1
+    r = random.Random(235)
+    for _ in range(300):
+        a = [r.randint(1, 5) for _ in range(r.randint(1, 7))]
+        c = [1] * len(a)
+        changed = True
+        while changed:  # the fixed point of the rules
+            changed = False
+            for i in range(len(a)):
+                for j in (i - 1, i + 1):
+                    if 0 <= j < len(a) and a[i] > a[j] and c[i] <= c[j]:
+                        c[i] = c[j] + 1
+                        changed = True
+        assert f(a[:]) == sum(c), a
+
+
+@test("Greedy:two-pass#Distance to the nearest target")
+def _(ns):
+    f = ns["shortest_to_char"]
+    assert f("loveleetcode", "e") == [3, 2, 1, 0, 1, 0, 0, 1, 2, 2, 1, 0] and f("aaab", "b") == [3, 2, 1, 0]
+    r = random.Random(236)
+    for _ in range(200):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 9)))
+        if "a" not in s:
+            continue
+        assert f(s, "a") == [min(abs(i - j) for j in range(len(s)) if s[j] == "a") for i in range(len(s))]
+
+
+@test("Greedy:two-pass#Longest mountain (runs)")
+def _(ns):
+    f = ns["longest_mountain"]
+    assert f([2, 1, 4, 7, 3, 2, 5]) == 5 and f([2, 2, 2]) == 0 and f([1, 2, 3]) == 0
+    r = random.Random(237)
+    for _ in range(300):
+        a = [r.randint(0, 4) for _ in range(r.randint(1, 10))]
+        best = 0
+        for i in range(len(a)):
+            for j in range(i + 2, len(a)):
+                seg = a[i:j + 1]
+                peak = seg.index(max(seg))
+                if 0 < peak < len(seg) - 1 and all(seg[k] < seg[k + 1] for k in range(peak)) \
+                        and all(seg[k] > seg[k + 1] for k in range(peak, len(seg) - 1)):
+                    best = max(best, len(seg))
+        assert f(a[:]) == best, a
+
+
+@test("Greedy:palindrome-counts")
+def _(ns):
+    f = ns["longest_palindrome"]
+    assert f("abccccdd") == 7 and f("a") == 1 and f("aaaa") == 4
+    r = random.Random(238)
+    for _ in range(200):
+        s = "".join(r.choice("abcd") for _ in range(r.randint(1, 8)))
+        best = 0
+        for k in range(len(s) + 1):
+            for c in _it.combinations(s, k):
+                if sum(1 for x in set(c) if c.count(x) % 2) <= 1:
+                    best = max(best, k)
+        assert f(s) == best, s
+
+
+@test("Greedy:distinct-frequencies")
+def _(ns):
+    f = ns["min_deletions"]
+    assert f("aab") == 0 and f("aaabbbcc") == 2 and f("ceabaacb") == 2
+    r = random.Random(239)
+    for _ in range(200):
+        s = "".join(r.choice("abcd") for _ in range(r.randint(1, 8)))
+        letters = sorted(set(s))
+        cnt = [s.count(c) for c in letters]
+        best = len(s)
+        for keep in _it.product(*[range(c + 1) for c in cnt]):
+            pos = [k for k in keep if k]
+            if len(pos) == len(set(pos)):
+                best = min(best, sum(cnt) - sum(keep))
+        assert f(s) == best, s
+
+
+@test("Greedy:split-2-3")
+def _(ns):
+    f = ns["minimum_rounds"]
+    assert f([2, 2, 3, 3, 2, 4, 4, 4, 4, 4]) == 4 and f([2, 3, 3]) == -1
+    for c in range(2, 30):
+        want = min(a + b for a in range(c // 2 + 1) for b in range(c // 3 + 1) if 2 * a + 3 * b == c)
+        assert f([7] * c) == want, c
+
+
+@test("Greedy:bucket-freq")
+def _(ns):
+    f = ns["frequency_sort"]
+    r = random.Random(240)
+    for _ in range(200):
+        s = "".join(r.choice("abcde") for _ in range(r.randint(0, 12)))
+        got = f(s)
+        assert _is_perm_of(got, s)
+        runs = [(ch, len(list(g))) for ch, g in _it.groupby(got)]
+        assert len({ch for ch, _ in runs}) == len(runs)  # equal letters stay together
+        counts = [n for _, n in runs]
+        assert counts == sorted(counts, reverse=True)
+
+
+@test("Greedy:bucket-freq#H-index")
+def _(ns):
+    f = ns["h_index"]
+    assert f([3, 0, 6, 1, 5]) == 3 and f([1, 3, 1]) == 1 and f([100]) == 1 and f([0]) == 0
+    r = random.Random(241)
+    for _ in range(300):
+        c = [r.randint(0, 8) for _ in range(r.randint(1, 8))]
+        assert f(c[:]) == max(h for h in range(len(c) + 1) if sum(1 for x in c if x >= h) >= h)
+
+
+@test("Greedy:residue-counts")
+def _(ns):
+    f = ns["can_arrange"]
+    assert f([1, 2, 3, 4, 5, 10, 6, 7, 8, 9], 5) is True and f([1, 2, 3, 4, 5, 6], 7) is True and f([1, 2, 3, 4, 5, 6], 10) is False
+    r = random.Random(242)
+
+    def brute(a, k):
+        if not a:
+            return True
+        first, rest = a[0], a[1:]
+        return any((first + x) % k == 0 and brute(rest[:i] + rest[i + 1:], k) for i, x in enumerate(rest))
+
+    for _ in range(300):
+        k = r.randint(2, 6)
+        a = [r.randint(-9, 9) for _ in range(2 * r.randint(0, 4))]
+        assert f(a[:], k) is brute(a, k), (a, k)
+
+
+@test("Greedy:residue-counts#Smallest missing value (MEX)")
+def _(ns):
+    f = ns["find_smallest_integer"]
+    assert f([1, -10, 7, 13, 6, 8], 5) == 4 and f([1, -10, 7, 13, 6, 8], 7) == 2
+    r = random.Random(243)
+    for _ in range(200):
+        v = r.randint(1, 5)
+        a = [r.randint(-9, 9) for _ in range(r.randint(0, 8))]
+        m = 0
+        pool = [x % v for x in a]
+        while m % v in pool:
+            pool.remove(m % v)
+            m += 1
+        assert f(a[:], v) == m
+
+
+@test("Greedy:highest-bit")
+def _(ns):
+    f = ns["find_maximum_xor"]
+    assert f([3, 10, 5, 25, 2, 8]) == 28 and f([14, 70, 53, 83, 49, 91, 36, 80, 92, 51, 66, 70]) == 127 and f([0]) == 0
+    r = random.Random(244)
+    for _ in range(300):
+        a = [r.randint(0, 200) for _ in range(r.randint(1, 8))]
+        assert f(a[:]) == max(x ^ y for x in a for y in a)
+
+
+@test("Greedy:bit-decisions")
+def _(ns):
+    f = ns["min_flips"]
+    assert f(2, 6, 5) == 3 and f(4, 2, 7) == 1 and f(1, 2, 3) == 0
+    r = random.Random(245)
+    for _ in range(300):
+        a, b, c = r.randint(1, 63), r.randint(1, 63), r.randint(1, 63)
+        want = bin((a | b) ^ c).count("1")  # a lower bound ...
+        best = min(bin(a ^ x).count("1") + bin(b ^ y).count("1") for x in range(64) for y in range(64) if x | y == c) if c < 64 else want
+        assert f(a, b, c) == best, (a, b, c)
+
+
+@test("Greedy:bit-decisions#Reduce to zero by adding or removing powers of two")
+def _(ns):
+    f = ns["min_operations"]
+    assert f(39) == 3 and f(54) == 3 and f(1) == 1
+    dist, q = {0: 0}, [0]
+    for u in q:
+        for p in range(10):
+            for v in (u + (1 << p), u - (1 << p)):
+                if 0 <= v <= 2000 and v not in dist:
+                    dist[v] = dist[u] + 1
+                    q.append(v)
+    for n in range(1, 300):
+        assert f(n) == dist[n], n
+
+
+@test("Greedy:cash-counts")
+def _(ns):
+    f = ns["lemonade_change"]
+    assert f([5, 5, 5, 10, 20]) is True and f([5, 5, 10, 10, 20]) is False and f([10]) is False
+    r = random.Random(246)
+    for _ in range(300):
+        bills = [r.choice([5, 5, 10, 20]) for _ in range(r.randint(1, 8))]
+
+        def go(i, fives, tens):
+            if fives < 0 or tens < 0:
+                return False
+            if i == len(bills):
+                return True
+            b = bills[i]
+            if b == 5:
+                return go(i + 1, fives + 1, tens)
+            if b == 10:
+                return go(i + 1, fives - 1, tens + 1)
+            return go(i + 1, fives - 1, tens - 1) or go(i + 1, fives - 3, tens)
+
+        assert f(bills[:]) is go(0, 0, 0), bills
+
+
+@test("Greedy:positive-differences")
+def _(ns):
+    f = ns["min_number_operations"]
+    assert f([1, 2, 3, 2, 1]) == 3 and f([3, 1, 5, 4, 2]) == 7 and f([1, 1, 1, 1]) == 1
+    r = random.Random(247)
+    for _ in range(60):
+        t = tuple(r.randint(0, 3) for _ in range(r.randint(1, 4)))
+        dist, q = {(0,) * len(t): 0}, [(0,) * len(t)]
+        for u in q:
+            for i in range(len(t)):
+                for j in range(i, len(t)):
+                    v = tuple(x + 1 if i <= k <= j else x for k, x in enumerate(u))
+                    if all(a <= 3 for a in v) and v not in dist:
+                        dist[v] = dist[u] + 1
+                        q.append(v)
+        assert f(list(t)) == dist[t], t
+
+
+@test("Greedy:pair-double")
+def _(ns):
+    f = ns["can_reorder_doubled"]
+    assert f([3, 1, 3, 6]) is False and f([2, 1, 2, 6]) is False and f([4, -2, 2, -4]) is True and f([0, 0]) is True and f([0]) is False
+    r = random.Random(248)
+
+    def brute(a):
+        if not a:
+            return True
+        x, rest = a[0], a[1:]
+        return any(y == 2 * x and brute(rest[:i] + rest[i + 1:]) for i, y in enumerate(rest)) or \
+            any(x == 2 * y and brute(rest[:i] + rest[i + 1:]) for i, y in enumerate(rest))
+
+    for _ in range(300):
+        a = [r.choice([-4, -2, -1, 0, 1, 2, 4, 8]) for _ in range(2 * r.randint(0, 3))]
+        assert f(a[:]) is brute(a), a
+
+
+@test("Greedy:window-subtract")
+def _(ns):
+    f = ns["check_array"]
+    assert f([2, 2, 3, 1, 1, 0], 3) is True and f([1, 3, 1, 1], 2) is False
+    r = random.Random(249)
+    for _ in range(300):
+        a = [r.randint(0, 3) for _ in range(r.randint(1, 6))]
+        k = r.randint(1, 3)
+        seen = {}
+
+        def go(t):
+            if not any(t):
+                return True
+            if t in seen:
+                return seen[t]
+            ok = False
+            for i in range(len(t) - k + 1):
+                if all(t[i + j] > 0 for j in range(k)):
+                    nt = tuple(x - 1 if i <= p < i + k else x for p, x in enumerate(t))
+                    if go(nt):
+                        ok = True
+                        break
+            seen[t] = ok
+            return ok
+
+        assert f(a[:], k) is go(tuple(a)), (a, k)
+
+
+@test("Greedy:two-largest")
+def _(ns):
+    f = ns["fill_cups"]
+    assert f([1, 4, 2]) == 4 and f([5, 4, 4]) == 7 and f([5, 0, 0]) == 5
+    r = random.Random(250)
+    for _ in range(100):
+        a = [r.randint(0, 5) for _ in range(3)]
+        dist, q = {tuple(a): 0}, [tuple(a)]
+        for u in q:
+            for i in range(3):
+                for j in range(i, 3):
+                    v = list(u)
+                    v[i] = max(0, v[i] - 1)
+                    if j != i:
+                        v[j] = max(0, v[j] - 1)
+                    v = tuple(v)
+                    if v not in dist:
+                        dist[v] = dist[u] + 1
+                        q.append(v)
+        assert f(a[:]) == dist[(0, 0, 0)], a
+
+
+@test("Greedy:two-largest#Stones (three piles)")
+def _(ns):
+    f = ns["maximum_score"]
+    assert f(2, 4, 6) == 6 and f(4, 4, 6) == 7 and f(1, 8, 8) == 8
+    r = random.Random(251)
+    for _ in range(100):
+        a, b, c = r.randint(0, 6), r.randint(0, 6), r.randint(0, 6)
+
+        def go(x, y, z):
+            best = 0
+            for i, j in ((0, 1), (0, 2), (1, 2)):
+                v = [x, y, z]
+                if v[i] and v[j]:
+                    v[i] -= 1
+                    v[j] -= 1
+                    best = max(best, 1 + go(*v))
+            return best
+
+        assert f(a, b, c) == go(a, b, c)
+
+
+@test("Greedy:two-largest#Halve the array sum (heap)")
+def _(ns):
+    f = ns["halve_array"]
+    assert f([5, 19, 8, 1]) == 3 and f([3, 8, 20]) == 3
+    r = random.Random(252)
+    for _ in range(100):
+        a = [r.randint(1, 20) for _ in range(r.randint(1, 4))]
+        half = sum(a) / 2
+        dist = {tuple(a): 0}
+        q = [tuple(float(x) for x in a)]
+        dist = {q[0]: 0}
+        ans = None
+        for u in q:
+            if sum(u) <= half + 1e-9:
+                ans = dist[u]
+                break
+            for i in range(len(u)):
+                v = list(u)
+                v[i] /= 2
+                v = tuple(v)
+                if v not in dist:
+                    dist[v] = dist[u] + 1
+                    q.append(v)
+        assert f(a[:]) == ans, a
+
+
+@test("Greedy:leaves-first")
+def _(ns):
+    f = ns["min_camera_cover"]
+
+    def tree(vals):
+        return _tree(vals)
+
+    assert f(tree([0, 0, None, 0, 0])) == 1 and f(tree([0, 0, None, 0, None, 0, None, None, 0])) == 2
+    r = random.Random(253)
+    for _ in range(100):
+        n = r.randint(1, 8)
+        nodes = [TreeNode(0) for _ in range(n)]
+        parent = {}
+        for i in range(1, n):
+            while True:
+                p = r.randrange(i)
+                side = r.choice(("left", "right"))
+                if getattr(nodes[p], side) is None:
+                    setattr(nodes[p], side, nodes[i])
+                    parent[i] = p
+                    break
+        best = n
+        for k in range(1, n + 1):
+            for cams in _it.combinations(range(n), k):
+                cov = set()
+                for c in cams:
+                    cov.add(c)
+                    if c in parent:
+                        cov.add(parent[c])
+                    for ch in (nodes[c].left, nodes[c].right):
+                        if ch is not None:
+                            cov.add(nodes.index(ch))
+                if len(cov) == n:
+                    best = k
+                    break
+            else:
+                continue
+            break
+        assert f(nodes[0]) == best
+
+
+@test("Greedy:leaves-first#Distribute coins (excess flows up)")
+def _(ns):
+    f = ns["distribute_coins"]
+    assert f(_tree([3, 0, 0])) == 2 and f(_tree([0, 3, 0])) == 3 and f(_tree([1, 0, 2])) == 2
+    r = random.Random(254)
+    for _ in range(60):
+        n = r.randint(1, 5)
+        nodes = [TreeNode(0) for _ in range(n)]
+        edges = []
+        for i in range(1, n):
+            while True:
+                p = r.randrange(i)
+                side = r.choice(("left", "right"))
+                if getattr(nodes[p], side) is None:
+                    setattr(nodes[p], side, nodes[i])
+                    edges.append((p, i))
+                    break
+        coins = [0] * n
+        for _ in range(n):
+            coins[r.randrange(n)] += 1
+        for nd, c in zip(nodes, coins):
+            nd.val = c
+        start = tuple(coins)
+        goal = (1,) * n
+        dist, q = {start: 0}, [start]
+        for u in q:
+            if u == goal:
+                break
+            for a, b in edges:
+                for x, y in ((a, b), (b, a)):
+                    if u[x] > 0:
+                        v = list(u)
+                        v[x] -= 1
+                        v[y] += 1
+                        v = tuple(v)
+                        if v not in dist:
+                            dist[v] = dist[u] + 1
+                            q.append(v)
+        assert f(nodes[0]) == dist[goal], (coins, edges)

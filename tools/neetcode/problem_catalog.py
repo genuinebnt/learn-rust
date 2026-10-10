@@ -149,6 +149,12 @@ def main():
 
     # --- the problems to add: the hand-made mapping (technique_problems.json), checked against the rules
     mapping = {k: v for k, v in json.loads((ROOT / "tools/neetcode/technique_problems.json").read_text()).items() if not k.startswith("_")}
+    # a problem that is already in practice.json moves to the card named in technique_moves.json
+    moves = {k: v for k, v in json.loads((ROOT / "tools/neetcode/technique_moves.json").read_text()).items() if not k.startswith("_")}
+    for p in kept:
+        tech = moves.get(p["slug"])
+        if tech and tech != p["technique"] and tech in lessons:
+            p["technique"], p["pattern"], p["practice_of"] = tech, tech_pattern[tech], must_learn.get(tech)
     # an extra's examples are its problems: any that the catalog does not have yet is added under that extra
     for f in DSA.glob("lessons/*.toml"):
         for e in tomllib.loads(f.read_text()).get("extra", []):

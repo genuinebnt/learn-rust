@@ -135,6 +135,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:kadane"
+template_name = "Maximum subarray"
 signals = [
     "the best contiguous subarray (sum, product, or a circular version)",
     "a prefix with a negative total can never help what comes after it",
@@ -153,6 +154,38 @@ pitfalls = [
     "Restarting at x is the same as dropping a run whose sum went negative.",
     "For a circular array, the answer is the larger of the normal best and (total minus the minimum subarray), unless every element is negative.",
 ]
+
+[[technique.variant]]
+name = "Circular array"
+note = "Either the best run inside the array, or the total minus the worst run (the best run wraps around)."
+template = '''
+def max_subarray_circular(nums):
+    best = cur_max = nums[0]
+    worst = cur_min = nums[0]
+    for x in nums[1:]:
+        cur_max = max(x, cur_max + x)
+        best = max(best, cur_max)
+        cur_min = min(x, cur_min + x)
+        worst = min(worst, cur_min)
+    total = sum(nums)
+    # all negative: total - worst would be the empty run
+    return best if best < 0 else max(best, total - worst)
+'''
+
+[[technique.variant]]
+name = "Maximum product"
+note = "A negative number swaps the roles: keep both the largest and the smallest product ending here."
+template = '''
+def max_product(nums):
+    best = hi = lo = nums[0]
+    for x in nums[1:]:
+        if x < 0:
+            hi, lo = lo, hi  # a negative factor flips them
+        hi = max(x, hi * x)
+        lo = min(x, lo * x)
+        best = max(best, hi)
+    return best
+'''
 
 [[technique]]
 id = "Greedy:reach"
@@ -336,6 +369,1662 @@ pitfalls = [
     "Fail as soon as hi < 0. At the end the count 0 must be inside the range, which means lo == 0.",
 ]
 
+[[extra]]
+id = "Greedy:rank-match"
+name = "Sort both sides and match rank to rank"
+group = "Sorting-based greedy"
+signals = [
+    "two groups must be paired (children and cookies, people and boats, jobs and workers) to maximise the matches",
+    "a partner is good enough when it is at least as big, and a bigger one is never better",
+    "after sorting, the smallest sufficient partner or the two ends decide each step",
+]
+template_name = "Smallest sufficient partner"
+template = '''
+def find_content_children(greed, sizes):
+    """Most children who get a cookie at least as big as their greed."""
+    greed, sizes = sorted(greed), sorted(sizes)
+    child = 0
+    for cookie in sizes:  # smallest cookie first
+        if child < len(greed) and cookie >= greed[child]:
+            child += 1  # it satisfies the least greedy child left
+    return child
+'''
+pitfalls = [
+    "Walk over the resource (cookies), not the demand: a cookie that is too small is skipped, never stored.",
+    "Sort both lists: the match of the smallest with the smallest sufficient partner is what makes the greedy right.",
+    "Equal sizes are allowed to match: the comparison is >=, not >.",
+]
+examples = ["assign-cookies", "boats-to-save-people", "advantage-shuffle", "maximize-greatness-of-an-array", "most-profit-assigning-work"]
+
+[[extra.variant]]
+name = "Pair the lightest with the heaviest"
+note = "Each boat takes at most two people: the heaviest always leaves, the lightest joins when it fits."
+template = '''
+def num_rescue_boats(people, limit):
+    people = sorted(people)
+    lo, hi, boats = 0, len(people) - 1, 0
+    while lo <= hi:
+        if people[lo] + people[hi] <= limit:
+            lo += 1  # the lightest shares the boat
+        hi -= 1  # the heaviest always leaves
+        boats += 1
+    return boats
+'''
+
+[[extra]]
+id = "Greedy:comparator-sort"
+name = "Sort with a custom comparator"
+group = "Sorting-based greedy"
+signals = [
+    "the best order is not by one key: two items are compared by what happens if each goes first",
+    "build the largest (or smallest) number or string by concatenating the given pieces",
+    "elements are placed one at a time and an earlier choice is fixed by a later, less important one",
+]
+template_name = "Largest number"
+template = '''
+from functools import cmp_to_key
+
+
+def largest_number(nums):
+    def before(a, b):  # negative: a goes first
+        return -1 if a + b > b + a else 1 if a + b < b + a else 0
+
+    words = sorted(map(str, nums), key=cmp_to_key(before))
+    return "0" if words[0] == "0" else "".join(words)
+'''
+pitfalls = [
+    "Compare a + b with b + a, not a with b: 9 beats 34 as 934 > 349, but 3 beats 34 as 334 < 343 fails the plain comparison.",
+    "A comparator must be consistent (a transitive order): test it on pairs of three numbers when in doubt.",
+    "All zeros give \"0\", not \"000\": check the first word after sorting.",
+]
+examples = ["largest-number", "queue-reconstruction-by-height", "reorder-data-in-log-files"]
+
+[[extra.variant]]
+name = "Queue reconstruction"
+note = "Tallest first: a shorter person inserted later never changes the count in front of a taller one."
+template = '''
+def reconstruct_queue(people):
+    out = []
+    # tallest first; among equals, the smaller k first
+    for h, k in sorted(people, key=lambda p: (-p[0], p[1])):
+        out.insert(k, [h, k])  # exactly k taller-or-equal ones are in front
+    return out
+'''
+
+[[extra]]
+id = "Greedy:gain-diff"
+name = "Sort by what each choice gains over the other"
+group = "Sorting-based greedy"
+signals = [
+    "every item goes to one of two places and each place has its own cost, with a size limit per place",
+    "choose k items for one option and the rest for the other",
+    "the difference between the two costs is what decides the order",
+]
+template_name = "Two cities"
+template = '''
+def two_city_sched_cost(costs):
+    # the people who save the most by going to city A come first
+    costs = sorted(costs, key=lambda c: c[0] - c[1])
+    half = len(costs) // 2
+    return (sum(a for a, _ in costs[:half])
+            + sum(b for _, b in costs[half:]))
+'''
+pitfalls = [
+    "Sorting by one city's cost alone is wrong: a cheap A is still bad when B is far cheaper.",
+    "Start from 'everyone goes to B' and pay the difference for the half who switch: that is why the difference is the key.",
+    "An odd number of people has no equal split: the problem guarantees an even count.",
+]
+examples = ["two-city-scheduling", "put-marbles-in-bags"]
+
+[[extra.variant]]
+name = "Put marbles in bags"
+note = "Only the cut points matter: each cut adds the sum of its two neighbours, so take the k - 1 largest and the k - 1 smallest."
+template = '''
+def put_marbles(weights, k):
+    pairs = sorted(a + b for a, b in zip(weights, weights[1:]))
+    return sum(pairs[len(pairs) - (k - 1):]) - sum(pairs[:k - 1])
+'''
+
+[[extra]]
+id = "Greedy:interval-stab"
+name = "Earliest end first: the fewest points or removals"
+group = "Interval scheduling and covering"
+signals = [
+    "the fewest arrows, points or keys that touch every interval",
+    "remove the fewest intervals so that the rest do not overlap",
+    "sorting by the right end is the key, not by the start",
+]
+template_name = "Fewest arrows"
+template = '''
+def find_min_arrow_shots(points):
+    points = sorted(points, key=lambda p: p[1])  # by right end
+    arrows, last = 0, float("-inf")
+    for start, end in points:
+        if start > last:  # the last arrow missed this one
+            arrows += 1
+            last = end  # shoot at the earliest end
+    return arrows
+'''
+pitfalls = [
+    "Sort by the end: shooting at the earliest end hits the most intervals that start before it.",
+    "Touching ends: for balloons start == last is a hit (> in the test); for meetings it is no conflict (>= in the test).",
+    "Do not subtract: keep the count of what you take, and answer the total minus that if asked for removals.",
+]
+examples = ["minimum-number-of-arrows-to-burst-balloons", "non-overlapping-intervals", "maximum-length-of-pair-chain", "maximum-number-of-non-overlapping-subarrays-with-sum-equals-target"]
+
+[[extra.variant]]
+name = "Fewest removals (keep the most)"
+note = "The same scan keeps the most intervals that do not overlap; the rest are removed."
+template = '''
+def erase_overlap_intervals(intervals):
+    intervals = sorted(intervals, key=lambda i: i[1])
+    kept, last = 0, float("-inf")
+    for start, end in intervals:
+        if start >= last:  # touching is not overlapping
+            kept += 1
+            last = end
+    return len(intervals) - kept
+'''
+
+[[extra]]
+id = "Greedy:interval-cover"
+name = "Cover a range with the fewest intervals"
+group = "Interval scheduling and covering"
+signals = [
+    "choose the fewest clips, taps or segments whose union covers [0, T]",
+    "from the covered prefix, take the interval that starts inside it and reaches furthest",
+    "the same as jump game II with intervals as the jumps",
+]
+template_name = "Video stitching"
+template = '''
+def video_stitching(clips, time):
+    clips = sorted(clips)
+    count = reach = far = i = 0
+    while reach < time:
+        while i < len(clips) and clips[i][0] <= reach:
+            far = max(far, clips[i][1])  # starts inside what is covered
+            i += 1
+        if far <= reach:
+            return -1  # a gap that no clip bridges
+        count += 1
+        reach = far
+    return count
+'''
+pitfalls = [
+    "Take the best end among all clips that start at or before the covered end, then move the covered end there.",
+    "If the best end does not exceed the covered end there is a gap: return -1 at once, or the loop never ends.",
+    "A clip may start before 0 (taps): clamp to 0 when you convert.",
+]
+examples = ["video-stitching", "minimum-number-of-taps-to-open-to-water-a-garden", "jump-game-ii"]
+
+[[extra.variant]]
+name = "Garden taps"
+note = "Per start point keep the furthest right end, then walk like jump game II."
+template = '''
+def min_taps(n, ranges):
+    reach_from = [0] * (n + 1)  # furthest right end of a tap starting at i
+    for i, r in enumerate(ranges):
+        lo = max(0, i - r)
+        reach_from[lo] = max(reach_from[lo], i + r)
+    taps = end = far = 0
+    for i in range(n):
+        far = max(far, reach_from[i])
+        if i == end:  # must open one more tap here
+            if far <= i:
+                return -1
+            taps += 1
+            end = far
+    return taps
+'''
+
+[[extra]]
+id = "Greedy:earliest-deadline"
+name = "Earliest deadline first with a heap of open items"
+group = "Activity selection"
+signals = [
+    "attend or do at most one thing per day, and every thing has a window (start day, end day)",
+    "each day, of everything open, do the one that expires first",
+    "sort by start and keep a min-heap of end days",
+]
+template = '''
+import heapq
+
+
+def max_events(events):
+    events = sorted(events)
+    heap, day, i, attended = [], 0, 0, 0  # heap: end days of open events
+    while i < len(events) or heap:
+        if not heap:
+            day = events[i][0]  # nothing open: jump to the next start
+        while i < len(events) and events[i][0] <= day:
+            heapq.heappush(heap, events[i][1])
+            i += 1
+        heapq.heappop(heap)  # attend the one that ends first
+        attended += 1
+        day += 1
+        while heap and heap[0] < day:
+            heapq.heappop(heap)  # expired before it could be attended
+    return attended
+'''
+pitfalls = [
+    "Always attend the open event with the smallest end day: any other choice can only make a later day worse.",
+    "Drop expired events after moving to the next day, or an old end day sits on top of the heap.",
+    "Jump the day forward when the heap is empty, not one day at a time: days may be up to 10^5.",
+]
+examples = ["maximum-number-of-events-that-can-be-attended", "minimum-interval-to-include-each-query"]
+
+[[extra]]
+id = "Greedy:regret-heap"
+name = "Regret: undo the worst choice made so far"
+group = "Heap-assisted greedy"
+signals = [
+    "take items in a natural order and keep every one, then repair when a limit is broken",
+    "when the limit breaks, drop the single most expensive (or longest) item taken so far",
+    "a max-heap of what has been taken makes the repair O(log n)",
+]
+template_name = "Course schedule III"
+template = '''
+import heapq
+
+
+def schedule_course(courses):
+    courses = sorted(courses, key=lambda c: c[1])  # earliest deadline
+    taken, time = [], 0  # taken: max-heap (negated) of durations
+    for duration, deadline in courses:
+        heapq.heappush(taken, -duration)
+        time += duration
+        if time > deadline:  # too late: regret the longest one taken
+            time += heapq.heappop(taken)  # stored negated
+    return len(taken)
+'''
+pitfalls = [
+    "Add the new item first and then repair: the new item may itself be the one dropped.",
+    "Store negatives for a max-heap in Python: heapq is a min-heap.",
+    "The set of taken items is never exact in order, but its size and total are: that is all the answer needs.",
+]
+examples = ["course-schedule-iii", "minimum-number-of-refueling-stops", "furthest-building-you-can-reach"]
+
+[[extra.variant]]
+name = "Refuel stops"
+note = "Drive as far as the fuel goes; only when stuck, retroactively buy the largest tank passed."
+template = '''
+import heapq
+
+
+def min_refuel_stops(target, start_fuel, stations):
+    heap, fuel, stops, prev = [], start_fuel, 0, 0
+    for pos, gas in stations + [[target, 0]]:
+        fuel -= pos - prev
+        while fuel < 0 and heap:
+            fuel -= heapq.heappop(heap)  # negated: buys the biggest tank
+            stops += 1
+        if fuel < 0:
+            return -1
+        heapq.heappush(heap, -gas)
+        prev = pos
+    return stops
+'''
+
+[[extra.variant]]
+name = "Bricks and ladders"
+note = "Give every climb a ladder, then take the ladder back from the smallest climb when they run out."
+template = '''
+import heapq
+
+
+def furthest_building(heights, bricks, ladders):
+    heap = []  # climbs that hold a ladder: the smallest on top
+    for i in range(len(heights) - 1):
+        climb = heights[i + 1] - heights[i]
+        if climb > 0:
+            heapq.heappush(heap, climb)
+            if len(heap) > ladders:
+                bricks -= heapq.heappop(heap)  # smallest climb uses bricks
+                if bricks < 0:
+                    return i
+    return len(heights) - 1
+'''
+
+[[extra]]
+id = "Greedy:unlock-best"
+name = "Take the best available, which unlocks more"
+group = "Heap-assisted greedy"
+signals = [
+    "pick up to k jobs; each needs a minimum capital and adds profit, which unlocks other jobs",
+    "of all that are currently affordable, the most profitable is always right",
+    "sort by cost to unlock, push into a max-heap as the budget grows",
+]
+template = '''
+import heapq
+
+
+def find_maximized_capital(k, w, profits, capital):
+    projects = sorted(zip(capital, profits))
+    heap, i = [], 0  # heap: profits of affordable projects (negated)
+    for _ in range(k):
+        while i < len(projects) and projects[i][0] <= w:
+            heapq.heappush(heap, -projects[i][1])
+            i += 1
+        if not heap:
+            break  # nothing affordable
+        w -= heapq.heappop(heap)  # take the most profitable
+    return w
+'''
+pitfalls = [
+    "Re-check what has become affordable after every pick, not once: profit raises the budget.",
+    "Stop early when nothing is affordable instead of looping k times.",
+    "Sort by capital once and keep an index: each project enters the heap only once.",
+]
+examples = ["ipo", "single-threaded-cpu"]
+
+[[extra]]
+id = "Greedy:cooldown-heap"
+name = "Most frequent first, with spacing"
+group = "Heap-assisted greedy"
+signals = [
+    "arrange items so that equal ones are not adjacent, or are at least k apart",
+    "place the item with the most copies left that is not on cooldown",
+    "the answer is a feasibility check on the largest count: it needs at most (n + 1) / 2 for no two adjacent",
+]
+template_name = "Reorganize string"
+template = '''
+import heapq
+from collections import Counter
+
+
+def reorganize_string(s):
+    heap = [(-n, ch) for ch, n in Counter(s).items()]
+    heapq.heapify(heap)
+    out, held = [], None  # held: the letter just used, one round out
+    while heap or held:
+        if not heap:
+            return ""  # only the held letter is left: it would touch itself
+        n, ch = heapq.heappop(heap)
+        out.append(ch)
+        if held:
+            heapq.heappush(heap, held)
+            held = None
+        if n + 1 < 0:
+            held = (n + 1, ch)
+    return "".join(out)
+'''
+pitfalls = [
+    "Hold the letter you just used out of the heap for one round: that is what prevents two adjacent equals.",
+    "When the heap is empty but a letter is held, the arrangement is impossible: return the empty string.",
+    "Pushing the held letter back after taking the next one keeps the order of counts correct.",
+]
+examples = ["reorganize-string", "task-scheduler", "longest-happy-string", "distant-barcodes", "construct-string-with-repeat-limit"]
+
+[[extra.variant]]
+name = "Task scheduler (formula)"
+note = "Only the most frequent tasks create idle time: the answer is the larger of the task count and the frame the top tasks need."
+template = '''
+from collections import Counter
+
+
+def least_interval(tasks, n):
+    counts = Counter(tasks).values()
+    top = max(counts)
+    at_top = sum(1 for c in counts if c == top)  # tasks with the max count
+    return max(len(tasks), (top - 1) * (n + 1) + at_top)
+'''
+
+[[extra]]
+id = "Greedy:jump-bfs"
+name = "Jumping as breadth-first search"
+group = "Jump game family"
+signals = [
+    "from each position you may jump to a set of positions, and you ask whether or how fast you reach one",
+    "the jump length depends on the position's value, or equal values teleport",
+    "every position needs to be visited at most once",
+]
+template_name = "Jump game III"
+template = '''
+from collections import deque
+
+
+def can_reach(arr, start):
+    """From i you may jump to i + arr[i] or i - arr[i]."""
+    seen, queue = {start}, deque([start])
+    while queue:
+        i = queue.popleft()
+        if arr[i] == 0:
+            return True
+        for j in (i + arr[i], i - arr[i]):
+            if 0 <= j < len(arr) and j not in seen:
+                seen.add(j)
+                queue.append(j)
+    return False
+'''
+pitfalls = [
+    "Mark a position when it is queued, not when it is taken out: otherwise it can be queued many times.",
+    "Check both directions and both bounds before queueing.",
+    "BFS gives the fewest jumps level by level; plain reachability needs only a visited set (DFS also works).",
+]
+examples = ["jump-game-iii", "jump-game-iv", "minimum-jumps-to-reach-home"]
+
+[[extra.variant]]
+name = "Jump game IV (equal values teleport)"
+note = "Use each value's group of positions once: after it is expanded, delete it from the map."
+template = '''
+from collections import defaultdict, deque
+
+
+def min_jumps(arr):
+    same = defaultdict(list)
+    for i, v in enumerate(arr):
+        same[v].append(i)
+    seen, queue, steps = {0}, deque([0]), 0
+    while queue:
+        for _ in range(len(queue)):
+            i = queue.popleft()
+            if i == len(arr) - 1:
+                return steps
+            # each value's group is expanded once: pop it from the map
+            for j in same.pop(arr[i], []) + [i - 1, i + 1]:
+                if 0 <= j < len(arr) and j not in seen:
+                    seen.add(j)
+                    queue.append(j)
+        steps += 1
+    return -1
+'''
+
+[[extra]]
+id = "Greedy:reach-number"
+name = "Reach a number by counting moves"
+group = "Jump game family"
+signals = [
+    "moves grow (1, then 2, then 3, ...) and each may go left or right; reach a target in the fewest moves",
+    "after k moves the sum k(k+1)/2 has a known parity, and flipping a move changes it by an even amount",
+    "work backwards from the target when doubling or halving is allowed",
+]
+template_name = "Reach a number"
+template = '''
+def reach_number(target):
+    target = abs(target)  # the walk is symmetric
+    k = total = 0
+    while total < target or (total - target) % 2:
+        k += 1
+        total += k  # k moves can reach at most k(k + 1) / 2
+    return k
+'''
+pitfalls = [
+    "The excess total - target must be even: flipping a move of size m changes the total by 2m.",
+    "Use abs(target): the problem is symmetric around 0.",
+    "Keep adding moves until both conditions hold: sometimes one or two more moves fix the parity.",
+]
+examples = ["reach-a-number", "broken-calculator", "minimum-moves-to-reach-target-score"]
+
+[[extra.variant]]
+name = "Broken calculator (work backwards)"
+note = "Going from start to target by doubling or subtracting one is easier reversed: halve when even, add one when odd."
+template = '''
+def broken_calc(start, target):
+    steps = 0
+    while target > start:
+        target = target + 1 if target % 2 else target // 2
+        steps += 1
+    return steps + start - target  # then only subtracting 1 is left
+'''
+
+[[extra]]
+id = "Greedy:jump-window"
+name = "Best score over a sliding window of earlier positions"
+group = "Jump game family"
+signals = [
+    "from position i you may have come from any of the last k positions, and each step adds a value",
+    "best[i] = nums[i] + max(best[i - k .. i - 1])",
+    "keep the window maxima in a monotonic deque instead of rescanning k values",
+]
+template = '''
+from collections import deque
+
+
+def max_result(nums, k):
+    best = [0] * len(nums)
+    best[0] = nums[0]
+    window = deque([0])  # indexes whose best[] decreases from the front
+    for i in range(1, len(nums)):
+        while window[0] < i - k:
+            window.popleft()  # out of reach
+        best[i] = nums[i] + best[window[0]]
+        while window and best[window[-1]] <= best[i]:
+            window.pop()  # never the maximum again
+        window.append(i)
+    return best[-1]
+'''
+pitfalls = [
+    "Remove expired indexes from the front before reading the maximum.",
+    "Keep indexes, not values: you need the index to know when an entry expires.",
+    "A plain O(n k) loop is the checker: the deque is only the speed-up.",
+]
+examples = ["jump-game-vi", "constrained-subsequence-sum", "min-cost-climbing-stairs"]
+
+[[extra]]
+id = "Greedy:min-start"
+name = "The smallest start that never goes below the floor"
+group = "Gas station"
+signals = [
+    "find the smallest starting value so that a running total never drops below 1 (or 0)",
+    "tasks must be done in a chosen order, each needing a minimum before and costing less",
+    "the lowest running total of the sequence is the whole answer, or the order is by (need - cost)",
+]
+template_name = "Positive running sum"
+template = '''
+def min_start_value(nums):
+    total = low = 0
+    for x in nums:
+        total += x
+        low = min(low, total)  # the deepest the running sum goes
+    return 1 - low  # lift that point up to 1
+'''
+pitfalls = [
+    "The answer is determined by the minimum prefix sum alone: one pass, no search over start values.",
+    "Count the empty prefix: low starts at 0, so the answer is at least 1.",
+    "With tasks of (cost, minimum) sort by minimum - cost, largest first: that is the exchange argument.",
+]
+examples = ["minimum-value-to-get-positive-step-by-step-sum", "minimum-initial-energy-to-finish-tasks", "gas-station"]
+
+[[extra.variant]]
+name = "Minimum initial energy (order by gap)"
+note = "A task that needs much more than it spends should go first: sort by minimum - actual, largest first."
+template = '''
+def minimum_effort(tasks):
+    """tasks[i] = [actual, minimum]."""
+    order = sorted(tasks, key=lambda t: t[1] - t[0], reverse=True)
+    need = energy = 0
+    for actual, minimum in order:
+        if energy < minimum:
+            need += minimum - energy  # top up just enough
+            energy = minimum
+        energy -= actual
+    return need
+'''
+
+[[extra]]
+id = "Greedy:two-end-tokens"
+name = "Spend from one end, earn from the other"
+group = "Two-pointer greedy"
+signals = [
+    "a resource buys points by spending the cheapest item; a point can be traded back for the biggest item",
+    "sort, then two pointers: lo for spending, hi for gaining",
+    "track the best score reached, not the final one",
+]
+template = '''
+def bag_of_tokens_score(tokens, power):
+    tokens = sorted(tokens)
+    lo, hi, score, best = 0, len(tokens) - 1, 0, 0
+    while lo <= hi:
+        if power >= tokens[lo]:
+            power -= tokens[lo]  # play the cheapest face up
+            lo += 1
+            score += 1
+            best = max(best, score)
+        elif score > 0:
+            power += tokens[hi]  # trade a point for the largest power
+            hi -= 1
+            score -= 1
+        else:
+            break
+    return best
+'''
+pitfalls = [
+    "Return the best score seen: trading a point away at the end may lower the final score.",
+    "Gain only when you cannot afford the cheapest, and only if you hold a point.",
+    "The largest token is the best one to trade for, and the smallest the best one to buy: that is why two ends.",
+]
+examples = ["bag-of-tokens"]
+
+[[extra]]
+id = "Greedy:best-pair-running"
+name = "Best pair: carry the best left term"
+group = "Stock problems"
+signals = [
+    "maximise f(i) + g(j) over i < j, where the two parts can be split",
+    "as j moves right, keep the best f(i) seen so far in one variable",
+    "a pair, a difference, a triple: one running maximum per position of the pattern",
+]
+template = '''
+def max_score_sightseeing_pair(values):
+    best_left, answer = values[0], 0  # best_left: max of values[i] + i
+    for j in range(1, len(values)):
+        answer = max(answer, best_left + values[j] - j)
+        best_left = max(best_left, values[j] + j)
+    return answer
+'''
+pitfalls = [
+    "Update the answer before the running best: the pair needs i < j, so j must not use itself.",
+    "Rewrite the score as (values[i] + i) + (values[j] - j): then the two parts are independent.",
+    "For a triple, keep two running values: the best of the first pair term and the best difference.",
+]
+examples = ["best-sightseeing-pair", "maximum-difference-between-increasing-elements", "maximum-value-of-an-ordered-triplet-i", "best-time-to-buy-and-sell-stock"]
+
+[[extra]]
+id = "Greedy:stock-states"
+name = "Stock trading as hold and free states"
+group = "Stock problems"
+signals = [
+    "buy and sell with a fee, a cooldown, or a limit on the number of transactions",
+    "after each day the best cash is known for each state: holding a share, free (and not on cooldown)",
+    "each day's states follow from yesterday's by one action",
+]
+template_name = "With a fee"
+template = '''
+def max_profit_fee(prices, fee):
+    hold, free = float("-inf"), 0  # best cash holding / not holding
+    for p in prices:
+        hold = max(hold, free - p)  # buy today
+        free = max(free, hold + p - fee)  # sell today, pay the fee
+    return free
+'''
+pitfalls = [
+    "Pay the fee once (on selling): paying on both sides charges every transaction twice.",
+    "hold starts at minus infinity: you cannot hold anything before buying.",
+    "Update hold first, then free from the new hold: buying and selling on the same day is allowed and costs only the fee.",
+]
+examples = ["best-time-to-buy-and-sell-stock-with-transaction-fee", "best-time-to-buy-and-sell-stock-with-cooldown", "best-time-to-buy-and-sell-stock-iv", "best-time-to-buy-and-sell-stock-iii", "best-time-to-buy-and-sell-stock-ii"]
+
+[[extra.variant]]
+name = "With a cooldown"
+note = "After selling there is one resting day: buy only from the rested state."
+template = '''
+def max_profit_cooldown(prices):
+    hold, sold, rest = float("-inf"), 0, 0
+    for p in prices:
+        prev_sold = sold
+        sold = hold + p  # sell today
+        hold = max(hold, rest - p)  # buy only from a rested day
+        rest = max(rest, prev_sold)  # the day after a sale is a rest
+    return max(sold, rest)
+'''
+
+[[extra.variant]]
+name = "At most k transactions"
+note = "One buy and one sell value per transaction count: sell[j] uses buy[j], which uses sell[j - 1]."
+template = '''
+def max_profit_k(k, prices):
+    buy = [float("-inf")] * (k + 1)
+    sell = [0] * (k + 1)
+    for p in prices:
+        for j in range(1, k + 1):
+            buy[j] = max(buy[j], sell[j - 1] - p)
+            sell[j] = max(sell[j], buy[j] + p)
+    return sell[k]
+'''
+
+[[extra]]
+id = "Greedy:weighted-intervals"
+name = "Weighted intervals: sort by end, then binary search"
+group = "When greedy fails"
+signals = [
+    "choose non-overlapping jobs to maximise total profit (earliest end first is no longer enough)",
+    "best[i] = max(skip job i, take job i + the best over jobs that end before it starts)",
+    "jobs sorted by end make the 'compatible earlier jobs' a prefix, found by binary search",
+]
+template = '''
+from bisect import bisect_right
+
+
+def job_scheduling(start, end, profit):
+    jobs = sorted(zip(end, start, profit))
+    ends = [j[0] for j in jobs]
+    best = [0] * (len(jobs) + 1)  # best[i]: using the first i jobs
+    for i, (e, s, p) in enumerate(jobs):
+        k = bisect_right(ends, s, 0, i)  # jobs that end by s
+        best[i + 1] = max(best[i], best[k] + p)
+    return best[-1]
+'''
+pitfalls = [
+    "Greedy by earliest end maximises the count of jobs, not the profit: this is where it fails.",
+    "bisect_right on the ends: a job that ends exactly when this one starts is compatible.",
+    "Search only the prefix 0..i: later jobs end no earlier than this one.",
+]
+examples = ["maximum-profit-in-job-scheduling", "maximum-earnings-from-taxi", "two-best-non-overlapping-events"]
+
+[[extra]]
+id = "Greedy:knapsack-01"
+name = "0/1 knapsack and subset sum"
+group = "When greedy fails"
+signals = [
+    "pick a subset of items to reach exactly a target sum, or the best value under a weight limit",
+    "taking the biggest or the best ratio fails: every combination may matter",
+    "a table over the sum (a bitset in Python) records which sums are reachable",
+]
+template_name = "Subset sum with a bitset"
+template = '''
+def can_partition(nums):
+    total = sum(nums)
+    if total % 2:
+        return False
+    reach = 1  # bit s is set when sum s can be made
+    for x in nums:
+        reach |= reach << x  # each item is used at most once
+    return reach >> (total // 2) & 1 == 1
+'''
+pitfalls = [
+    "An odd total can never be split in two equal halves: return at once.",
+    "reach |= reach << x uses the old reach on the right: each item is used once, as required.",
+    "For counts (how many ways) use a dict or array of counts and iterate sums downwards.",
+]
+examples = ["partition-equal-subset-sum", "target-sum", "last-stone-weight-ii", "ones-and-zeroes"]
+
+[[extra.variant]]
+name = "Count the ways (target sum)"
+note = "Keep how many ways make each running total, with a plus or a minus before every number."
+template = '''
+from collections import defaultdict
+
+
+def find_target_sum_ways(nums, target):
+    ways = {0: 1}
+    for x in nums:
+        nxt = defaultdict(int)
+        for s, c in ways.items():
+            nxt[s + x] += c
+            nxt[s - x] += c
+        ways = nxt
+    return ways.get(target, 0)
+'''
+
+[[extra]]
+id = "Greedy:wildcard"
+name = "Wildcard matching: remember the last star"
+group = "When greedy fails"
+signals = [
+    "match a string against a pattern with ? (any one) and * (any run)",
+    "a star can take any length, but the latest star is always the one to retry",
+    "two pointers plus one saved position: O(n * m) worst, usually linear",
+]
+template = '''
+def is_match(s, p):
+    i = j = 0
+    star = mark = -1  # the last * in p and where it started in s
+    while i < len(s):
+        if j < len(p) and p[j] in (s[i], "?"):
+            i += 1
+            j += 1
+        elif j < len(p) and p[j] == "*":
+            star, mark = j, i  # try the star taking nothing first
+            j += 1
+        elif star >= 0:
+            mark += 1  # let the star swallow one more character
+            i, j = mark, star + 1
+        else:
+            return False
+    while j < len(p) and p[j] == "*":
+        j += 1  # trailing stars match the empty string
+    return j == len(p)
+'''
+pitfalls = [
+    "Only the most recent star needs to be remembered: an earlier star cannot do better by taking more.",
+    "After the string ends, only stars may remain in the pattern.",
+    "Do not mix this with regular expressions: here * is a wildcard on its own, not 'zero or more of the previous'.",
+]
+examples = ["wildcard-matching"]
+
+[[extra]]
+id = "Greedy:remove-k-digits"
+name = "Monotone stack: the smallest result after removals"
+group = "Stack-based greedy"
+signals = [
+    "remove k characters (digits) so that what is left is as small as possible, keeping the order",
+    "a bigger digit followed by a smaller one should go: the earlier position matters more",
+    "keep a stack that is non-decreasing, popping while a removal is still allowed",
+]
+template_name = "Remove k digits"
+template = '''
+def remove_k_digits(num, k):
+    stack = []
+    for d in num:
+        while k and stack and stack[-1] > d:
+            stack.pop()  # a smaller digit later beats a bigger one here
+            k -= 1
+        stack.append(d)
+    stack = stack[:len(stack) - k]  # still removing: cut from the end
+    return "".join(stack).lstrip("0") or "0"
+'''
+pitfalls = [
+    "If removals are left after the scan, the digits are non-decreasing: drop them from the end.",
+    "Strip leading zeros and return \"0\" for an empty result.",
+    "Pop only while a removal is left: popping without the budget would also remove digits you must keep.",
+]
+examples = ["remove-k-digits", "remove-duplicate-letters", "find-the-most-competitive-subsequence", "smallest-subsequence-of-distinct-characters"]
+
+[[extra.variant]]
+name = "Remove duplicate letters"
+note = "Pop a bigger letter only when it will appear again later; keep a set of the letters in the stack."
+template = '''
+from collections import Counter
+
+
+def remove_duplicate_letters(s):
+    left, inside, stack = Counter(s), set(), []
+    for ch in s:
+        left[ch] -= 1  # occurrences still ahead of us
+        if ch in inside:
+            continue
+        while stack and stack[-1] > ch and left[stack[-1]] > 0:
+            inside.discard(stack.pop())  # it comes again later
+        stack.append(ch)
+        inside.add(ch)
+    return "".join(stack)
+'''
+
+[[extra.variant]]
+name = "Most competitive subsequence"
+note = "Keep exactly k elements: pop only while enough elements remain to refill."
+template = '''
+def most_competitive(nums, k):
+    stack, n = [], len(nums)
+    for i, x in enumerate(nums):
+        # popping is safe when enough numbers remain to still reach k
+        while stack and stack[-1] > x and len(stack) - 1 + n - i >= k:
+            stack.pop()
+        if len(stack) < k:
+            stack.append(x)
+    return stack
+'''
+
+[[extra]]
+id = "Greedy:bracket-repair"
+name = "Repair brackets by counting the unmatched"
+group = "Stack-based greedy"
+signals = [
+    "the fewest insertions, deletions or swaps to make a bracket string valid",
+    "scan once with the count of open brackets; a close with no open is unmatched",
+    "the answer is the unmatched closes plus what is still open at the end",
+]
+template_name = "Add to make valid"
+template = '''
+def min_add_to_make_valid(s):
+    open_, added = 0, 0
+    for ch in s:
+        if ch == "(":
+            open_ += 1
+        elif open_:
+            open_ -= 1  # matches an earlier (
+        else:
+            added += 1  # a ) with no ( before it: add one
+    return added + open_  # each leftover ( needs a )
+'''
+pitfalls = [
+    "A close bracket never matches one that comes after it: that is why the count cannot go below zero, it triggers an insertion instead.",
+    "Count the unmatched closes and unmatched opens separately, then add them.",
+    "The same scan gives deletions (remove the unmatched) and, with a twist, swaps: half of each side, rounded up.",
+]
+examples = ["minimum-add-to-make-parentheses-valid", "minimum-insertions-to-balance-a-parentheses-string", "minimum-number-of-swaps-to-make-the-string-balanced", "minimum-remove-to-make-valid-parentheses"]
+
+[[extra.variant]]
+name = "Each ( needs two )"
+note = "Read closes in pairs: a single ) before a non-) needs one more."
+template = '''
+def min_insertions(s):
+    added = open_ = i = 0
+    while i < len(s):
+        if s[i] == "(":
+            open_ += 1
+            i += 1
+            continue
+        if i + 1 < len(s) and s[i + 1] == ")":
+            i += 2  # a full "))"
+        else:
+            added += 1  # a lone ): add the second one
+            i += 1
+        if open_:
+            open_ -= 1
+        else:
+            added += 1  # no ( for this pair: add one
+    return added + open_ * 2  # each leftover ( needs "))"
+'''
+
+[[extra]]
+id = "Greedy:create-maximum"
+name = "Largest number from the digits of two lists"
+group = "Number construction"
+signals = [
+    "build the largest number of length k, taking digits from two lists and keeping each list's order",
+    "for each split (i from the first, k - i from the second) take the best subsequence of each",
+    "then merge by comparing the remaining suffixes, not single digits",
+]
+template = '''
+def max_number(nums1, nums2, k):
+    def pick(nums, t):  # the largest subsequence of length t
+        drop, stack = len(nums) - t, []
+        for x in nums:
+            while drop and stack and stack[-1] < x:
+                stack.pop()
+                drop -= 1
+            stack.append(x)
+        return stack[:t]
+
+    def merge(a, b):
+        out = []
+        while a or b:
+            big = a if a > b else b  # compares the whole rest
+            out.append(big.pop(0))
+        return out
+
+    best = []
+    for i in range(max(0, k - len(nums2)), min(k, len(nums1)) + 1):
+        best = max(best, merge(pick(nums1, i), pick(nums2, k - i)))
+    return best
+'''
+pitfalls = [
+    "Merge by comparing whole remaining lists: two equal digits need a look further ahead.",
+    "Try every split of k between the two lists and keep the largest merge.",
+    "The best subsequence of a given length is the monotone stack with a budget of removals.",
+]
+examples = ["create-maximum-number"]
+
+[[extra]]
+id = "Greedy:di-string"
+name = "Build a permutation from an increase/decrease pattern"
+group = "Number construction"
+signals = [
+    "a string of I and D tells whether the next number is larger or smaller; build the numbers",
+    "for any valid permutation take the smallest left on I and the largest left on D",
+    "for the smallest number, each run of D is a reversed block of the natural order",
+]
+template_name = "Any valid permutation"
+template = '''
+def di_string_match(s):
+    lo, hi, out = 0, len(s), []
+    for ch in s:
+        if ch == "I":
+            out.append(lo)  # the smallest left: anything may follow
+            lo += 1
+        else:
+            out.append(hi)  # the largest left: anything may follow
+            hi -= 1
+    out.append(lo)  # lo == hi here
+    return out
+'''
+pitfalls = [
+    "Taking the extreme value left keeps every later comparison true: that is the whole proof.",
+    "The last number is whatever is left: lo and hi meet.",
+    "For the smallest number reverse each maximal run of D in 1, 2, 3, ...: a stack does it.",
+]
+examples = ["di-string-match", "construct-smallest-number-from-di-string"]
+
+[[extra.variant]]
+name = "Smallest number from the pattern"
+note = "Push 1, 2, 3, ... and pop the whole stack at every I (and at the end): each D-run comes out reversed."
+template = '''
+def smallest_number(pattern):
+    out, stack = [], []
+    for i in range(len(pattern) + 1):
+        stack.append(str(i + 1))
+        if i == len(pattern) or pattern[i] == "I":
+            while stack:
+                out.append(stack.pop())  # a run of D comes out reversed
+    return "".join(out)
+'''
+
+[[extra]]
+id = "Greedy:break-palindrome"
+name = "Change the first character that can be made smaller"
+group = "Number construction"
+signals = [
+    "change exactly one character so the string is no longer a palindrome and is the smallest possible",
+    "replace the first non-'a' in the first half with 'a'",
+    "if the first half is all 'a', change the last character to 'b'",
+]
+template = '''
+def break_palindrome(palindrome):
+    n = len(palindrome)
+    for i in range(n // 2):  # the middle of an odd length is skipped
+        if palindrome[i] != "a":
+            return palindrome[:i] + "a" + palindrome[i + 1:]
+    if n < 2:
+        return ""  # one character cannot be broken
+    return palindrome[:-1] + "b"
+'''
+pitfalls = [
+    "Skip the middle character of an odd length: changing it keeps the string a palindrome.",
+    "A single character has no answer: the problem asks for the empty string.",
+    "If everything in the first half is 'a', the smallest legal change is the last character to 'b'.",
+]
+examples = ["break-a-palindrome"]
+
+[[extra]]
+id = "Greedy:parity-sort"
+name = "Rearrange within a class: sort each class and put back"
+group = "Number construction"
+signals = [
+    "you may swap two digits only when they have the same parity (or the same colour, group, class)",
+    "the best arrangement puts the largest of each class in the earliest positions of that class",
+    "positions keep their class; only the order within a class changes",
+]
+template = '''
+def largest_integer(num):
+    digits = list(map(int, str(num)))
+    odd = sorted((d for d in digits if d % 2), reverse=True)
+    even = sorted((d for d in digits if d % 2 == 0), reverse=True)
+    out, io, ie = [], 0, 0
+    for d in digits:
+        if d % 2:
+            out.append(odd[io])  # the biggest odd digit left
+            io += 1
+        else:
+            out.append(even[ie])
+            ie += 1
+    return int("".join(map(str, out)))
+'''
+pitfalls = [
+    "A position keeps its class: look at the original digit to decide which sorted list to take from.",
+    "Sort descending and consume from the front: the leftmost positions are worth the most.",
+    "For classes of connected components (union-find) the same idea applies per component.",
+]
+examples = ["largest-number-after-digit-swaps-by-parity", "make-lexicographically-smallest-array-by-swapping-elements"]
+
+[[extra]]
+id = "Greedy:digit-sum-target"
+name = "Round up to the next multiple of ten"
+group = "Number construction"
+signals = [
+    "find the smallest addition so that the digit sum of the result is at most a target",
+    "adding to reach the next multiple of 10, 100, 1000 ... zeroes the low digits",
+    "try each power of ten in turn until the sum is small enough",
+]
+template = '''
+def make_integer_beautiful(n, target):
+    def digit_sum(x):
+        return sum(map(int, str(x)))
+
+    x, step = n, 10
+    while digit_sum(x) > target:
+        x = (x // step + 1) * step  # round up: the low digits become 0
+        step *= 10
+    return x - n
+'''
+pitfalls = [
+    "Rounding up to a multiple of 10^k clears the k lowest digits and carries one into the next: the sum usually drops.",
+    "Try the powers of ten in increasing order: the smaller the addition, the better.",
+    "The loop ends: at 10^len the number is 10^len and its digit sum is 1.",
+]
+examples = ["minimum-addition-to-make-integer-beautiful"]
+
+[[extra]]
+id = "Greedy:cut-when-forced"
+name = "Cut only when forced"
+group = "Partition labels"
+signals = [
+    "split into the fewest pieces so that every piece obeys a rule (no repeated letter, range at most k)",
+    "extend the current piece as long as the rule holds, and start a new one at the first violation",
+    "for numbers, sort first and measure each piece from its smallest element",
+]
+template_name = "No repeated letter in a piece"
+template = '''
+def partition_string(s):
+    parts, seen = 1, set()
+    for ch in s:
+        if ch in seen:  # forced to cut before this character
+            parts += 1
+            seen = set()
+        seen.add(ch)
+    return parts
+'''
+pitfalls = [
+    "Cutting later is never worse: a longer piece covers a superset of what a shorter one does.",
+    "Reset the state at a cut and then include the current element in the new piece.",
+    "For a range rule on numbers sort first: a piece is a run of the sorted order.",
+]
+examples = ["optimal-partition-of-string", "partition-array-such-that-maximum-difference-is-k", "divide-array-into-arrays-with-max-difference"]
+
+[[extra.variant]]
+name = "Range at most k (sort first)"
+note = "In sorted order a group is a run: it ends as soon as an element is more than k above the group's smallest."
+template = '''
+def partition_array(nums, k):
+    nums = sorted(nums)
+    groups, start = 1, nums[0]
+    for x in nums:
+        if x - start > k:  # too far from this group's smallest
+            groups += 1
+            start = x
+    return groups
+'''
+
+[[extra]]
+id = "Greedy:two-pass"
+name = "Two passes: left to right, then right to left"
+group = "Candy two-pass"
+signals = [
+    "each element depends on both neighbours, or on everything to its left and to its right",
+    "one pass can satisfy only one side: the second pass repairs the other side",
+    "prefix and suffix information combine at each position",
+]
+template_name = "Candy"
+template = '''
+def candy(ratings):
+    n = len(ratings)
+    give = [1] * n
+    for i in range(1, n):  # left to right: beat the left neighbour
+        if ratings[i] > ratings[i - 1]:
+            give[i] = give[i - 1] + 1
+    for i in range(n - 2, -1, -1):  # right to left: beat the right one
+        if ratings[i] > ratings[i + 1]:
+            give[i] = max(give[i], give[i + 1] + 1)
+    return sum(give)
+'''
+pitfalls = [
+    "In the second pass take the maximum with the first pass's value: overwriting would break the left condition.",
+    "Equal ratings need no more candy than a neighbour: use strict > only.",
+    "Each pass is O(n) and needs no sort: that is why two simple passes beat a priority queue.",
+]
+examples = ["candy", "shortest-distance-to-a-character", "longest-mountain-in-array", "trapping-rain-water", "product-of-array-except-self"]
+
+[[extra.variant]]
+name = "Distance to the nearest target"
+note = "One pass remembers the last target on the left, the second the last on the right."
+template = '''
+def shortest_to_char(s, c):
+    n = len(s)
+    out, last = [n] * n, -n  # last: the closest c on the left
+    for i in range(n):
+        if s[i] == c:
+            last = i
+        out[i] = i - last
+    last = 2 * n
+    for i in range(n - 1, -1, -1):
+        if s[i] == c:
+            last = i
+        out[i] = min(out[i], last - i)
+    return out
+'''
+
+[[extra.variant]]
+name = "Longest mountain (runs)"
+note = "From each peak widen over the up run and the down run; the next peak is past this mountain."
+template = '''
+def longest_mountain(arr):
+    best, i, n = 0, 1, len(arr)
+    while i < n - 1:
+        if arr[i - 1] < arr[i] > arr[i + 1]:  # a peak
+            lo = i - 1
+            while lo > 0 and arr[lo - 1] < arr[lo]:
+                lo -= 1
+            hi = i + 1
+            while hi < n - 1 and arr[hi] > arr[hi + 1]:
+                hi += 1
+            best = max(best, hi - lo + 1)
+            i = hi  # nothing between here and hi can be a new peak
+        else:
+            i += 1
+    return best
+'''
+
+[[extra]]
+id = "Greedy:palindrome-counts"
+name = "Palindromes from letter counts"
+group = "Counting greedy"
+signals = [
+    "build the longest palindrome, or k palindromes, from the available letters",
+    "every pair of equal letters can go on both sides; one odd letter may sit in the middle",
+    "only the counts matter, not the positions",
+]
+template = '''
+from collections import Counter
+
+
+def longest_palindrome(s):
+    pairs = sum(c // 2 * 2 for c in Counter(s).values())
+    # one leftover letter may sit in the middle
+    return pairs + (1 if pairs < len(s) else 0)
+'''
+pitfalls = [
+    "Count pairs, not letters: each letter with count c gives c // 2 pairs.",
+    "At most one letter may be odd in a single palindrome; with k palindromes you can afford k odd letters.",
+    "Only one letter can be in the middle: add 1 at most once, not once per odd letter.",
+]
+examples = ["longest-palindrome", "construct-k-palindrome-strings", "maximum-palindromes-after-operations"]
+
+[[extra]]
+id = "Greedy:distinct-frequencies"
+name = "Make the frequencies distinct"
+group = "Counting greedy"
+signals = [
+    "delete the fewest characters so that no two letters occur the same number of times",
+    "process the counts from largest to smallest, lowering a count until its value is free",
+    "a count of zero may be repeated: it means the letter is gone",
+]
+template = '''
+from collections import Counter
+
+
+def min_deletions(s):
+    used, deleted = set(), 0
+    for count in sorted(Counter(s).values(), reverse=True):
+        while count and count in used:
+            count -= 1  # delete one occurrence of this letter
+            deleted += 1
+        used.add(count)  # 0 may repeat; adding it is harmless
+    return deleted
+'''
+pitfalls = [
+    "Lower a count only as far as the nearest free number: lowering more would delete extra.",
+    "Zero is always free: stop the while loop when the count reaches 0.",
+    "Process largest first: a large count that cannot move would block the smaller ones anyway.",
+]
+examples = ["minimum-deletions-to-make-character-frequencies-unique", "minimum-deletions-to-make-string-k-special", "minimum-number-of-steps-to-make-two-strings-anagram"]
+
+[[extra]]
+id = "Greedy:split-2-3"
+name = "Split a count into groups of two and three"
+group = "Counting greedy"
+signals = [
+    "each type must be handled in rounds of exactly 2 or 3 items, and you want the fewest rounds",
+    "use as many 3s as possible, then one or two 2s for the remainder",
+    "a count of 1 can never be made",
+]
+template = '''
+from collections import Counter
+
+
+def minimum_rounds(tasks):
+    rounds = 0
+    for count in Counter(tasks).values():
+        if count == 1:
+            return -1  # 2 and 3 cannot make 1
+        rounds += (count + 2) // 3  # ceil(count / 3) rounds
+    return rounds
+'''
+pitfalls = [
+    "ceil(c / 3) works for every c >= 2: the remainder 1 becomes two 2s, the remainder 2 one 2.",
+    "Return -1 as soon as one type has count 1: no later type can fix it.",
+    "Count each type separately: groups cannot mix types.",
+]
+examples = ["minimum-rounds-to-complete-all-tasks", "minimum-number-of-operations-to-make-array-empty"]
+
+[[extra]]
+id = "Greedy:bucket-freq"
+name = "Bucket by frequency instead of sorting"
+group = "Counting greedy"
+signals = [
+    "order or select items by how often they occur, and the frequencies are at most n",
+    "an array indexed by frequency replaces the sort: O(n) instead of O(n log n)",
+    "a threshold on counts: the h-index, the top k, the most common",
+]
+template_name = "Sort characters by frequency"
+template = '''
+from collections import Counter
+
+
+def frequency_sort(s):
+    buckets = [[] for _ in range(len(s) + 1)]  # buckets[c]: seen c times
+    for ch, c in Counter(s).items():
+        buckets[c].append(ch)
+    out = []
+    for c in range(len(s), 0, -1):
+        for ch in buckets[c]:
+            out.append(ch * c)
+    return "".join(out)
+'''
+pitfalls = [
+    "A frequency can never exceed n: a list of n + 1 buckets is enough.",
+    "Walk the buckets from the end for most frequent first.",
+    "Keep equal letters together: append ch * c as one block.",
+]
+examples = ["sort-characters-by-frequency", "top-k-frequent-elements", "h-index", "reduce-array-size-to-the-half"]
+
+[[extra.variant]]
+name = "H-index"
+note = "A paper cited more than n times counts as n; walk h downwards until enough papers reach it."
+template = '''
+def h_index(citations):
+    n = len(citations)
+    count = [0] * (n + 1)
+    for c in citations:
+        count[min(c, n)] += 1  # more than n citations still counts as n
+    total = 0
+    for h in range(n, -1, -1):
+        total += count[h]  # papers with at least h citations
+        if total >= h:
+            return h
+    return 0
+'''
+
+[[extra]]
+id = "Greedy:residue-counts"
+name = "Pair or fill by remainders"
+group = "Counting greedy"
+signals = [
+    "pairs must sum to a multiple of k, or a value must be built from numbers with given remainders",
+    "only a number's remainder mod k matters: count the remainders",
+    "remainder r pairs with k - r; 0 and k/2 pair with themselves",
+]
+template_name = "Pairs divisible by k"
+template = '''
+def can_arrange(arr, k):
+    rem = [0] * k
+    for x in arr:
+        rem[x % k] += 1  # Python's % is never negative here
+    if rem[0] % 2:
+        return False  # multiples of k pair with each other
+    if k % 2 == 0 and rem[k // 2] % 2:
+        return False  # k / 2 pairs with itself
+    return all(rem[r] == rem[k - r] for r in range(1, (k + 1) // 2))
+'''
+pitfalls = [
+    "Negative numbers: in Python x % k is already non-negative; in other languages add k and take the remainder again.",
+    "The two self-paired remainders (0 and k / 2) need an even count, the others need equal counts with their partner.",
+    "Count remainders in an array of size k, not a map, when k is small.",
+]
+examples = ["check-if-array-pairs-are-divisible-by-k", "smallest-missing-non-negative-integer-after-operations", "pairs-of-songs-with-total-durations-divisible-by-60", "make-sum-divisible-by-p"]
+
+[[extra.variant]]
+name = "Smallest missing value (MEX)"
+note = "Each number can be shifted by multiples of value: count remainders and consume one per missing number."
+template = '''
+def find_smallest_integer(nums, value):
+    rem = [0] * value
+    for x in nums:
+        rem[x % value] += 1
+    mex = 0
+    while rem[mex % value]:
+        rem[mex % value] -= 1  # use one number of this class
+        mex += 1
+    return mex
+'''
+
+[[extra]]
+id = "Greedy:highest-bit"
+name = "Build the answer from the highest bit down"
+group = "Bit greedy"
+signals = [
+    "maximise an XOR (or OR, AND) of two numbers from a set",
+    "decide the bits from the top: try to set the next bit, keep it if some pair can do it",
+    "a set of prefixes answers 'is there a pair whose XOR has this prefix' in O(1)",
+]
+template = '''
+def find_maximum_xor(nums):
+    best = mask = 0
+    for bit in range(max(nums).bit_length() - 1, -1, -1):
+        mask |= 1 << bit
+        prefixes = {x & mask for x in nums}  # the top bits of every number
+        want = best | 1 << bit  # can the next bit be 1?
+        if any(want ^ p in prefixes for p in prefixes):
+            best = want
+    return best
+'''
+pitfalls = [
+    "A pair gives want exactly when a ^ b == want, i.e. b == a ^ want: look b up in the set of prefixes.",
+    "Decide one bit at a time from the highest: a higher bit is worth more than all lower ones together.",
+    "A trie does the same in one structure and also answers queries with a bound.",
+]
+examples = ["maximum-xor-of-two-numbers-in-an-array", "maximum-xor-with-an-element-from-array", "maximum-or"]
+
+[[extra]]
+id = "Greedy:bit-decisions"
+name = "Decide each bit on its own"
+group = "Bit greedy"
+signals = [
+    "the cost of a number is the sum over its bits, and the bits do not interact",
+    "count flips or operations bit by bit",
+    "carry or borrow only changes the next bit: look at a pair of bits for a run of ones",
+]
+template_name = "Flips to make a OR b equal c"
+template = '''
+def min_flips(a, b, c):
+    flips = 0
+    for i in range(32):
+        x, y, z = a >> i & 1, b >> i & 1, c >> i & 1
+        if z:
+            flips += not (x or y)  # one of them must be 1
+        else:
+            flips += x + y  # both must be 0
+    return flips
+'''
+pitfalls = [
+    "Look at one bit position at a time: the bits of the OR are independent.",
+    "When the target bit is 1 and both are 0, one flip is enough: flip either.",
+    "When the target bit is 0, every 1 among a and b needs its own flip.",
+]
+examples = ["minimum-flips-to-make-a-or-b-equal-to-c", "minimum-operations-to-reduce-an-integer-to-0", "minimum-bit-flips-to-convert-number"]
+
+[[extra.variant]]
+name = "Reduce to zero by adding or removing powers of two"
+note = "A run of two or more ones is cheaper to carry away (add the lowest one) than to remove bit by bit."
+template = '''
+def min_operations(n):
+    ops = 0
+    while n:
+        if n & 1:
+            # 11 at the bottom: add 1 to clear the run; a lone 1: remove it
+            n += 1 if n & 3 == 3 else -1
+            ops += 1
+        n >>= 1
+    return ops
+'''
+
+[[extra]]
+id = "Greedy:cash-counts"
+name = "Greedy with counts of coins"
+group = "Running-state scans"
+signals = [
+    "customers pay with bills and you must give change, in the order they come",
+    "keep how many of each denomination you hold",
+    "give change using the largest denomination that fits, but keep the small ones that are more useful",
+]
+template = '''
+def lemonade_change(bills):
+    fives = tens = 0
+    for b in bills:
+        if b == 5:
+            fives += 1
+        elif b == 10:
+            fives, tens = fives - 1, tens + 1
+        elif tens:
+            tens, fives = tens - 1, fives - 1  # keep as many 5s as possible
+        else:
+            fives -= 3
+        if fives < 0:
+            return False
+    return True
+'''
+pitfalls = [
+    "For a 20 give a 10 and a 5 first: fives are needed for both kinds of change, tens only for one.",
+    "Check that the count of fives never goes below zero after each customer.",
+    "When coins are not multiples of each other greedy change can fail: that is the coin change DP.",
+]
+examples = ["lemonade-change", "patching-array", "minimum-number-of-coins-to-be-added"]
+
+[[extra]]
+id = "Greedy:positive-differences"
+name = "Count the rises"
+group = "Running-state scans"
+signals = [
+    "build a target array from zeros with the fewest operations of adding 1 to a subarray",
+    "each rise over the previous element needs that many new operations; a fall is free",
+    "the answer is the first element plus all positive differences",
+]
+template = '''
+def min_number_operations(target):
+    ops, prev = 0, 0
+    for x in target:
+        ops += max(0, x - prev)  # a rise needs new increments
+        prev = x
+    return ops
+'''
+pitfalls = [
+    "A fall costs nothing: the operations that raised the higher element simply stop there.",
+    "Start prev at 0: the first element is itself a rise from zero.",
+    "The same sum counts the minimum number of range increments, or the area above the lowest neighbour.",
+]
+examples = ["minimum-number-of-increments-on-subarrays-to-form-a-target-array"]
+
+[[extra]]
+id = "Greedy:pair-double"
+name = "Pair each value with its double"
+group = "Window flips and grouping"
+signals = [
+    "the array must split into pairs (x, 2x), or must be the doubling of an unknown array",
+    "process values by increasing magnitude: the smallest has no smaller partner, so it must pair with its double",
+    "a count map decrements the partner count",
+]
+template = '''
+from collections import Counter
+
+
+def can_reorder_doubled(arr):
+    count = Counter(arr)
+    if count[0] % 2:
+        return False  # zeros pair with each other
+    for x in sorted(count, key=abs):  # smallest magnitude first
+        if x == 0:
+            continue
+        if count[x] > count[2 * x]:
+            return False  # not enough doubles
+        count[2 * x] -= count[x]
+    return True
+'''
+pitfalls = [
+    "Sort by absolute value: with negatives -4 pairs with -2, not with -8.",
+    "Zero is its own double: it needs an even count and is skipped in the loop.",
+    "Use the counts, not the list: each value is handled once with all of its copies.",
+]
+examples = ["array-of-doubled-pairs", "find-original-array-from-doubled-array"]
+
+[[extra]]
+id = "Greedy:window-subtract"
+name = "Subtract a window from the left, in one pass"
+group = "Window flips and grouping"
+signals = [
+    "an operation subtracts 1 from k consecutive elements; can the array be made all zero?",
+    "going left to right, the first non-zero element must start the operations that bring it to zero",
+    "a running total of active subtractions, and a diff array that stops them k later",
+]
+template = '''
+def check_array(nums, k):
+    n, running = len(nums), 0  # running: active subtractions here
+    ends = [0] * (n + 1)  # ends[i]: subtractions that stop covering at i
+    for i, x in enumerate(nums):
+        running -= ends[i]
+        x -= running
+        if x < 0:
+            return False  # already pushed below zero
+        if x > 0:
+            if i + k > n:
+                return False  # the window would run off the end
+            running += x
+            ends[i + k] += x
+    return True
+'''
+pitfalls = [
+    "The leftmost non-zero element can only be fixed by windows that start there: that is why the scan is forced.",
+    "Use a difference array (ends) so each window is added and removed in O(1).",
+    "A window that does not fit before the end means failure for that element.",
+]
+examples = ["apply-operations-to-make-all-array-elements-equal-to-zero", "zero-array-transformation-i", "minimum-number-of-k-consecutive-bit-flips"]
+
+[[extra]]
+id = "Greedy:two-largest"
+name = "Always take from the two (or the one) largest"
+group = "Heap-assisted greedy"
+signals = [
+    "each step removes one unit from each of the two largest piles, or halves the largest",
+    "a heap gives the largest in O(log n); a closed form exists when the number of piles is small",
+    "the answer is bounded by the biggest pile and by half of the total",
+]
+template_name = "Fill cups"
+template = '''
+def fill_cups(amount):
+    total, biggest = sum(amount), max(amount)
+    # two different cups per second, but never fewer than the biggest
+    return max(biggest, (total + 1) // 2)
+'''
+pitfalls = [
+    "The answer is max(biggest pile, ceil(total / 2)): the biggest cannot be shared with itself.",
+    "With many piles use a max-heap (negated in Python) and take two per step.",
+    "Halving a pile: push back the half, not the original, and stop when the sum has halved.",
+]
+examples = ["minimum-amount-of-time-to-fill-cups", "maximum-score-from-removing-stones", "minimum-operations-to-halve-array-sum", "last-stone-weight"]
+
+[[extra.variant]]
+name = "Stones (three piles)"
+note = "Each move takes one from two different piles: the score is limited by half the total and by the two smaller piles."
+template = '''
+def maximum_score(a, b, c):
+    total = a + b + c
+    return min(total // 2, total - max(a, b, c))
+'''
+
+[[extra.variant]]
+name = "Halve the array sum (heap)"
+note = "Always halve the largest remaining value, until the total has dropped by half."
+template = '''
+import heapq
+
+
+def halve_array(nums):
+    heap = [-x for x in nums]  # max-heap by negating
+    heapq.heapify(heap)
+    total, need, ops = sum(nums), sum(nums) / 2, 0
+    while total > need:
+        x = -heapq.heappop(heap) / 2  # halve the largest
+        total -= x
+        heapq.heappush(heap, -x)
+        ops += 1
+    return ops
+'''
+
+[[extra]]
+id = "Greedy:leaves-first"
+name = "Decide from the leaves up"
+group = "Greedy on graphs"
+signals = [
+    "place the fewest cameras, guards or coins in a tree so that every node is covered or balanced",
+    "a node's choice depends on the states of its children, never on its parent",
+    "post-order DFS returns a small state (covered / not covered / has a camera) to the parent",
+]
+template_name = "Binary tree cameras"
+template = '''
+def min_camera_cover(root):
+    cameras = 0
+
+    # states: 0 not covered, 1 covered, 2 has a camera
+    def go(node):
+        nonlocal cameras
+        if node is None:
+            return 1  # nothing to cover
+        left, right = go(node.left), go(node.right)
+        if left == 0 or right == 0:
+            cameras += 1  # a child is uncovered: camera here
+            return 2
+        if left == 2 or right == 2:
+            return 1  # covered by a child's camera
+        return 0  # leave it for the parent
+
+    if go(root) == 0:
+        cameras += 1  # the root itself is uncovered
+    return cameras
+'''
+pitfalls = [
+    "Never put a camera on a leaf: its parent covers it and more.",
+    "A null child counts as covered, otherwise leaves would demand cameras.",
+    "After the DFS the root may still be uncovered: add one more camera.",
+]
+examples = ["binary-tree-cameras", "distribute-coins-in-binary-tree", "maximum-number-of-k-divisible-components"]
+
+[[extra.variant]]
+name = "Distribute coins (excess flows up)"
+note = "A subtree with excess e sends e coins up (or needs -e): every unit crosses the edge once."
+template = '''
+def distribute_coins(root):
+    moves = 0
+
+    def excess(node):
+        nonlocal moves
+        if node is None:
+            return 0
+        left, right = excess(node.left), excess(node.right)
+        moves += abs(left) + abs(right)  # coins crossing the two edges
+        return node.val + left + right - 1  # keep one coin here
+
+    excess(root)
+    return moves
+'''
+
 [[listed]]
 name = "Sort ascending and take while the budget lasts"
 group = "Sorting-based greedy"
@@ -352,27 +2041,9 @@ group = "Sorting-based greedy"
 note = "Related lesson: Sort, then take greedily"
 
 [[listed]]
-name = "Sort both sides and match rank to rank"
-group = "Sorting-based greedy"
-
-[[listed]]
-name = "Sort and pair smallest with largest"
-group = "Sorting-based greedy"
-note = "Related lesson: Greedy swaps and digit rearrangement"
-
-[[listed]]
-name = "Custom comparator order"
-group = "Sorting-based greedy"
-note = "e.g. concatenation order"
-
-[[listed]]
 name = "Fractional knapsack by value ratio"
 group = "Sorting-based greedy"
 note = "Related lesson: Sort, then take greedily"
-
-[[listed]]
-name = "Sort the gains and take the k largest differences"
-group = "Sorting-based greedy"
 
 [[listed]]
 name = "Counting sort when the values are small"
@@ -393,92 +2064,13 @@ name = "Intersect two interval lists / find free time"
 group = "Interval scheduling and covering"
 
 [[listed]]
-name = "Fewest removals so the rest do not overlap"
-group = "Interval scheduling and covering"
-note = "e.g. earliest end first"
-
-[[listed]]
-name = "Fewest points that stab every interval"
-group = "Interval scheduling and covering"
-
-[[listed]]
-name = "Fewest intervals or taps to cover a range"
-group = "Interval scheduling and covering"
-
-[[listed]]
 name = "Minimum rooms or groups"
 group = "Interval scheduling and covering"
 note = "e.g. sweep / min-heap of ends"
 
 [[listed]]
-name = "Attend the most events"
-group = "Interval scheduling and covering"
-note = "e.g. earliest deadline first"
-
-[[listed]]
-name = "Furthest reachable position"
-group = "Jump game family"
-note = "Related lesson: Furthest reachable"
-
-[[listed]]
-name = "Minimum jumps by BFS layers"
-group = "Jump game family"
-note = "Related lesson: Furthest reachable"
-
-[[listed]]
-name = "Jump with a window of allowed distances"
-group = "Jump game family"
-note = "e.g. prefix counts / deque"
-
-[[listed]]
-name = "Jump as graph search"
-group = "Jump game family"
-note = "e.g. BFS on indices"
-
-[[listed]]
-name = "Jump with costs"
-group = "Jump game family"
-note = "Related lesson: Sort, then take greedily"
-
-[[listed]]
-name = "Reach a target by exact steps"
-group = "Jump game family"
-note = "Related lesson: Filter by constraints"
-
-[[listed]]
-name = "Circular route with a total and a running surplus"
-group = "Gas station"
-note = "Related lesson: Running surplus and reset"
-
-[[listed]]
 name = "Split point where the prefix sum equals a target part"
 group = "Gas station"
-
-[[listed]]
-name = "Refuel from a heap of passed stations"
-group = "Gas station"
-
-[[listed]]
-name = "Spend the scarcest resource only when stuck"
-group = "Gas station"
-note = "e.g. bricks and ladders"
-
-[[listed]]
-name = "Smallest starting energy so the running total never drops below zero"
-group = "Gas station"
-
-[[listed]]
-name = "Pair the lightest with the heaviest"
-group = "Two-pointer greedy"
-
-[[listed]]
-name = "Match each item with the smallest sufficient partner"
-group = "Two-pointer greedy"
-
-[[listed]]
-name = "Spend low, gain high"
-group = "Two-pointer greedy"
-note = "e.g. two ends of a sorted list"
 
 [[listed]]
 name = "Move the shorter side inward"
@@ -498,52 +2090,14 @@ name = "Pairs summing to a target, taken from both ends"
 group = "Two-pointer greedy"
 
 [[listed]]
-name = "Take the best available, which unlocks more"
-group = "Heap-assisted greedy"
-note = "e.g. project selection"
-
-[[listed]]
 name = "Heap of the k best by a sorted key"
 group = "Heap-assisted greedy"
 note = "Related lesson: Sort, then take greedily"
 
 [[listed]]
-name = "Regret: undo the worst earlier choice"
-group = "Heap-assisted greedy"
-
-[[listed]]
-name = "Most frequent first with a cooldown or spacing"
-group = "Heap-assisted greedy"
-
-[[listed]]
-name = "Largest marginal gain each step"
-group = "Heap-assisted greedy"
-
-[[listed]]
 name = "Merge the two smallest"
 group = "Heap-assisted greedy"
 note = "Related lesson: Greedy swaps and digit rearrangement"
-
-[[listed]]
-name = "Earliest deadline first"
-group = "Heap-assisted greedy"
-
-[[listed]]
-name = "Largest letter first with a repeat limit"
-group = "Heap-assisted greedy"
-
-[[listed]]
-name = "Adjacent-swap ordering with a comparator"
-group = "Exchange arguments"
-
-[[listed]]
-name = "Deadline ordering, replacing the largest taken job"
-group = "Exchange arguments"
-
-[[listed]]
-name = "Order by cost difference"
-group = "Exchange arguments"
-note = "Related lesson: Sort, then take greedily"
 
 [[listed]]
 name = "Stay-ahead proof"
@@ -560,21 +2114,8 @@ group = "Exchange arguments"
 note = "e.g. sort by ratio"
 
 [[listed]]
-name = "Monotone stack for the smallest number after k removals"
-group = "Stack-based greedy"
-
-[[listed]]
-name = "Smallest subsequence with every distinct letter once"
-group = "Stack-based greedy"
-
-[[listed]]
 name = "Lexicographically smallest output from a stack and counts"
 group = "Stack-based greedy"
-
-[[listed]]
-name = "Bracket repair by counting opens"
-group = "Stack-based greedy"
-note = "e.g. stack / counter"
 
 [[listed]]
 name = "Remove pairs in order of highest score"
@@ -604,31 +2145,9 @@ group = "Number construction"
 note = "Related lesson: Greedy swaps and digit rearrangement"
 
 [[listed]]
-name = "Smallest or largest number from an I / D pattern"
-group = "Number construction"
-note = "Related lesson: Greedy swaps and digit rearrangement"
-
-[[listed]]
-name = "Merge two digit lists into the largest number"
-group = "Number construction"
-note = "Related lesson: Greedy swaps and digit rearrangement"
-
-[[listed]]
-name = "Change one character to break a palindrome"
-group = "Number construction"
-
-[[listed]]
-name = "Fewest additions to reach a digit-sum target"
-group = "Number construction"
-
-[[listed]]
 name = "Smallest number from a product"
 group = "Number construction"
 note = "Related lesson: Greedy swaps and digit rearrangement"
-
-[[listed]]
-name = "Sort digits by parity and place them back"
-group = "Number construction"
 
 [[listed]]
 name = "Smallest array or string with swaps inside components"
@@ -643,11 +2162,6 @@ note = "Related lesson: Greedy with last occurrence"
 [[listed]]
 name = "Chunks where the prefix maximum equals the index"
 group = "Partition labels"
-
-[[listed]]
-name = "Start a new group when a seen set resets"
-group = "Partition labels"
-note = "Related lesson: Group the smallest first"
 
 [[listed]]
 name = "Partition into equal-sum parts"
@@ -668,72 +2182,16 @@ group = "Partition labels"
 note = "Related lesson: Group the smallest first"
 
 [[listed]]
-name = "Left pass, then right pass on ratings"
-group = "Candy two-pass"
-note = "Related lesson: Greedy flips with a difference array"
-
-[[listed]]
-name = "Prefix maximum and suffix maximum"
-group = "Candy two-pass"
-note = "e.g. two passes"
-
-[[listed]]
-name = "Lengths of increasing and decreasing runs"
-group = "Candy two-pass"
-
-[[listed]]
 name = "Remove the shortest middle so prefix and suffix are sorted"
 group = "Candy two-pass"
-
-[[listed]]
-name = "One transaction: running minimum"
-group = "Stock problems"
-
-[[listed]]
-name = "Unlimited transactions: sum of the rises"
-group = "Stock problems"
-note = "Related lesson: One pass with a running balance"
-
-[[listed]]
-name = "Unlimited transactions with a fee"
-group = "Stock problems"
-note = "Related lesson: One pass with a running balance"
-
-[[listed]]
-name = "With a cooldown"
-group = "Stock problems"
-note = "Related lesson: One pass with a running balance"
-
-[[listed]]
-name = "At most two or k transactions"
-group = "Stock problems"
-note = "e.g. prefix / suffix split or DP"
 
 [[listed]]
 name = "Stock with one change of strategy"
 group = "Stock problems"
 
 [[listed]]
-name = "Best pair with a distance penalty"
-group = "Stock problems"
-note = "e.g. running best of a[i] + i"
-
-[[listed]]
-name = "Most non-overlapping activities by earliest finish"
-group = "Activity selection"
-
-[[listed]]
-name = "Most events attended on distinct days"
-group = "Activity selection"
-
-[[listed]]
 name = "Fewest resources for all activities"
 group = "Activity selection"
-
-[[listed]]
-name = "Weighted activity selection"
-group = "Activity selection"
-note = "e.g. DP, not greedy"
 
 [[listed]]
 name = "Two activities, earliest combined finish"
@@ -758,25 +2216,8 @@ name = "Greedy on node degrees and weights"
 group = "Greedy on graphs"
 
 [[listed]]
-name = "Leaf-first removal in trees"
-group = "Greedy on graphs"
-
-[[listed]]
 name = "Greedy graph colouring by degree order"
 group = "Greedy on graphs"
-
-[[listed]]
-name = "Palindromes from letter counts"
-group = "Counting greedy"
-
-[[listed]]
-name = "Make frequencies distinct or equal"
-group = "Counting greedy"
-
-[[listed]]
-name = "Split a count into groups of 2 and 3"
-group = "Counting greedy"
-note = "Related lesson: Group the smallest first"
 
 [[listed]]
 name = "Redistribute characters among strings"
@@ -787,81 +2228,18 @@ name = "Count the mismatches, then pair them up"
 group = "Counting greedy"
 
 [[listed]]
-name = "Bucket by frequency instead of sorting"
-group = "Counting greedy"
-
-[[listed]]
 name = "Count across lines"
 group = "Counting greedy"
 note = "e.g. laser beams"
-
-[[listed]]
-name = "Smallest missing value from residue counts"
-group = "Counting greedy"
-note = "Related lesson: Group the smallest first"
-
-[[listed]]
-name = "Build the answer from the highest bit down"
-group = "Bit greedy"
-
-[[listed]]
-name = "Maximum XOR by prefix / trie greedy"
-group = "Bit greedy"
-problems = [
-    { slug = "maximum-xor-of-two-numbers-in-an-array", title = "Maximum XOR of Two Numbers in an Array", number = 421, difficulty = "medium", premium = false },
-    { slug = "maximum-xor-with-an-element-from-array", title = "Maximum XOR With an Element From Array", number = 1707, difficulty = "hard", premium = false },
-]
-
-[[listed]]
-name = "Fewest operations to reduce a number to zero"
-group = "Bit greedy"
-note = "Related lesson: Range of open counts"
 
 [[listed]]
 name = "Flip rows, then columns, by bit weight"
 group = "Bit greedy"
 
 [[listed]]
-name = "Per-bit decision"
-group = "Bit greedy"
-note = "e.g. flips to make a OR b equal c"
-
-[[listed]]
 name = "Place the bits for the largest odd binary number"
 group = "Bit greedy"
 note = "Related lesson: Greedy swaps and digit rearrangement"
-
-[[listed]]
-name = "0/1 knapsack and subset sum"
-group = "When greedy fails"
-note = "Related lesson: Sort, then take greedily"
-
-[[listed]]
-name = "Weighted interval scheduling"
-group = "When greedy fails"
-
-[[listed]]
-name = "Stocks with a cooldown"
-group = "When greedy fails"
-note = "Related lesson: One pass with a running balance"
-
-[[listed]]
-name = "Wildcard matching"
-group = "When greedy fails"
-note = "Related lesson: Range of open counts"
-problems = [
-    { slug = "wildcard-matching", title = "Wildcard Matching", number = 44, difficulty = "hard", premium = false },
-]
-
-[[listed]]
-name = "Kadane: best contiguous sum"
-group = "Running-state scans"
-note = "Related lesson: Kadane's algorithm"
-
-[[listed]]
-name = "Kadane variants"
-group = "Running-state scans"
-note = "Related lesson: Kadane's algorithm"
 
 [[listed]]
 name = "Running bracket balance"
@@ -872,14 +2250,6 @@ note = "Related lesson: One pass with a running balance"
 name = "Range of possible open counts"
 group = "Running-state scans"
 note = "Related lesson: Range of open counts"
-
-[[listed]]
-name = "Running cash balance with deposits and withdrawals"
-group = "Running-state scans"
-
-[[listed]]
-name = "Increments as the sum of positive differences"
-group = "Running-state scans"
 
 [[listed]]
 name = "Filter the candidates by constraints, then combine"
@@ -897,25 +2267,12 @@ group = "Window flips and grouping"
 note = "Related lesson: Group the smallest first"
 
 [[listed]]
-name = "Pair each value with its double"
-group = "Window flips and grouping"
-
-[[listed]]
 name = "Buy in threes with the cheapest free"
 group = "Window flips and grouping"
 
 [[listed]]
 name = "Assign the largest tasks to the earliest-free processors"
 group = "Window flips and grouping"
-
-[[listed]]
-name = "Zero out an array with window subtractions"
-group = "Window flips and grouping"
-
-[[listed]]
-name = "Simulate a game with the best local move"
-group = "Greedy simulation"
-note = "Related lesson: Greedy simulation of a game"
 
 [[listed]]
 name = "Make two sums equal by replacing wildcards"

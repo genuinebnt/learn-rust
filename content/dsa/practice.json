@@ -23772,10 +23772,10 @@
     }
    ],
    "video": null,
-   "technique": "Greedy:flip-window",
+   "technique": "Greedy:wildcard",
    "order": 101303,
    "role": "practice",
-   "practice_of": "lc-minimum-operations-to-make-binary-array-elements-equal-to-one-i",
+   "practice_of": null,
    "priority": "must"
   },
   {
@@ -24672,10 +24672,10 @@
     }
    ],
    "video": null,
-   "technique": "Greedy:filter",
+   "technique": "Greedy:break-palindrome",
    "order": 101361,
    "role": "practice",
-   "practice_of": "lc-merge-triplets-to-form-target-triplet",
+   "practice_of": null,
    "priority": "practice"
   },
   {
@@ -34841,6 +34841,802 @@
    "video": null,
    "technique": "Backtracking:mask-assign",
    "order": 101707,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-pairs-of-songs-with-total-durations-divisible-by-60",
+   "slug": "pairs-of-songs-with-total-durations-divisible-by-60",
+   "number": 1010,
+   "title": "Pairs of Songs With Total Durations Divisible by 60",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Hash Table",
+    "Counting"
+   ],
+   "companies": [
+    {
+     "name": "Atlassian",
+     "group": "Top tech",
+     "frequency": 40.8,
+     "recent": false
+    },
+    {
+     "name": "Oracle",
+     "group": "Databases & infra",
+     "frequency": 33.3,
+     "recent": false
+    },
+    {
+     "name": "TikTok",
+     "group": "Top tech",
+     "frequency": 33.0,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 20.0,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 8.1,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:residue-counts",
+   "order": 101708,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-zero-array-transformation-i",
+   "slug": "zero-array-transformation-i",
+   "number": 3355,
+   "title": "Zero Array Transformation I",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Prefix Sum"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 46.7,
+     "recent": false
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 21.4,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 15.7,
+     "recent": false
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 12.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:window-subtract",
+   "order": 101709,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-broken-calculator",
+   "slug": "broken-calculator",
+   "number": 991,
+   "title": "Broken Calculator",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Math",
+    "Greedy"
+   ],
+   "companies": [
+    {
+     "name": "Nutanix",
+     "group": "Databases & infra",
+     "frequency": 100.0,
+     "recent": false
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 8.2,
+     "recent": false
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 7.3,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 5.5,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:reach-number",
+   "order": 101710,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-maximum-difference-between-increasing-elements",
+   "slug": "maximum-difference-between-increasing-elements",
+   "number": 2016,
+   "title": "Maximum Difference Between Increasing Elements",
+   "difficulty": "easy",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 15.7,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 14.6,
+     "recent": false
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 14.4,
+     "recent": false
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 13.4,
+     "recent": false
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 7.3,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:best-pair-running",
+   "order": 101711,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "warmup"
+  },
+  {
+   "id": "lc-reduce-array-size-to-the-half",
+   "slug": "reduce-array-size-to-the-half",
+   "number": 1338,
+   "title": "Reduce Array Size to The Half",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Hash Table",
+    "Greedy",
+    "Sorting",
+    "Heap (Priority Queue)"
+   ],
+   "companies": [
+    {
+     "name": "Akuna Capital",
+     "group": "Trading",
+     "frequency": 97.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:bucket-freq",
+   "order": 101712,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-minimum-value-to-get-positive-step-by-step-sum",
+   "slug": "minimum-value-to-get-positive-step-by-step-sum",
+   "number": 1413,
+   "title": "Minimum Value to Get Positive Step by Step Sum",
+   "difficulty": "easy",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Prefix Sum"
+   ],
+   "companies": [
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 27.3,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 14.6,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:min-start",
+   "order": 101713,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "warmup"
+  },
+  {
+   "id": "lc-queue-reconstruction-by-height",
+   "slug": "queue-reconstruction-by-height",
+   "number": 406,
+   "title": "Queue Reconstruction by Height",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Binary Indexed Tree",
+    "Segment Tree",
+    "Sorting"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 28.1,
+     "recent": true
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 11.4,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 10.3,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:comparator-sort",
+   "order": 101714,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-partition-array-such-that-maximum-difference-is-k",
+   "slug": "partition-array-such-that-maximum-difference-is-k",
+   "number": 2294,
+   "title": "Partition Array Such That Maximum Difference Is K",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Greedy",
+    "Sorting"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 27.8,
+     "recent": true
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 5.5,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:cut-when-forced",
+   "order": 101715,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-find-the-most-competitive-subsequence",
+   "slug": "find-the-most-competitive-subsequence",
+   "number": 1673,
+   "title": "Find the Most Competitive Subsequence",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Stack",
+    "Greedy",
+    "Monotonic Stack"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 25.4,
+     "recent": false
+    },
+    {
+     "name": "Uber",
+     "group": "Top tech",
+     "frequency": 20.3,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:remove-k-digits",
+   "order": 101716,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-video-stitching",
+   "slug": "video-stitching",
+   "number": 1024,
+   "title": "Video Stitching",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Dynamic Programming",
+    "Greedy"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 20.9,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:interval-cover",
+   "order": 101717,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-minimum-rounds-to-complete-all-tasks",
+   "slug": "minimum-rounds-to-complete-all-tasks",
+   "number": 2244,
+   "title": "Minimum Rounds to Complete All Tasks",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Hash Table",
+    "Greedy",
+    "Counting"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 26.5,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:split-2-3",
+   "order": 101718,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-maximum-value-of-an-ordered-triplet-i",
+   "slug": "maximum-value-of-an-ordered-triplet-i",
+   "number": 2873,
+   "title": "Maximum Value of an Ordered Triplet I",
+   "difficulty": "easy",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Prefix Sum"
+   ],
+   "companies": [
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 7.3,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 5.5,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:best-pair-running",
+   "order": 101719,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "warmup"
+  },
+  {
+   "id": "lc-maximum-score-from-removing-stones",
+   "slug": "maximum-score-from-removing-stones",
+   "number": 1753,
+   "title": "Maximum Score From Removing Stones",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Math",
+    "Greedy",
+    "Heap (Priority Queue)"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 16.4,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:two-largest",
+   "order": 101720,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-array-of-doubled-pairs",
+   "slug": "array-of-doubled-pairs",
+   "number": 954,
+   "title": "Array of Doubled Pairs",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Hash Table",
+    "Greedy",
+    "Sorting"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 16.4,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:pair-double",
+   "order": 101721,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-maximum-number-of-non-overlapping-subarrays-with-sum-equals-target",
+   "slug": "maximum-number-of-non-overlapping-subarrays-with-sum-equals-target",
+   "number": 1546,
+   "title": "Maximum Number of Non-Overlapping Subarrays With Sum Equals Target",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Hash Table",
+    "Greedy",
+    "Prefix Sum"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 16.4,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:interval-stab",
+   "order": 101722,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-minimum-number-of-coins-to-be-added",
+   "slug": "minimum-number-of-coins-to-be-added",
+   "number": 2952,
+   "title": "Minimum Number of Coins to be Added",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Greedy",
+    "Sorting"
+   ],
+   "companies": [
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 8.2,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:cash-counts",
+   "order": 101723,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-minimum-jumps-to-reach-home",
+   "slug": "minimum-jumps-to-reach-home",
+   "number": 1654,
+   "title": "Minimum Jumps to Reach Home",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Hash Table",
+    "Breadth-First Search"
+   ],
+   "companies": [
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 8.2,
+     "recent": false
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 7.3,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:jump-bfs",
+   "order": 101724,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-minimum-moves-to-reach-target-score",
+   "slug": "minimum-moves-to-reach-target-score",
+   "number": 2139,
+   "title": "Minimum Moves to Reach Target Score",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Math",
+    "Greedy"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:reach-number",
+   "order": 101725,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-advantage-shuffle",
+   "slug": "advantage-shuffle",
+   "number": 870,
+   "title": "Advantage Shuffle",
+   "difficulty": "medium",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Two Pointers",
+    "Greedy",
+    "Sorting"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:rank-match",
+   "order": 101726,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-minimum-amount-of-time-to-fill-cups",
+   "slug": "minimum-amount-of-time-to-fill-cups",
+   "number": 2335,
+   "title": "Minimum Amount of Time to Fill Cups",
+   "difficulty": "easy",
+   "pattern": "Greedy",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Greedy",
+    "Sorting",
+    "Heap (Priority Queue)"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Greedy:two-largest",
+   "order": 101727,
    "role": "practice",
    "practice_of": null,
    "priority": "practice"

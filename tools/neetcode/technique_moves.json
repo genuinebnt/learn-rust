@@ -1,0 +1,5 @@
+{
+  "_": "slug -> technique id (a card of a lesson file). Moves a problem that is already in content/dsa/practice.json to a better card; problem_catalog.py applies it.",
+  "wildcard-matching": "Greedy:wildcard",
+  "break-a-palindrome": "Greedy:break-palindrome"
+}

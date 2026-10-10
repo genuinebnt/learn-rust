@@ -52,7 +52,7 @@ export function PatternShell({ code, tab, children }: { code: string; tab: Patte
         return [ps.filter((p) => p.state.solved).length, ps.length];
     };
     const [done, total] = pattern ? prog(pattern.code) : [0, 0];
-    const techniques = pattern && o ? o.techniques.filter((t) => t.pattern === pattern.name).length : 0;
+    const techniques = pattern && o ? o.techniques.filter((t) => t.pattern === pattern.name).length + (o.lesson_extras?.[pattern.name] ?? 0) : 0;
     const tabs: [PatternTab, string, string, boolean][] = [
         ["learn", "Learn", techniques ? `${techniques} technique${techniques === 1 ? "" : "s"}` : "", true],
         ["problems", "Problems", pattern ? `${done}/${total}` : "", true],

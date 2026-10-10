@@ -24,6 +24,8 @@ pub struct Overview<'a> {
     settings: Settings,
     patterns: Vec<PatternRow<'a>>,
     techniques: &'a [Technique],
+    /// How many lessons each pattern has for techniques with no must-learn problem (they add to the Learn tab's count).
+    lesson_extras: std::collections::BTreeMap<&'a str, usize>,
     company_groups: &'a [CompanyGroup],
     problems: Vec<ProblemRow<'a>>,
     plan: Plan,
@@ -266,6 +268,7 @@ pub async fn overview(State(s): State<AppState>) -> ApiResult<Json<serde_json::V
         settings,
         patterns,
         techniques: &s.catalog.dsa.techniques,
+        lesson_extras: s.catalog.dsa.extras.iter().map(|(pattern, list)| (pattern.as_str(), list.len())).collect(),
         company_groups: &s.catalog.dsa.company_groups,
         problems,
         plan,

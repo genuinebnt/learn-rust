@@ -559,12 +559,40 @@ export interface PracticeList {
   techniques: PracticeTechnique[];
 }
 
+/** One more tab of a template: the same idea written another way. */
+export interface LessonVariant {
+  name: string;
+  note: string;
+  template: string;
+}
+
 /** What a pattern lesson says about one technique. */
 export interface TechniqueLesson {
   id: string;
   signals: string[];
   template: string;
   pitfalls: string[];
+  /** The group of the page it sits under (patterns with grouped pages only). */
+  group?: string;
+  /** The name of the first tab when there are variants. */
+  template_name?: string;
+  variant?: LessonVariant[];
+}
+
+/** A lesson for a technique with no must-learn problem in the lists, taught with example problems. */
+export interface PatternExtra {
+  id: string;
+  name: string;
+  group: string;
+  lesson: TechniqueLesson & { name: string; examples: string[] };
+  examples: DsaProblem[];
+}
+
+/** A technique that belongs on the page's map and has no lesson yet. */
+export interface PatternListed {
+  name: string;
+  group: string;
+  note: string;
 }
 
 export interface PatternTechnique {
@@ -584,7 +612,11 @@ export interface PatternLessons {
   pattern: string;
   intro: string | null;
   total: number;
+  /** The groups of the page in order; null for a pattern whose page is not grouped. */
+  groups: string[] | null;
   techniques: PatternTechnique[];
+  extras: PatternExtra[];
+  listed: PatternListed[] | null;
 }
 
 export interface DsaTechnique {
@@ -624,6 +656,8 @@ export interface DsaOverview {
   settings: SrsSettings;
   patterns: DsaPattern[];
   techniques: DsaTechnique[];
+  /** Lessons per pattern name for techniques with no must-learn problem. */
+  lesson_extras: Record<string, number>;
   company_groups: { name: string; companies: string[] }[];
   problems: DsaProblem[];
   plan: DsaPlan;

@@ -4,7 +4,7 @@ The owner's list (2026-10-09) of every graph pattern that can come up on LeetCod
 pattern lessons. The rule is in [DSA.md](DSA.md), decision 32: a topic's patterns section is exhaustive, patterns without a NeetCode
 problem get **example problems** from LeetCode, and variants of one pattern (DFS recursive / iterative) are **tabs** of one lesson.
 
-Status: documented only. Today `content/dsa/lessons/graphs.toml` has 12 techniques (simulation, degree, flood, clone, multi-bfs, border,
+Status: **partly built (2026-10-10)**: the page shows the groups, version tabs, example-only lessons and listed techniques; 5 of the "No lesson" patterns are written (DFS recursive/iterative, BFS by levels, bidirectional BFS, topological layers, 0-1 BFS) and the rest are listed by name. Until then it was documented only. Today `content/dsa/lessons/graphs.toml` has 12 techniques (simulation, degree, flood, clone, multi-bfs, border,
 tree-walk, topo, dsu, bipartite, weighted, bfs-implicit) and `advanced-graphs.toml` has 7 (dijkstra, euler, mst, bellman, floyd, cycles,
 articulation). Building the rest needs a mockup of the tabs first, then lessons and picked example problems.
 

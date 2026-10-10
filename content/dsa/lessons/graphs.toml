@@ -1,5 +1,5 @@
 pattern = "Graphs"
-intro = "Twelve ideas cover almost every graph problem. First decide what the graph is (grid cells, courses, words, people), then which question it asks: reach everything, fewest steps, an order, or which group. The template for each is short; the work is in recognising the shape."
+intro = "First decide what the graph is (grid cells, courses, words, people), then which question it asks: reach everything, fewest steps, an order, which group, or how far. The lessons are grouped by that question. Each has a short template; the work is in recognising the shape. A violet dot marks a technique that has no must-learn problem in the lists, so it comes with example problems; dashed chips are techniques that are known and not written yet."
 groups = ["Traversal", "Cycle detection and graph properties", "Topological sort and dependencies", "Union-find (DSU)", "Tree algorithms", "Graph modeling and state-space search", "Core implementation patterns"]
 
 [[technique]]

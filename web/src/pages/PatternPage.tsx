@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { api, type PatternTechnique } from "../api";
+import { api, type PatternExtra, type PatternLessons, type PatternListed, type PatternTechnique, type TechniqueLesson } from "../api";
 import { Mark, PyCode } from "../components/dsaBits";
 import { PatternShell } from "../components/PatternShell";
 import { DIFF } from "../dsa";
@@ -24,14 +25,20 @@ export function PatternPage({ code }: { code: string }) {
               {written < d.techniques.length && (
                 <p className="l-soon">{written === 0 ? "The lessons for this pattern aren't written yet; the groups below still show its problems." : `${written} of ${d.techniques.length} lessons written; the rest are coming.`}</p>
               )}
-              <nav className="l-jump" aria-label="Techniques">
-                {d.techniques.map((t) => (
-                  <a key={t.id} href={`#${anchor(t.id)}`}>{t.name}</a>
-                ))}
-              </nav>
-              {d.techniques.map((t) => (
-                <Technique key={t.id} t={t} today={today} code={d.code} />
-              ))}
+              {d.groups ? (
+                <Grouped d={d} today={today} />
+              ) : (
+                <>
+                  <nav className="l-jump" aria-label="Techniques">
+                    {d.techniques.map((t) => (
+                      <a key={t.id} href={`#${anchor(t.id)}`}>{t.name}</a>
+                    ))}
+                  </nav>
+                  {d.techniques.map((t) => (
+                    <Technique key={t.id} t={t} today={today} code={d.code} />
+                  ))}
+                </>
+              )}
             </>
           )}
     </PatternShell>
@@ -39,6 +46,147 @@ export function PatternPage({ code }: { code: string }) {
 }
 
 const anchor = (id: string) => `t-${id.split(":")[1] ?? id}`;
+
+/** A page whose techniques are sorted into groups (decision 32): a jump list by group, then each group's cards. */
+function Grouped({ d, today }: { d: PatternLessons; today: string }) {
+  const groups = d.groups ?? [];
+  const listed = d.listed ?? [];
+  const inGroup = (g: string) => ({
+    techniques: d.techniques.filter((t) => t.lesson?.group === g),
+    extras: d.extras.filter((e) => e.group === g),
+    listed: listed.filter((l) => l.group === g),
+  });
+  // A technique without a lesson has no group yet: it sits first, under its own heading.
+  const ungrouped = d.techniques.filter((t) => !t.lesson?.group);
+  return (
+    <>
+      <nav className="l-jumpg" aria-label="Techniques by group">
+        {groups.map((g) => {
+          const x = inGroup(g);
+          if (x.techniques.length + x.extras.length + x.listed.length === 0) return null;
+          return (
+            <div className="l-jg" key={g}>
+              <span>{g.toUpperCase()}</span>
+              <div className="l-chips">
+                {x.techniques.map((t) => (
+                  <a key={t.id} href={`#${anchor(t.id)}`}><i />{t.name}</a>
+                ))}
+                {x.extras.map((e) => (
+                  <a key={e.id} href={`#${anchor(e.id)}`} className="ex"><i />{e.name}</a>
+                ))}
+                {x.techniques.length + x.extras.length === 0 && <span className="l-nolesson">{x.listed.length} listed, no lesson written yet</span>}
+              </div>
+            </div>
+          );
+        })}
+      </nav>
+      {ungrouped.length > 0 && (
+        <>
+          <div className="l-grp"><h2>More</h2><small>{ungrouped.length} techniques</small></div>
+          {ungrouped.map((t) => <Technique key={t.id} t={t} today={today} code={d.code} />)}
+        </>
+      )}
+      {groups.map((g) => {
+        const x = inGroup(g);
+        const n = x.techniques.length + x.extras.length;
+        if (n + x.listed.length === 0) return null;
+        return (
+          <section key={g} aria-label={g} className="l-gsec">
+            <div className="l-grp">
+              <h2>{g}</h2>
+              <small>{n} written{x.listed.length > 0 ? ` · ${x.listed.length} listed` : ""}</small>
+            </div>
+            {x.techniques.map((t) => <Technique key={t.id} t={t} today={today} code={d.code} />)}
+            {x.extras.map((e) => <Extra key={e.id} e={e} today={today} />)}
+            {x.listed.length > 0 && <Listed items={x.listed} />}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+/** Techniques that are known and not written yet, as small labels (there can be many). */
+function Listed({ items }: { items: PatternListed[] }) {
+  return (
+    <div className="l-listed">
+      <span className="l-lab">LISTED · LESSON NOT WRITTEN YET</span>
+      <div className="l-chips">
+        {items.map((l) => (
+          <span key={l.name} className="l-lchip" title={l.note || undefined}>{l.name}{l.note ? <sup>partly</sup> : null}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The template, with a tab for each variant (recursive and iterative DFS). The tab is remembered while you read the page. */
+function Templates({ lesson }: { lesson: TechniqueLesson }) {
+  const variants = lesson.variant ?? [];
+  const [i, setI] = useState(0);
+  if (variants.length === 0) {
+    return (
+      <>
+        <span className="l-lab">TEMPLATE · PYTHON</span>
+        <PyCode code={lesson.template.trim()} />
+      </>
+    );
+  }
+  const first = { name: lesson.template_name ?? "Template", note: "", template: lesson.template };
+  const tabs = [first, ...variants];
+  const cur = tabs[i] ?? first;
+  return (
+    <>
+      <span className="l-lab">TEMPLATE · PYTHON</span>
+      <div className="l-tabs" role="tablist" aria-label="Versions of the template">
+        {tabs.map((t, k) => (
+          <button key={t.name} role="tab" aria-selected={k === i} onClick={() => setI(k)}>{t.name.toUpperCase()}</button>
+        ))}
+      </div>
+      {cur.note && <p className="l-tabnote">{cur.note}</p>}
+      <PyCode code={cur.template.trim()} />
+    </>
+  );
+}
+
+/** A lesson for a technique that has no must-learn problem in the lists, taught with example problems. */
+function Extra({ e, today }: { e: PatternExtra; today: string }) {
+  return (
+    <article className="l-pat" id={anchor(e.id)}>
+      <div className="l-lft">
+        <h3>
+          {e.name}
+          <span className="l-tag ex">EXAMPLES</span>
+          {(e.lesson.variant?.length ?? 0) > 0 && <span className="l-tag var">{(e.lesson.variant?.length ?? 0) + 1} VERSIONS</span>}
+        </h3>
+        <span className="l-lab">USE IT WHEN</span>
+        <div className="l-when">
+          {e.lesson.signals.map((x) => <span key={x}>{x}</span>)}
+        </div>
+        <Templates lesson={e.lesson} />
+      </div>
+      <div className="l-rgt">
+        <span className="l-lab">PITFALLS</span>
+        <ul className="l-pit">{e.lesson.pitfalls.map((p) => <li key={p}>{p}</li>)}</ul>
+        <p className="l-exnote">
+          <b>No must-learn problem of your lists belongs here.</b> These problems from the lists use the idea; they are examples, not the first problem that teaches it.
+        </p>
+        <span className="l-lab">EXAMPLES</span>
+        <div className="l-plist">
+          {e.examples.map((p) => (
+            <Link key={p.id} to="/d/$slug" params={{ slug: p.slug }} className="l-prow">
+              <Mark p={p} today={today} />
+              <span className="l-pt">{p.title}</span>
+              <span className="d-bdg ex">EXAMPLE</span>
+              {p.premium && <span className="d-bdg prem">PREM</span>}
+              <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>{DIFF[p.difficulty][0]}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 function Technique({ t, today, code }: { t: PatternTechnique; today: string; code: string }) {
   const total = t.problems.length;
@@ -56,8 +204,7 @@ function Technique({ t, today, code }: { t: PatternTechnique; today: string; cod
             <div className="l-when">
               {t.lesson.signals.map((s) => <span key={s}>{s}</span>)}
             </div>
-            <span className="l-lab">TEMPLATE · PYTHON</span>
-            <PyCode code={t.lesson.template.trim()} />
+            <Templates lesson={t.lesson} />
           </>
         ) : (
           <p className="l-soon">The lesson for this technique isn't written yet. Its problems are on the right.</p>

@@ -37,6 +37,7 @@ import "./styles/course.css";
 import "./styles/mock-course.css";
 import "./styles/mock-section.css";
 import "./styles/mock-extra.css";
+import "./styles/polish.css";
 
 const rootRoute = createRootRoute({
   component: () => (

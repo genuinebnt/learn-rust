@@ -147,7 +147,7 @@ export const PRIORITY_LABEL: Record<DsaProblem["priority"], string> = { must: "M
 export function ProblemTags({ p }: { p: DsaProblem }) {
   return (
     <span className="pl-tags">
-      <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>{DIFF[p.difficulty][0]}</span>
+      <span className="d-bdg lv" style={{ color: DIFF[p.difficulty][1] }}>{DIFF[p.difficulty][0]}</span>
       <span className={`d-bdg pri-${p.priority}`} title={p.priority === "must" ? "Must solve" : p.priority === "strong" ? "Strong: asked often" : p.priority === "warmup" ? "A warm-up" : "Practice"}>
         {PRIORITY_LABEL[p.priority]}
       </span>
@@ -163,7 +163,7 @@ export function ProblemTags({ p }: { p: DsaProblem }) {
  *  companies and LeetCode topics that are asked about it. */
 export function ProblemLine({ p, today }: { p: DsaProblem; today: string }) {
   return (
-    <div className={`pl${p.list_tag ? "" : " pl-out"}`}>
+    <div className={`pl pl-${p.priority}${p.list_tag ? "" : " pl-out"}`}>
       <Link to="/d/$slug" params={{ slug: p.slug }} className="pl-top">
         <Mark p={p} today={today} />
         <span className="pl-title">

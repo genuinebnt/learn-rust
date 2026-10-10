@@ -44,7 +44,7 @@ export function CourseConceptPage({ course, id }: { course: string; id: string }
     if (q.isError || !p) {
         return (
             <>
-                <Header area="courses" />
+                <Header area="courses" stats={false} />
                 <main className="page">
                     <div className="wrap">
                         <p className={q.isError ? "notice bad" : "notice"}>{q.isError ? `Couldn't load ${id}: ${(q.error as Error).message}` : "Loading…"}</p>
@@ -56,7 +56,7 @@ export function CourseConceptPage({ course, id }: { course: string; id: string }
     const first = p.used_in[0];
     return (
         <>
-            <Header area="courses" />
+            <Header area="courses" stats={false} />
             <MockRoot>
                 <div className="k-read" ref={barRef} aria-hidden="true" />
                 <div className="k-concept">

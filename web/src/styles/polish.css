@@ -1,0 +1,103 @@
+/* Consistency and detail pass. Loaded last: one gutter and width for every screen, one radius per kind of thing, one tag grammar,
+   controls with room to breathe. Change a token here and every screen follows. */
+:root{--gut:32px;--r-card:12px;--r-ctl:7px;--r-tag:4px;--pw:1240px;--pw-lg:1240px}
+html[data-width="wide"]{--pw:1680px;--pw-lg:1680px}
+
+/* one content width and one left edge on every main screen */
+.wrap,.pp-pad,.pp-in,.pp-cols,.c-wrap,.mi-wrap,.s-root .s-wrap,.k-root .k-wrap{max-width:var(--pw);margin-inline:auto;padding-inline:var(--gut)}
+.pp-band{padding-inline:0}
+.pp-cols{padding-block:28px 24px}
+.pp-pad{padding-block:48px}
+
+/* cards: one radius, one inner padding */
+.p-card,.d-pcard,.pp-sec,.pp-card,.c-tile,.l-pat,.cx-goal{border-radius:var(--r-card)}
+.p-card,.pp-sec,.pp-card{padding:20px 22px;gap:16px}
+
+/* tags and pills share one height and radius */
+.pp-b{height:22px;padding:0 9px;border-radius:var(--r-tag);font-size:11px;font-weight:700;gap:6px}
+.pp-b i{width:6px;height:6px}
+.pp-tags{gap:6px}
+.pp-tags span{height:22px;display:inline-flex;align-items:center;padding:0 9px;border-radius:var(--r-tag);font:500 11px var(--mono)}
+.p-pill{height:24px;align-items:center;padding:0 10px;border-radius:5px;font-size:11px;font-weight:700}
+.d-chip{border-radius:var(--r-tag)}
+
+/* form fields: label above, control below, same height, a chevron on selects */
+.p-row{gap:18px 20px}
+.p-fld{gap:7px}
+.p-fld>span{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.p-fld input,.p-fld select{height:38px;padding:0 12px;border-radius:var(--r-ctl);transition:border-color .15s,box-shadow .15s}
+.p-fld input:focus,.p-fld select:focus{box-shadow:0 0 0 3px var(--cab,var(--acc-bg))}
+.p-fld select{appearance:none;padding-right:32px;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238a93a3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 12px center}
+
+/* steppers: finger-sized buttons, a number that does not jump */
+.p-step{height:38px;border-radius:var(--r-ctl);background:var(--bg)}
+.p-step button{width:36px;font-size:17px;font-weight:500;transition:background .15s,color .15s}
+.p-step button:active{background:var(--line2)}
+.p-step b{min-width:40px;font-variant-numeric:tabular-nums}
+.p-cap .p-step{height:30px}.p-cap .p-step button{width:26px;font-size:15px}.p-cap .p-step b{min-width:28px}
+
+/* the plan's key-value list and save row */
+.p-kv{gap:0}
+.p-kv div{padding:8px 0;border-bottom:1px solid var(--line2)}
+.p-kv div:last-child{border-bottom:0}
+.p-hint{line-height:1.55}
+.p-save{gap:12px;margin-top:4px}
+.nu-go{padding-inline:24px;white-space:nowrap}
+.p-save .nu-go{min-width:150px;height:44px;margin-top:0}
+.d-clear{height:28px;padding:0 12px}
+
+/* header: logo and areas on the left, actions on the right, the search exactly in the middle (when there is room) */
+.hdr .hd-t1{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,380px) minmax(0,1fr);gap:16px}
+.hd-l{display:flex;align-items:center;gap:16px;min-width:0}
+.logo b i{display:none}
+@media (min-width:1700px){.logo b i{display:inline}.hdr .hd-t1{grid-template-columns:minmax(0,1fr) minmax(220px,440px) minmax(0,1fr)}}
+.hd-srch{max-width:none;margin:0;width:100%}
+.hdr-r{justify-self:end}
+@media (max-width:1420px){.hdr .hd-t1{grid-template-columns:auto minmax(0,1fr) auto}.hd-srch{max-width:440px;justify-self:center}}
+@media (max-width:1180px){.hd-l .hd-areas{display:none}}
+@media (max-width:900px){.hdr .hd-t1{gap:10px}}
+.hd-chip span{display:inline}
+/* the second bar: tabs only, with a gentle fade where they scroll */
+.hdr .hd-t2{gap:18px}
+.hd-tabs{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%)}
+/* horizontal strips (patterns, filters): snap to items and fade at the ends */
+.ps-strip{scroll-snap-type:x proximity;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%)}
+.ps-strip .pchip{scroll-snap-align:center}
+
+/* the stats bar: a slow ticker along the bottom; it pauses under the pointer and stands still for reduced motion */
+.sb{position:fixed;left:0;right:0;bottom:0;z-index:25;height:30px;overflow:hidden;border-top:1px solid var(--line2);background:color-mix(in oklab,var(--panel) 92%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font:500 11px var(--mono);color:var(--dim);display:flex;align-items:center}
+.sb::before,.sb::after{content:"";position:absolute;top:0;bottom:0;width:36px;z-index:1;pointer-events:none}
+.sb::before{left:0;background:linear-gradient(90deg,var(--bg),transparent)}
+.sb::after{right:0;background:linear-gradient(-90deg,var(--bg),transparent)}
+.sb-track{display:flex;width:max-content;animation:sb-run calc(var(--sb-n,8) * 6s) linear infinite}
+.sb:hover .sb-track{animation-play-state:paused}
+.sb-run{display:flex;align-items:center;flex:none}
+.sb-i{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;padding-left:22px}
+.sb-i i{font-style:normal;font-weight:700;font-size:9.5px;letter-spacing:.14em;color:var(--dim)}
+.sb-i b{font-weight:700;color:var(--fg);font-variant-numeric:tabular-nums}
+.sb-i small{font-size:11px;color:var(--dim);margin-left:-7px}
+.sb-i em{font-style:normal;color:var(--dim)}
+.sb-i s{text-decoration:none;font-size:7px;color:var(--line);margin-left:14px}
+.sb-i.ok b{color:var(--grn)}.sb-i.warn b{color:var(--warn)}.sb-i.bad b{color:var(--bad)}.sb-i.hot b{color:var(--acc)}
+.sb-bar{width:44px;height:4px;border-radius:2px;background:var(--line2);overflow:hidden;display:inline-block}
+.sb-bar u{display:block;height:100%;background:var(--grn)}
+.sb-spark{width:28px;height:10px;fill:var(--acc);opacity:.85}
+@keyframes sb-run{to{transform:translateX(-12.5%)}}
+@media (prefers-reduced-motion:reduce){.sb-track{animation:none}.sb-run:not(:first-child){display:none}}
+html.has-sb body{padding-bottom:30px}
+@media (max-width:900px){.sb{display:none}html.has-sb body{padding-bottom:0}}
+
+/* course map: one row per project, a label that does not wrap, nodes that fill as stages pass */
+.k-root .k-map{padding:18px 20px;border-radius:var(--r-card)}
+.k-root .k-map h5{margin-bottom:8px;padding-bottom:10px;border-bottom:1px solid var(--line2)}
+.k-root .k-proj{grid-template-columns:200px minmax(0,1fr) auto;gap:16px;padding:11px 0;border-bottom:1px solid var(--line2)}
+.k-root .k-proj:last-child{border-bottom:0;padding-bottom:2px}
+.k-root .k-pl{display:flex;flex-direction:column;gap:2px;min-width:0}
+.k-root .k-pl b{font:700 11.5px var(--mono);color:var(--fg);letter-spacing:.02em}
+.k-root .k-pl em{font:500 11px var(--mono);font-style:normal;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-root .k-pc{font:600 11px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+.k-root .k-nodes{gap:6px}
+.k-root .k-node{min-width:40px;height:30px;padding:0 10px;border-radius:var(--r-ctl);font-size:11.5px;overflow:hidden;background:linear-gradient(0deg,var(--grn-bg) calc(var(--f,0) * 100%),transparent 0)}
+.k-root .k-node.k-part{border-color:color-mix(in oklab,var(--grn) 55%,var(--line2));color:var(--fg)}
+.k-root .k-node.k-done{background:var(--grn)}
+@media (max-width:760px){.k-root .k-proj{grid-template-columns:1fr auto}.k-root .k-nodes{grid-column:1/-1;order:3}}

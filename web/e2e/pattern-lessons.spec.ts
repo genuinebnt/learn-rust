@@ -26,7 +26,7 @@ test("every problem row carries difficulty, priority, the narrowest list (none o
     const card = page.locator(`#t-${withOutside.id.split(":")[1]}`);
     const out = card.locator(".pl.pl-out").first();
     await expect(out).toBeVisible();
-    await expect(out.locator(".d-lv")).toBeVisible();
+    await expect(out.locator(".d-bdg.lv")).toBeVisible();
     await expect(out.locator(".d-bdg").filter({ hasText: /^(MUST|STRONG|PRACTICE|WARM-UP)$/ })).toHaveCount(1);
     await expect(out.locator(".d-bdg.lst")).toHaveCount(0); // no list tag outside the lists
     expect(await out.locator(".pl-sub .d-co").count()).toBeGreaterThan(0);

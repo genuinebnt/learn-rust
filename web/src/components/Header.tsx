@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { ACCENTS, useAppearance, usePageWidth } from "../settings";
+import { StatsBar } from "./StatsBar";
 
 // The header has two tiers (docs/mockups/navbar-v2.html). The first answers "where in the product am I": the three areas as one switcher
 // with their progress, a search field, Continue, and the tools. The second answers "what can I do here": the pages of the current area,
@@ -84,7 +85,7 @@ function Ring({ p, color }: { p: number; color: string }) {
     );
 }
 
-export function Header({ area, compact = false }: { area?: AreaId; compact?: boolean }) {
+export function Header({ area, compact = false, stats = true }: { area?: AreaId; compact?: boolean; stats?: boolean }) {
     const path = useRouterState({ select: (s) => s.location.pathname });
     const detected = areaFromPath(path);
     const stored = (() => {
@@ -152,6 +153,7 @@ export function Header({ area, compact = false }: { area?: AreaId; compact?: boo
         <>
             <header className={`hdr${compact ? " compact" : ""}`} ref={box} data-area={current}>
                 <div className="hd-t1">
+                    <div className="hd-l">
                     <Link className="logo" to="/" aria-label="anneal home">
                         <span className="mk">
                             <span style={{ background: "var(--acc)" }} />
@@ -164,6 +166,7 @@ export function Header({ area, compact = false }: { area?: AreaId; compact?: boo
                         </b>
                     </Link>
                     <AreaSwitcher current={current} counts={counts} />
+                    </div>
                     <button className="hd-srch" onClick={() => setPaletteOpen(true)} aria-label="Search" aria-keyshortcuts="Control+K Meta+K">
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
                             <circle cx="7" cy="7" r="4.5" />
@@ -196,25 +199,25 @@ export function Header({ area, compact = false }: { area?: AreaId; compact?: boo
                             {current === "dsa" && (
                                 <>
                                     <span className="hd-chip">
-                                        solved <b>{dsa.data ? dsaDone : "–"}</b> / {dsa.data ? dsaTotal : "–"}
+                                        solved <span><b>{dsa.data ? dsaDone : "–"}</b>/{dsa.data ? dsaTotal : "–"}</span>
                                     </span>
                                     <span className="hd-chip">
-                                        streak <b>{progress.data?.streak ?? "–"}</b> days
+                                        streak <b>{progress.data?.streak ?? "–"}</b> {progress.data?.streak === 1 ? "day" : "days"}
                                     </span>
                                 </>
                             )}
                             {current === "rust" && (
                                 <span className="hd-chip">
-                                    problems <b>{tracks.data ? rust.solved : "–"}</b> / {tracks.data ? rust.total : "–"}
+                                    problems <span><b>{tracks.data ? rust.solved : "–"}</b>/{tracks.data ? rust.total : "–"}</span>
                                 </span>
                             )}
                             {current === "courses" && (
                                 <>
                                     <span className="hd-chip">
-                                        stages <b>{course.data?.done ?? "–"}</b> / {course.data?.total ?? "–"}
+                                        stages <span><b>{course.data?.done ?? "–"}</b>/{course.data?.total ?? "–"}</span>
                                     </span>
                                     <span className="hd-chip hd-beyond" title="Optional challenges, which are not part of BusTub">
-                                        challenges <b>{course.data?.challenges_done ?? "–"}</b> / {course.data?.challenges ?? "–"}
+                                        challenges <span><b>{course.data?.challenges_done ?? "–"}</b>/{course.data?.challenges ?? "–"}</span>
                                     </span>
                                 </>
                             )}
@@ -222,6 +225,7 @@ export function Header({ area, compact = false }: { area?: AreaId; compact?: boo
                     </div>
                 )}
             </header>
+            {stats && !compact && <StatsBar area={current} />}
             <nav className="hd-dock" aria-label="Areas">
                 {AREAS.map((a) => (
                     <Link key={a.id} to={a.to} className={a.id === current ? "on" : ""} style={{ "--c": a.color } as React.CSSProperties} aria-current={a.id === current ? "page" : undefined}>
@@ -266,15 +270,14 @@ function AreaSwitcher({ current, counts }: { current: AreaId; counts: Record<Are
 }
 
 /** Where you are: the area, the page, and for a course the stage or concept. */
-function Crumb({ area, path, tabs }: { area: string; path: string; tabs: Tab[] }) {
-    const here = tabs.find((t) => t.match(path))?.label;
+function Crumb({ area, path }: { area: string; path: string; tabs: Tab[] }) {
     const parts = [area];
     const stage = path.match(/^\/courses\/[^/]+\/concept\/(.+)$/);
     const concept = stage?.[1];
     const st = path.match(/^\/courses\/[^/]+\/([^/]+)$/);
-    if (here) parts.push(here);
     if (concept) parts.push(concept);
     else if (st?.[1] && st[1] !== "concept") parts.push(st[1]);
+    if (parts.length < 2) return null; // the area is already lit in the switcher, the tab below says the page
     return (
         <div className="hd-crumb" aria-label="You are here">
             {parts.map((p, i) => (

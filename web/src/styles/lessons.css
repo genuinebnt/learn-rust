@@ -92,3 +92,38 @@ button.l-lchip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space
 .l-other{margin-top:18px;padding-top:14px;border-top:1px solid var(--line2);display:flex;flex-direction:column;gap:10px}
 .l-onames{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 .l-onames li{padding:4px 10px;border:1px dashed var(--line);border-radius:999px;font-size:12.5px;color:var(--dim)}
+
+/* Polish of the small elements: one tag grammar (same height, same radius), clearer priority, tidier rows and buttons. */
+.d-bdg{height:20px;padding:0 7px;border-radius:4px;font-weight:700;letter-spacing:.08em}
+.d-bdg.lv{border-color:transparent;background:color-mix(in oklab,currentColor 14%,transparent);letter-spacing:.06em}
+.d-bdg.pri-must{border-color:var(--ca);background:var(--ca);color:var(--on-acc)}
+.d-bdg.pri-strong{border-color:transparent;background:var(--cab);color:var(--ca)}
+.d-bdg.lst{border-color:transparent;background:color-mix(in oklab,var(--grn) 14%,transparent)}
+.d-bdg.rec{border-color:transparent;background:color-mix(in oklab,var(--warn) 14%,transparent)}
+.d-bdg.sol{border-color:transparent;background:color-mix(in oklab,var(--vio) 14%,transparent)}
+.d-co{height:20px;padding:0 7px;border-radius:4px;font-size:10.5px}
+.pl{padding:9px 11px 9px 12px;gap:7px;border-radius:9px;position:relative;transition:border-color .15s,background .15s}
+.pl:hover{background:var(--raise);border-color:var(--line)}
+.pl.pl-must{box-shadow:inset 3px 0 0 var(--ca)}
+.pl.pl-strong{box-shadow:inset 3px 0 0 color-mix(in oklab,var(--ca) 45%,transparent)}
+.pl .d-st{width:20px;height:20px;margin:0}
+.pl-title{font-weight:500}
+.pl-num{margin-right:2px}
+.pl-sub{padding-left:28px}
+.l-pat h3 small{padding:2px 8px;border:1px solid var(--line2);border-radius:999px;background:var(--bg)}
+.l-chips a{height:28px;padding:0 11px;font-weight:600;transition:border-color .15s,background .15s,color .15s}
+.l-chips a:hover{background:var(--raise)}
+.l-chips a i{width:6px;height:6px}
+.l-tabs button{height:26px}
+
+/* Details: keyboard focus, aligned digits, smooth jumps, selection, link hover. */
+:where(a,button,[role="tab"],summary):focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
+.pl-num,.d-pnum,.d-tcount,.l-pat h3 small,.d-sum2,.d-bdg,.d-co{font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+::selection{background:var(--acc-bg);color:inherit}
+.pl-top:hover .pl-title,.d-ptitle:hover{text-decoration:underline;text-decoration-color:var(--dim);text-underline-offset:3px}
+.pl-title{text-wrap:pretty}
+.d-co,.d-bdg,.pl-topics{white-space:nowrap}
+.pl-topics{overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.d-clear{height:24px;padding:0 10px;border:1px solid var(--line2);border-radius:999px;transition:border-color .15s,color .15s}
+.d-clear:hover{border-color:var(--line);color:var(--fg)}

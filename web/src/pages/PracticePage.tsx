@@ -21,19 +21,11 @@ export function PracticePage({ code }: { code: string }) {
     <PatternShell code={code} tab="practice">
           {practice.isError && <p className="notice bad">Couldn't load the practice list: {(practice.error as Error).message}</p>}
           {practice.isSuccess && techniques.length === 0 && (
-            <div className="d-note">
-              <div>
-                <b>No practice list for {pattern?.name ?? "this pattern"} yet.</b>
-              </div>
-            </div>
+            <div className="d-note">No practice list for {pattern?.name ?? "this pattern"} yet.</div>
           )}
           {techniques.length > 0 && (
             <>
-              <div className="d-note">
-                <div>
-                  <b>More LeetCode problems for the same ideas.</b> They aren't in the NeetCode lists (they carry no list tag), so they never count toward your goal, schedule no reviews and are not in the calendar. Open one to read it, solve it on LeetCode, then log how it went: not yet, with help, on your own. Each group says which NeetCode problem teaches the idea.
-                </div>
-              </div>
+              <div className="d-note">Not in a NeetCode list: tracked, but not counted in your goal, reviews or calendar.</div>
               <div className="d-sum2">
                 <span>
                   <b>{solved}</b> of {all.length} solved

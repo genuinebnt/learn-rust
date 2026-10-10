@@ -256,19 +256,32 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                 <div className="k-map k-rv" style={{ "--i": 5 } as CSSProperties} aria-label="Course map">
                                     <h5>
                                         <span>COURSE MAP</span>
-                                        <span>hover a module · click to jump</span>
+                                        <span>click a module to jump</span>
                                     </h5>
                                     <div>
                                         {c.projects
                                             .filter((p) => p.modules.length > 0)
                                             .map((p) => (
                                                 <div className="k-proj" key={p.number}>
-                                                    <span>{projectLabel(p.number, p.title)}</span>
+                                                    <span className="k-pl">
+                                                        {(() => {
+                                                            const [head, ...rest] = projectLabel(p.number, p.title).split(" · ");
+                                                            return rest.length ? (
+                                                                <>
+                                                                    <b>{head}</b>
+                                                                    <em>{rest.join(" · ")}</em>
+                                                                </>
+                                                            ) : (
+                                                                <b>{head}</b>
+                                                            );
+                                                        })()}
+                                                    </span>
                                                     <div className="k-nodes">
                                                         {p.modules.map((m) => {
+                                                            const all = coreStages(m.stages).length;
                                                             const done = coreStages(m.stages).filter((x) => x.state !== "todo").length;
                                                             return (
-                                                                <button key={m.code} className={`k-node${done === coreStages(m.stages).length ? " k-done" : ""}${m.code === here?.code ? " k-cur" : ""}`} onClick={() => jump(m.code)} aria-label={`${m.code.toUpperCase()} ${m.title}: ${done} of ${coreStages(m.stages).length} passed`}>
+                                                                <button key={m.code} style={{ "--f": all ? done / all : 0 } as CSSProperties} className={`k-node${done === all ? " k-done" : done > 0 ? " k-part" : ""}${m.code === here?.code ? " k-cur" : ""}`} onClick={() => jump(m.code)} aria-label={`${m.code.toUpperCase()} ${m.title}: ${done} of ${coreStages(m.stages).length} passed`}>
                                                                     {m.code.toUpperCase()}
                                                                     <span className="k-tip" aria-hidden="true">
                                                                         {m.title} · {m.planned ? "planned" : `${done}/${coreStages(m.stages).length}`}
@@ -277,6 +290,9 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                             );
                                                         })}
                                                     </div>
+                                                    <span className="k-pc">
+                                                        {p.modules.reduce((n, m) => n + coreStages(m.stages).filter((x) => x.state !== "todo").length, 0)}/{p.modules.reduce((n, m) => n + coreStages(m.stages).length, 0)}
+                                                    </span>
                                                 </div>
                                             ))}
                                     </div>

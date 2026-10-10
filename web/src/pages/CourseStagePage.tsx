@@ -327,7 +327,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     if (q.isError) {
         return (
             <>
-                <Header area="courses" />
+                <Header area="courses" stats={false} />
                 <main className="page">
                     <div className="wrap">
                         <p className="notice bad">Couldn't load {stage}: {(q.error as Error).message}</p>
@@ -339,7 +339,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     if (!p) {
         return (
             <>
-                <Header area="courses" />
+                <Header area="courses" stats={false} />
                 <main className="page">
                     <div className="wrap">
                         <p className="notice">Loading…</p>
@@ -382,7 +382,7 @@ export function CourseStagePage({ course, stage }: { course: string; stage: stri
     const part = (title: string) => /^Part (\d+) · (.*)$/.exec(title);
     return (
         <>
-            <Header area="courses" />
+            <Header area="courses" stats={false} />
             <MockRoot>
                 <div className="k-read" ref={barRef} aria-hidden="true" />
                 <div className="k-phead" ref={pheadRef}>

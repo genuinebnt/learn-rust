@@ -1,0 +1,8 @@
+id = "4d-c6"
+title = "Challenge: snapshot reads, locked writes"
+kind = "challenge"
+difficulty = "hard"
+tests = ["stages_4d::s4d_c6"]
+learn = ["combining MVCC-style snapshot reads with the row locks you built", "what a writer waiting (instead of aborting) buys, and what `FOR UPDATE` is for"]
+concepts = []
+concepts_optional = ["lock-modes-and-two-phase-locking", "waits-for-graphs-and-deadlock-detection", "model-based-testing"]

@@ -22,3 +22,6 @@ pub mod range_locks;
 pub mod victim;
 pub mod grant;
 pub mod escalation;
+pub mod hybrid_store;
+pub mod anomaly_lab;
+pub mod lab_db;

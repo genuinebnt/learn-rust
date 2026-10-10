@@ -1673,3 +1673,286 @@ mod ch_4d_c5 {
     }
 }
 // @@ challenge 4d-c5 end
+
+// @@ challenge 4d-c6 begin
+mod ch_4d_c6 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::deadlock::DeadlockDetector;
+    use bustub::concurrency::hybrid_store::HybridStore;
+    use bustub::concurrency::lock_error::LockErrorKind;
+    use bustub::concurrency::lock_manager::LockManager;
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    fn finish_within<T: Send + 'static>(secs: u64, what: &'static str, f: impl FnOnce() -> T + Send + 'static) -> T {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(f());
+        });
+        rx.recv_timeout(Duration::from_secs(secs)).unwrap_or_else(|_| panic!("{what}: did not finish in {secs}s (a wait that never ends?)"))
+    }
+
+    fn store_with(rows: &[(u32, i64)]) -> Arc<HybridStore> {
+        let s = Arc::new(HybridStore::new(Arc::new(LockManager::new())));
+        let t = s.begin();
+        for &(k, v) in rows {
+            s.put(&t, k, v).unwrap();
+        }
+        s.commit(t);
+        s
+    }
+
+    #[test]
+    fn s4d_c6_a_reader_keeps_its_snapshot_while_others_commit() {
+        let s = store_with(&[(1, 10)]);
+        let (a, b) = (s.begin(), s.begin());
+        s.put(&b, 1, 50).unwrap();
+        s.commit(b);
+        assert_eq!(s.get(&a, 1), Some(10), "a began before b committed");
+        let c = s.begin();
+        assert_eq!(s.get(&c, 1), Some(50));
+        assert_eq!(s.get(&a, 1), Some(10), "and keeps reading the same value");
+        assert_eq!(s.get(&a, 2), None);
+    }
+
+    #[test]
+    fn s4d_c6_a_read_does_not_wait_for_a_writer_holding_the_row() {
+        let s = store_with(&[(1, 10)]);
+        let w = s.begin();
+        s.put(&w, 1, 99).unwrap();
+        let s2 = s.clone();
+        let seen = finish_within(5, "a snapshot read", move || {
+            let r = s2.begin();
+            s2.get(&r, 1)
+        });
+        assert_eq!(seen, Some(10), "the writer's uncommitted 99 must not be visible");
+        assert_eq!(s.get(&w, 1), Some(99), "a writer sees its own write");
+        s.abort(w);
+    }
+
+    #[test]
+    fn s4d_c6_a_second_writer_waits_instead_of_aborting() {
+        let s = store_with(&[(1, 0)]);
+        let w1 = s.begin();
+        s.put(&w1, 1, 1).unwrap();
+        let done = Arc::new(AtomicBool::new(false));
+        let h = {
+            let (s, done) = (s.clone(), done.clone());
+            std::thread::spawn(move || {
+                let w2 = s.begin();
+                s.put(&w2, 1, 2).unwrap();
+                done.store(true, Ordering::SeqCst);
+                s.commit(w2);
+            })
+        };
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(!done.load(Ordering::SeqCst), "the second writer must wait for the row, not run ahead");
+        s.commit(w1);
+        finish_within(5, "second writer", move || h.join().unwrap());
+        let r = s.begin();
+        assert_eq!(s.get(&r, 1), Some(2), "the writer that waited committed last");
+    }
+
+    #[test]
+    fn s4d_c6_abort_discards_the_writes_and_frees_the_row() {
+        let s = store_with(&[(1, 10)]);
+        let w = s.begin();
+        s.put(&w, 1, 77).unwrap();
+        s.abort(w);
+        let s2 = s.clone();
+        finish_within(5, "a writer after an abort", move || {
+            let t = s2.begin();
+            assert_eq!(s2.get(&t, 1), Some(10));
+            s2.put(&t, 1, 11).unwrap();
+            s2.commit(t);
+        });
+        let r = s.begin();
+        assert_eq!(s.get(&r, 1), Some(11));
+    }
+
+    #[test]
+    fn s4d_c6_for_update_reads_the_newest_committed_value_not_the_snapshot() {
+        let s = store_with(&[(1, 0)]);
+        let a = s.begin();
+        assert_eq!(s.get(&a, 1), Some(0));
+        let b = s.begin();
+        s.put(&b, 1, 5).unwrap();
+        s.commit(b);
+        assert_eq!(s.get(&a, 1), Some(0), "the snapshot still says 0");
+        assert_eq!(s.get_for_update(&a, 1), Ok(Some(5)), "but the locked read must see what is really there");
+        s.put(&a, 1, 6).unwrap();
+        s.commit(a);
+        let r = s.begin();
+        assert_eq!(s.get(&r, 1), Some(6), "an increment on top of 5, not on top of the stale 0");
+    }
+
+    #[test]
+    fn s4d_c6_increments_from_many_threads_are_not_lost() {
+        let s = store_with(&[(1, 0)]);
+        finish_within(30, "counter", {
+            let s = s.clone();
+            move || {
+                let hs: Vec<_> = (0..4)
+                    .map(|_| {
+                        let s = s.clone();
+                        std::thread::spawn(move || {
+                            for _ in 0..50 {
+                                let t = s.begin();
+                                let v = s.get_for_update(&t, 1).unwrap().unwrap_or(0);
+                                s.put(&t, 1, v + 1).unwrap();
+                                s.commit(t);
+                            }
+                        })
+                    })
+                    .collect();
+                for h in hs {
+                    h.join().unwrap();
+                }
+            }
+        });
+        let r = s.begin();
+        assert_eq!(s.get(&r, 1), Some(200));
+    }
+
+    #[test]
+    fn s4d_c6_a_deadlock_is_broken_and_the_survivor_commits() {
+        let locks = Arc::new(LockManager::new());
+        let _detector = DeadlockDetector::start(locks.clone(), Duration::from_millis(15));
+        let s = Arc::new(HybridStore::new(locks));
+        let (a, b) = (s.begin(), s.begin());
+        s.put(&a, 1, 1).unwrap();
+        s.put(&b, 2, 2).unwrap();
+        let (s1, s2) = (s.clone(), s.clone());
+        let ha = std::thread::spawn(move || {
+            let r = s1.put(&a, 2, 10);
+            match r {
+                Ok(()) => {
+                    s1.commit(a);
+                    None
+                }
+                Err(e) => {
+                    s1.abort(a);
+                    Some(e.kind)
+                }
+            }
+        });
+        let hb = std::thread::spawn(move || {
+            let r = s2.put(&b, 1, 20);
+            match r {
+                Ok(()) => {
+                    s2.commit(b);
+                    None
+                }
+                Err(e) => {
+                    s2.abort(b);
+                    Some(e.kind)
+                }
+            }
+        });
+        let (ra, rb) = finish_within(20, "deadlock", move || (ha.join().unwrap(), hb.join().unwrap()));
+        let victims: Vec<_> = [ra, rb].into_iter().flatten().collect();
+        assert_eq!(victims, vec![LockErrorKind::Deadlock], "exactly one transaction is the victim; the other commits");
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 64, failure_persistence: None, ..ProptestConfig::default() })]
+
+        /// Property: sequential transactions agree with a map; a reader opened at the start never sees any of them.
+        #[test]
+        fn s4d_c6_property_sequential_transactions_match_a_map_and_old_snapshots_stay_old(txns in proptest::collection::vec((proptest::collection::vec((0u32..5, -50i64..50), 0..4), any::<bool>()), 0..12)) {
+            let s = store_with(&[(0, 100), (1, 101)]);
+            let old = s.begin();
+            let mut model: HashMap<u32, i64> = HashMap::from([(0, 100), (1, 101)]);
+            for (writes, commit) in txns {
+                let t = s.begin();
+                for &(k, v) in &writes { s.put(&t, k, v).unwrap(); }
+                if commit {
+                    for &(k, v) in &writes { model.insert(k, v); }
+                    s.commit(t);
+                } else {
+                    s.abort(t);
+                }
+                prop_assert_eq!(s.get(&old, 0), Some(100));
+                prop_assert_eq!(s.get(&old, 1), Some(101));
+                prop_assert_eq!(s.get(&old, 4), None);
+            }
+            let r = s.begin();
+            for k in 0..5 { prop_assert_eq!(s.get(&r, k), model.get(&k).copied()); }
+        }
+    }
+}
+// @@ challenge 4d-c6 end
+
+// @@ challenge 4d-c7 begin
+mod ch_4d_c7 {
+    use proptest::prelude::*;
+
+    use bustub::concurrency::anomaly_lab::{dirty_read, lost_update, non_repeatable_read, phantom, possible, write_skew, Anomaly};
+    use bustub::concurrency::lab_db::{LabDb, Level, Level::*};
+
+    /// The textbook table for the five levels of the lab database: `true` where the anomaly can happen.
+    fn truth(level: Level, a: Anomaly) -> bool {
+        use Anomaly::*;
+        match (level, a) {
+            (ReadUncommitted, _) => true,
+            (_, DirtyRead) => false,
+            (ReadCommitted, _) => true,
+            (_, NonRepeatableRead | LostUpdate) => false,
+            (Snapshot, WriteSkew) => true,
+            (RepeatableRead, Phantom) => true,
+            _ => false,
+        }
+    }
+
+    fn observe(level: Level, rows: &[(i64, i64)], scenario: fn(&mut LabDb) -> bool) -> bool {
+        let mut db = LabDb::new(level, rows);
+        let happened = scenario(&mut db);
+        assert_eq!(db.open_count(), 0, "{level:?}: the scenario left a transaction open");
+        happened
+    }
+
+    fn check(a: Anomaly, rows: &[(i64, i64)], scenario: fn(&mut LabDb) -> bool) {
+        for level in Level::ALL {
+            assert_eq!(observe(level, rows, scenario), truth(level, a), "{a:?} at {level:?}");
+        }
+    }
+
+    #[test]
+    fn s4d_c7_a_dirty_read_is_reading_a_write_that_never_committed() {
+        check(Anomaly::DirtyRead, &[(1, 100)], dirty_read);
+    }
+
+    #[test]
+    fn s4d_c7_a_non_repeatable_read_is_two_reads_of_one_row_that_differ() {
+        check(Anomaly::NonRepeatableRead, &[(1, 100)], non_repeatable_read);
+    }
+
+    #[test]
+    fn s4d_c7_a_lost_update_is_two_increments_that_add_up_to_one() {
+        check(Anomaly::LostUpdate, &[(1, 0)], lost_update);
+    }
+
+    #[test]
+    fn s4d_c7_write_skew_breaks_a_constraint_that_each_transaction_kept() {
+        check(Anomaly::WriteSkew, &[(1, 1), (2, 1)], write_skew);
+    }
+
+    #[test]
+    fn s4d_c7_a_phantom_is_a_row_that_appears_in_a_range_you_already_read() {
+        check(Anomaly::Phantom, &[(1, 10), (2, 20)], phantom);
+    }
+
+    #[test]
+    fn s4d_c7_your_table_agrees_with_what_the_scenarios_saw() {
+        use Anomaly::*;
+        for level in Level::ALL {
+            for a in [DirtyRead, NonRepeatableRead, LostUpdate, WriteSkew, Phantom] {
+                assert_eq!(possible(level, a), truth(level, a), "possible({level:?}, {a:?})");
+            }
+        }
+    }
+}
+// @@ challenge 4d-c7 end

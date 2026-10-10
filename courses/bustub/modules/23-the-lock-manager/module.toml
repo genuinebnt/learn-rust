@@ -3,7 +3,7 @@ title = "The lock manager"
 summary = "Pessimistic concurrency control: lock modes and the compatibility matrix, one lock with its holders, blocking requests in a fair queue, upgrades, two-phase locking per isolation level with table and row locks, and a background thread that finds deadlocks and aborts the youngest transaction. The classic alternative to MVCC; new in this course, since BusTub's current projects stop at MVCC."
 lectures = ["concurrencycontrol", "twophaselocking"]
 bustub = []
-files = ["src/concurrency/lock_error.rs", "src/concurrency/lock_txn.rs"]
+files = ["src/concurrency/lock_error.rs", "src/concurrency/lock_txn.rs", "src/concurrency/lab_db.rs"]
 
 [[resources]]
 kind = "paper"

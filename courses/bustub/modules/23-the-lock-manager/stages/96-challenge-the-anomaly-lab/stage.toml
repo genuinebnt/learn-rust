@@ -1,0 +1,8 @@
+id = "4d-c7"
+title = "Challenge: the anomaly lab"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4d::s4d_c7"]
+learn = ["telling the classic anomalies apart by building each one", "which isolation level prevents which anomaly, and by what mechanism"]
+concepts = []
+concepts_optional = ["lock-modes-and-two-phase-locking", "model-based-testing", "property-testing-and-fuzzing"]

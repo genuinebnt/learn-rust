@@ -8444,3 +8444,447 @@ def _(ns):
                 assert q.popMiddle() == (ref.pop((n - 1) // 2) if ref else -1)
             else:
                 assert q.popBack() == (ref.pop() if ref else -1)
+
+
+# ---- binary search (extras) -----------------------------------------------------------------------------------------
+
+BS = "Binary Search"
+
+
+def _sorted_matrix(r, rows, cols, lo=-5, hi=9):
+    m = [[r.randint(lo, hi) for _ in range(cols)] for _ in range(rows)]
+    for row in m:
+        row.sort()
+    for j in range(cols):
+        col = sorted(m[i][j] for i in range(rows))
+        for i in range(rows):
+            m[i][j] = col[i]
+    for row in m:
+        row.sort()  # keep rows sorted after sorting columns (a fixed point exists after a few passes)
+    for _ in range(3):
+        for j in range(cols):
+            col = sorted(m[i][j] for i in range(rows))
+            for i in range(rows):
+                m[i][j] = col[i]
+        for row in m:
+            row.sort()
+    return m
+
+
+@test(f"{BS}:matrix-sorted")
+def _(ns):
+    f = ns["search_matrix"]
+    r = random.Random(900)
+    for _ in range(200):
+        m = _sorted_matrix(r, r.randint(1, 5), r.randint(1, 5))
+        t = r.randint(-6, 10)
+        assert f([row[:] for row in m], t) is any(t in row for row in m)
+
+
+@test(f"{BS}:matrix-sorted#Count negatives")
+def _(ns):
+    f = ns["count_negatives"]
+    assert f([[4, 3, 2, -1], [3, 2, 1, -1], [1, 1, -1, -2], [-1, -1, -2, -3]]) == 8
+    r = random.Random(901)
+    for _ in range(200):
+        m = _sorted_matrix(r, r.randint(1, 5), r.randint(1, 5))
+        g = [row[::-1] for row in m[::-1]]  # non-increasing both ways
+        assert f([row[:] for row in g]) == sum(v < 0 for row in g for v in row)
+
+
+@test(f"{BS}:matrix-sorted#Kth smallest by value")
+def _(ns):
+    f = ns["kth_smallest"]
+    assert f([[1, 5, 9], [10, 11, 13], [12, 13, 15]], 8) == 13
+    r = random.Random(902)
+    for _ in range(200):
+        n = r.randint(1, 4)
+        m = _sorted_matrix(r, n, n)
+        flat = sorted(v for row in m for v in row)
+        k = r.randint(1, n * n)
+        assert f([row[:] for row in m], k) == flat[k - 1]
+
+
+@test(f"{BS}:kth-by-count")
+def _(ns):
+    f = ns["smallest_distance_pair"]
+    assert f([1, 3, 1], 1) == 0 and f([1, 1, 1], 2) == 0 and f([1, 6, 1], 3) == 5
+    r = random.Random(903)
+    for _ in range(200):
+        a = [r.randint(0, 12) for _ in range(r.randint(2, 8))]
+        k = r.randint(1, len(a) * (len(a) - 1) // 2)
+        d = sorted(abs(x - y) for x, y in _it.combinations(a, 2))
+        assert f(a[:], k) == d[k - 1]
+
+
+@test(f"{BS}:kth-by-count#K-th smallest prime fraction")
+def _(ns):
+    f = ns["kth_smallest_prime_fraction"]
+    assert f([1, 2, 3, 5], 3) == [2, 5] and f([1, 7], 1) == [1, 7]
+    r = random.Random(904)
+    for _ in range(100):
+        arr = sorted([1] + r.sample([2, 3, 5, 7, 11, 13, 17], r.randint(1, 5)))
+        pairs = sorted(((a, b) for a, b in _it.combinations(arr, 2)), key=lambda p: p[0] / p[1])
+        k = r.randint(1, len(pairs))
+        assert f(arr[:], k) == list(pairs[k - 1])
+
+
+@test(f"{BS}:min-gap")
+def _(ns):
+    f = ns["max_distance"]
+    assert f([1, 2, 3, 4, 7], 3) == 3 and f([5, 4, 3, 2, 1, 1000000000], 2) == 999999999
+    r = random.Random(905)
+    for _ in range(200):
+        pos = r.sample(range(0, 30), r.randint(2, 7))
+        m = r.randint(2, len(pos))
+        best = max(min(b - a for a, b in zip(c, c[1:])) for c in _it.combinations(sorted(pos), m))
+        assert f(pos[:], m) == best
+
+
+@test(f"{BS}:min-gap#Cutting ribbons")
+def _(ns):
+    f = ns["max_length"]
+    assert f([9, 7, 5], 3) == 5 and f([7, 5, 9], 4) == 4 and f([5, 7, 9], 22) == 0
+    r = random.Random(906)
+    for _ in range(200):
+        a = [r.randint(1, 15) for _ in range(r.randint(1, 5))]
+        k = r.randint(1, 12)
+        want = max([L for L in range(1, max(a) + 1) if sum(x // L for x in a) >= k] or [0])
+        assert f(a[:], k) == want
+
+
+@test(f"{BS}:min-gap#House robber IV (minimise the maximum)")
+def _(ns):
+    f = ns["min_capability"]
+    assert f([2, 3, 5, 9], 2) == 5 and f([2, 7, 9, 3, 1], 2) == 2
+    r = random.Random(907)
+    for _ in range(200):
+        a = [r.randint(1, 15) for _ in range(r.randint(1, 8))]
+        k = r.randint(1, (len(a) + 1) // 2)
+        best = min(max(a[i] for i in c) for c in _it.combinations(range(len(a)), k) if all(y - x > 1 for x, y in zip(c, c[1:])))
+        assert f(a[:], k) == best
+
+
+@test(f"{BS}:time-to-finish")
+def _(ns):
+    f = ns["minimum_time"]
+    assert f([1, 2, 3], 5) == 3 and f([2], 1) == 2
+    r = random.Random(908)
+    for _ in range(200):
+        t = [r.randint(1, 6) for _ in range(r.randint(1, 4))]
+        n = r.randint(1, 15)
+        x = 1
+        while sum(x // v for v in t) < n:
+            x += 1
+        assert f(t[:], n) == x
+
+
+@test(f"{BS}:time-to-finish#Bouquets")
+def _(ns):
+    f = ns["min_days"]
+    assert f([1, 10, 3, 10, 2], 3, 1) == 3 and f([1, 10, 3, 10, 2], 3, 2) == -1 and f([7, 7, 7, 7, 12, 7, 7], 2, 3) == 12
+    r = random.Random(909)
+    for _ in range(200):
+        a = [r.randint(1, 9) for _ in range(r.randint(1, 8))]
+        m, k = r.randint(1, 3), r.randint(1, 3)
+        if m * k > len(a):
+            assert f(a[:], m, k) == -1
+            continue
+        for day in range(1, 10):
+            b, run = 0, 0
+            for v in a:
+                run = run + 1 if v <= day else 0
+                if run == k:
+                    b, run = b + 1, 0
+            if b >= m:
+                assert f(a[:], m, k) == day
+                break
+
+
+@test(f"{BS}:time-to-finish#Smallest divisor given a threshold")
+def _(ns):
+    f = ns["smallest_divisor"]
+    assert f([1, 2, 5, 9], 6) == 5 and f([44, 22, 33, 11, 1], 5) == 44
+    r = random.Random(910)
+    for _ in range(200):
+        a = [r.randint(1, 20) for _ in range(r.randint(1, 6))]
+        th = r.randint(len(a), 40)
+        d = 1
+        while sum(-(-x // d) for x in a) > th:
+            d += 1
+        assert f(a[:], th) == d
+
+
+@test(f"{BS}:time-to-finish#Minimum speed to arrive on time")
+def _(ns):
+    f = ns["min_speed_on_time"]
+    assert f([1, 3, 2], 6) == 1 and f([1, 3, 2], 2.7) == 3 and f([1, 3, 2], 1.9) == -1
+    r = random.Random(911)
+    for _ in range(200):
+        d = [r.randint(1, 9) for _ in range(r.randint(1, 4))]
+        h = round(r.uniform(1, 12), 2)
+        got = f(d[:], h)
+        want = -1
+        for v in range(1, 2000):
+            if sum(-(-x // v) for x in d[:-1]) + d[-1] / v <= h:
+                want = v
+                break
+        assert got == want, (d, h)
+
+
+@test(f"{BS}:real-answer")
+def _(ns):
+    f = ns["my_sqrt"]
+    for x in list(range(0, 200)) + [10**9, 2**31 - 1]:
+        assert f(x) == int(x ** 0.5) if x < 2**52 else True
+        import math
+        assert f(x) == math.isqrt(x)
+
+
+@test(f"{BS}:real-answer#Newton's method")
+def _(ns):
+    import math
+    f = ns["my_sqrt_newton"]
+    for x in list(range(0, 300)) + [10**9, 2**31 - 1, 10**12]:
+        assert f(x) == math.isqrt(x)
+
+
+@test(f"{BS}:real-answer#Separate squares (real line)")
+def _(ns):
+    f = ns["separate_squares"]
+    assert abs(f([[0, 0, 1], [2, 2, 1]]) - 1.0) < 1e-4 and abs(f([[0, 0, 2], [1, 1, 1]]) - 1.16667) < 1e-4
+    r = random.Random(912)
+    for _ in range(50):
+        sq = [[0, r.randint(0, 6), r.randint(1, 4)] for _ in range(r.randint(1, 4))]
+        y = f([s[:] for s in sq])
+        total = sum(l * l for _, _, l in sq)
+        below = sum(l * min(max(y - yi, 0), l) for _, yi, l in sq)
+        assert abs(below * 2 - total) < 1e-3
+
+
+@test(f"{BS}:bisect-other")
+def _(ns):
+    cls = ns["SnapshotArray"]
+    r = random.Random(913)
+    for _ in range(100):
+        n = r.randint(1, 4)
+        s, cur, snaps = cls(n), [0] * n, []
+        for _ in range(25):
+            op = r.choice("ssg")
+            if op == "s" and r.random() < 0.7:
+                i, v = r.randrange(n), r.randint(1, 9)
+                s.set(i, v)
+                cur[i] = v
+            elif op == "g" and snaps:
+                sid = r.randrange(len(snaps))
+                i = r.randrange(n)
+                assert s.get(i, sid) == snaps[sid][i]
+            else:
+                assert s.snap() == len(snaps)
+                snaps.append(cur[:])
+
+
+@test(f"{BS}:bisect-other#Search suggestions (sorted words)")
+def _(ns):
+    f = ns["suggested_products"]
+    assert f(["mobile", "mouse", "moneypot", "monitor", "mousepad"], "mouse") == [["mobile", "moneypot", "monitor"], ["mobile", "moneypot", "monitor"], ["mouse", "mousepad"], ["mouse", "mousepad"], ["mouse", "mousepad"]]
+    r = random.Random(914)
+    for _ in range(100):
+        words = ["".join(r.choice("ab") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 6))]
+        q = "".join(r.choice("ab") for _ in range(r.randint(1, 4)))
+        want = [sorted(w for w in words if w.startswith(q[:i + 1]))[:3] for i in range(len(q))]
+        assert f(words[:], q) == want
+
+
+@test(f"{BS}:bisect-other#Plates between candles")
+def _(ns):
+    f = ns["plates_between_candles"]
+    assert f("**|**|***|", [[2, 5], [5, 9]]) == [2, 3]
+    r = random.Random(915)
+    for _ in range(150):
+        s = "".join(r.choice("*|") for _ in range(r.randint(1, 14)))
+        q = []
+        for _ in range(4):
+            a = r.randrange(len(s))
+            q.append([a, r.randint(a, len(s) - 1)])
+        want = []
+        for a, b in q:
+            seg = s[a:b + 1]
+            if "|" in seg:
+                lo, hi = seg.index("|"), seg.rindex("|")
+                want.append(seg[lo:hi + 1].count("*"))
+            else:
+                want.append(0)
+        assert f(s, [x[:] for x in q]) == want
+
+
+@test(f"{BS}:lis-tails")
+def _(ns):
+    f = ns["length_of_lis"]
+    assert f([10, 9, 2, 5, 3, 7, 101, 18]) == 4 and f([7, 7, 7]) == 1
+    r = random.Random(916)
+    for _ in range(200):
+        a = [r.randint(0, 9) for _ in range(r.randint(0, 10))]
+        dp = [1] * len(a)
+        for i in range(len(a)):
+            for j in range(i):
+                if a[j] < a[i]:
+                    dp[i] = max(dp[i], dp[j] + 1)
+        assert f(a[:]) == max(dp, default=0)
+
+
+@test(f"{BS}:lis-tails#Obstacle course (non-decreasing)")
+def _(ns):
+    f = ns["longest_obstacle_course"]
+    assert f([1, 2, 3, 2]) == [1, 2, 3, 3] and f([2, 2, 1]) == [1, 2, 1]
+    r = random.Random(917)
+    for _ in range(200):
+        a = [r.randint(0, 6) for _ in range(r.randint(1, 10))]
+        dp = [1] * len(a)
+        for i in range(len(a)):
+            for j in range(i):
+                if a[j] <= a[i]:
+                    dp[i] = max(dp[i], dp[j] + 1)
+        assert f(a[:]) == dp
+
+
+@test(f"{BS}:lis-tails#Russian doll envelopes")
+def _(ns):
+    f = ns["max_envelopes"]
+    assert f([[5, 4], [6, 4], [6, 7], [2, 3]]) == 3 and f([[1, 1], [1, 1], [1, 1]]) == 1
+    r = random.Random(918)
+    for _ in range(200):
+        e = [[r.randint(1, 6), r.randint(1, 6)] for _ in range(r.randint(1, 7))]
+        s = sorted(e)
+        dp = [1] * len(s)
+        for i in range(len(s)):
+            for j in range(i):
+                if s[j][0] < s[i][0] and s[j][1] < s[i][1]:
+                    dp[i] = max(dp[i], dp[j] + 1)
+        assert f([x[:] for x in e]) == max(dp)
+
+
+@test(f"{BS}:sorted-then-bisect")
+def _(ns):
+    f = ns["count_fair_pairs"]
+    assert f([0, 1, 7, 4, 4, 5], 3, 6) == 6 and f([1, 7, 9, 2, 5], 11, 11) == 1
+    r = random.Random(919)
+    for _ in range(200):
+        a = [r.randint(-5, 9) for _ in range(r.randint(1, 9))]
+        lo = r.randint(-5, 8)
+        hi = r.randint(lo, 12)
+        assert f(a[:], lo, hi) == sum(1 for x, y in _it.combinations(a, 2) if lo <= x + y <= hi)
+
+
+@test(f"{BS}:sorted-then-bisect#Successful pairs of spells and potions")
+def _(ns):
+    f = ns["successful_pairs"]
+    assert f([5, 1, 3], [1, 2, 3, 4, 5], 7) == [4, 0, 3]
+    r = random.Random(920)
+    for _ in range(200):
+        sp = [r.randint(1, 9) for _ in range(r.randint(1, 5))]
+        po = [r.randint(1, 9) for _ in range(r.randint(1, 6))]
+        s = r.randint(1, 60)
+        assert f(sp[:], po[:], s) == [sum(1 for p in po if x * p >= s) for x in sp]
+
+
+@test(f"{BS}:sorted-then-bisect#Most profit assigning work")
+def _(ns):
+    f = ns["max_profit_assignment"]
+    assert f([2, 4, 6, 8, 10], [10, 20, 30, 40, 50], [4, 5, 6, 7]) == 100
+    r = random.Random(921)
+    for _ in range(200):
+        n = r.randint(1, 6)
+        d = [r.randint(1, 9) for _ in range(n)]
+        p = [r.randint(1, 9) for _ in range(n)]
+        w = [r.randint(0, 10) for _ in range(r.randint(1, 5))]
+        want = sum(max([p[i] for i in range(n) if d[i] <= x] or [0]) for x in w)
+        assert f(d[:], p[:], w[:]) == want
+
+
+@test(f"{BS}:first-true")
+def _(ns):
+    f = ns["first_bad_version"]
+    for n in range(1, 40):
+        for bad in range(1, n + 1):
+            assert f(n, lambda v: v >= bad) == bad
+
+
+@test(f"{BS}:first-true#H-index II")
+def _(ns):
+    f = ns["h_index"]
+    assert f([0, 1, 3, 5, 6]) == 3 and f([1, 2, 100]) == 2 and f([0]) == 0
+    r = random.Random(922)
+    for _ in range(300):
+        c = sorted(r.randint(0, 8) for _ in range(r.randint(1, 8)))
+        assert f(c[:]) == max(h for h in range(len(c) + 1) if sum(1 for x in c if x >= h) >= h)
+
+
+@test(f"{BS}:first-true#Smallest letter greater than target")
+def _(ns):
+    f = ns["next_greatest_letter"]
+    assert f(["c", "f", "j"], "a") == "c" and f(["c", "f", "j"], "c") == "f" and f(["x", "x", "y", "y"], "z") == "x"
+    r = random.Random(923)
+    for _ in range(200):
+        letters = sorted(r.choice("bdfhj") for _ in range(r.randint(2, 6)))
+        t = r.choice("abcdefghijk")
+        want = next((c for c in letters if c > t), letters[0])
+        assert f(letters[:], t) == want
+
+
+@test(f"{BS}:missing-count")
+def _(ns):
+    f = ns["find_kth_positive"]
+    assert f([2, 3, 4, 7, 11], 5) == 9 and f([1, 2, 3, 4], 2) == 6
+    r = random.Random(924)
+    for _ in range(300):
+        arr = sorted(r.sample(range(1, 20), r.randint(1, 8)))
+        k = r.randint(1, 15)
+        missing = [x for x in range(1, 60) if x not in arr]
+        assert f(arr[:], k) == missing[k - 1]
+
+
+@test(f"{BS}:missing-count#Single element in a sorted array")
+def _(ns):
+    f = ns["single_non_duplicate"]
+    assert f([1, 1, 2, 3, 3, 4, 4, 8, 8]) == 2 and f([3, 3, 7, 7, 10, 11, 11]) == 10 and f([5]) == 5
+    r = random.Random(925)
+    for _ in range(200):
+        vals = sorted(r.sample(range(30), r.randint(1, 6)))
+        single = r.choice(vals)
+        arr = sorted(v for v in vals for _ in range(1 if v == single else 2))
+        assert f(arr[:]) == single
+
+
+@test(f"{BS}:missing-count#Missing number in an arithmetic progression")
+def _(ns):
+    f = ns["missing_number"]
+    assert f([5, 7, 11, 13]) == 9 and f([15, 13, 9]) == 11
+    r = random.Random(926)
+    for _ in range(200):
+        n = r.randint(3, 9)
+        a0, d = r.randint(-5, 5), r.choice([-3, -2, -1, 1, 2, 3])
+        full = [a0 + i * d for i in range(n + 1)]
+        j = r.randint(1, n - 1)
+        arr = full[:j] + full[j + 1:]
+        assert f(arr[:]) == full[j]
+
+
+@test(f"{BS}:merge-count")
+def _(ns):
+    f = ns["reverse_pairs"]
+    assert f([1, 3, 2, 3, 1]) == 2 and f([2, 4, 3, 5, 1]) == 3
+    r = random.Random(927)
+    for _ in range(200):
+        a = [r.randint(-6, 6) for _ in range(r.randint(0, 10))]
+        assert f(a[:]) == sum(1 for i in range(len(a)) for j in range(i + 1, len(a)) if a[i] > 2 * a[j])
+
+
+@test(f"{BS}:merge-count#Count of smaller numbers after self")
+def _(ns):
+    f = ns["count_smaller"]
+    assert f([5, 2, 6, 1]) == [2, 1, 1, 0] and f([-1, -1]) == [0, 0]
+    r = random.Random(928)
+    for _ in range(200):
+        a = [r.randint(-6, 6) for _ in range(r.randint(1, 10))]
+        assert f(a[:]) == [sum(1 for y in a[i + 1:] if y < a[i]) for i in range(len(a))]

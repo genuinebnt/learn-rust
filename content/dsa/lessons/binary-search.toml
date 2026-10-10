@@ -268,51 +268,783 @@ pitfalls = [
     "For a mountain array with a target, find the peak first, then binary search each side separately.",
 ]
 
+[[extra]]
+id = "Binary Search:matrix-sorted"
+name = "Rows and columns both sorted: the staircase"
+group = "2-D matrices"
+signals = [
+    "a matrix whose rows are sorted left to right and columns top to bottom, not one long sorted list",
+    "start at a corner where one move makes the value bigger and the other smaller",
+    "each step discards a whole row or a whole column: O(rows + cols)",
+]
+template_name = "Search a 2D matrix II"
+template = '''
+def search_matrix(matrix, target):
+    r, c = 0, len(matrix[0]) - 1  # the top-right corner
+    while r < len(matrix) and c >= 0:
+        v = matrix[r][c]
+        if v == target:
+            return True
+        if v > target:
+            c -= 1  # everything below in this column is bigger too
+        else:
+            r += 1  # everything to the left in this row is smaller too
+    return False
+'''
+pitfalls = [
+    "Start at the top-right (or bottom-left): from the top-left both moves only increase.",
+    "Every comparison removes one row or one column, so the walk is at most rows + cols steps.",
+    "When the whole matrix is one sorted sequence, a single binary search over rows * cols is faster.",
+]
+examples = ["search-a-2d-matrix-ii", "count-negative-numbers-in-a-sorted-matrix", "kth-smallest-element-in-a-sorted-matrix"]
+
+[[extra.variant]]
+name = "Count negatives"
+note = "The same staircase from the bottom-left: each row's negatives start where the walk turns."
+template = '''
+def count_negatives(grid):
+    rows, cols = len(grid), len(grid[0])
+    r, c, count = 0, cols - 1, 0  # the top-right corner
+    while r < rows and c >= 0:
+        if grid[r][c] < 0:
+            count += rows - r  # the whole column below is negative too
+            c -= 1
+        else:
+            r += 1
+    return count
+'''
+
+[[extra.variant]]
+name = "Kth smallest by value"
+note = "Binary search the value; count how many entries are at most it with the staircase."
+template = '''
+def kth_smallest(matrix, k):
+    n = len(matrix)
+
+    def count_le(x):
+        r, c, count = n - 1, 0, 0  # the bottom-left corner
+        while r >= 0 and c < n:
+            if matrix[r][c] <= x:
+                count += r + 1  # this whole column up to r is <= x
+                c += 1
+            else:
+                r -= 1
+        return count
+
+    lo, hi = matrix[0][0], matrix[-1][-1]
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if count_le(mid) >= k:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+'''
+
+[[extra]]
+id = "Binary Search:kth-by-count"
+name = "K-th smallest by binary searching the value"
+group = "Kth element problems"
+signals = [
+    "the k-th smallest pair distance, product, sum or fraction: there are far too many pairs to list",
+    "count how many pairs are at most x; the answer is the smallest x whose count reaches k",
+    "the count is a two-pointer or bisect sweep, so each guess costs O(n)",
+]
+template_name = "K-th smallest pair distance"
+template = '''
+def smallest_distance_pair(nums, k):
+    nums.sort()
+
+    def count_le(d):  # pairs with a difference of at most d
+        count, left = 0, 0
+        for right in range(len(nums)):
+            while nums[right] - nums[left] > d:
+                left += 1
+            count += right - left
+        return count
+
+    lo, hi = 0, nums[-1] - nums[0]
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if count_le(mid) >= k:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+'''
+pitfalls = [
+    "Search the value range, not the list of pairs: the answer is the smallest d with at least k pairs at most d.",
+    "A count of exactly k is not needed: use >= k and keep the smaller half.",
+    "The count must be monotone in the guess: more allowed distance, more pairs.",
+]
+examples = ["find-k-th-smallest-pair-distance", "kth-smallest-product-of-two-sorted-arrays", "k-th-smallest-prime-fraction"]
+
+[[extra.variant]]
+name = "K-th smallest prime fraction"
+note = "Count the fractions at most x with two pointers over the sorted array, remembering the largest one seen."
+template = '''
+def kth_smallest_prime_fraction(arr, k):
+    n = len(arr)
+    lo, hi = 0.0, 1.0
+    while True:
+        mid = (lo + hi) / 2
+        count, best, j = 0, (0, 1, 0), 1
+        for i in range(n - 1):
+            while j < n and arr[i] > mid * arr[j]:
+                j += 1  # the first j with arr[i] / arr[j] <= mid
+            count += n - j
+            if j < n and arr[i] * best[1] > best[0] * arr[j]:
+                best = (arr[i], arr[j], 0)  # the largest fraction so far
+        if count == k:
+            return [best[0], best[1]]
+        if count < k:
+            lo = mid
+        else:
+            hi = mid
+'''
+
+[[extra]]
+id = "Binary Search:min-gap"
+name = "Maximise the smallest gap or piece"
+group = "Search on the answer (minimise the max / maximise the min)"
+signals = [
+    "place k items as far apart as possible, or cut pieces as long as possible",
+    "feasible(x) greedily places items at least x apart: if x works, so does anything smaller",
+    "binary search the largest x that is still feasible (round mid up)",
+]
+template_name = "Magnetic force between balls"
+template = '''
+def max_distance(position, m):
+    position.sort()
+
+    def can(gap):  # can m balls be at least gap apart?
+        count, last = 1, position[0]
+        for p in position[1:]:
+            if p - last >= gap:
+                count += 1
+                last = p  # place the next ball as early as possible
+        return count >= m
+
+    lo, hi = 1, position[-1] - position[0]
+    while lo < hi:
+        mid = (lo + hi + 1) // 2  # round up so that lo = mid always moves
+        if can(mid):
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo
+'''
+pitfalls = [
+    "Round mid up when you move lo to mid, or the loop never ends on lo + 1 == hi.",
+    "Place each ball as early as it can go: leaving room for the others is the greedy choice.",
+    "For 'minimise the maximum' flip the roles: smallest x that is feasible, round mid down.",
+]
+examples = ["magnetic-force-between-two-balls", "cutting-ribbons", "maximum-candies-allocated-to-k-children", "divide-chocolate", "house-robber-iv"]
+
+[[extra.variant]]
+name = "Cutting ribbons"
+note = "The largest length that still gives at least k pieces."
+template = '''
+def max_length(ribbons, k):
+    lo, hi = 0, max(ribbons)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if sum(r // mid for r in ribbons) >= k:
+            lo = mid  # mid works: try a longer piece
+        else:
+            hi = mid - 1
+    return lo
+'''
+
+[[extra.variant]]
+name = "House robber IV (minimise the maximum)"
+note = "The smallest capability such that k non-adjacent houses are each worth at most it."
+template = '''
+def min_capability(nums, k):
+    def can(cap):  # rob greedily every house with value <= cap
+        count, i = 0, 0
+        while i < len(nums):
+            if nums[i] <= cap:
+                count += 1
+                i += 2  # skip the neighbour
+            else:
+                i += 1
+        return count >= k
+
+    lo, hi = min(nums), max(nums)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if can(mid):
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+'''
+
+[[extra]]
+id = "Binary Search:time-to-finish"
+name = "Smallest time or rate that finishes the work"
+group = "Search on the answer (minimise the max / maximise the min)"
+signals = [
+    "the least time, speed or divisor so that a total requirement is met",
+    "given a guess, the work done is a sum of floor divisions: easy to compute and monotone",
+    "bounds: the smallest possible value and a value that surely works",
+]
+template_name = "Minimum time to complete trips"
+template = '''
+def minimum_time(time, total_trips):
+    def trips(t):  # trips completed by time t
+        return sum(t // x for x in time)
+
+    lo, hi = 1, min(time) * total_trips  # the fastest bus alone works
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if trips(mid) >= total_trips:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+'''
+pitfalls = [
+    "The upper bound is a value that certainly works, such as the fastest worker doing everything.",
+    "Use integer division for the work done: no floats and no rounding errors.",
+    "Smallest feasible value: when feasible, keep it (hi = mid); when not, skip it (lo = mid + 1).",
+]
+examples = ["minimum-time-to-complete-trips", "minimum-time-to-repair-cars", "minimum-number-of-days-to-make-m-bouquets", "find-the-smallest-divisor-given-a-threshold", "minimum-speed-to-arrive-on-time"]
+
+[[extra.variant]]
+name = "Bouquets"
+note = "A day works if the flowers bloomed by then form enough runs of k adjacent ones."
+template = '''
+def min_days(bloom_day, m, k):
+    if m * k > len(bloom_day):
+        return -1
+
+    def ok(day):
+        bouquets = run = 0
+        for b in bloom_day:
+            run = run + 1 if b <= day else 0
+            if run == k:
+                bouquets += 1
+                run = 0  # the flowers are used up
+        return bouquets >= m
+
+    lo, hi = min(bloom_day), max(bloom_day)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if ok(mid):
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+'''
+
+[[extra.variant]]
+name = "Smallest divisor given a threshold"
+note = "The sum of ceilings falls as the divisor grows."
+template = '''
+def smallest_divisor(nums, threshold):
+    lo, hi = 1, max(nums)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if sum(-(-x // mid) for x in nums) <= threshold:  # ceiling division
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo
+'''
+
+[[extra.variant]]
+name = "Minimum speed to arrive on time"
+note = "All but the last train wait for the next whole hour; the last one is exact."
+template = '''
+def min_speed_on_time(dist, hour):
+    def time(v):
+        return sum(-(-d // v) for d in dist[:-1]) + dist[-1] / v
+
+    if len(dist) - 1 >= hour:
+        return -1  # each of the first trains costs at least one hour
+    lo, hi = 1, 10**7
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if time(mid) <= hour:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo if time(lo) <= hour else -1  # even the top speed is too slow
+'''
+
+[[extra]]
+id = "Binary Search:real-answer"
+name = "Real-valued answers and square roots"
+group = "Real numbers"
+signals = [
+    "the answer is a real number: a square root, a line that splits an area in half",
+    "bisect on the real range for a fixed number of iterations (about 60 for doubles), or until the gap is below epsilon",
+    "integer square roots: binary search the largest x with x * x <= n, or Newton's method",
+]
+template_name = "Integer square root"
+template = '''
+def my_sqrt(x):
+    lo, hi = 0, x
+    while lo < hi:
+        mid = (lo + hi + 1) // 2  # round up: lo = mid must move
+        if mid * mid <= x:
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo
+'''
+pitfalls = [
+    "Search for the largest x with x * x <= n; round mid up so the loop terminates.",
+    "For a real answer loop a fixed number of times instead of comparing floats with ==.",
+    "Newton's method (x = (x + n / x) / 2) converges much faster for square roots.",
+]
+examples = ["sqrtx", "valid-perfect-square", "separate-squares-i"]
+
+[[extra.variant]]
+name = "Newton's method"
+note = "Each step averages x and n / x; start high and stop when it no longer decreases."
+template = '''
+def my_sqrt_newton(n):
+    if n < 2:
+        return n
+    x = n
+    while x * x > n:
+        x = (x + n // x) // 2  # moves down towards the root
+    return x
+'''
+
+[[extra.variant]]
+name = "Separate squares (real line)"
+note = "The area below a horizontal line y grows with y: bisect until the two areas are equal."
+template = '''
+def separate_squares(squares):
+    total = sum(l * l for _, _, l in squares)
+
+    def below(y):  # area of the squares under the line
+        return sum(l * min(max(y - yi, 0), l) for _, yi, l in squares)
+
+    lo = min(yi for _, yi, _ in squares)
+    hi = max(yi + l for _, yi, l in squares)
+    for _ in range(100):  # a fixed number of halvings
+        mid = (lo + hi) / 2
+        if below(mid) * 2 < total:
+            lo = mid
+        else:
+            hi = mid
+    return lo
+'''
+
+[[extra]]
+id = "Binary Search:bisect-other"
+name = "Bisect a per-item history"
+group = "Indices of other structures"
+signals = [
+    "values with timestamps or versions, and a query for 'the value at or before time t'",
+    "per key (or per index) keep a sorted list of changes and bisect it",
+    "also: the nearest candle, the first word with a prefix: sorted arrays plus bisect",
+]
+template_name = "Snapshot array"
+template = '''
+from bisect import bisect_right
+
+
+class SnapshotArray:
+    def __init__(self, length):
+        self.history = [[(0, 0)] for _ in range(length)]  # (snap id, value)
+        self.current = 0  # the id of the next snapshot
+
+    def set(self, index, val):
+        h = self.history[index]
+        if h[-1][0] == self.current:
+            h[-1] = (self.current, val)  # overwrite within this snapshot
+        else:
+            h.append((self.current, val))
+
+    def snap(self):
+        self.current += 1
+        return self.current - 1
+
+    def get(self, index, snap_id):
+        h = self.history[index]
+        # the last change made at or before snap_id
+        i = bisect_right(h, (snap_id, float("inf"))) - 1
+        return h[i][1]
+'''
+pitfalls = [
+    "Store only changes, not full copies: memory grows with the number of sets, not snapshots times length.",
+    "bisect_right with (snap_id, inf) finds the last entry whose snapshot id is at most snap_id.",
+    "A set after a snapshot belongs to the next snapshot id: keep one counter for the id that is current.",
+]
+examples = ["snapshot-array", "time-based-key-value-store", "search-suggestions-system", "plates-between-candles"]
+
+[[extra.variant]]
+name = "Search suggestions (sorted words)"
+note = "Sort the words; for each prefix the matches are a contiguous block starting at bisect_left."
+template = '''
+from bisect import bisect_left
+
+
+def suggested_products(products, search_word):
+    products.sort()
+    out, prefix = [], ""
+    for ch in search_word:
+        prefix += ch
+        i = bisect_left(products, prefix)  # the first word >= prefix
+        out.append([w for w in products[i:i + 3] if w.startswith(prefix)])
+    return out
+'''
+
+[[extra.variant]]
+name = "Plates between candles"
+note = "Prefix counts of plates, and for each position the nearest candle on each side."
+template = '''
+def plates_between_candles(s, queries):
+    n = len(s)
+    plates = [0] * (n + 1)  # plates[i]: plates in s[:i]
+    left, right = [-1] * n, [n] * n  # nearest candle at or before / after i
+    last = -1
+    for i, ch in enumerate(s):
+        plates[i + 1] = plates[i] + (ch == "*")
+        if ch == "|":
+            last = i
+        left[i] = last
+    last = n
+    for i in range(n - 1, -1, -1):
+        if s[i] == "|":
+            last = i
+        right[i] = last
+    out = []
+    for a, b in queries:
+        lo, hi = right[a], left[b]  # the candles just inside the query
+        out.append(plates[hi] - plates[lo] if lo < hi else 0)
+    return out
+'''
+
+[[extra]]
+id = "Binary Search:lis-tails"
+name = "Longest increasing subsequence with a tails array"
+group = "Bisect on tails (LIS)"
+signals = [
+    "the length of the longest increasing subsequence in O(n log n)",
+    "tails[i] is the smallest last value of an increasing subsequence of length i + 1; the array stays sorted",
+    "each new value replaces the first tail that is not smaller (strict) or larger (non-decreasing)",
+]
+template_name = "Strictly increasing"
+template = '''
+from bisect import bisect_left
+
+
+def length_of_lis(nums):
+    tails = []  # tails[i]: smallest end of a subsequence of length i + 1
+    for x in nums:
+        i = bisect_left(tails, x)  # the first tail >= x
+        if i == len(tails):
+            tails.append(x)  # x extends the longest subsequence
+        else:
+            tails[i] = x  # a smaller end for the same length
+    return len(tails)
+'''
+pitfalls = [
+    "tails is not the subsequence itself, only its length is meaningful.",
+    "bisect_left gives a strictly increasing result; bisect_right allows equal values (non-decreasing).",
+    "Keep another array of parents if the subsequence itself is needed.",
+]
+examples = ["longest-increasing-subsequence", "russian-doll-envelopes", "find-the-longest-valid-obstacle-course-at-each-position", "number-of-longest-increasing-subsequence"]
+
+[[extra.variant]]
+name = "Obstacle course (non-decreasing)"
+note = "For every position, the length of the longest non-decreasing subsequence ending there."
+template = '''
+from bisect import bisect_right
+
+
+def longest_obstacle_course(obstacles):
+    tails, out = [], []
+    for x in obstacles:
+        i = bisect_right(tails, x)  # equal values may follow each other
+        if i == len(tails):
+            tails.append(x)
+        else:
+            tails[i] = x
+        out.append(i + 1)  # the length of the subsequence ending here
+    return out
+'''
+
+[[extra.variant]]
+name = "Russian doll envelopes"
+note = "Sort by width ascending, height descending on ties; then LIS on heights."
+template = '''
+from bisect import bisect_left
+
+
+def max_envelopes(envelopes):
+    envelopes.sort(key=lambda e: (e[0], -e[1]))  # equal widths can not nest
+    tails = []
+    for _, h in envelopes:
+        i = bisect_left(tails, h)
+        if i == len(tails):
+            tails.append(h)
+        else:
+            tails[i] = h
+    return len(tails)
+'''
+
+[[extra]]
+id = "Binary Search:sorted-then-bisect"
+name = "Sort, then bisect the partner"
+group = "Binary search + two pointers"
+signals = [
+    "count pairs whose sum lies in a range, or match each query to the best item under a bound",
+    "sort the values once; for each element a binary search finds how many partners work",
+    "the answer for each query is a count or the best prefix maximum",
+]
+template_name = "Count fair pairs"
+template = '''
+from bisect import bisect_left, bisect_right
+
+
+def count_fair_pairs(nums, lower, upper):
+    nums.sort()
+    count = 0
+    for i, x in enumerate(nums):
+        # partners after i with lower <= x + y <= upper
+        lo = bisect_left(nums, lower - x, i + 1)
+        hi = bisect_right(nums, upper - x, i + 1)
+        count += hi - lo
+    return count
+'''
+pitfalls = [
+    "Search only to the right of i so each pair is counted once, and bisect from i + 1.",
+    "The pair order does not matter for the count, so sorting is allowed.",
+    "bisect_left for the lower bound and bisect_right for the upper bound give an inclusive range.",
+]
+examples = ["count-the-number-of-fair-pairs", "count-pairs-whose-sum-is-less-than-target", "successful-pairs-of-spells-and-potions", "most-profit-assigning-work"]
+
+[[extra.variant]]
+name = "Successful pairs of spells and potions"
+note = "Sort the potions; a spell succeeds with every potion at or above ceil(success / spell)."
+template = '''
+from bisect import bisect_left
+
+
+def successful_pairs(spells, potions, success):
+    potions.sort()
+    m = len(potions)
+    # the smallest potion that works is at least success / spell
+    return [m - bisect_left(potions, -(-success // s)) for s in spells]
+'''
+
+[[extra.variant]]
+name = "Most profit assigning work"
+note = "Sort jobs by difficulty and keep the best profit so far; bisect each worker's ability."
+template = '''
+from bisect import bisect_right
+
+
+def max_profit_assignment(difficulty, profit, worker):
+    jobs = sorted(zip(difficulty, profit))
+    diffs = [d for d, _ in jobs]
+    best, run = [], 0
+    for _, p in jobs:
+        run = max(run, p)
+        best.append(run)  # the best profit among jobs up to here
+    total = 0
+    for w in worker:
+        i = bisect_right(diffs, w) - 1  # the hardest job the worker can do
+        total += best[i] if i >= 0 else 0
+    return total
+'''
+
+[[extra]]
+id = "Binary Search:first-true"
+name = "First true in a monotone yes/no"
+group = "Classic boundaries"
+signals = [
+    "the first bad version, the first index where a property holds, the first letter above a target",
+    "a predicate that is false, false, ..., true, true: find the boundary",
+    "the loop keeps lo as a possible answer and hi as a known true",
+]
+template_name = "First bad version"
+template = '''
+def first_bad_version(n, is_bad):
+    lo, hi = 1, n  # hi is bad, by the problem's promise
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if is_bad(mid):
+            hi = mid  # mid might be the first: keep it
+        else:
+            lo = mid + 1  # mid is good: the answer is after it
+    return lo
+'''
+pitfalls = [
+    "Never write hi = mid - 1 here: mid itself may be the answer.",
+    "lo < hi (not <=) with hi = mid always shrinks the range, so the loop ends with lo == hi.",
+    "Make sure the predicate really is monotone before binary searching it.",
+]
+examples = ["first-bad-version", "h-index-ii", "find-smallest-letter-greater-than-target", "find-target-indices-after-sorting-array"]
+
+[[extra.variant]]
+name = "H-index II"
+note = "The citations are sorted: the first index i with citations[i] >= n - i gives h = n - i."
+template = '''
+def h_index(citations):
+    n = len(citations)
+    lo, hi = 0, n
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if citations[mid] >= n - mid:  # n - mid papers have that many
+            hi = mid
+        else:
+            lo = mid + 1
+    return n - lo
+'''
+
+[[extra.variant]]
+name = "Smallest letter greater than target"
+note = "The first letter strictly above the target, wrapping to the first letter when none is."
+template = '''
+from bisect import bisect_right
+
+
+def next_greatest_letter(letters, target):
+    i = bisect_right(letters, target)  # the first letter > target
+    return letters[i % len(letters)]  # wrap around the end
+'''
+
+[[extra]]
+id = "Binary Search:missing-count"
+name = "Counting what is missing before an index"
+group = "Counting-based search"
+signals = [
+    "the k-th missing positive number, or the k-th missing number in a sorted list",
+    "at index i the count of missing numbers before arr[i] is arr[i] - (i + 1): it never decreases",
+    "binary search the first index where that count reaches k",
+]
+template_name = "K-th missing positive number"
+template = '''
+def find_kth_positive(arr, k):
+    lo, hi = 0, len(arr)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if arr[mid] - (mid + 1) < k:  # fewer than k missing before it
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo + k  # lo numbers of arr come before the answer
+'''
+pitfalls = [
+    "Missing before arr[i] = arr[i] - (i + 1): that is the monotone quantity to search.",
+    "The answer is lo + k: skip the lo numbers that are present before it.",
+    "If k is larger than anything missing in the array, lo is len(arr) and the answer is beyond the last number.",
+]
+examples = ["kth-missing-positive-number", "missing-element-in-sorted-array", "single-element-in-a-sorted-array", "missing-number-in-arithmetic-progression"]
+
+[[extra.variant]]
+name = "Single element in a sorted array"
+note = "Pairs sit at (even, odd) indexes until the single element; compare mid with its partner."
+template = '''
+def single_non_duplicate(nums):
+    lo, hi = 0, len(nums) - 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if mid % 2:
+            mid -= 1  # make mid the first of a possible pair
+        if nums[mid] == nums[mid + 1]:
+            lo = mid + 2  # the pairs are intact up to here
+        else:
+            hi = mid  # the single element is at mid or before
+    return nums[lo]
+'''
+
+[[extra.variant]]
+name = "Missing number in an arithmetic progression"
+note = "Before the gap element i equals first + i * d; binary search the first index that breaks that."
+template = '''
+def missing_number(arr):
+    n = len(arr)
+    d = (arr[-1] - arr[0]) // n  # the common difference
+    lo, hi = 0, n - 1
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if arr[mid] == arr[0] + mid * d:
+            lo = mid + 1  # still on the progression
+        else:
+            hi = mid
+    return arr[0] + lo * d
+'''
+
+[[extra]]
+id = "Binary Search:merge-count"
+name = "Count pairs while merge sorting"
+group = "Counting-based search"
+signals = [
+    "count pairs (i < j) with a relation between the values, such as nums[i] > 2 * nums[j]",
+    "merge sort splits the pairs into left-left, right-right and left-right; the last is counted while merging",
+    "both halves are sorted, so the cross pairs are counted with two pointers",
+]
+template_name = "Reverse pairs"
+template = '''
+def reverse_pairs(nums):
+    def sort(a):
+        if len(a) <= 1:
+            return a, 0
+        mid = len(a) // 2
+        left, cl = sort(a[:mid])
+        right, cr = sort(a[mid:])
+        count, j = cl + cr, 0
+        for x in left:  # both halves are sorted
+            while j < len(right) and x > 2 * right[j]:
+                j += 1  # right[:j] are all smaller than x / 2
+            count += j
+        return sorted(left + right), count  # the merge step
+
+    return sort(nums)[1]
+'''
+pitfalls = [
+    "Count the cross pairs before merging, while both halves are still sorted.",
+    "The pointer j never moves back: x grows along the sorted left half.",
+    "The merge itself can use sorted() here; a hand-written merge makes the whole thing O(n log n) in practice.",
+]
+examples = ["reverse-pairs", "count-of-smaller-numbers-after-self"]
+
+[[extra.variant]]
+name = "Count of smaller numbers after self"
+note = "Merge sort on (value, index) pairs; when a left element moves out, add how many right elements went before it."
+template = '''
+def count_smaller(nums):
+    n = len(nums)
+    counts = [0] * n
+
+    def sort(items):
+        if len(items) <= 1:
+            return items
+        mid = len(items) // 2
+        left, right = sort(items[:mid]), sort(items[mid:])
+        merged, j = [], 0
+        for v, i in left:
+            while j < len(right) and right[j][0] < v:
+                merged.append(right[j])
+                j += 1  # these right elements are smaller than v
+            counts[i] += j
+            merged.append((v, i))
+        merged.extend(right[j:])
+        return merged
+
+    sort([(v, i) for i, v in enumerate(nums)])
+    return counts
+'''
+
 [[listed]]
 name = "Exact match"
 group = "Classic boundaries"
 note = "e.g. closed range, lo <= hi"
 
 [[listed]]
-name = "Lower bound / upper bound"
-group = "Classic boundaries"
-note = "Related lesson: Insertion point and boundaries"
-
-[[listed]]
-name = "First / last occurrence of a value"
-group = "Classic boundaries"
-note = "Related lesson: Insertion point and boundaries"
-
-[[listed]]
-name = "Floor / ceiling"
-group = "Classic boundaries"
-note = "Related lesson: Binary search on the answer"
-
-[[listed]]
-name = "Count of a value or of a range"
-group = "Classic boundaries"
-note = "Related lesson: Insertion point and boundaries"
-
-[[listed]]
-name = "First true in a monotone yes/no"
-group = "Classic boundaries"
-note = "Related lesson: Insertion point and boundaries"
-problems = [
-    { slug = "first-bad-version", title = "First Bad Version", number = 278, difficulty = "easy", premium = false },
-]
-
-[[listed]]
 name = "Predicate on index against value"
 group = "Classic boundaries"
 note = "Related lesson: Classic binary search"
-
-[[listed]]
-name = "H-index style"
-group = "Classic boundaries"
-note = "Related lesson: Classic binary search"
-problems = [
-    { slug = "h-index", title = "H-Index", number = 274, difficulty = "medium", premium = false },
-]
 
 [[listed]]
 name = "Nearest value / closest element"
@@ -368,61 +1100,8 @@ group = "2-D matrices"
 note = "Related lesson: Prefix sums with binary search"
 
 [[listed]]
-name = "Rows and columns both sorted"
-group = "2-D matrices"
-note = "e.g. staircase / per-row search"
-
-[[listed]]
-name = "Count negatives / first one per sorted row"
-group = "2-D matrices"
-note = "Related lesson: Insertion point and boundaries"
-
-[[listed]]
-name = "Kth smallest in a sorted matrix"
-group = "2-D matrices"
-note = "Related lesson: Classic binary search"
-problems = [
-    { slug = "kth-smallest-element-in-a-sorted-matrix", title = "Kth Smallest Element in a Sorted Matrix", number = 378, difficulty = "medium", premium = false },
-    { slug = "find-the-kth-smallest-sum-of-a-matrix-with-sorted-rows", title = "Find the Kth Smallest Sum of a Matrix With Sorted Rows", number = 1439, difficulty = "hard", premium = false },
-]
-
-[[listed]]
 name = "Smallest common element across sorted rows"
 group = "2-D matrices"
-
-[[listed]]
-name = "Minimise the maximum"
-group = "Search on the answer (minimise the max / maximise the min)"
-note = "Related lesson: Binary search on the answer"
-
-[[listed]]
-name = "Maximise the minimum"
-group = "Search on the answer (minimise the max / maximise the min)"
-note = "Related lesson: Binary search on the answer"
-
-[[listed]]
-name = "Smallest speed / rate / capacity that finishes in time"
-group = "Search on the answer (minimise the max / maximise the min)"
-note = "Related lesson: Binary search on the answer"
-
-[[listed]]
-name = "Smallest time that completes the work"
-group = "Search on the answer (minimise the max / maximise the min)"
-note = "Related lesson: Binary search on the answer"
-
-[[listed]]
-name = "Largest k that still works"
-group = "Search on the answer (minimise the max / maximise the min)"
-note = "Related lesson: Binary search on a count function"
-
-[[listed]]
-name = "Split into k groups"
-group = "Search on the answer (minimise the max / maximise the min)"
-note = "Related lesson: Binary search on a partition"
-
-[[listed]]
-name = "Greedy feasibility check"
-group = "Search on the answer (minimise the max / maximise the min)"
 
 [[listed]]
 name = "DP feasibility check"
@@ -439,28 +1118,9 @@ name = "Sliding window or deque per guess"
 group = "Search on the answer (minimise the max / maximise the min)"
 
 [[listed]]
-name = "Integer-math answer"
-group = "Search on the answer (minimise the max / maximise the min)"
-note = "e.g. square root, perfect square, special array"
-
-[[listed]]
-name = "First time or day a condition breaks"
-group = "Search on the answer (minimise the max / maximise the min)"
-note = "Related lesson: Insertion point and boundaries"
-
-[[listed]]
-name = "Real-valued answer with an epsilon / fixed iteration count"
-group = "Real numbers"
-
-[[listed]]
 name = "Geometric split"
 group = "Real numbers"
 note = "Related lesson: Binary search on a partition"
-
-[[listed]]
-name = "Square root by bisection / Newton"
-group = "Real numbers"
-note = "Related lesson: Binary search on a count function"
 
 [[listed]]
 name = "Ratio optimisation"
@@ -468,36 +1128,8 @@ group = "Real numbers"
 note = "e.g. Dinkelbach, minimum ratio"
 
 [[listed]]
-name = "Timestamp lookup in a per-key sorted list"
-group = "Indices of other structures"
-note = "Related lesson: Prefix sums with binary search"
-
-[[listed]]
-name = "Version / snapshot history"
-group = "Indices of other structures"
-
-[[listed]]
-name = "Prefix-sum array as the sorted index"
-group = "Indices of other structures"
-note = "Related lesson: Prefix sums with binary search"
-
-[[listed]]
-name = "Interval boundaries / calendar"
-group = "Indices of other structures"
-
-[[listed]]
-name = "Per-character position lists"
-group = "Indices of other structures"
-note = "e.g. next occurrence"
-
-[[listed]]
 name = "Sorted keys + offline queries"
 group = "Indices of other structures"
-
-[[listed]]
-name = "Sorted words / prefixes"
-group = "Indices of other structures"
-note = "e.g. autocomplete"
 
 [[listed]]
 name = "BST as an implicit sorted array"
@@ -515,55 +1147,9 @@ group = "Kth element problems"
 note = "Related lesson: Binary search on a partition"
 
 [[listed]]
-name = "Kth smallest in a sorted matrix"
-group = "Kth element problems"
-note = "Related lesson: Classic binary search"
-problems = [
-    { slug = "kth-smallest-element-in-a-sorted-matrix", title = "Kth Smallest Element in a Sorted Matrix", number = 378, difficulty = "medium", premium = false },
-    { slug = "find-the-kth-smallest-sum-of-a-matrix-with-sorted-rows", title = "Find the Kth Smallest Sum of a Matrix With Sorted Rows", number = 1439, difficulty = "hard", premium = false },
-]
-
-[[listed]]
-name = "Kth smallest pair distance"
-group = "Kth element problems"
-
-[[listed]]
-name = "Kth smallest product / sum of two sorted arrays"
-group = "Kth element problems"
-note = "Related lesson: Binary search on a partition"
-
-[[listed]]
 name = "Kth smallest subarray sum / range sum"
 group = "Kth element problems"
 note = "Related lesson: Binary search on the answer"
-
-[[listed]]
-name = "Kth missing positive / missing element"
-group = "Kth element problems"
-
-[[listed]]
-name = "Kth smallest in a multiplication table / ugly numbers"
-group = "Kth element problems"
-
-[[listed]]
-name = "Kth smallest fraction"
-group = "Kth element problems"
-note = "Related lesson: Binary search on the answer"
-
-[[listed]]
-name = "Count of elements <= x decides the side"
-group = "Counting-based search"
-note = "Related lesson: Insertion point and boundaries"
-
-[[listed]]
-name = "Count of missing numbers before index i"
-group = "Counting-based search"
-note = "Related lesson: Insertion point and boundaries"
-
-[[listed]]
-name = "Count pairs under a bound"
-group = "Counting-based search"
-note = "Related lesson: Insertion point and boundaries"
 
 [[listed]]
 name = "Count triples"
@@ -581,14 +1167,6 @@ group = "Counting-based search"
 problems = [
     { slug = "count-complete-tree-nodes", title = "Count Complete Tree Nodes", number = 222, difficulty = "medium", premium = false },
 ]
-
-[[listed]]
-name = "Count inversion-like pairs while merging"
-group = "Counting-based search"
-
-[[listed]]
-name = "Count negatives / positives in sorted data"
-group = "Counting-based search"
 
 [[listed]]
 name = "Sorted array of unknown length"
@@ -678,31 +1256,7 @@ name = "Threshold + DAG shortest-path DP"
 group = "Parametric search"
 
 [[listed]]
-name = "Sorted pair search"
-group = "Binary search + two pointers"
-note = "Related lesson: Classic binary search"
-
-[[listed]]
-name = "Bounded pairs and triples"
-group = "Binary search + two pointers"
-note = "e.g. sort, then bisect or squeeze"
-
-[[listed]]
-name = "Left fixed, bisect the right end"
-group = "Binary search + two pointers"
-note = "Related lesson: Insertion point and boundaries"
-
-[[listed]]
 name = "Window validity on prefix sums or sorted values"
-group = "Binary search + two pointers"
-
-[[listed]]
-name = "Match two sorted lists"
-group = "Binary search + two pointers"
-note = "e.g. nearest, intersection"
-
-[[listed]]
-name = "Pairs with a difference or a bound"
 group = "Binary search + two pointers"
 
 [[listed]]
@@ -723,20 +1277,6 @@ note = "e.g. compare mid and mid + 1"
 [[listed]]
 name = "Convex integer cost"
 group = "Ternary search"
-
-[[listed]]
-name = "LIS length, strict"
-group = "Bisect on tails (LIS)"
-note = "e.g. bisect_left on tails"
-
-[[listed]]
-name = "Longest non-decreasing / obstacle course"
-group = "Bisect on tails (LIS)"
-note = "e.g. bisect_right"
-
-[[listed]]
-name = "Sort one dimension, LIS on the other"
-group = "Bisect on tails (LIS)"
 
 [[listed]]
 name = "LIS from both ends"

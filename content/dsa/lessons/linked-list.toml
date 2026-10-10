@@ -749,6 +749,7 @@ examples = ["flatten-a-multilevel-doubly-linked-list", "flatten-binary-tree-to-l
 id = "Linked List:split-parts"
 name = "Split a list into parts"
 group = "Splitting"
+template_name = "Split into k parts"
 signals = [
     "cut a list into k parts of nearly equal size, the first ones longer",
     "length // k per part, and the first length % k parts get one extra node",

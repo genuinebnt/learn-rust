@@ -75,7 +75,7 @@ This is what `is_practice` already does in the API; the new problems use it unch
 | V6 | a problem's `lists` decide its list tag; nothing else sets it |
 | V7 | progress safety: no problem id that has progress is removed or renamed without an entry in `retired.txt` / the renames |
 
-## 8. The key insight of every problem (decided 2026-10-10, to be built after the technique cards)
+## 8. The key insight of every problem (decided 2026-10-10; built 2026-10-10)
 
 One short sentence that names the move that solves the problem: "Shortest path in an unweighted graph: BFS." "Pair lookup: a hash map of what you have passed." It is not a solution and not a hint; it is what a strong candidate says first.
 
@@ -88,7 +88,9 @@ One short sentence that names the move that solves the problem: "Shortest path i
 | K5 | Build check V8: every problem of `problems.json` and `practice.json` has an insight within the length limit; a premium problem has one too (it is about the idea, not the statement). |
 | K6 | Written per technique first (the card's signals are the starting point), then per problem; reviewed against the problem's technique so the sentence agrees with the card it sits under. |
 
-Order of work: finish the technique cards of every topic first (docs/DSA_LEARN_PAGE_STATUS.md), then write the insights.
+Status: all 1,669 problems have one (`content/dsa/insights.json`). The loader (`crates/content/src/dsa.rs`, `load_insights`) reports a problem without one, a sentence over 110 characters or with a backtick or newline, and a key for a problem the site does not have. The check is on whenever the file exists, and a content test pins that the site's own file does. `ProblemRow.insight` carries it to the web; `Insight` (`web/src/components/dsaBits.tsx`) draws the second line of a row, `.pp-ins` the labelled line on the problem page.
+
+**A problem added to the catalog (for example by `tools/neetcode/problem_catalog.py`) needs its insight in the same change; validation fails until it has one.** Write it as the first thing a strong candidate would say: the pattern or the observation, not the steps.
 
 ## 7. Status
 

@@ -66,6 +66,8 @@ pub(crate) struct ProblemRow<'a> {
     has_page: bool,
     /// `must`, `strong`, `practice` or `warmup`.
     priority: &'a str,
+    /// The key insight: one sentence naming the move that solves it.
+    insight: &'a str,
     /// Asked by a company of the site's set in the last six months.
     recent: bool,
     /// The narrowest NeetCode list it is in (`blind75`, `neetcode150`, `neetcode250`, `all`); none for a problem outside them.
@@ -163,6 +165,7 @@ pub(crate) fn row<'a>(t: &'a Track, p: &'a Problem, progress: &HashMap<String, P
         order: p.meta.order,
         has_page: d.page.is_some(),
         priority: &d.priority,
+        insight: &d.insight,
         recent: d.companies.iter().any(|c| c.recent),
         list_tag: narrowest_list(&d.lists),
         state: state_of(progress.get(&p.id), reviews.get(p.id.as_str()).copied(), today),

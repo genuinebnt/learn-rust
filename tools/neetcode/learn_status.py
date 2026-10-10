@@ -56,7 +56,7 @@ def main():
             f"- {totals['listed']} technique names have no card, of which {totals['idioms']} are idioms and pitfalls (implementation habits, "
             "edge cases, space tricks) that are named but would not make a card of their own. The rest are techniques: each is written the same way: signals, a template that passes a behaviour test "
             "against a brute force (`tools/neetcode/lesson_tests.py`), traps, and free LeetCode problems with companies and topic tags.",
-            "- A key insight for every problem (DSA_LEARN_PAGE_SPEC.md section 8), once the cards are done.", ""]
+            "- Every problem has a key insight (content/dsa/insights.json, DSA_LEARN_PAGE_SPEC.md section 8); a new catalog problem needs its sentence.", ""]
     (ROOT / "docs" / "DSA_LEARN_PAGE_STATUS.md").write_text("\n".join(out))
     print(f"{totals['cards']} cards, {totals['templates']} templates, {totals['listed']} names only")
 

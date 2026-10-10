@@ -1276,6 +1276,7 @@ async fn a_pattern_lists_its_techniques_with_lessons_and_progress(db: PgPool) {
     assert_eq!(outside.len(), 2, "two problems of this technique are outside the lists");
     assert!(outside.iter().all(|r| r["priority"].is_string() && r["companies"].as_array().is_some_and(|c| !c.is_empty()) && !r["tags"].as_array().unwrap().is_empty()));
     assert_eq!(rows[0]["list_tag"].as_str(), Some("blind75"), "the narrowest list it is in");
+    assert!(rows.iter().all(|r| r["insight"].is_string()), "every row carries its key insight (empty when the content has none)");
     // Logging one of them is tracked (it is solved) but not counted.
     let logged: Vec<_> = outside.iter().filter(|r| r["state"]["solved"].as_bool() == Some(true)).collect();
     assert_eq!(logged.len(), 1, "the logged practice problem shows as solved");

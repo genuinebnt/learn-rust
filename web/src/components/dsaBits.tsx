@@ -161,6 +161,11 @@ export function ProblemTags({ p }: { p: DsaProblem }) {
 
 /** A problem under a technique: the mark, the title (it opens the site's problem page, which links to LeetCode), the tags, and the
  *  companies and LeetCode topics that are asked about it. */
+/** The key insight of a problem, one line (docs/DSA_LEARN_PAGE_SPEC.md section 8). */
+export function Insight({ text }: { text: string }) {
+  return text ? <p className="d-ins">{text}</p> : null;
+}
+
 export function ProblemLine({ p, today }: { p: DsaProblem; today: string }) {
   return (
     <div className={`pl pl-${p.priority}${p.list_tag ? "" : " pl-out"}`}>
@@ -171,6 +176,7 @@ export function ProblemLine({ p, today }: { p: DsaProblem; today: string }) {
         </span>
         <ProblemTags p={p} />
       </Link>
+      <Insight text={p.insight} />
       <span className="pl-sub">
         {p.companies.slice(0, 3).map((c) => (
           <span key={c.name} className={`d-co${c.recent ? " hot" : ""}`} title={c.recent ? `${c.name}: asked in the last six months` : c.name}>{c.name}</span>

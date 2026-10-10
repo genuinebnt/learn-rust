@@ -205,3 +205,48 @@ fn every_problem_carries_companies_and_topic_tags_and_a_practice_problem_may_bel
     std::fs::write(dir.path().join("dsa/no_company.txt"), format!("# waived\n{id}\n")).unwrap();
     assert!(!issues().iter().any(|m| m.contains("needs at least one company")), "{:?}", issues());
 }
+
+#[test]
+fn every_problem_needs_a_short_plain_key_insight_once_the_file_exists() {
+    let dir = root_with(&std::fs::read_to_string(fixture().join("dsa/problems.json")).unwrap());
+    let issues = || -> Vec<String> { Catalog::load(dir.path()).unwrap().issues.into_iter().map(|i| i.message).collect() };
+    let write = |v: serde_json::Value| std::fs::write(dir.path().join("dsa/insights.json"), v.to_string()).unwrap();
+    let all = [
+        ("contains-duplicate", "A set remembers what you have seen."),
+        ("two-sum", "Look up the complement in a map of earlier values."),
+        ("encode-and-decode-strings", "Prefix each string with its length."),
+        ("valid-palindrome", "Two pointers moving inward."),
+        ("two-sum-ii-input-array-is-sorted", "Sorted input: move the pointer on the wrong side."),
+        ("reverse-string", "Swap the ends and move inward."),
+    ];
+    // no file: the check is off
+    assert!(issues().is_empty(), "{:?}", issues());
+    // complete: it loads, and the sentence reaches the problem (a premium problem needs one too)
+    write(serde_json::Value::Object(all.iter().map(|(k, v)| ((*k).into(), (*v).into())).collect()));
+    let loaded = Catalog::load(dir.path()).unwrap();
+    assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
+    assert_eq!(loaded.catalog.problem("lc-two-sum").unwrap().1.dsa.as_ref().unwrap().insight, "Look up the complement in a map of earlier values.");
+    // one missing, one too long, one with code in it, one for a problem the site does not have
+    let mut m: serde_json::Map<String, serde_json::Value> = all.iter().map(|(k, v)| ((*k).into(), (*v).into())).collect();
+    m.remove("two-sum");
+    m.insert("reverse-string".into(), "x".repeat(111).into());
+    m.insert("valid-palindrome".into(), "Use `two pointers`.".into());
+    m.insert("nope".into(), "A sentence.".into());
+    write(m.into());
+    let found = issues();
+    assert!(found.iter().any(|x| x.contains("lc-two-sum: needs a key insight")), "{found:?}");
+    assert!(found.iter().any(|x| x.contains("reverse-string: the insight must be one plain sentence")), "{found:?}");
+    assert!(found.iter().any(|x| x.contains("valid-palindrome: the insight must be one plain sentence")), "{found:?}");
+    assert!(found.iter().any(|x| x.contains("nope: isn't a problem of the site")), "{found:?}");
+}
+
+#[test]
+fn the_sites_own_content_has_an_insight_for_every_problem() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+    assert!(root.join("dsa/insights.json").exists(), "dsa/insights.json is missing: the insight check would be off");
+    let loaded = Catalog::load(&root).unwrap();
+    let bad: Vec<_> = loaded.issues.iter().filter(|i| i.message.contains("insight") || i.message.contains("isn't a problem of the site")).collect();
+    assert!(bad.is_empty(), "{bad:?}");
+    let all: Vec<_> = loaded.catalog.tracks.iter().filter(|t| t.section == Section::Dsa).chain(&loaded.catalog.practice_tracks).flat_map(|t| &t.problems).collect();
+    assert!(all.len() > 1000 && all.iter().all(|p| p.dsa.as_ref().is_some_and(|d| !d.insight.is_empty())));
+}

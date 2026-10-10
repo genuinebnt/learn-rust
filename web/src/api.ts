@@ -383,6 +383,8 @@ export interface DsaProblem {
   has_page: boolean;
   /** `must`, `strong`, `practice` or `warmup`. */
   priority: "must" | "strong" | "practice" | "warmup";
+  /** The key insight: one sentence naming the move that solves it. */
+  insight: string;
   /** Asked by a company of the site's set in the last six months. */
   recent: boolean;
   /** The narrowest NeetCode list it is in; null for a problem outside them. */

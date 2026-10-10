@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type DsaProblem } from "../api";
-import { Companies, Mark, ProblemTags, useLogger } from "../components/dsaBits";
+import { Companies, Insight, Mark, ProblemTags, useLogger } from "../components/dsaBits";
 import { PatternShell } from "../components/PatternShell";
 import { MINUTES, REVIEW_GRADES } from "../dsa";
 
@@ -59,6 +59,7 @@ function Row({ p, today, log }: { p: DsaProblem; today: string; log: ReturnType<
                     <span className="d-pnum">#{p.number}</span>
                     <Link className="d-ptitle" to="/d/$slug" params={{ slug: p.slug }}>{p.title}</Link>
                 </div>
+                <Insight text={p.insight} />
                 <div className="d-pmeta">
                     <ProblemTags p={p} />
                     <span>~{MINUTES[p.difficulty]}m</span>

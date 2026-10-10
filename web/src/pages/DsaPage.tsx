@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { api, type Activity, type Band, type DsaOverview, type DsaProblem, type TrackSummary } from "../api";
-import { Companies, Mark, ProblemTags, useLogger } from "../components/dsaBits";
+import { Companies, Insight, Mark, ProblemTags, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
 import { MockRoot, SlidingSeg, rise, useReady } from "../components/mock";
 import { CountUp } from "../components/kit";
@@ -663,6 +663,7 @@ function ProblemCard({ p, o, model, log, pickCompany, picked }: { p: DsaProblem;
             LeetCode ↗
           </a>
         </div>
+        <Insight text={p.insight} />
         <div className="d-pmeta">
           <ProblemTags p={p} />
           <span>{p.tags.slice(0, 3).join(" · ")}</span>

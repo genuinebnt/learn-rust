@@ -116,3 +116,8 @@ html.has-sb body{padding-bottom:30px}
 .s-root .s-flab{margin-bottom:12px}
 /* the filter rail: rows with room, counts that line up */
 .d-rail label,.d-fopt{min-height:34px}
+/* the key insight: one line under the title of a row, a labelled line on the problem page */
+.d-ins{margin:2px 0 4px;font-size:12.5px;line-height:1.45;color:var(--mut);text-wrap:pretty}
+.pl .d-ins{padding-left:28px;margin:0 0 4px}
+.pp-ins{margin:12px 0 0;display:flex;gap:10px;align-items:baseline;font-size:14px;line-height:1.5;color:var(--fg);max-width:78ch}
+.pp-ins b{flex:none;font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}

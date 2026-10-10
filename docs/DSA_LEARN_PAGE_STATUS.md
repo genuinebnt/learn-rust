@@ -29,4 +29,4 @@ A **card** is a technique with a tested Python implementation (signals, template
 ## What is still to do
 
 - 1456 technique names have no card, of which 165 are idioms and pitfalls (implementation habits, edge cases, space tricks) that are named but would not make a card of their own. The rest are techniques: each is written the same way: signals, a template that passes a behaviour test against a brute force (`tools/neetcode/lesson_tests.py`), traps, and free LeetCode problems with companies and topic tags.
-- A key insight for every problem (DSA_LEARN_PAGE_SPEC.md section 8), once the cards are done.
+- Every problem has a key insight (content/dsa/insights.json, DSA_LEARN_PAGE_SPEC.md section 8); a new catalog problem needs its sentence.

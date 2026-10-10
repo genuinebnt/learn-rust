@@ -94,3 +94,29 @@ test("the Learn tab counts the techniques that are not taught by a NeetCode prob
     await page.goto("/dsa/patterns/D11");
     await expect(page.getByRole("tab", { name: /Learn/ })).toContainText(`${p.techniques.length + p.extras.length} techniques`);
 });
+
+test("every problem has a one-line key insight, shown under the title and on the problem page", async ({ page, request }) => {
+    const plain = (p: { id: string; insight: string }) => !!p.insight && p.insight.length <= 110 && !p.insight.includes("`");
+    const o = await (await request.get("/api/dsa")).json();
+    expect(o.problems.length).toBeGreaterThan(900);
+    expect(o.problems.filter((p: { id: string; insight: string }) => !plain(p)).map((p: { id: string }) => p.id), "the lists").toHaveLength(0);
+    // the practice problems come with the pattern pages
+    let rows = 0;
+    for (const pat of o.patterns as { code: string }[]) {
+        const d = await (await request.get(`/api/dsa/patterns/${pat.code}`)).json();
+        const all = [...d.techniques.flatMap((t: { problems: unknown[] }) => t.problems), ...d.extras.flatMap((x: { examples: unknown[] }) => x.examples)] as { id: string; insight: string }[];
+        rows += all.length;
+        expect(all.filter((p) => !plain(p)).map((p) => p.id), `${pat.code} rows`).toHaveLength(0);
+    }
+    expect(rows).toBeGreaterThan(1500);
+    // the first row on the page, whichever technique the sections put first
+    await page.goto("/dsa/patterns/D2");
+    const row = page.locator(".pl").first();
+    const slug = (await row.locator("a.pl-top").getAttribute("href"))!.replace("/d/", "");
+    const all = await (await request.get("/api/dsa/problems/lc-" + slug + "/row")).json();
+    expect(all.insight).toBeTruthy();
+    await expect(row.locator(".d-ins")).toHaveText(all.insight);
+    await page.goto(`/d/${slug}`);
+    const first = all;
+    await expect(page.locator(".pp-ins")).toContainText(first.insight);
+});

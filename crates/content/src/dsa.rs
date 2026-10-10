@@ -81,6 +81,8 @@ pub struct DsaProblem {
     pub priority: String,
     /// For a practice problem, the must-learn problem that teaches its technique.
     pub practice_of: Option<String>,
+    /// The key insight: one sentence naming the move that solves it (`dsa/insights.json`, docs/DSA_LEARN_PAGE_SPEC.md section 8).
+    pub insight: String,
     /// The written lesson, when there is one. Served by its own endpoint, not with the lists.
     #[serde(skip)]
     pub page: Option<Page>,
@@ -302,6 +304,30 @@ fn no_company_waivers(root: &Path) -> std::collections::BTreeSet<String> {
     text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_owned).collect()
 }
 
+/// The longest key insight, in characters (rule K2).
+const INSIGHT_MAX: usize = 110;
+
+/// `<root>/dsa/insights.json`: `{ "<slug>": "<sentence>" }`, the key insight of every problem (rules K1 to K5). `None` when the file
+/// is absent (the check is then off; a test pins that the site's own content has the file). Bad sentences are reported here.
+fn load_insights(root: &Path, issues: &mut Vec<Issue>) -> Option<BTreeMap<String, String>> {
+    let path = root.join("dsa").join("insights.json");
+    let text = std::fs::read_to_string(&path).ok()?;
+    let map: BTreeMap<String, String> = match serde_json::from_str(&text) {
+        Ok(m) => m,
+        Err(e) => {
+            issues.push(Issue { path, message: format!("invalid JSON: {e}") });
+            return Some(BTreeMap::new());
+        }
+    };
+    for (slug, sentence) in &map {
+        let n = sentence.chars().count();
+        if sentence.trim().is_empty() || n > INSIGHT_MAX || sentence.contains('`') || sentence.contains('\n') {
+            issues.push(Issue { path: path.clone(), message: format!("{slug}: the insight must be one plain sentence of at most {INSIGHT_MAX} characters ({n} now)") });
+        }
+    }
+    Some(map)
+}
+
 /// Reads `<root>/dsa/problems.json` and `practice.json`. Absent means no DSA section; a broken file is reported, not fatal.
 pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
     let path = root.join("dsa").join("problems.json");
@@ -323,7 +349,11 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
         }
     }
     let waived = no_company_waivers(root);
+    let insights = load_insights(root, issues);
     for p in &file.problems {
+        if insights.as_ref().is_some_and(|m| !m.contains_key(&p.slug)) {
+            issues.push(Issue { path: path.clone(), message: format!("{}: needs a key insight in dsa/insights.json", p.id) });
+        }
         if p.companies.is_empty() && !waived.contains(&p.id) {
             issues.push(Issue { path: path.clone(), message: format!("{}: needs at least one company (mandatory; see dsa/no_company.txt)", p.id) });
         }
@@ -361,7 +391,7 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
                 .problems
                 .iter()
                 .filter(|p| p.pattern == *pattern)
-                .map(|p| problem(p, &names, root, pages.get(p.slug.as_str())))
+                .map(|p| problem(p, &names, root, pages.get(p.slug.as_str()), insights.as_ref()))
                 .collect();
             problems.sort_by_key(|p| p.meta.order);
             Track {
@@ -384,7 +414,13 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
     let practice_set = practice_ids(root);
     let loaded = load_lessons(root, &file.techniques, &by_id, &practice_set, issues);
     let extra_techniques: BTreeMap<String, String> = loaded.extras.iter().flat_map(|(pat, v)| v.iter().map(move |e| (e.id.clone(), pat.clone()))).collect();
-    let practice_tracks = load_practice(root, &file, &tracks, &names, &extra_techniques, issues);
+    let practice_tracks = load_practice(root, &file, &tracks, &names, &extra_techniques, insights.as_ref(), issues);
+    if let Some(m) = &insights {
+        let known = |slug: &str| by_id.contains_key(format!("lc-{slug}").as_str()) || practice_set.contains(&format!("lc-{slug}"));
+        for slug in m.keys().filter(|k| !known(k)) {
+            issues.push(Issue { path: root.join("dsa").join("insights.json"), message: format!("{slug}: isn't a problem of the site") });
+        }
+    }
     Loaded {
         tracks,
         practice_tracks,
@@ -404,7 +440,7 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
 /// `<root>/dsa/practice.json`: LeetCode problems **outside** the NeetCode lists that drill a technique (decision 24).
 /// They load as problems in a hidden copy of each pattern's track, so they can be logged and show in activity, but never
 /// count toward the lists, a track's readiness or the review schedule.
-fn load_practice(root: &Path, main: &File, tracks: &[Track], names: &BTreeMap<&str, &str>, extras: &BTreeMap<String, String>, issues: &mut Vec<Issue>) -> Vec<Track> {
+fn load_practice(root: &Path, main: &File, tracks: &[Track], names: &BTreeMap<&str, &str>, extras: &BTreeMap<String, String>, insights: Option<&BTreeMap<String, String>>, issues: &mut Vec<Issue>) -> Vec<Track> {
     let path = root.join("dsa").join("practice.json");
     let Ok(text) = std::fs::read_to_string(&path) else {
         return Vec::new();
@@ -441,7 +477,10 @@ fn load_practice(root: &Path, main: &File, tracks: &[Track], names: &BTreeMap<&s
         } else if !tracks.iter().any(|t| t.name == p.pattern) {
             issues.push(problem_issue(format!("unknown pattern {}", p.pattern)));
         } else {
-            by_pattern.entry(p.pattern.as_str()).or_default().push(problem(p, names, root, None));
+            if insights.is_some_and(|m| !m.contains_key(&p.slug)) {
+                issues.push(problem_issue("needs a key insight in dsa/insights.json".into()));
+            }
+            by_pattern.entry(p.pattern.as_str()).or_default().push(problem(p, names, root, None, insights));
         }
     }
     tracks
@@ -465,7 +504,7 @@ fn load_practice(root: &Path, main: &File, tracks: &[Track], names: &BTreeMap<&s
         .collect()
 }
 
-fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path, page: Option<&Page>) -> Problem {
+fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path, page: Option<&Page>, insights: Option<&BTreeMap<String, String>>) -> Problem {
     Problem {
         id: p.id.clone(),
         meta: ProblemFile {
@@ -507,6 +546,7 @@ fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path, page: Option<&Pag
             role: p.role,
             priority: p.priority.clone().unwrap_or_else(|| if p.role == Role::MustLearn { "must".into() } else { "practice".into() }),
             practice_of: p.practice_of.clone(),
+            insight: insights.and_then(|m| m.get(&p.slug)).cloned().unwrap_or_default(),
             page: page.cloned(),
         }),
     }

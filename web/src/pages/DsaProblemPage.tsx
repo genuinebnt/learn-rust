@@ -207,6 +207,7 @@ export function DsaProblemPage({ slug }: { slug: string }) {
                         {technique && <span className="pp-b tech">{technique.name}</span>}
                     </div>
                     {p.tags.length > 0 && <div className="pp-tags">{p.tags.map((t) => <span key={t}>{t}</span>)}</div>}
+                    {p.insight && <p className="pp-ins"><b>Key insight</b>{p.insight}</p>}
                     <nav className="pp-subnav" aria-label="Sections">
                         {sections.map((x) => (
                             <button key={x.id} className={section === x.id ? "on" : ""} aria-current={section === x.id} onClick={() => go(x.id)}>{x.label}</button>

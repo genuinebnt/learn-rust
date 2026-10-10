@@ -44,7 +44,7 @@ Rust toolchain, and its git must be able to read the repository (an SSH key, or 
   `Host` / `X-Forwarded-*` headers) and `GET /downloads/*` (public static files). `GET`/`PUT /api/courses/{course}/repo` store the
   repository URL in `course_repos` (migration 0016).
 - **CLI** (`crates/cli/src/course.rs`): `remote` and `restore`; `course_sync.rs` has the two calls to the app.
-- **Web**: the Get started panel on the Courses page shows the install line as step 1, and an "Another laptop" panel.
+- **Web**: the Get started panel on the Courses page shows the install line as step 1 and the last run the CLI reported (`last_run` in the course overview, from any laptop), and an "Another laptop" panel.
 
 The binary embeds the course template, so a downloaded CLI matches the app it came from; after a new module ships, the learner runs
 `anneal course update` (the CLI of a new deploy has the new stages).

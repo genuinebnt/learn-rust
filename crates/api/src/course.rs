@@ -98,7 +98,11 @@ pub async fn overview(State(s): State<AppState>, Path(course): Path<String>) -> 
     let total = c.stages().filter(|x| x.kind != "challenge").count();
     // the next stage is the first undone one in the course's own order (the optional primer, project 0, comes last in it)
     let current: Option<&str> = c.modules.iter().filter(|m| !m.planned && !m.optional).flat_map(|m| m.stages.iter()).filter(|x| x.kind != "challenge").find(|x| status(st.get(&x.id)) == "todo").map(|x| x.id.as_str());
-    Ok(Json(json!({ "id": c.id, "title": c.title, "total": total, "done": done, "challenges": challenges, "challenges_done": challenges_done, "current": current, "projects": projects })))
+    // The last run the CLI reported, from any laptop: tells you whether the CLI you are using is signed in to this app.
+    let last_run: Option<(String, bool, i32, i32, DateTime<Utc>)> =
+        sqlx::query_as("SELECT stage_id, ok, passed, total, at FROM course_runs WHERE course = $1 ORDER BY at DESC, id DESC LIMIT 1").bind(&c.id).fetch_optional(&s.db).await?;
+    let last_run = last_run.map(|(stage, ok, passed, total, at)| json!({ "stage_id": stage, "ok": ok, "passed": passed, "total": total, "at": at }));
+    Ok(Json(json!({ "id": c.id, "title": c.title, "total": total, "done": done, "challenges": challenges, "challenges_done": challenges_done, "current": current, "last_run": last_run, "projects": projects })))
 }
 
 #[derive(Serialize, sqlx::FromRow)]

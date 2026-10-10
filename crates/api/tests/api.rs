@@ -1779,3 +1779,15 @@ async fn the_installer_names_the_address_it_was_fetched_from(db: PgPool) {
     assert!(get("127.0.0.1:8787", None).await.1.contains("base=\"http://127.0.0.1:8787\""), "plain http for a local server");
     assert!(get("evil.example/\";rm -rf ~;\"", None).await.1.contains("base=\"http://localhost:8787\""), "a host with odd characters is not echoed into the script");
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn the_overview_names_the_last_run_the_cli_reported(db: PgPool) {
+    let app = test_app(db);
+    assert!(call(&app, Method::GET, "/api/courses/bustub", None).await.1["last_run"].is_null(), "nothing reported yet");
+    let pass = |id: &str| json!({ "stage_id": id, "tests": [{"name": "a", "ok": true}] });
+    assert_eq!(call(&app, Method::POST, "/api/courses/bustub/runs", Some(pass("1a-01"))).await.0, StatusCode::OK);
+    assert_eq!(call(&app, Method::POST, "/api/courses/bustub/runs", Some(pass("1a-02"))).await.0, StatusCode::OK);
+    let last = call(&app, Method::GET, "/api/courses/bustub", None).await.1["last_run"].clone();
+    assert_eq!(last["stage_id"], "1a-02", "{last}");
+    assert_eq!((last["ok"].as_bool(), last["passed"].as_i64(), last["total"].as_i64()), (Some(true), Some(1), Some(1)));
+}

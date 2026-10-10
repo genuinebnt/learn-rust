@@ -171,3 +171,10 @@ test("a link to a planned Rust track lands on a planned page, not an error", asy
     await expect(page.getByTestId("planned-track")).toContainText("C1 · Threads & shared state");
     await expect(page.getByTestId("planned-track")).toContainText("planned");
 });
+
+test("the get started card says what the CLI last reported", async ({ page, request }) => {
+    // a stage no other test opens, so this does not change what they see
+    await request.post("/api/courses/bustub/runs", { data: { stage_id: "0d-01", tests: [{ name: "a", ok: true, detail: "" }] } });
+    await page.goto("/courses/bustub");
+    await expect(page.getByTestId("cli-status")).toContainText("Last run from the CLI: 0d-01");
+});

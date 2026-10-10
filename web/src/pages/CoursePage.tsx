@@ -7,6 +7,7 @@ import { CountUp } from "../components/kit";
 import { MockCopy, MockRoot, reducedMotion, useReady } from "../components/mock";
 import { toast } from "../components/toasts";
 import { getPref, setPref } from "../prefs";
+import { ago } from "./stage/shared";
 import { plannedCount, useShowPlanned, withoutPlanned } from "./plannedModules";
 
 /** "Project 3" for BusTub's four projects; the optional extras (the Rust on-ramp, the primer) are named by their title. */
@@ -298,7 +299,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                     <button className="k-ea" onClick={() => choose(allOpen ? [] : allModules.map((m) => m.code))} disabled={active}>
                                         {allOpen ? "COLLAPSE ALL" : "EXPAND ALL"}
                                     </button>
-                                    <button className="k-ea" aria-expanded={resetOpen} onClick={() => setResetOpen(!resetOpen)} title="Forget your progress for the whole course, a project or a module">
+                                    <button className="k-ea k-danger" aria-expanded={resetOpen} onClick={() => setResetOpen(!resetOpen)} title="Forget your progress for the whole course, a project or a module">
                                         RESET PROGRESS
                                     </button>
                                     {planned > 0 && (
@@ -390,6 +391,15 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                         </div>
                                     ))}
                                     <p className="k-note">Step 1 installs the CLI on macOS or Linux. It needs git, curl and Rust.</p>
+                                    <p className="k-note" data-testid="cli-status">
+                                        {c.last_run ? (
+                                            <>
+                                                Last run from the CLI: <b>{c.last_run.stage_id}</b> · {c.last_run.ok ? "passed" : `${c.last_run.passed} / ${c.last_run.total} passing`} · {ago(c.last_run.at)}
+                                            </>
+                                        ) : (
+                                            <>No run reported yet. After <code>anneal course login</code>, <code>anneal course test</code> reports here.</>
+                                        )}
+                                    </p>
                                 </div>
                                 <div className="k-sc k-rv" style={{ "--i": 6 } as CSSProperties}>
                                     <h5>

@@ -444,3 +444,9 @@ a.tr.kb, .tr.kb { background: var(--sel); box-shadow: inset 3px 0 0 var(--vio); 
 .trk-reset input{font:500 13px var(--mono);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
 .trk-reset button.trk-del{justify-self:start;font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--bad);background:none;border:1px solid var(--bad);border-radius:6px;padding:8px 14px;cursor:pointer}
 .trk-reset button.trk-del:disabled{opacity:.4;cursor:default}
+
+.btn.danger{color:var(--bad);border-color:color-mix(in oklab,var(--bad) 45%,var(--line))}
+.btn.danger:hover{background:var(--bad-bg)}
+.ps-tabs .ps-reset{margin-left:auto;margin-right:14px;padding:6px 12px;font:600 11.5px var(--mono);letter-spacing:.04em;color:var(--bad);border:1px solid color-mix(in oklab,var(--bad) 45%,var(--line));border-radius:6px;background:none;cursor:pointer}
+.ps-tabs .ps-reset:hover{background:var(--bad-bg)}
+.ps-tabs .ps-reset + .hintkeys{margin-left:0}

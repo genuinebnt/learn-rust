@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { api } from "../api";
 import { Header } from "./Header";
+import { ResetTrack } from "./ResetTrack";
 
 export type PatternTab = "learn" | "problems" | "practice";
 const KEYS: PatternTab[] = ["learn", "problems", "practice"];
@@ -17,6 +18,7 @@ export function PatternShell({ code, tab, children }: { code: string; tab: Patte
     const at = patterns.findIndex((p) => p.code.toLowerCase() === code.toLowerCase() || p.slug === code);
     const pattern = at >= 0 ? patterns[at] : undefined;
     const strip = useRef<HTMLDivElement>(null);
+    const [resetOpen, setResetOpen] = useState(false);
 
     const go = (c: string, t: PatternTab) => {
         if (t === "learn") void navigate({ to: "/dsa/patterns/$code", params: { code: c } });
@@ -97,8 +99,14 @@ export function PatternShell({ code, tab, children }: { code: string; tab: Patte
                                 </Link>
                             ),
                         )}
+                        {pattern && (
+                            <button className="ps-reset" aria-expanded={resetOpen} onClick={() => setResetOpen(!resetOpen)} title="Forget your progress on this pattern">
+                                Reset progress
+                            </button>
+                        )}
                         <span className="hintkeys"><kbd>[</kbd> <kbd>]</kbd> change pattern</span>
                     </div>
+                    {pattern && resetOpen && <ResetTrack slug={pattern.slug} name={pattern.name} onDone={() => setResetOpen(false)} />}
                     {children}
                 </div>
             </main>

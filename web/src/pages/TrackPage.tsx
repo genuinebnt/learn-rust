@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api, ApiError, type Band, type StageView } from "../api";
 import { Header } from "../components/Header";
-import { toast } from "../components/toasts";
+import { ResetTrack } from "../components/ResetTrack";
 import { Level, ModeTag, Phase, Sech, Segs, StatusIcon, pad2, progressLabel } from "../components/bits";
 import { BLURB, NAV_SECTIONS, SECTION_NAMES, type NavArea } from "../curriculum";
 import { TRACK_SLUGS } from "../trackSlugs";
@@ -34,40 +34,6 @@ function stageKind(s: StageView, isCurrent: boolean) {
   if (s.total > 0 && s.solved === s.total) return "done" as const;
   if (isCurrent) return "cur" as const;
   return s.solved > 0 ? ("open" as const) : ("ahead" as const);
-}
-
-/** "Reset progress" for one track: forgets what you solved here. Asks for the word "reset" first. */
-function ResetTrack({ slug, name, onDone }: { slug: string; name: string; onDone: () => void }) {
-  const qc = useQueryClient();
-  const [word, setWord] = useState("");
-  const [busy, setBusy] = useState(false);
-  const go = async () => {
-    setBusy(true);
-    try {
-      const r = await api.resetTrack(slug);
-      toast("ok", "Progress reset", `${r.attempts_removed} attempt${r.attempts_removed === 1 ? "" : "s"} on ${r.problems} problems forgotten.`);
-      await qc.invalidateQueries();
-      onDone();
-    } catch (e) {
-      toast("in", "Could not reset", e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="trk-reset" role="group" aria-label="Reset progress">
-      <p>
-        Forgets what you solved in <b>{name}</b>: attempts, runs, saved drafts, scratch files and the review schedule of its problems. Your written solutions are kept.
-      </p>
-      <label>
-        Type <b>reset</b> to confirm
-        <input value={word} onChange={(e) => setWord(e.target.value)} placeholder="reset" autoComplete="off" />
-      </label>
-      <button className="trk-del" disabled={word.trim() !== "reset" || busy} onClick={go}>
-        {busy ? "Resetting…" : "Reset progress"}
-      </button>
-    </div>
-  );
 }
 
 export function TrackPage({ slug }: { slug: string }) {
@@ -195,7 +161,7 @@ export function TrackPage({ slug }: { slug: string }) {
                     {nextUp.progress === "started" ? "Resume" : "Start"} · {nextUp.title} →
                   </Link>
                 )}
-                <button className="btn sm" aria-expanded={resetOpen} onClick={() => setResetOpen(!resetOpen)} title="Forget your progress on this track">
+                <button className="btn sm danger" aria-expanded={resetOpen} onClick={() => setResetOpen(!resetOpen)} title="Forget your progress on this track">
                   Reset progress
                 </button>
               </div>

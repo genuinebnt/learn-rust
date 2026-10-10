@@ -834,6 +834,8 @@ export interface CourseOverview {
   challenges_done?: number;
   /** The first stage not passed yet. */
   current: string | null;
+  /** The newest run the CLI reported for this course, from any laptop. */
+  last_run?: { stage_id: string; ok: boolean; passed: number; total: number; at: string } | null;
   projects: { number: number; title: string; planned: boolean;
   /** Not on the main path: the next stage is never picked from it. */
   optional?: boolean; modules: CourseModuleRow[] }[];

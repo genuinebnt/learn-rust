@@ -11949,3 +11949,539 @@ def _(ns):
 
         want = n + sum(1 for i in range(n) for j in range(i + 1, n) if vals[i] == vals[j] and all(vals[k] <= vals[i] for k in path(i, j)))
         assert f(vals[:], [e[:] for e in edges]) == want
+
+
+# ---- 1-d dynamic programming (extras) -------------------------------------------------------------------------------
+
+D1 = "1-D Dynamic Programming"
+
+
+@test(f"{D1}:build-strings")
+def _(ns):
+    f = ns["count_good_strings"]
+    assert f(3, 3, 1, 1) == 8 and f(2, 3, 1, 2) == 5
+    r = random.Random(1700)
+    for _ in range(150):
+        lo = r.randint(1, 6)
+        hi = lo + r.randint(0, 4)
+        z, o = r.randint(1, 3), r.randint(1, 3)
+        count = 0
+        for length in range(lo, hi + 1):
+            def go(rem):
+                return 1 if rem == 0 else (go(rem - z) if rem >= z else 0) + (go(rem - o) if rem >= o else 0)
+            count += go(length)
+        assert f(lo, hi, z, o) == count % (10**9 + 7)
+
+
+@test(f"{D1}:build-strings#Count number of texts")
+def _(ns):
+    f = ns["count_texts"]
+    assert f("22233") == 8 and f("222222222222222222222222222222222222") == 82876089
+    r = random.Random(1701)
+    mapping = {"2": "abc", "3": "def", "4": "ghi", "5": "jkl", "6": "mno", "7": "pqrs", "8": "tuv", "9": "wxyz"}
+    for _ in range(100):
+        keys = "".join(r.choice("279") for _ in range(r.randint(1, 8)))
+
+        def go(i):
+            if i == len(keys):
+                return 1
+            total, k = 0, 1
+            while i + k <= len(keys) and keys[i + k - 1] == keys[i] and k <= len(mapping[keys[i]]):
+                total += go(i + k)
+                k += 1
+            return total
+
+        assert f(keys) == go(0)
+
+
+@test(f"{D1}:over-days")
+def _(ns):
+    f = ns["mincost_tickets"]
+    assert f([1, 4, 6, 7, 8, 20], [2, 7, 15]) == 11 and f([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 30, 31], [2, 7, 15]) == 17
+    r = random.Random(1702)
+    for _ in range(150):
+        days = sorted(r.sample(range(1, 25), r.randint(1, 8)))
+        costs = [r.randint(1, 5), r.randint(3, 12), r.randint(8, 25)]
+
+        def best(i):
+            if i == len(days):
+                return 0
+            return min(c + best(next((j for j in range(i, len(days)) if days[j] >= days[i] + span), len(days)))
+                       for c, span in zip(costs, (1, 7, 30)))
+
+        assert f(days[:], costs[:]) == best(0)
+
+
+@test(f"{D1}:over-days#Delete and earn")
+def _(ns):
+    f = ns["delete_and_earn"]
+    assert f([3, 4, 2]) == 6 and f([2, 2, 3, 3, 3, 4]) == 9
+    r = random.Random(1703)
+    for _ in range(200):
+        a = [r.randint(1, 6) for _ in range(r.randint(1, 8))]
+        vals = sorted(set(a))
+        best = 0
+        for mask in range(1 << len(vals)):
+            chosen = [vals[i] for i in range(len(vals)) if mask >> i & 1]
+            if all(y - x > 1 for x, y in zip(chosen, chosen[1:])):
+                best = max(best, sum(v * a.count(v) for v in chosen))
+        assert f(a[:]) == best
+
+
+@test(f"{D1}:over-days#Solving questions with brainpower")
+def _(ns):
+    f = ns["most_points"]
+    assert f([[3, 2], [4, 3], [4, 4], [2, 5]]) == 5 and f([[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]]) == 7
+    r = random.Random(1704)
+    for _ in range(150):
+        q = [[r.randint(1, 9), r.randint(0, 3)] for _ in range(r.randint(1, 7))]
+
+        def go(i):
+            if i >= len(q):
+                return 0
+            return max(go(i + 1), q[i][0] + go(i + q[i][1] + 1))
+
+        assert f([x[:] for x in q]) == go(0)
+
+
+@test(f"{D1}:order-matters")
+def _(ns):
+    f = ns["combination_sum4"]
+    assert f([1, 2, 3], 4) == 7 and f([9], 3) == 0
+    r = random.Random(1705)
+    for _ in range(150):
+        nums = r.sample(range(1, 6), r.randint(1, 3))
+        t = r.randint(1, 9)
+
+        def go(rem):
+            return 1 if rem == 0 else sum(go(rem - x) for x in nums if x <= rem)
+
+        assert f(nums[:], t) == go(t)
+
+
+@test(f"{D1}:order-matters#Coin change II (combinations)")
+def _(ns):
+    f = ns["change"]
+    assert f(5, [1, 2, 5]) == 4 and f(3, [2]) == 0 and f(10, [10]) == 1
+    r = random.Random(1706)
+    for _ in range(150):
+        coins = r.sample(range(1, 6), r.randint(1, 3))
+        amount = r.randint(0, 12)
+        count = 0
+        for combo in _it.product(*[range(amount // c + 1) for c in coins]):
+            if sum(k * c for k, c in zip(combo, coins)) == amount:
+                count += 1
+        assert f(amount, coins[:]) == count
+
+
+@test(f"{D1}:order-matters#Sum of powers (each number once)")
+def _(ns):
+    f = ns["number_of_ways"]
+    assert f(10, 2) == 1 and f(4, 1) == 2
+    for n in range(1, 40):
+        for x in (1, 2, 3):
+            bases = [b for b in range(1, n + 1) if b**x <= n]
+            if len(bases) > 14:
+                continue  # the brute force enumerates every subset
+            want = sum(1 for k in range(len(bases) + 1) for c in _it.combinations(bases, k) if sum(b**x for b in c) == n)
+            assert f(n, x) == want
+
+
+@test(f"{D1}:lis-families")
+def _(ns):
+    f = ns["longest_str_chain"]
+    assert f(["a", "b", "ba", "bca", "bda", "bdca"]) == 4 and f(["abcd", "dbqca"]) == 1
+    r = random.Random(1707)
+    for _ in range(100):
+        words = list({"".join(r.choice("ab") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 7))})
+
+        def pred(a, b):
+            return len(a) + 1 == len(b) and any(b[:i] + b[i + 1:] == a for i in range(len(b)))
+
+        words.sort(key=len)
+        dp = {}
+        for w in words:
+            dp[w] = 1 + max([dp[u] for u in words if u in dp and pred(u, w)] or [0])
+        assert f(words[:]) == max(dp.values())
+
+
+@test(f"{D1}:lis-families#Arithmetic subsequence of a given difference")
+def _(ns):
+    f = ns["longest_subsequence"]
+    assert f([1, 2, 3, 4], 1) == 4 and f([1, 5, 7, 8, 5, 3, 4, 2, 1], -2) == 4
+    r = random.Random(1708)
+    for _ in range(150):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 8))]
+        d = r.randint(-2, 2)
+        dp = [1] * len(a)
+        for i in range(len(a)):
+            for j in range(i):
+                if a[i] - a[j] == d:
+                    dp[i] = max(dp[i], dp[j] + 1)
+        assert f(a[:], d) == max(dp)
+
+
+@test(f"{D1}:lis-families#Mountain array: LIS from both ends")
+def _(ns):
+    f = ns["minimum_mountain_removals"]
+    assert f([1, 3, 1]) == 0 and f([2, 1, 1, 5, 6, 2, 3, 1]) == 3
+    r = random.Random(1709)
+    for _ in range(150):
+        a = [r.randint(1, 6) for _ in range(r.randint(3, 8))]
+        best = 0
+        for mask in range(1 << len(a)):
+            sub = [a[i] for i in range(len(a)) if mask >> i & 1]
+            if len(sub) >= 3:
+                k = sub.index(max(sub))
+                if 0 < k < len(sub) - 1 and all(sub[i] < sub[i + 1] for i in range(k)) and all(sub[i] > sub[i + 1] for i in range(k, len(sub) - 1)):
+                    best = max(best, len(sub))
+        assert f(a[:]) == len(a) - best
+
+
+@test(f"{D1}:lis-families#Number of longest increasing subsequences")
+def _(ns):
+    f = ns["find_number_of_lis"]
+    assert f([1, 3, 5, 4, 7]) == 2 and f([2, 2, 2, 2, 2]) == 5
+    r = random.Random(1710)
+    for _ in range(150):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 8))]
+        best, cnt = 0, 0
+        for mask in range(1, 1 << len(a)):
+            sub = [a[i] for i in range(len(a)) if mask >> i & 1]
+            if all(x < y for x, y in zip(sub, sub[1:])):
+                if len(sub) > best:
+                    best, cnt = len(sub), 1
+                elif len(sub) == best:
+                    cnt += 1
+        assert f(a[:]) == cnt
+
+
+@test(f"{D1}:small-state-count")
+def _(ns):
+    f = ns["num_ways"]
+    assert f(3, 2) == 6 and f(1, 1) == 1 and f(7, 2) == 42
+    for n in range(1, 7):
+        for k in range(1, 4):
+            want = sum(1 for p in _it.product(range(k), repeat=n) if not any(p[i] == p[i + 1] == p[i + 2] for i in range(n - 2)))
+            assert f(n, k) == want
+
+
+@test(f"{D1}:small-state-count#Paint house")
+def _(ns):
+    f = ns["min_cost"]
+    assert f([[17, 2, 17], [16, 16, 5], [14, 3, 19]]) == 10
+    r = random.Random(1711)
+    for _ in range(150):
+        costs = [[r.randint(1, 9) for _ in range(3)] for _ in range(r.randint(1, 5))]
+        want = min(sum(costs[i][c] for i, c in enumerate(p)) for p in _it.product(range(3), repeat=len(costs)) if all(p[i] != p[i + 1] for i in range(len(p) - 1)))
+        assert f([c[:] for c in costs]) == want
+
+
+@test(f"{D1}:small-state-count#Count ways to place houses")
+def _(ns):
+    f = ns["count_house_placements"]
+    assert f(1) == 4 and f(2) == 9
+    for n in range(1, 10):
+        one = sum(1 for p in _it.product([0, 1], repeat=n) if not any(p[i] and p[i + 1] for i in range(n - 1)))
+        assert f(n) == one * one % (10**9 + 7)
+
+
+@test(f"{D1}:small-state-count#Number of ways to paint an n x 3 grid")
+def _(ns):
+    f = ns["num_of_ways"]
+    assert f(1) == 12 and f(5000) == 30228214
+    for n in range(1, 4):
+        rows = [r for r in _it.product(range(3), repeat=3) if r[0] != r[1] and r[1] != r[2]]
+        count = sum(1 for g in _it.product(rows, repeat=n) if all(a[i] != b[i] for a, b in zip(g, g[1:]) for i in range(3)))
+        assert f(n) == count
+
+
+@test(f"{D1}:interval-games")
+def _(ns):
+    f = ns["predict_the_winner"]
+    assert f([1, 5, 2]) is False and f([1, 5, 233, 7]) is True
+    r = random.Random(1712)
+    for _ in range(200):
+        a = [r.randint(0, 9) for _ in range(r.randint(1, 8))]
+
+        def diff(i, j):
+            return a[i] if i == j else max(a[i] - diff(i + 1, j), a[j] - diff(i, j - 1))
+
+        assert f(a[:]) is (diff(0, len(a) - 1) >= 0)
+
+
+@test(f"{D1}:interval-games#Stone game VII")
+def _(ns):
+    f = ns["stone_game_vii"]
+    assert f([5, 3, 1, 4, 2]) == 6 and f([7, 90, 5, 1, 100, 10, 10, 2]) == 122
+    r = random.Random(1713)
+    for _ in range(150):
+        s = [r.randint(1, 9) for _ in range(r.randint(2, 7))]
+
+        def diff(i, j):
+            if i == j:
+                return 0
+            return max(sum(s[i + 1:j + 1]) - diff(i + 1, j), sum(s[i:j]) - diff(i, j - 1))
+
+        assert f(s[:]) == diff(0, len(s) - 1)
+
+
+@test(f"{D1}:interval-games#Nim game and divisor game (closed forms)")
+def _(ns):
+    nim, div = ns["can_win_nim"], ns["divisor_game"]
+    from functools import lru_cache
+
+    @lru_cache(None)
+    def nim_ref(n):
+        return any(not nim_ref(n - k) for k in (1, 2, 3) if k <= n)
+
+    @lru_cache(None)
+    def div_ref(n):
+        return any(not div_ref(n - x) for x in range(1, n) if n % x == 0)
+
+    for n in range(1, 40):
+        assert nim(n) is nim_ref(n) and div(n) is div_ref(n)
+
+
+@test(f"{D1}:bitmask-subsets")
+def _(ns):
+    f = ns["max_score"]
+    assert f([1, 2]) == 1 and f([3, 4, 6, 8]) == 11 and f([1, 2, 3, 4, 5, 6]) == 14
+    from math import gcd
+    r = random.Random(1714)
+    for _ in range(40):
+        a = [r.randint(1, 12) for _ in range(2 * r.randint(1, 3))]
+
+        def pairings(rest):
+            if not rest:
+                yield []
+                return
+            x = rest[0]
+            for i in range(1, len(rest)):
+                for p in pairings(rest[1:i] + rest[i + 1:]):
+                    yield [(x, rest[i])] + p
+
+        best = max(sum((k + 1) * gcd(*pair) for k, pair in enumerate(order)) for p in pairings(a) for order in _it.permutations(p))
+        assert f(a[:]) == best
+
+
+@test(f"{D1}:bitmask-subsets#Shortest path visiting all nodes")
+def _(ns):
+    f = ns["shortest_path_length"]
+    assert f([[1, 2, 3], [0], [0], [0]]) == 4 and f([[1], [0, 2, 4], [1, 3, 4], [2], [1, 2]]) == 4 and f([[]]) == 0
+    r = random.Random(1715)
+    for _ in range(80):
+        n = r.randint(1, 5)
+        edges = {(a, b) for a in range(n) for b in range(a + 1, n) if r.random() < 0.5}
+        g = [[b for b in range(n) if (min(a, b), max(a, b)) in edges] for a in range(n)]
+        comp = _components(n, [(a, b) for a, b in edges])
+        if len(set(comp)) != 1:
+            continue
+        best = float("inf")
+        for walk_len in range(0, 12):
+            found = False
+            for start in range(n):
+                frontier = {(start, 1 << start)}
+                for _ in range(walk_len):
+                    frontier = {(v, m | 1 << v) for u, m in frontier for v in g[u]}
+                if any(m == (1 << n) - 1 for _, m in frontier):
+                    found = True
+                    break
+            if found:
+                best = walk_len
+                break
+        assert f([x[:] for x in g]) == best
+
+
+@test(f"{D1}:bitmask-subsets#Optimal account balancing")
+def _(ns):
+    f = ns["min_transfers"]
+    assert f([[0, 1, 10], [2, 0, 5]]) == 2 and f([[0, 1, 10], [1, 0, 1], [1, 2, 5], [2, 0, 5]]) == 1
+    r = random.Random(1716)
+    for _ in range(40):
+        tx = [[r.randrange(4), r.randrange(4), r.randint(1, 5)] for _ in range(r.randint(1, 5))]
+        bal = [0] * 4
+        for a, b, m in tx:
+            bal[a] -= m
+            bal[b] += m
+        debts = [x for x in bal if x]
+
+        def brute(i):
+            while i < len(debts) and debts[i] == 0:
+                i += 1
+            if i == len(debts):
+                return 0
+            best = float("inf")
+            for j in range(i + 1, len(debts)):
+                if debts[i] * debts[j] < 0:
+                    debts[j] += debts[i]
+                    best = min(best, 1 + brute(i + 1))
+                    debts[j] -= debts[i]
+            return best
+
+        assert f([t[:] for t in tx]) == brute(0)
+
+
+@test(f"{D1}:digit-dp")
+def _(ns):
+    f = ns["count_special_numbers"]
+    assert f(20) == 19 and f(5) == 5 and f(135) == 110
+    for n in list(range(1, 400)) + [1000, 3000]:
+        assert f(n) == sum(1 for x in range(1, n + 1) if len(set(str(x))) == len(str(x))), n
+
+
+@test(f"{D1}:digit-dp#Non-negative integers without consecutive ones")
+def _(ns):
+    f = ns["find_integers"]
+    assert f(5) == 5 and f(1) == 2 and f(2) == 3
+    for n in range(0, 600):
+        assert f(n) == sum(1 for x in range(0, n + 1) if "11" not in bin(x)), n
+
+
+@test(f"{D1}:probability")
+def _(ns):
+    f = ns["knight_probability"]
+    assert abs(f(3, 2, 0, 0) - 0.0625) < 1e-9 and f(1, 0, 0, 0) == 1.0
+    from itertools import product
+    moves = [(1, 2), (2, 1), (-1, 2), (-2, 1), (1, -2), (2, -1), (-1, -2), (-2, -1)]
+    for n in (3, 4):
+        for k in (1, 2, 3):
+            total = 0
+            for seq in product(moves, repeat=k):
+                r_, c_, ok = 0, 0, True
+                for dr, dc in seq:
+                    r_, c_ = r_ + dr, c_ + dc
+                    if not (0 <= r_ < n and 0 <= c_ < n):
+                        ok = False
+                        break
+                total += ok
+            assert abs(f(n, k, 0, 0) - total / 8**k) < 1e-9
+
+
+@test(f"{D1}:kadane-states")
+def _(ns):
+    f = ns["maximum_sum"]
+    assert f([1, -2, 0, 3]) == 4 and f([1, -2, -2, 3]) == 3 and f([-1, -1, -1, -1]) == -1
+    r = random.Random(1717)
+    for _ in range(300):
+        a = [r.randint(-5, 6) for _ in range(r.randint(1, 8))]
+        best = max(sum(a[i:j]) for i in range(len(a)) for j in range(i + 1, len(a) + 1))
+        for i in range(len(a)):
+            b = a[:i] + a[i + 1:]
+            if b:
+                best = max(best, max(sum(b[x:y]) for x in range(len(b)) for y in range(x + 1, len(b) + 1)))
+        assert f(a[:]) == best
+
+
+@test(f"{D1}:kadane-states#Maximum subarray min-product")
+def _(ns):
+    f = ns["max_sum_min_product"]
+    assert f([1, 2, 3, 2]) == 14 and f([3, 1, 5, 6, 4, 2]) == 60
+    r = random.Random(1718)
+    for _ in range(200):
+        a = [r.randint(1, 9) for _ in range(r.randint(1, 8))]
+        want = max(min(a[i:j]) * sum(a[i:j]) for i in range(len(a)) for j in range(i + 1, len(a) + 1)) % (10**9 + 7)
+        assert f(a[:]) == want
+
+
+@test(f"{D1}:valid-split")
+def _(ns):
+    f = ns["valid_partition"]
+    assert f([4, 4, 4, 5, 6]) is True and f([1, 1, 1, 2]) is False
+    r = random.Random(1719)
+    for _ in range(300):
+        a = [r.randint(1, 4) for _ in range(r.randint(1, 8))]
+
+        def ok(i):
+            if i == len(a):
+                return True
+            if i + 2 <= len(a) and a[i] == a[i + 1] and ok(i + 2):
+                return True
+            if i + 3 <= len(a):
+                x, y, z = a[i:i + 3]
+                if (x == y == z or (y == x + 1 and z == y + 1)) and ok(i + 3):
+                    return True
+            return False
+
+        assert f(a[:]) is ok(0)
+
+
+@test(f"{D1}:valid-split#Ugly number II (three pointers)")
+def _(ns):
+    f = ns["nth_ugly_number"]
+    want = [x for x in range(1, 3000) if all(x % p for p in ()) or True]
+    ugly = []
+    x = 1
+    while len(ugly) < 60:
+        y = x
+        for p in (2, 3, 5):
+            while y % p == 0:
+                y //= p
+        if y == 1:
+            ugly.append(x)
+        x += 1
+    for n in range(1, 61):
+        assert f(n) == ugly[n - 1]
+
+
+@test(f"{D1}:memo-reduce")
+def _(ns):
+    f = ns["integer_replacement"]
+    from collections import deque
+    dist, q = {1: 0}, deque([1])
+    # reverse BFS from 1: x -> 2x, x -> x - 1, x -> x + 1 is the forward relation reversed; do a forward BFS per n for small n
+    for n in range(1, 200):
+        seen, queue = {n}, deque([(n, 0)])
+        while queue:
+            x, d = queue.popleft()
+            if x == 1:
+                assert f(n) == d, n
+                break
+            nxt = [x // 2] if x % 2 == 0 else [x + 1, x - 1]
+            for y in nxt:
+                if y not in seen:
+                    seen.add(y)
+                    queue.append((y, d + 1))
+
+
+@test(f"{D1}:memo-reduce#Integer break")
+def _(ns):
+    f = ns["integer_break"]
+    for n in range(2, 40):
+        best = [0, 1] + [0] * (n - 1)
+        for i in range(2, n + 1):
+            best[i] = max(max(j * (i - j), j * best[i - j]) for j in range(1, i))
+        assert f(n) == best[n], n
+
+
+@test(f"{D1}:memo-reduce#2 Keys keyboard")
+def _(ns):
+    f = ns["min_steps"]
+    assert f(3) == 3 and f(1) == 0
+    for n in range(1, 120):
+        dp = [0, 0] + [10**9] * (n - 1)
+        for i in range(2, n + 1):
+            for j in range(1, i):
+                if i % j == 0:
+                    dp[i] = min(dp[i], dp[j] + i // j)
+        assert f(n) == dp[n], n
+
+
+@test(f"{D1}:matrix-power")
+def _(ns):
+    f = ns["fib"]
+    a, b = 0, 1
+    for n in range(0, 80):
+        assert f(n) == a
+        a, b = b, a + b
+    assert f(1000) == 43466557686937456435688527675040625802564660517371780402481729089536555417949051890403879840079255169295922593080322634775209689623239873322471161642996440906533187938298969649928516003704476137795166849228875
+
+
+@test(f"{D1}:matrix-power#Tribonacci with a matrix")
+def _(ns):
+    f = ns["tribonacci"]
+    t = [0, 1, 1]
+    for _ in range(60):
+        t.append(t[-1] + t[-2] + t[-3])
+    for n in range(0, 60):
+        assert f(n) == t[n], n

@@ -36686,6 +36686,49 @@
    "role": "practice",
    "practice_of": null,
    "priority": "practice"
+  },
+  {
+   "id": "lc-soup-servings",
+   "slug": "soup-servings",
+   "number": 808,
+   "title": "Soup Servings",
+   "difficulty": "medium",
+   "pattern": "1-D Dynamic Programming",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Math",
+    "Dynamic Programming",
+    "Probability and Statistics"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 32.4,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 20.0,
+     "recent": false
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 13.4,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "1-D Dynamic Programming:probability",
+   "order": 101752,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
   }
  ]
 }

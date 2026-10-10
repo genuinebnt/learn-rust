@@ -514,6 +514,778 @@ def constrained_subset_sum(nums, k):
     return best
 '''
 
+[[extra]]
+id = "1-D Dynamic Programming:build-strings"
+name = "Counting strings built from pieces"
+group = "Counting DP"
+signals = [
+    "count the strings of length within a range built by appending pieces (a zero or a one repeated, key presses)",
+    "dp[length] = number of ways to reach that length: add the ways from each shorter length one piece away",
+    "a letter that can mean 3 or 4 presses is a recurrence with more than two terms",
+]
+template_name = "Count ways to build good strings"
+template = '''
+def count_good_strings(low, high, zero, one):
+    mod = 10**9 + 7
+    dp = [0] * (high + 1)
+    dp[0] = 1  # the empty string
+    for length in range(1, high + 1):
+        if length >= zero:
+            dp[length] += dp[length - zero]  # append a block of zeros
+        if length >= one:
+            dp[length] += dp[length - one]  # append a block of ones
+        dp[length] %= mod
+    return sum(dp[low:high + 1]) % mod
+'''
+pitfalls = [
+    "dp[0] = 1: the empty string is the one way to start.",
+    "Add from each allowed piece length, guarded by length >= piece.",
+    "Take the modulus at every step so the numbers stay small.",
+]
+examples = ["count-ways-to-build-good-strings", "count-number-of-texts", "number-of-ways-to-divide-a-long-corridor"]
+
+[[extra.variant]]
+name = "Count number of texts"
+note = "A key pressed up to 3 times (or 4 for 7 and 9): extend by the last 1..3 or 4 presses of the same key."
+template = '''
+def count_texts(pressed_keys):
+    mod = 10**9 + 7
+    n = len(pressed_keys)
+    dp = [0] * (n + 1)
+    dp[0] = 1
+    for i in range(1, n + 1):
+        limit = 4 if pressed_keys[i - 1] in "79" else 3
+        for k in range(1, limit + 1):  # a run of k equal keys ends here
+            if i - k < 0 or pressed_keys[i - k] != pressed_keys[i - 1]:
+                break
+            dp[i] = (dp[i] + dp[i - k]) % mod
+    return dp[n]
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:over-days"
+name = "DP over days or values with a jump"
+group = "Linear and sequence DP"
+signals = [
+    "choose tickets, tasks or values along a line where taking one skips some of the next ones",
+    "dp[i] from dp[i - 1] (skip) and dp[i - jump] (take), or dp[i + jump] going backwards",
+    "group equal values first when taking a value forbids its neighbours (delete and earn)",
+]
+template_name = "Minimum cost for tickets"
+template = '''
+def mincost_tickets(days, costs):
+    travel = set(days)
+    last = days[-1]
+    dp = [0] * (last + 1)  # dp[d]: the cheapest way to cover days up to d
+    for d in range(1, last + 1):
+        if d not in travel:
+            dp[d] = dp[d - 1]  # no ticket needed today
+        else:
+            dp[d] = min(dp[d - 1] + costs[0],  # a day pass
+                        dp[max(0, d - 7)] + costs[1],  # a week pass
+                        dp[max(0, d - 30)] + costs[2])  # a month pass
+    return dp[last]
+'''
+pitfalls = [
+    "On a day without travel carry the previous value over.",
+    "A pass bought for d covers d - 6 .. d: use dp[d - 7] for the week, dp[d - 30] for the month.",
+    "max(0, ...) keeps the index valid in the first days.",
+]
+examples = ["minimum-cost-for-tickets", "delete-and-earn", "solving-questions-with-brainpower", "maximum-earnings-from-taxi", "maximum-total-damage-with-spell-casting"]
+
+[[extra.variant]]
+name = "Delete and earn"
+note = "Taking a value forbids its neighbours: add up each value's points and run house robber over the values."
+template = '''
+def delete_and_earn(nums):
+    points = {}
+    for x in nums:
+        points[x] = points.get(x, 0) + x  # all copies are taken together
+    take = skip = 0  # house robber over the sorted values
+    prev = None
+    for v in sorted(points):
+        if prev is not None and v == prev + 1:
+            # v - 1 was available: taking v means skipping v - 1
+            take, skip = skip + points[v], max(skip, take)
+        else:
+            take, skip = max(skip, take) + points[v], max(skip, take)
+        prev = v
+    return max(take, skip)
+'''
+
+[[extra.variant]]
+name = "Solving questions with brainpower"
+note = "Going backwards: solving question i earns its points and skips the next brainpower questions."
+template = '''
+def most_points(questions):
+    n = len(questions)
+    dp = [0] * (n + 1)  # dp[i]: the best from questions i..n-1
+    for i in range(n - 1, -1, -1):
+        points, skip = questions[i]
+        nxt = min(n, i + skip + 1)  # the first question you may solve again
+        dp[i] = max(dp[i + 1], points + dp[nxt])  # skip it, or solve it
+    return dp[0]
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:order-matters"
+name = "Counting ways: does the order matter?"
+group = "Coin change"
+signals = [
+    "count the ways to reach a target with a list of numbers, where 1 + 2 and 2 + 1 are different (permutations)",
+    "or the same (combinations): the loop order decides which one you count",
+    "loop over the target outside to count orderings, over the items outside to count combinations",
+]
+template_name = "Combination sum IV (orderings)"
+template = '''
+def combination_sum4(nums, target):
+    dp = [0] * (target + 1)
+    dp[0] = 1  # one way to make 0: take nothing
+    for t in range(1, target + 1):  # target outside: orderings count
+        for x in nums:
+            if x <= t:
+                dp[t] += dp[t - x]
+    return dp[target]
+'''
+pitfalls = [
+    "Target outside, items inside counts each ordering; items outside, target inside counts each combination once.",
+    "dp[0] = 1 starts every count.",
+    "With negative numbers a bound on the length is needed to avoid infinite counts.",
+]
+examples = ["combination-sum-iv", "coin-change-ii", "ways-to-express-an-integer-as-sum-of-powers", "perfect-squares"]
+
+[[extra.variant]]
+name = "Coin change II (combinations)"
+note = "Coins outside, amounts inside: each set of coins is counted once."
+template = '''
+def change(amount, coins):
+    dp = [0] * (amount + 1)
+    dp[0] = 1
+    for coin in coins:  # coins outside: order does not matter
+        for a in range(coin, amount + 1):
+            dp[a] += dp[a - coin]
+    return dp[amount]
+'''
+
+[[extra.variant]]
+name = "Sum of powers (each number once)"
+note = "A 0/1 knapsack: iterate the target downwards so each base is used at most once."
+template = '''
+def number_of_ways(n, x):
+    mod = 10**9 + 7
+    dp = [0] * (n + 1)
+    dp[0] = 1
+    base = 1
+    while base**x <= n:
+        p = base**x
+        for t in range(n, p - 1, -1):  # downwards: use each base once
+            dp[t] = (dp[t] + dp[t - p]) % mod
+        base += 1
+    return dp[n]
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:lis-families"
+name = "LIS-like chains: strings, divisors, differences"
+group = "Longest increasing subsequence"
+signals = [
+    "the longest chain where each item relates to an earlier one: a word with one letter added, a divisor, a fixed difference",
+    "sort so that a predecessor always comes first, then dp[i] = 1 + the best dp over valid predecessors",
+    "a dictionary from the item to its best chain turns the predecessor search into O(1) lookups",
+]
+template_name = "Longest string chain"
+template = '''
+def longest_str_chain(words):
+    best = {}  # word -> the longest chain that ends with it
+    for w in sorted(words, key=len):  # shorter words first
+        best[w] = 1
+        for i in range(len(w)):
+            prev = w[:i] + w[i + 1:]  # delete one letter
+            if prev in best:
+                best[w] = max(best[w], best[prev] + 1)
+    return max(best.values())
+'''
+pitfalls = [
+    "Sort by length first: the predecessors of a word are shorter.",
+    "Try every single-letter deletion instead of comparing with every shorter word.",
+    "The answer is the maximum over all words, not the value of the last one.",
+]
+examples = ["longest-string-chain", "longest-arithmetic-subsequence-of-given-difference", "minimum-number-of-removals-to-make-mountain-array", "number-of-longest-increasing-subsequence", "best-team-with-no-conflicts"]
+
+[[extra.variant]]
+name = "Arithmetic subsequence of a given difference"
+note = "dp[x] = 1 + dp[x - difference]: a dictionary from the last value to the best length."
+template = '''
+def longest_subsequence(arr, difference):
+    best = {}
+    for x in arr:
+        best[x] = best.get(x - difference, 0) + 1
+    return max(best.values())
+'''
+
+[[extra.variant]]
+name = "Mountain array: LIS from both ends"
+note = "inc[i] is the longest increasing run ending at i, dec[i] the longest decreasing one starting at i; a peak needs both above 1."
+template = '''
+def minimum_mountain_removals(nums):
+    n = len(nums)
+    inc, dec = [1] * n, [1] * n
+    for i in range(n):
+        for j in range(i):
+            if nums[j] < nums[i]:
+                inc[i] = max(inc[i], inc[j] + 1)
+    for i in range(n - 1, -1, -1):
+        for j in range(n - 1, i, -1):
+            if nums[j] < nums[i]:
+                dec[i] = max(dec[i], dec[j] + 1)
+    keep = max((inc[i] + dec[i] - 1 for i in range(n)
+                if inc[i] > 1 and dec[i] > 1), default=0)  # real peaks
+    return n - keep
+'''
+
+[[extra.variant]]
+name = "Number of longest increasing subsequences"
+note = "Keep the length and the count of the best chains ending at each index."
+template = '''
+def find_number_of_lis(nums):
+    n = len(nums)
+    length, count = [1] * n, [1] * n
+    for i in range(n):
+        for j in range(i):
+            if nums[j] < nums[i]:
+                if length[j] + 1 > length[i]:
+                    # a longer chain: restart the count
+                    length[i], count[i] = length[j] + 1, count[j]
+                elif length[j] + 1 == length[i]:
+                    count[i] += count[j]  # one more chain, same length
+    top = max(length)
+    return sum(c for l, c in zip(length, count) if l == top)
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:small-state-count"
+name = "Counting sequences with a small state"
+group = "Counting DP"
+signals = [
+    "paint fences or houses so no three (or two) neighbours match, attendance records, grids with a few colours",
+    "the state is the last few choices: same as before or different, how many in a row",
+    "the answer for position i is a small combination of the answers for i - 1 and i - 2",
+]
+template_name = "Paint fence"
+template = '''
+def num_ways(n, k):
+    if n == 1:
+        return k
+    same, diff = k, k * (k - 1)  # last two posts: same colour / different
+    for _ in range(n - 2):
+        # a post may copy the one before only after a "different" pair
+        same, diff = diff, (same + diff) * (k - 1)
+    return same + diff
+'''
+pitfalls = [
+    "Track the last two posts as 'same' or 'different': a third post may copy the second only if the first two differ.",
+    "same_new = diff_old; diff_new = (same_old + diff_old) * (k - 1).",
+    "For n = 1 there are k ways, and the loop starts from n = 2.",
+]
+examples = ["paint-fence", "paint-house", "number-of-ways-to-paint-n-3-grid", "student-attendance-record-ii", "count-number-of-ways-to-place-houses"]
+
+[[extra.variant]]
+name = "Paint house"
+note = "Cost of painting house i with colour c plus the cheaper of the other two colours before."
+template = '''
+def min_cost(costs):
+    a, b, c = costs[0]
+    for r, g, bl in costs[1:]:
+        # each colour plus the cheaper of the other two before
+        a, b, c = r + min(b, c), g + min(a, c), bl + min(a, b)
+    return min(a, b, c)
+'''
+
+[[extra.variant]]
+name = "Count ways to place houses"
+note = "Each side of the street is independent: a house or an empty plot with no two houses adjacent, squared."
+template = '''
+def count_house_placements(n):
+    mod = 10**9 + 7
+    a, b = 1, 2  # ways for 0 and 1 plots on one side
+    for _ in range(n - 1):
+        a, b = b, (a + b) % mod  # Fibonacci
+    return b * b % mod  # two independent sides
+'''
+
+[[extra.variant]]
+name = "Number of ways to paint an n x 3 grid"
+note = "A row is either two colours (ABA) or three (ABC); each kind leads to a fixed number of each kind below."
+template = '''
+def num_of_ways(n):
+    mod = 10**9 + 7
+    aba, abc = 6, 6  # rows with two colours / with three colours
+    for _ in range(n - 1):
+        aba, abc = (3 * aba + 2 * abc) % mod, (2 * aba + 2 * abc) % mod
+    return (aba + abc) % mod
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:interval-games"
+name = "Interval game DP: the score difference"
+group = "Game and minimax DP"
+signals = [
+    "two players take from the ends of a row (or a pile) and both play perfectly",
+    "dp[i][j] is the best score difference the player to move can force on the segment i..j",
+    "the opponent's best reply is subtracted: your gain minus what the opponent then gets",
+]
+template_name = "Predict the winner"
+template = '''
+def predict_the_winner(nums):
+    n = len(nums)
+    # dp[i][j]: the best (mine - opponent's) on nums[i..j]
+    dp = [[0] * n for _ in range(n)]
+    for i in range(n):
+        dp[i][i] = nums[i]
+    for length in range(2, n + 1):
+        for i in range(n - length + 1):
+            j = i + length - 1
+            dp[i][j] = max(nums[i] - dp[i + 1][j],  # take the left end
+                           nums[j] - dp[i][j - 1])  # or the right end
+    return dp[0][n - 1] >= 0
+'''
+pitfalls = [
+    "Store a difference, not a score: the opponent's best result is subtracted.",
+    "Fill by increasing segment length so the smaller segments are ready.",
+    "A non-negative difference means the first player wins (a tie goes to player 1).",
+]
+examples = ["predict-the-winner", "stone-game-vii", "stone-game-v", "nim-game", "divisor-game"]
+
+[[extra.variant]]
+name = "Stone game VII"
+note = "Remove an end stone and score the sum of the rest; the same difference DP with prefix sums."
+template = '''
+def stone_game_vii(stones):
+    n = len(stones)
+    pre = [0]
+    for s in stones:
+        pre.append(pre[-1] + s)
+    dp = [[0] * n for _ in range(n)]  # best difference on i..j
+    for length in range(2, n + 1):
+        for i in range(n - length + 1):
+            j = i + length - 1
+            take_left = pre[j + 1] - pre[i + 1] - dp[i + 1][j]
+            take_right = pre[j] - pre[i] - dp[i][j - 1]
+            dp[i][j] = max(take_left, take_right)  # remove an end stone
+    return dp[0][n - 1]
+'''
+
+[[extra.variant]]
+name = "Nim game and divisor game (closed forms)"
+note = "Small games often have a pattern: with piles of 1-3 you lose exactly when n is a multiple of 4; the divisor game is won by Alice exactly when n is even."
+template = '''
+def can_win_nim(n):
+    return n % 4 != 0  # a multiple of 4 is lost for the player to move
+
+
+def divisor_game(n):
+    return n % 2 == 0  # Alice always leaves Bob an odd number
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:bitmask-subsets"
+name = "Bitmask DP over subsets"
+group = "Bitmask DP"
+signals = [
+    "assign, pair or visit up to about 15 items: the state is the set of items already used",
+    "dp[mask] = the best value after using exactly the items in mask",
+    "the next item to place is determined by the mask (its popcount), or tried one by one",
+]
+template_name = "Maximize score after n operations"
+template = '''
+from functools import cache
+from math import gcd
+
+
+def max_score(nums):
+    n = len(nums)
+
+    @cache
+    def best(mask, op):  # op: the number of the pair being removed, from 1
+        top = 0
+        for i in range(n):
+            if mask >> i & 1:
+                continue
+            for j in range(i + 1, n):
+                if mask >> j & 1:
+                    continue
+                score = op * gcd(nums[i], nums[j])
+                top = max(top, score + best(mask | 1 << i | 1 << j, op + 1))
+        return top
+
+    return best(0, 1)
+'''
+pitfalls = [
+    "The mask says which items are used; the operation number follows from the mask, so it need not multiply the state.",
+    "2^n states times O(n^2) pairs: fine for n up to about 14.",
+    "Choose the first free item and try all partners to avoid counting the same pairing twice.",
+]
+examples = ["maximize-score-after-n-operations", "shortest-path-visiting-all-nodes", "stickers-to-spell-word", "optimal-account-balancing"]
+
+[[extra.variant]]
+name = "Shortest path visiting all nodes"
+note = "BFS over (visited mask, current node): the first time every node is visited is the answer."
+template = '''
+from collections import deque
+
+
+def shortest_path_length(graph):
+    n = len(graph)
+    full = (1 << n) - 1
+    queue = deque((1 << i, i, 0) for i in range(n))  # start anywhere
+    seen = {(1 << i, i) for i in range(n)}
+    while queue:
+        mask, u, d = queue.popleft()
+        if mask == full:
+            return d
+        for v in graph[u]:
+            state = (mask | 1 << v, v)
+            if state not in seen:
+                seen.add(state)
+                queue.append((state[0], v, d + 1))
+    return 0
+'''
+
+[[extra.variant]]
+name = "Optimal account balancing"
+note = "Only the nonzero balances matter: settle the first one with every later one that can take it, and recurse."
+template = '''
+from collections import defaultdict
+
+
+def min_transfers(transactions):
+    balance = defaultdict(int)
+    for a, b, amount in transactions:
+        balance[a] -= amount
+        balance[b] += amount
+    debts = [v for v in balance.values() if v]
+
+    def settle(i):
+        while i < len(debts) and debts[i] == 0:
+            i += 1  # skip people who are already even
+        if i == len(debts):
+            return 0
+        best = float("inf")
+        for j in range(i + 1, len(debts)):
+            if debts[i] * debts[j] < 0:  # opposite signs: they can offset
+                debts[j] += debts[i]
+                best = min(best, 1 + settle(i + 1))
+                debts[j] -= debts[i]
+        return best
+
+    return settle(0)
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:digit-dp"
+name = "Digit DP: count numbers up to n by their digits"
+group = "Digit DP"
+signals = [
+    "count numbers up to n whose digits obey a rule: no two adjacent ones, all digits different, rotated digits",
+    "walk the digits of n from the top, tracking whether the prefix still equals n's prefix (tight)",
+    "memoise on (position, state, tight) so each state is computed once",
+]
+template_name = "Count special integers"
+template = '''
+from functools import cache
+
+
+def count_special_numbers(n):
+    digits = list(map(int, str(n)))
+
+    @cache
+    def go(pos, used, tight, started):
+        if pos == len(digits):
+            return 1 if started else 0  # a valid number (not just zeros)
+        total = 0
+        limit = digits[pos] if tight else 9
+        for d in range(limit + 1):
+            if started and used >> d & 1:
+                continue  # a repeated digit
+            nxt_started = started or d > 0
+            total += go(pos + 1,
+                        used | 1 << d if nxt_started else used,
+                        tight and d == limit,
+                        nxt_started)
+        return total
+
+    return go(0, 0, True, False)
+'''
+pitfalls = [
+    "Track 'started' so leading zeros do not count as digits.",
+    "tight means the digits so far equal n's prefix: the next digit is capped by n's digit.",
+    "States: positions x masks x 2 x 2: tiny, so memoisation is enough.",
+]
+examples = ["count-special-integers", "non-negative-integers-without-consecutive-ones", "rotated-digits"]
+
+[[extra.variant]]
+name = "Non-negative integers without consecutive ones"
+note = "Count the binary numbers up to n with no two adjacent ones using Fibonacci counts per position."
+template = '''
+def find_integers(n):
+    fib = [1, 2]  # fib[k]: valid strings of length k (no two 1s adjacent)
+    for _ in range(31):
+        fib.append(fib[-1] + fib[-2])
+    bits = bin(n)[2:]
+    total, prev = 0, 0
+    for i, b in enumerate(bits):
+        if b == "1":
+            total += fib[len(bits) - i - 1]  # a 0 here: the rest is free
+            if prev == 1:
+                return total  # two ones in a row: stop
+            prev = 1
+        else:
+            prev = 0
+    return total + 1  # n itself is valid
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:probability"
+name = "Probability DP: spread the chance step by step"
+group = "Probability and expected value"
+signals = [
+    "the probability that a walker is still on the board after k moves, or that a game ends in a state",
+    "dp[step][state] = the probability of being in that state; each step spreads it over the next states",
+    "sum the probabilities of the states you care about at the end",
+]
+template_name = "Knight probability in a chessboard"
+template = '''
+def knight_probability(n, k, row, column):
+    moves = ((1, 2), (2, 1), (-1, 2), (-2, 1),
+             (1, -2), (2, -1), (-1, -2), (-2, -1))
+    cur = [[0.0] * n for _ in range(n)]
+    cur[row][column] = 1.0
+    for _ in range(k):
+        nxt = [[0.0] * n for _ in range(n)]
+        for r in range(n):
+            for c in range(n):
+                if cur[r][c]:
+                    for dr, dc in moves:
+                        a, b = r + dr, c + dc
+                        if 0 <= a < n and 0 <= b < n:
+                            nxt[a][b] += cur[r][c] / 8  # one of eight moves
+        cur = nxt
+    return sum(sum(row) for row in cur)  # the chance of being on the board
+'''
+pitfalls = [
+    "Each move has probability 1/8; the mass that falls off the board simply disappears.",
+    "Keep only two layers: the current step and the next.",
+    "The answer is the total probability that remains on the board.",
+]
+examples = ["knight-probability-in-chessboard", "soup-servings", "new-21-game"]
+
+[[extra]]
+id = "1-D Dynamic Programming:kadane-states"
+name = "Kadane with a deletion or a state"
+group = "Linear and sequence DP"
+signals = [
+    "the best subarray sum when you may delete one element",
+    "two running values: the best ending here with no deletion, and with one deletion",
+    "the minimum of a subarray times its sum: a monotonic stack gives each element's range",
+]
+template_name = "Maximum subarray sum with one deletion"
+template = '''
+def maximum_sum(arr):
+    keep = arr[0]  # the best subarray ending here, nothing deleted
+    drop = float("-inf")  # the best ending here, one element deleted
+    best = arr[0]
+    for x in arr[1:]:
+        # delete x (use keep), or delete an earlier element and extend
+        drop = max(keep, drop + x)
+        keep = max(keep + x, x)
+        best = max(best, keep, drop)
+    return best
+'''
+pitfalls = [
+    "drop can come from deleting the current element (it equals the old keep) or from extending an earlier deletion.",
+    "Update drop before keep, because it uses the old keep.",
+    "A subarray must keep at least one element, so a deletion never empties it.",
+]
+examples = ["maximum-subarray-sum-with-one-deletion", "maximum-subarray-min-product", "maximum-alternating-subsequence-sum"]
+
+[[extra.variant]]
+name = "Maximum subarray min-product"
+note = "For each element as the minimum, the widest range where it is the minimum (monotonic stack) times that range's sum."
+template = '''
+def max_sum_min_product(nums):
+    pre = [0]
+    for x in nums:
+        pre.append(pre[-1] + x)
+    best, stack = 0, []  # stack of indexes with increasing values
+    for i, x in enumerate(nums + [0]):  # a final 0 flushes the stack
+        while stack and nums[stack[-1]] >= x:
+            m = nums[stack.pop()]  # m is the minimum of the range
+            left = stack[-1] + 1 if stack else 0
+            best = max(best, m * (pre[i] - pre[left]))
+        stack.append(i)
+    return best % (10**9 + 7)
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:valid-split"
+name = "Valid partition and cuts: dp[i] over prefixes"
+group = "Linear and sequence DP"
+signals = [
+    "can the array be split into blocks that each follow a rule (two equal, three equal, three consecutive)",
+    "dp[i]: is the prefix of length i splittable? look back at the last block's possible lengths",
+    "ugly numbers: three pointers merge the multiples of 2, 3 and 5 in order",
+]
+template_name = "Valid partition of the array"
+template = '''
+def valid_partition(nums):
+    n = len(nums)
+    dp = [False] * (n + 1)
+    dp[0] = True  # the empty prefix is fine
+    for i in range(2, n + 1):
+        two = nums[i - 1] == nums[i - 2]
+        if two and dp[i - 2]:
+            dp[i] = True
+        if i >= 3 and dp[i - 3]:
+            a, b, c = nums[i - 3], nums[i - 2], nums[i - 1]
+            if (a == b == c) or (b == a + 1 and c == b + 1):
+                dp[i] = True  # three equal, or three consecutive
+    return dp[n]
+'''
+pitfalls = [
+    "dp[0] = True: a split that uses the whole prefix as one block starts from the empty prefix.",
+    "Check each allowed block length against its rule and the dp value before it.",
+    "A prefix of length 1 is never valid: the loop starts at 2.",
+]
+examples = ["check-if-there-is-a-valid-partition-for-the-array", "ugly-number-ii", "number-of-ways-to-divide-a-long-corridor"]
+
+[[extra.variant]]
+name = "Ugly number II (three pointers)"
+note = "Each pointer marks the next multiple of 2, 3 or 5 to consider: take the smallest candidate and advance every pointer that produced it."
+template = '''
+def nth_ugly_number(n):
+    ugly = [1]
+    i2 = i3 = i5 = 0
+    while len(ugly) < n:
+        nxt = min(ugly[i2] * 2, ugly[i3] * 3, ugly[i5] * 5)
+        ugly.append(nxt)
+        if nxt == ugly[i2] * 2:
+            i2 += 1
+        if nxt == ugly[i3] * 3:
+            i3 += 1  # advance every pointer that produced nxt
+        if nxt == ugly[i5] * 5:
+            i5 += 1
+    return ugly[-1]
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:memo-reduce"
+name = "Reduce a number: memoised recursion"
+group = "Memoisation versus tabulation"
+signals = [
+    "the fewest steps to turn n into 1 when each step has a couple of choices",
+    "the state space is a handful of numbers reachable from n: memoise the recursion",
+    "a closed form often exists once you see the pattern (integer break: split into 3s)",
+]
+template_name = "Integer replacement"
+template = '''
+from functools import cache
+
+
+def integer_replacement(n):
+    @cache
+    def steps(x):
+        if x == 1:
+            return 0
+        if x % 2 == 0:
+            return 1 + steps(x // 2)
+        return 1 + min(steps(x + 1), steps(x - 1))  # try both for odd x
+
+    return steps(n)
+'''
+pitfalls = [
+    "Only odd numbers branch; halving is forced, so the number of states is about 2 log n.",
+    "Memoise: the same number is reached along different branches.",
+    "A bit trick: add 1 when the two low bits are 11 (except 3), otherwise subtract 1.",
+]
+examples = ["integer-replacement", "integer-break", "4-keys-keyboard", "2-keys-keyboard"]
+
+[[extra.variant]]
+name = "Integer break"
+note = "Split n into at least two parts to maximise the product: use as many 3s as possible."
+template = '''
+def integer_break(n):
+    if n <= 3:
+        return n - 1  # a split is mandatory
+    threes, rest = divmod(n, 3)
+    if rest == 0:
+        return 3**threes
+    if rest == 1:
+        return 3 ** (threes - 1) * 4  # replace 3 + 1 by 2 + 2
+    return 3**threes * 2
+'''
+
+[[extra.variant]]
+name = "2 Keys keyboard"
+note = "The cost is the sum of the prime factors of n."
+template = '''
+def min_steps(n):
+    steps, p = 0, 2
+    while n > 1:
+        while n % p == 0:
+            steps += p  # copy all, then paste p - 1 times
+            n //= p
+        p += 1
+    return steps
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:matrix-power"
+name = "Matrix exponentiation for linear recurrences"
+group = "Matrix exponentiation"
+signals = [
+    "the n-th term of a linear recurrence for a huge n (10^18)",
+    "write one step as a matrix times the state vector; the n-th term is the matrix to the power n",
+    "square-and-multiply gives O(k^3 log n) for a recurrence of order k",
+]
+template_name = "Fibonacci by fast doubling"
+template = '''
+def fib(n):
+    def go(k):  # returns (F(k), F(k + 1))
+        if k == 0:
+            return 0, 1
+        a, b = go(k // 2)
+        c = a * (2 * b - a)  # F(2m)
+        d = a * a + b * b  # F(2m + 1)
+        return (d, c + d) if k % 2 else (c, d)
+
+    return go(n)[0]
+'''
+pitfalls = [
+    "Doubling formulas: F(2m) = F(m)(2F(m+1) - F(m)) and F(2m+1) = F(m)^2 + F(m+1)^2.",
+    "O(log n) steps with big integers: exact, no overflow in Python.",
+    "A general order-k recurrence uses a k x k matrix and repeated squaring.",
+]
+examples = ["fibonacci-number", "n-th-tribonacci-number"]
+
+[[extra.variant]]
+name = "Tribonacci with a matrix"
+note = "The state (T(n), T(n+1), T(n+2)) times a 3x3 matrix gives the next state."
+template = '''
+def tribonacci(n):
+    def mul(a, b):
+        return [[sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)]
+                for i in range(3)]
+
+    result = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]  # the identity
+    step = [[0, 1, 0], [0, 0, 1], [1, 1, 1]]  # (a, b, c) -> (b, c, sum)
+    while n:
+        if n & 1:
+            result = mul(result, step)
+        step = mul(step, step)  # square
+        n >>= 1
+    return result[0][1] + result[0][2]  # times (T0, T1, T2) = (0, 1, 1)
+'''
+
 [[listed]]
 name = "K-step recurrence"
 group = "Linear and sequence DP"

@@ -147,3 +147,8 @@ Results are cached in `tools/neetcode/cache/` (git-ignored); `--refresh` fetches
       switch in the editor settings (`ligatures` in `settings.editor`); static code (`code`, `pre`, `kbd`) never uses them, so `!=` is no longer drawn as ≠.
 - [ ] Content: pages for the rest of the 943 (the problems only in NeetCode All, 693 of them), if you want them. They are
       practice-level and the Practice tab already points at LeetCode problems, so this is optional.
+
+34. **A key insight on every problem (2026-10-10, owner's decision; to be built after the technique cards).** One sentence per catalog
+    problem that names the move ("shortest path in an unweighted graph: BFS"), in `content/dsa/insights.json`, shown under the tags on the
+    problem page and as the second line of a Learn/Practice row. Rules K1-K6 and the build check V8 are in DSA_LEARN_PAGE_SPEC.md section 8.
+    Today only 250 of 943 list problems have a written page and none of the 716 practice problems does.

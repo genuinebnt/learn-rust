@@ -75,6 +75,21 @@ This is what `is_practice` already does in the API; the new problems use it unch
 | V6 | a problem's `lists` decide its list tag; nothing else sets it |
 | V7 | progress safety: no problem id that has progress is removed or renamed without an entry in `retired.txt` / the renames |
 
+## 8. The key insight of every problem (decided 2026-10-10, to be built after the technique cards)
+
+One short sentence that names the move that solves the problem: "Shortest path in an unweighted graph: BFS." "Pair lookup: a hash map of what you have passed." It is not a solution and not a hint; it is what a strong candidate says first.
+
+| rule | |
+|---|---|
+| K1 | **Every catalog problem has one**: NeetCode-list and practice problems alike (about 1,660). |
+| K2 | One sentence, at most 110 characters, no code, no spoilers of the final algorithm's details; it names the pattern or the observation. |
+| K3 | Stored in one place: `content/dsa/insights.json`, `{ "<slug>": "<sentence>" }`. Problem pages (`pages/<slug>.toml`) keep their longer Idea text; the insight is separate. |
+| K4 | Shown under the tags on the problem page, and as the second line of a problem row on the Learn and Practice pages (replacing nothing: companies and topics stay). |
+| K5 | Build check V8: every problem of `problems.json` and `practice.json` has an insight within the length limit; a premium problem has one too (it is about the idea, not the statement). |
+| K6 | Written per technique first (the card's signals are the starting point), then per problem; reviewed against the problem's technique so the sentence agrees with the card it sits under. |
+
+Order of work: finish the technique cards of every topic first (docs/DSA_LEARN_PAGE_STATUS.md), then write the insights.
+
 ## 7. Status
 
 Kept in DSA_LEARN_PAGE_STATUS.md: per topic, how many techniques have a card, how many problems are attached, how many names are at

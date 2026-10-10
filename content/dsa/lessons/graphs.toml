@@ -579,6 +579,915 @@ pitfalls = [
 ]
 examples = ["parallel-courses", "parallel-courses-iii"]
 
+[[extra]]
+id = "Graphs:island-shapes"
+name = "Islands by shape, sub-islands and borders"
+group = "Traversal"
+signals = [
+    "count distinct island shapes, islands inside another grid, or paint the border of a component",
+    "describe a shape by the cells' coordinates relative to the first cell found",
+    "a cell on the grid edge or next to a different value is on the border",
+]
+template_name = "Number of distinct islands"
+template = '''
+def num_distinct_islands(grid):
+    rows, cols = len(grid), len(grid[0])
+    shapes = set()
+
+    def dfs(r, c, r0, c0, shape):
+        grid[r][c] = 0  # visited
+        shape.append((r - r0, c - c0))  # position relative to the start
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < rows and 0 <= b < cols and grid[a][b]:
+                dfs(a, b, r0, c0, shape)
+
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c]:
+                shape = []
+                dfs(r, c, r, c, shape)
+                shapes.add(tuple(shape))  # same traversal order: same tuple
+    return len(shapes)
+'''
+pitfalls = [
+    "Relative coordinates make the shape independent of where the island is; the fixed DFS order makes equal shapes equal tuples.",
+    "Mark cells as visited when entering, not when leaving.",
+    "For shapes up to rotation or reflection, normalise all eight transforms and keep the smallest.",
+]
+examples = ["number-of-distinct-islands", "count-sub-islands", "number-of-closed-islands", "coloring-a-border", "number-of-enclaves"]
+
+[[extra.variant]]
+name = "Count sub-islands"
+note = "An island of grid2 counts when every one of its cells is land in grid1."
+template = '''
+def count_sub_islands(grid1, grid2):
+    rows, cols = len(grid1), len(grid1[0])
+
+    def dfs(r, c):  # True when the whole island is inside grid1
+        if not (0 <= r < rows and 0 <= c < cols) or grid2[r][c] == 0:
+            return True
+        grid2[r][c] = 0
+        ok = grid1[r][c] == 1
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            ok = dfs(a, b) and ok  # always explore all of the island
+        return ok
+
+    return sum(1 for r in range(rows) for c in range(cols)
+               if grid2[r][c] and dfs(r, c))
+'''
+
+[[extra.variant]]
+name = "Closed islands"
+note = "Flood the land touching the border first; the islands that remain are closed."
+template = '''
+def closed_island(grid):
+    rows, cols = len(grid), len(grid[0])
+
+    def fill(r, c):
+        if 0 <= r < rows and 0 <= c < cols and grid[r][c] == 0:
+            grid[r][c] = 1
+            for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                fill(a, b)
+
+    for r in range(rows):
+        for c in range(cols):
+            if r in (0, rows - 1) or c in (0, cols - 1):
+                fill(r, c)  # land touching the border is not closed
+    count = 0
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] == 0:
+                fill(r, c)
+                count += 1
+    return count
+'''
+
+[[extra]]
+id = "Graphs:dsu-groups"
+name = "Union-find by key: merge things that share a value"
+group = "Union-find (DSU)"
+signals = [
+    "merge accounts that share an email, positions that can swap, stones that share a row or column",
+    "union items that share a key, then group by root",
+    "the keys can be nodes themselves: connect a stone to its row and its column",
+]
+template_name = "Accounts merge"
+template = '''
+from collections import defaultdict
+
+
+def accounts_merge(accounts):
+    parent = list(range(len(accounts)))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]  # path halving
+            x = parent[x]
+        return x
+
+    owner = {}  # email -> the first account that had it
+    for i, (_, *emails) in enumerate(accounts):
+        for e in emails:
+            if e in owner:
+                parent[find(i)] = find(owner[e])  # same email: same person
+            else:
+                owner[e] = i
+    groups = defaultdict(list)
+    for e, i in owner.items():
+        groups[find(i)].append(e)
+    return [[accounts[i][0]] + sorted(es) for i, es in groups.items()]
+'''
+pitfalls = [
+    "The first account that holds an email owns it; later accounts with that email are unioned with the owner.",
+    "Group by the root at the end, after all unions.",
+    "Names alone do not identify people: only shared emails merge accounts.",
+]
+examples = ["accounts-merge", "smallest-string-with-swaps", "most-stones-removed-with-same-row-or-column", "redundant-connection", "regions-cut-by-slashes"]
+
+[[extra.variant]]
+name = "Smallest string with swaps"
+note = "Indices that can swap form components; inside each, sort the letters and place them in order."
+template = '''
+from collections import defaultdict
+
+
+def smallest_string_with_swaps(s, pairs):
+    parent = list(range(len(s)))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b in pairs:
+        parent[find(a)] = find(b)
+    groups = defaultdict(list)
+    for i in range(len(s)):
+        groups[find(i)].append(i)
+    out = list(s)
+    for idx in groups.values():
+        letters = sorted(s[i] for i in idx)
+        for i, ch in zip(sorted(idx), letters):
+            out[i] = ch  # smallest letters to the earliest positions
+    return "".join(out)
+'''
+
+[[extra.variant]]
+name = "Most stones removed"
+note = "Treat each row and each column as a node; a stone joins its row and column. Removable = stones - components."
+template = '''
+def remove_stones(stones):
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for r, c in stones:
+        parent[find(("r", r))] = find(("c", c))  # row and column joined
+    components = len({find(("r", r)) for r, _ in stones})
+    return len(stones) - components  # keep one stone per component
+'''
+
+[[extra.variant]]
+name = "Redundant connection"
+note = "The first edge whose ends are already connected closes a cycle."
+template = '''
+def find_redundant_connection(edges):
+    parent = list(range(len(edges) + 1))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b in edges:
+        ra, rb = find(a), find(b)
+        if ra == rb:
+            return [a, b]  # already connected: this edge makes a cycle
+        parent[ra] = rb
+'''
+
+[[extra]]
+id = "Graphs:reach-sets"
+name = "Reachability: what can be reached, from where"
+group = "Traversal"
+signals = [
+    "can you open every room, which nodes are safe, which nodes are ancestors of a node",
+    "DFS or BFS from the start marks what is reachable",
+    "for ancestors, search the reversed graph, or propagate along a topological order",
+]
+template_name = "Keys and rooms"
+template = '''
+def can_visit_all_rooms(rooms):
+    seen = {0}
+    stack = [0]
+    while stack:
+        room = stack.pop()
+        for key in rooms[room]:
+            if key not in seen:  # a new room is unlocked
+                seen.add(key)
+                stack.append(key)
+    return len(seen) == len(rooms)
+'''
+pitfalls = [
+    "Mark a room when you first find its key, not when you enter it, so it is stacked once.",
+    "An iterative stack avoids recursion limits on long chains.",
+    "For all-ancestors, reverse the edges and search from every node, or process nodes in topological order.",
+]
+examples = ["keys-and-rooms", "find-eventual-safe-states", "all-ancestors-of-a-node-in-a-directed-acyclic-graph", "course-schedule-iv"]
+
+[[extra.variant]]
+name = "Find eventual safe states"
+note = "A node is safe when every path from it ends in a terminal node: DFS with three colours detects the cycles."
+template = '''
+def eventual_safe_nodes(graph):
+    state = [0] * len(graph)  # 0 unseen, 1 on the path, 2 safe
+
+    def safe(u):
+        if state[u]:
+            return state[u] == 2  # on the path again means a cycle
+        state[u] = 1
+        if all(safe(v) for v in graph[u]):
+            state[u] = 2
+            return True
+        return False
+
+    return [u for u in range(len(graph)) if safe(u)]
+'''
+
+[[extra.variant]]
+name = "All ancestors in a DAG"
+note = "Process nodes in topological order and pass each node's ancestor set to its children."
+template = '''
+from collections import deque
+
+
+def get_ancestors(n, edges):
+    children = [[] for _ in range(n)]
+    indeg = [0] * n
+    for a, b in edges:
+        children[a].append(b)
+        indeg[b] += 1
+    anc = [set() for _ in range(n)]
+    queue = deque(i for i in range(n) if indeg[i] == 0)
+    while queue:
+        u = queue.popleft()
+        for v in children[u]:
+            anc[v] |= anc[u] | {u}  # everything above u, and u
+            indeg[v] -= 1
+            if indeg[v] == 0:
+                queue.append(v)
+    return [sorted(a) for a in anc]
+'''
+
+[[extra.variant]]
+name = "Course schedule IV"
+note = "A prerequisite relation is reachability: compute the transitive closure along a topological order."
+template = '''
+def check_if_prerequisite(num_courses, prerequisites, queries):
+    reach = [[False] * num_courses for _ in range(num_courses)]
+    for a, b in prerequisites:
+        reach[a][b] = True
+    for k in range(num_courses):  # Floyd-Warshall on booleans
+        for i in range(num_courses):
+            if reach[i][k]:
+                for j in range(num_courses):
+                    if reach[k][j]:
+                        reach[i][j] = True
+    return [reach[a][b] for a, b in queries]
+'''
+
+[[extra]]
+id = "Graphs:multi-source"
+name = "Multi-source BFS from a marked set"
+group = "Traversal"
+signals = [
+    "the distance from every cell to the nearest 0 (or land, or gate)",
+    "start the BFS from all sources at once: the first time a cell is reached is its shortest distance",
+    "find one island first, then expand it layer by layer to reach the other (shortest bridge)",
+]
+template_name = "Shortest bridge"
+template = '''
+from collections import deque
+
+
+def shortest_bridge(grid):
+    n = len(grid)
+    start = next((r, c) for r in range(n) for c in range(n) if grid[r][c])
+    island, stack = {start}, [start]
+    while stack:  # mark the first island
+        r, c = stack.pop()
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            inside = 0 <= a < n and 0 <= b < n
+            if inside and grid[a][b] and (a, b) not in island:
+                island.add((a, b))
+                stack.append((a, b))
+    queue, seen, dist = deque(island), set(island), 0
+    while queue:  # grow the island one layer at a time
+        for _ in range(len(queue)):
+            r, c = queue.popleft()
+            for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= a < n and 0 <= b < n and (a, b) not in seen:
+                    if grid[a][b]:
+                        return dist  # reached the other island
+                    seen.add((a, b))
+                    queue.append((a, b))
+        dist += 1
+'''
+pitfalls = [
+    "Put every source in the queue before the first step: that is what makes it multi-source.",
+    "The number of layers expanded before touching the other island is the number of water cells flipped.",
+    "Mark cells as seen when queued, not when popped.",
+]
+examples = ["shortest-bridge", "01-matrix", "as-far-from-land-as-possible", "map-of-highest-peak"]
+
+[[extra.variant]]
+name = "01 Matrix"
+note = "Every 0 is a source; each 1 gets the distance of the layer that reaches it."
+template = '''
+from collections import deque
+
+
+def update_matrix(mat):
+    rows, cols = len(mat), len(mat[0])
+    dist = [[-1] * cols for _ in range(rows)]
+    queue = deque()
+    for r in range(rows):
+        for c in range(cols):
+            if mat[r][c] == 0:
+                dist[r][c] = 0
+                queue.append((r, c))
+    while queue:
+        r, c = queue.popleft()
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < rows and 0 <= b < cols and dist[a][b] < 0:
+                dist[a][b] = dist[r][c] + 1
+                queue.append((a, b))
+    return dist
+'''
+
+[[extra.variant]]
+name = "As far from land as possible"
+note = "Start from all land cells; the last water cell reached is the farthest one."
+template = '''
+from collections import deque
+
+
+def max_distance(grid):
+    n = len(grid)
+    queue = deque((r, c) for r in range(n) for c in range(n) if grid[r][c])
+    if len(queue) in (0, n * n):
+        return -1  # no land, or no water
+    dist = -1
+    while queue:
+        dist += 1
+        for _ in range(len(queue)):
+            r, c = queue.popleft()
+            for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= a < n and 0 <= b < n and not grid[a][b]:
+                    grid[a][b] = 1  # reached: mark as land
+                    queue.append((a, b))
+    return dist
+'''
+
+[[extra]]
+id = "Graphs:state-bfs"
+name = "BFS with extra state"
+group = "Graph modeling and state-space search"
+signals = [
+    "shortest path where you can break at most k walls, or the whole board is the state (a sliding puzzle)",
+    "a state is more than a position: (row, column, walls left), or the arrangement of the tiles",
+    "the visited set holds states, so the same cell can be visited with different budgets",
+]
+template_name = "Grid with obstacle elimination"
+template = '''
+from collections import deque
+
+
+def shortest_path(grid, k):
+    rows, cols = len(grid), len(grid[0])
+    if k >= rows + cols - 2:
+        return rows + cols - 2  # enough removals for any direct path
+    queue = deque([(0, 0, k, 0)])  # row, col, removals left, steps
+    seen = {(0, 0, k)}
+    while queue:
+        r, c, left, steps = queue.popleft()
+        if (r, c) == (rows - 1, cols - 1):
+            return steps
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < rows and 0 <= b < cols:
+                nxt = left - grid[a][b]  # removing a wall costs one
+                if nxt >= 0 and (a, b, nxt) not in seen:
+                    seen.add((a, b, nxt))
+                    queue.append((a, b, nxt, steps + 1))
+    return -1
+'''
+pitfalls = [
+    "The visited key includes the remaining budget: arriving with more left is a different, better state.",
+    "BFS gives the fewest steps because every move costs one.",
+    "A shortcut: if k covers the Manhattan path, the answer is rows + cols - 2.",
+]
+examples = ["shortest-path-in-a-grid-with-obstacles-elimination", "sliding-puzzle", "minimum-knight-moves", "nearest-exit-from-entrance-in-maze"]
+
+[[extra.variant]]
+name = "Sliding puzzle"
+note = "The state is the board as a string; the neighbours come from swapping the 0 with an adjacent tile."
+template = '''
+from collections import deque
+
+
+def sliding_puzzle(board):
+    start = "".join(str(x) for row in board for x in row)
+    goal = "123450"
+    near = {0: (1, 3), 1: (0, 2, 4), 2: (1, 5),  # neighbours of each cell
+            3: (0, 4), 4: (1, 3, 5), 5: (2, 4)}
+    queue, seen = deque([(start, 0)]), {start}
+    while queue:
+        s, moves = queue.popleft()
+        if s == goal:
+            return moves
+        z = s.index("0")
+        for j in near[z]:
+            t = list(s)
+            t[z], t[j] = t[j], t[z]  # slide the tile into the gap
+            t = "".join(t)
+            if t not in seen:
+                seen.add(t)
+                queue.append((t, moves + 1))
+    return -1
+'''
+
+[[extra.variant]]
+name = "Minimum knight moves"
+note = "The board is symmetric: work in the first quadrant, with a small margin around it."
+template = '''
+from collections import deque
+
+
+def min_knight_moves(x, y):
+    x, y = abs(x), abs(y)  # symmetry
+    queue, seen = deque([(0, 0, 0)]), {(0, 0)}
+    while queue:
+        a, b, d = queue.popleft()
+        if (a, b) == (x, y):
+            return d
+        for da, db in ((1, 2), (2, 1), (-1, 2), (-2, 1),
+                       (1, -2), (2, -1), (-1, -2), (-2, -1)):
+            na, nb = a + da, b + db
+            inside = -2 <= na <= x + 2 and -2 <= nb <= y + 2
+            if inside and (na, nb) not in seen:
+                seen.add((na, nb))
+                queue.append((na, nb, d + 1))
+'''
+
+[[extra]]
+id = "Graphs:tree-paths"
+name = "Tree walks with times and sizes"
+group = "Tree algorithms"
+signals = [
+    "two walkers on a tree, one towards the root: find the path first, then the best path with timing",
+    "the number of cars or people that pass each edge is the size of the subtree below it",
+    "an edge list is an undirected graph: DFS with the parent to avoid going back",
+]
+template_name = "Minimum fuel cost to the capital"
+template = '''
+from collections import defaultdict
+
+
+def minimum_fuel_cost(roads, seats):
+    adj = defaultdict(list)
+    for a, b in roads:
+        adj[a].append(b)
+        adj[b].append(a)
+    fuel = 0
+
+    def people(u, parent):  # the number of people in the subtree of u
+        nonlocal fuel
+        total = 1
+        for v in adj[u]:
+            if v != parent:
+                total += people(v, u)
+        if parent != -1:
+            fuel += -(-total // seats)  # cars needed to cross the edge
+        return total
+
+    people(0, -1)
+    return fuel
+'''
+pitfalls = [
+    "Each edge to the parent is crossed by ceil(subtree size / seats) cars: add it once per edge.",
+    "Pass the parent to avoid walking back along the edge you came from.",
+    "For a long path use an explicit stack instead of recursion.",
+]
+examples = ["minimum-fuel-cost-to-report-to-the-capital", "most-profitable-path-in-a-tree", "kill-process", "nested-list-weight-sum"]
+
+[[extra.variant]]
+name = "Most profitable path in a tree"
+note = "Bob's path to the root gives the time he reaches each node; Alice's DFS pays or shares at each node by comparing times."
+template = '''
+from collections import defaultdict
+
+
+def most_profitable_path(edges, bob, amount):
+    adj = [[] for _ in range(len(amount))]
+    for a, b in edges:
+        adj[a].append(b)
+        adj[b].append(a)
+    parent, order = {0: -1}, [0]
+    for u in order:  # a BFS from the root records every parent
+        for v in adj[u]:
+            if v not in parent:
+                parent[v] = u
+                order.append(v)
+    bob_time, u, t = {}, bob, 0
+    while u != -1:  # Bob walks to the root: when does he reach each node?
+        bob_time[u] = t
+        u, t = parent[u], t + 1
+
+    def alice(u, par, time):
+        gain = amount[u]
+        if u in bob_time:
+            if time > bob_time[u]:
+                gain = 0  # Bob opened the gate or door first
+            elif time == bob_time[u]:
+                gain //= 2  # they arrive together and share
+        sub = [alice(v, u, time + 1) for v in adj[u] if v != par]
+        return gain + (max(sub) if sub else 0)  # a leaf ends the walk
+
+    return alice(0, -1, 0)
+'''
+
+[[extra]]
+id = "Graphs:topo-dp"
+name = "DP along a topological order"
+group = "Topological sort and dependencies"
+signals = [
+    "the best value along any path in a DAG: longest path, most frequent colour, latest finish time",
+    "process nodes in topological order and push each node's best values to its successors",
+    "a cycle means the answer is -1: some nodes are never processed",
+]
+template_name = "Largest colour value in a directed graph"
+template = '''
+from collections import deque
+
+
+def largest_path_value(colors, edges):
+    n = len(colors)
+    children = [[] for _ in range(n)]
+    indeg = [0] * n
+    for a, b in edges:
+        children[a].append(b)
+        indeg[b] += 1
+    # count[u][c]: the most nodes of colour c on a path that ends at u
+    count = [[0] * 26 for _ in range(n)]
+    queue = deque(i for i in range(n) if indeg[i] == 0)
+    seen = best = 0
+    while queue:
+        u = queue.popleft()
+        seen += 1
+        count[u][ord(colors[u]) - 97] += 1  # u's own colour
+        best = max(best, max(count[u]))
+        for v in children[u]:
+            for c in range(26):
+                count[v][c] = max(count[v][c], count[u][c])
+            indeg[v] -= 1
+            if indeg[v] == 0:
+                queue.append(v)
+    return best if seen == n else -1  # a cycle: some nodes never ran
+'''
+pitfalls = [
+    "A node's counts are final only when all its predecessors are processed: that is what the in-degree guarantees.",
+    "If fewer than n nodes were processed the graph has a cycle.",
+    "Keep one number per node for simple longest-path problems; here a count per colour.",
+]
+examples = ["largest-color-value-in-a-directed-graph", "all-paths-from-source-lead-to-destination", "find-all-possible-recipes-from-given-supplies", "parallel-courses-iii"]
+
+[[extra.variant]]
+name = "Find all possible recipes"
+note = "A recipe is ready when all its ingredients are: Kahn's algorithm with in-degree = number of missing ingredients."
+template = '''
+from collections import defaultdict, deque
+
+
+def find_all_recipes(recipes, ingredients, supplies):
+    need = defaultdict(list)  # ingredient -> recipes waiting for it
+    missing = {}
+    for r, ing in zip(recipes, ingredients):
+        missing[r] = len(ing)
+        for x in ing:
+            need[x].append(r)
+    queue, out = deque(supplies), []
+    while queue:
+        item = queue.popleft()
+        for r in need[item]:
+            missing[r] -= 1
+            if missing[r] == 0:
+                out.append(r)
+                queue.append(r)  # a made recipe can be an ingredient
+    return out
+'''
+
+[[extra.variant]]
+name = "All paths lead to the destination"
+note = "Every path from the source must end at the destination: DFS with colours, rejecting cycles and wrong dead ends."
+template = '''
+def leads_to_destination(n, edges, source, destination):
+    graph = [[] for _ in range(n)]
+    for a, b in edges:
+        graph[a].append(b)
+    state = [0] * n  # 0 unseen, 1 on the current path, 2 done and good
+
+    def ok(u):
+        if state[u]:
+            return state[u] == 2  # on the path again means a cycle
+        if not graph[u]:
+            return u == destination  # a dead end must be the destination
+        state[u] = 1
+        if all(ok(v) for v in graph[u]):
+            state[u] = 2
+            return True
+        return False
+
+    return ok(source)
+'''
+
+[[extra]]
+id = "Graphs:short-cycle"
+name = "Shortest cycle, and two-colouring groups"
+group = "Cycle detection and graph properties"
+signals = [
+    "the length of the shortest cycle in an undirected graph",
+    "BFS from every node: a non-tree edge to an already seen node closes a cycle of length d[u] + d[v] + 1",
+    "split people into two groups so that dislikes are across groups: a bipartite check per component",
+]
+template_name = "Shortest cycle in a graph"
+template = '''
+from collections import deque
+
+
+def find_shortest_cycle(n, edges):
+    adj = [[] for _ in range(n)]
+    for a, b in edges:
+        adj[a].append(b)
+        adj[b].append(a)
+    best = float("inf")
+    for start in range(n):
+        dist, parent = {start: 0}, {start: -1}
+        queue = deque([start])
+        while queue:
+            u = queue.popleft()
+            for v in adj[u]:
+                if v not in dist:
+                    dist[v], parent[v] = dist[u] + 1, u
+                    queue.append(v)
+                elif parent[u] != v:  # a non-tree edge closes a cycle
+                    best = min(best, dist[u] + dist[v] + 1)
+    return best if best != float("inf") else -1
+'''
+pitfalls = [
+    "Run the BFS from every node: the shortest cycle through the start is found, and the minimum over all starts is the answer.",
+    "Skip the parent edge: it is not a cycle.",
+    "The cycle length from a non-tree edge (u, v) is dist[u] + dist[v] + 1.",
+]
+examples = ["shortest-cycle-in-a-graph", "possible-bipartition", "flower-planting-with-no-adjacent", "divide-nodes-into-the-maximum-number-of-groups"]
+
+[[extra.variant]]
+name = "Possible bipartition"
+note = "Two-colour the dislike graph with DFS; a conflict means the split is impossible."
+template = '''
+def possible_bipartition(n, dislikes):
+    adj = [[] for _ in range(n + 1)]
+    for a, b in dislikes:
+        adj[a].append(b)
+        adj[b].append(a)
+    color = [0] * (n + 1)  # 0 unseen, 1 and -1 the two groups
+    for s in range(1, n + 1):
+        if color[s]:
+            continue
+        color[s] = 1
+        stack = [s]
+        while stack:
+            u = stack.pop()
+            for v in adj[u]:
+                if color[v] == color[u]:
+                    return False  # two who dislike each other: same group
+                if not color[v]:
+                    color[v] = -color[u]
+                    stack.append(v)
+    return True
+'''
+
+[[extra]]
+id = "Graphs:dsu-time"
+name = "Union-find over time"
+group = "Union-find (DSU)"
+signals = [
+    "who knows a secret after a series of meetings, when did everyone become connected",
+    "process events in time order; people at the same time form groups that share the secret",
+    "after a time step, undo the unions of people who did not end up with the secret",
+]
+template_name = "Earliest moment everyone becomes friends"
+template = '''
+def earliest_acq(logs, n):
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    components = n
+    for t, a, b in sorted(logs):  # in time order
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+            components -= 1
+            if components == 1:
+                return t  # everyone is connected
+    return -1
+'''
+pitfalls = [
+    "Sort the events by time first.",
+    "Count components down on every successful union; one component left means everyone is connected.",
+    "For secrets, group meetings by time and reset people who did not receive it after each group.",
+]
+examples = ["the-earliest-moment-when-everyone-become-friends", "find-all-people-with-secret", "number-of-good-paths"]
+
+[[extra.variant]]
+name = "Find all people with a secret"
+note = "Per time, union the meeting pairs; people connected to someone who knows the secret keep it, the others are reset."
+template = '''
+from collections import defaultdict
+
+
+def find_all_people(n, meetings, first_person):
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    parent[find(first_person)] = find(0)  # 0 tells first_person
+    by_time = defaultdict(list)
+    for a, b, t in meetings:
+        by_time[t].append((a, b))
+    for t in sorted(by_time):
+        people = set()
+        for a, b in by_time[t]:
+            parent[find(a)] = find(b)
+            people |= {a, b}
+        for p in people:  # those not linked to person 0 forget this meeting
+            if find(p) != find(0):
+                parent[p] = p
+    return [i for i in range(n) if find(i) == find(0)]
+'''
+
+[[extra]]
+id = "Graphs:components-props"
+name = "Components and their properties"
+group = "Cycle detection and graph properties"
+signals = [
+    "count pairs of nodes that cannot reach each other, or the cheapest edge inside a component",
+    "label every node with its component, and keep a size or a minimum per component",
+    "complete components: every node has degree size - 1",
+]
+template_name = "Count unreachable pairs of nodes"
+template = '''
+def count_pairs(n, edges):
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b in edges:
+        parent[find(a)] = find(b)
+    size = {}
+    for i in range(n):
+        root = find(i)
+        size[root] = size.get(root, 0) + 1
+    pairs, remaining = 0, n
+    for s in size.values():
+        remaining -= s
+        pairs += s * remaining  # this component against all later ones
+    return pairs
+'''
+pitfalls = [
+    "Add s * (nodes not yet counted) for each component: every pair is counted once.",
+    "Union-find keeps this to O(n alpha(n)); a DFS per component works too.",
+    "For the cheapest edge inside the component of node 1, take the minimum edge weight over that component.",
+]
+examples = ["count-unreachable-pairs-of-nodes-in-an-undirected-graph", "minimum-score-of-a-path-between-two-cities", "count-the-number-of-complete-components", "detonate-the-maximum-bombs"]
+
+[[extra.variant]]
+name = "Minimum score of a path between two cities"
+note = "The cheapest edge anywhere in the component that contains city 1."
+template = '''
+def min_score(n, roads):
+    adj = [[] for _ in range(n + 1)]
+    for a, b, d in roads:
+        adj[a].append((b, d))
+        adj[b].append((a, d))
+    seen, stack, best = {1}, [1], float("inf")
+    while stack:
+        u = stack.pop()
+        for v, d in adj[u]:
+            best = min(best, d)  # every edge of the component counts
+            if v not in seen:
+                seen.add(v)
+                stack.append(v)
+    return best
+'''
+
+[[extra.variant]]
+name = "Detonate the maximum bombs"
+note = "Bomb i triggers bomb j when j is inside i's radius (a directed edge); DFS from each bomb."
+template = '''
+def maximum_detonation(bombs):
+    n = len(bombs)
+    adj = [[] for _ in range(n)]
+    for i, (x1, y1, r1) in enumerate(bombs):
+        for j, (x2, y2, _) in enumerate(bombs):
+            if i != j and (x1 - x2) ** 2 + (y1 - y2) ** 2 <= r1 * r1:
+                adj[i].append(j)  # j is within the blast of i
+    best = 0
+    for s in range(n):
+        seen, stack = {s}, [s]
+        while stack:
+            u = stack.pop()
+            for v in adj[u]:
+                if v not in seen:
+                    seen.add(v)
+                    stack.append(v)
+        best = max(best, len(seen))
+    return best
+'''
+
+[[extra]]
+id = "Graphs:indegree"
+name = "In-degree tricks"
+group = "Cycle detection and graph properties"
+signals = [
+    "the fewest nodes from which everything can be reached: those with in-degree 0",
+    "a champion that no team loses to; a judge trusted by everyone",
+    "the ends of a path are the nodes with one neighbour",
+]
+template_name = "Minimum vertices to reach all nodes"
+template = '''
+def find_smallest_set_of_vertices(n, edges):
+    has_incoming = {b for _, b in edges}
+    return [i for i in range(n) if i not in has_incoming]  # a start
+'''
+pitfalls = [
+    "A node with no incoming edge cannot be reached from any other node, so it must be a start.",
+    "In a DAG these starts reach everything; with cycles the answer needs the components of the condensation.",
+    "Count in-degrees with a set or an array.",
+]
+examples = ["minimum-number-of-vertices-to-reach-all-nodes", "find-champion-ii", "restore-the-array-from-adjacent-pairs", "find-the-celebrity"]
+
+[[extra.variant]]
+name = "Find champion II"
+note = "The champion is the only node with no incoming edge; with two or more such nodes there is no unique champion."
+template = '''
+def find_champion(n, edges):
+    beaten = {b for _, b in edges}
+    candidates = [i for i in range(n) if i not in beaten]
+    return candidates[0] if len(candidates) == 1 else -1
+'''
+
+[[extra.variant]]
+name = "Restore the array from adjacent pairs"
+note = "The ends of the array appear in only one pair: start at one and follow the neighbours."
+template = '''
+from collections import defaultdict
+
+
+def restore_array(adjacent_pairs):
+    adj = defaultdict(list)
+    for a, b in adjacent_pairs:
+        adj[a].append(b)
+        adj[b].append(a)
+    start = next(x for x, nb in adj.items() if len(nb) == 1)  # an end
+    out, prev = [start], None
+    while len(out) <= len(adjacent_pairs):
+        cur = out[-1]
+        nxt = adj[cur][0] if adj[cur][0] != prev else adj[cur][-1]
+        prev = cur
+        out.append(nxt)
+    return out[:len(adjacent_pairs) + 1]
+'''
+
 [[listed]]
 name = "DFS (recursive) / DFS (iterative, explicit stack) as tabs of one lesson"
 group = "Traversal"

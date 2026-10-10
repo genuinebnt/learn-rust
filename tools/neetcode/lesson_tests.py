@@ -11050,3 +11050,527 @@ def _(ns):
         b = a[:]
         f(b)
         assert b == want[:len(a)]
+
+
+# ---- graphs (extras) ------------------------------------------------------------------------------------------------
+
+GR = "Graphs"
+
+
+def _components(n, edges):
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            x = parent[x]
+        return x
+
+    for a, b in edges:
+        parent[find(a)] = find(b)
+    return [find(i) for i in range(n)]
+
+
+def _island_cells(grid):
+    seen, out = set(), []
+    for r in range(len(grid)):
+        for c in range(len(grid[0])):
+            if grid[r][c] and (r, c) not in seen:
+                comp, stack = [], [(r, c)]
+                seen.add((r, c))
+                while stack:
+                    a, b = stack.pop()
+                    comp.append((a, b))
+                    for x, y in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                        if 0 <= x < len(grid) and 0 <= y < len(grid[0]) and grid[x][y] and (x, y) not in seen:
+                            seen.add((x, y))
+                            stack.append((x, y))
+                out.append(comp)
+    return out
+
+
+@test(f"{GR}:island-shapes")
+def _(ns):
+    f = ns["num_distinct_islands"]
+    assert f([[1, 1, 0, 0, 0], [1, 1, 0, 0, 0], [0, 0, 0, 1, 1], [0, 0, 0, 1, 1]]) == 1
+    r = random.Random(1500)
+    for _ in range(150):
+        g = _grid(r, r.randint(1, 5), r.randint(1, 5), [0, 1, 1])
+        shapes = {tuple(sorted((a - min(x for x, _ in c), b - min(y for _, y in c)) for a, b in c)) for c in _island_cells(g)}
+        assert f([row[:] for row in g]) == len(shapes)
+
+
+@test(f"{GR}:island-shapes#Count sub-islands")
+def _(ns):
+    f = ns["count_sub_islands"]
+    assert f([[1, 1, 1, 0, 0], [0, 1, 1, 1, 1], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0], [1, 1, 0, 1, 1]], [[1, 1, 1, 0, 0], [0, 0, 1, 1, 1], [0, 1, 0, 0, 0], [1, 0, 1, 1, 0], [0, 1, 0, 1, 0]]) == 3
+    r = random.Random(1501)
+    for _ in range(150):
+        R, C = r.randint(1, 4), r.randint(1, 4)
+        g1, g2 = _grid(r, R, C, [0, 1]), _grid(r, R, C, [0, 1, 1])
+        want = sum(1 for comp in _island_cells(g2) if all(g1[a][b] for a, b in comp))
+        assert f([row[:] for row in g1], [row[:] for row in g2]) == want
+
+
+@test(f"{GR}:island-shapes#Closed islands")
+def _(ns):
+    f = ns["closed_island"]
+    r = random.Random(1502)
+    for _ in range(150):
+        g = _grid(r, r.randint(1, 6), r.randint(1, 6), [0, 1, 1])
+        water = [[1 - v for v in row] for row in g]  # land is 0 in this problem
+        R, C = len(g), len(g[0])
+        want = sum(1 for comp in _island_cells([[1 - v for v in row] for row in g])
+                   if all(0 < a < R - 1 and 0 < b < C - 1 for a, b in comp))
+        assert f([row[:] for row in g]) == want
+
+
+@test(f"{GR}:dsu-groups")
+def _(ns):
+    f = ns["accounts_merge"]
+    acc = [["John", "johnsmith@mail.com", "john_newyork@mail.com"], ["John", "johnsmith@mail.com", "john00@mail.com"], ["Mary", "mary@mail.com"], ["John", "johnnybravo@mail.com"]]
+    got = sorted(f([a[:] for a in acc]))
+    assert got == sorted([["John", "john00@mail.com", "john_newyork@mail.com", "johnsmith@mail.com"], ["Mary", "mary@mail.com"], ["John", "johnnybravo@mail.com"]])
+    r = random.Random(1503)
+    for _ in range(100):
+        accounts = [["A"] + sorted({f"e{r.randint(0, 6)}" for _ in range(r.randint(1, 3))}) for _ in range(r.randint(1, 6))]
+        comp = _components(len(accounts), [(i, j) for i in range(len(accounts)) for j in range(i) if set(accounts[i][1:]) & set(accounts[j][1:])])
+        want = sorted(sorted({e for i in range(len(accounts)) if comp[i] == c for e in accounts[i][1:]}) for c in set(comp))
+        got = sorted(sorted(x[1:]) for x in f([a[:] for a in accounts]))
+        assert got == want
+
+
+@test(f"{GR}:dsu-groups#Smallest string with swaps")
+def _(ns):
+    f = ns["smallest_string_with_swaps"]
+    assert f("dcab", [[0, 3], [1, 2]]) == "bacd" and f("dcab", [[0, 3], [1, 2], [0, 2]]) == "abcd"
+    r = random.Random(1504)
+    for _ in range(150):
+        s = "".join(r.choice("abcd") for _ in range(r.randint(1, 7)))
+        pairs = [[r.randrange(len(s)), r.randrange(len(s))] for _ in range(r.randint(0, 5))]
+        best, seen, stack = s, {s}, [s]
+        while stack:
+            t = stack.pop()
+            best = min(best, t)
+            for a, b in pairs:
+                u = list(t)
+                u[a], u[b] = u[b], u[a]
+                u = "".join(u)
+                if u not in seen:
+                    seen.add(u)
+                    stack.append(u)
+        assert f(s, [p[:] for p in pairs]) == best
+
+
+@test(f"{GR}:dsu-groups#Most stones removed")
+def _(ns):
+    f = ns["remove_stones"]
+    assert f([[0, 0], [0, 1], [1, 0], [1, 2], [2, 1], [2, 2]]) == 5 and f([[0, 0], [0, 2], [1, 1], [2, 0], [2, 2]]) == 3 and f([[0, 0]]) == 0
+    r = random.Random(1505)
+    for _ in range(150):
+        stones = list({(r.randint(0, 3), r.randint(0, 3)) for _ in range(r.randint(1, 7))})
+        comp = _components(len(stones), [(i, j) for i in range(len(stones)) for j in range(i) if stones[i][0] == stones[j][0] or stones[i][1] == stones[j][1]])
+        assert f([list(s) for s in stones]) == len(stones) - len(set(comp))
+
+
+@test(f"{GR}:dsu-groups#Redundant connection")
+def _(ns):
+    f = ns["find_redundant_connection"]
+    assert f([[1, 2], [1, 3], [2, 3]]) == [2, 3] and f([[1, 2], [2, 3], [3, 4], [1, 4], [1, 5]]) == [1, 4]
+
+
+@test(f"{GR}:reach-sets")
+def _(ns):
+    f = ns["can_visit_all_rooms"]
+    assert f([[1], [2], [3], []]) is True and f([[1, 3], [3, 0, 1], [2], [0]]) is False
+    r = random.Random(1506)
+    for _ in range(200):
+        n = r.randint(1, 6)
+        rooms = [[r.randrange(n) for _ in range(r.randint(0, 2))] for _ in range(n)]
+        seen, stack = {0}, [0]
+        while stack:
+            u = stack.pop()
+            for v in rooms[u]:
+                if v not in seen:
+                    seen.add(v)
+                    stack.append(v)
+        assert f([x[:] for x in rooms]) is (len(seen) == n)
+
+
+def _reach_closure(n, edges):
+    reach = [[False] * n for _ in range(n)]
+    for a, b in edges:
+        reach[a][b] = True
+    for k in range(n):
+        for i in range(n):
+            for j in range(n):
+                if reach[i][k] and reach[k][j]:
+                    reach[i][j] = True
+    return reach
+
+
+@test(f"{GR}:reach-sets#Find eventual safe states")
+def _(ns):
+    f = ns["eventual_safe_nodes"]
+    assert f([[1, 2], [2, 3], [5], [0], [5], [], []]) == [2, 4, 5, 6]
+    r = random.Random(1507)
+    for _ in range(150):
+        n = r.randint(1, 6)
+        g = [sorted({r.randrange(n) for _ in range(r.randint(0, 2))}) for _ in range(n)]
+        reach = _reach_closure(n, [(u, v) for u in range(n) for v in g[u]])
+        safe = [u for u in range(n) if not reach[u][u] and not any(reach[u][v] and reach[v][v] for v in range(n))]
+        assert f([x[:] for x in g]) == safe
+
+
+@test(f"{GR}:reach-sets#All ancestors in a DAG")
+def _(ns):
+    f = ns["get_ancestors"]
+    r = random.Random(1508)
+    for _ in range(150):
+        n = r.randint(1, 6)
+        edges = [[a, b] for a in range(n) for b in range(a + 1, n) if r.random() < 0.4]
+        reach = _reach_closure(n, edges)
+        assert f(n, [e[:] for e in edges]) == [[a for a in range(n) if reach[a][b]] for b in range(n)]
+
+
+@test(f"{GR}:reach-sets#Course schedule IV")
+def _(ns):
+    f = ns["check_if_prerequisite"]
+    assert f(3, [[1, 2], [1, 0], [2, 0]], [[1, 0], [1, 2]]) == [True, True]
+    r = random.Random(1509)
+    for _ in range(100):
+        n = r.randint(1, 6)
+        edges = [[a, b] for a in range(n) for b in range(a + 1, n) if r.random() < 0.3]
+        qs = [[r.randrange(n), r.randrange(n)] for _ in range(5)]
+        reach = _reach_closure(n, edges)
+        assert f(n, [e[:] for e in edges], [q[:] for q in qs]) == [reach[a][b] for a, b in qs]
+
+
+def _bfs_grid_dist(grid, sources):
+    from collections import deque
+    R, C = len(grid), len(grid[0])
+    dist = {s: 0 for s in sources}
+    q = deque(sources)
+    while q:
+        r, c = q.popleft()
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < R and 0 <= b < C and (a, b) not in dist:
+                dist[(a, b)] = dist[(r, c)] + 1
+                q.append((a, b))
+    return dist
+
+
+@test(f"{GR}:multi-source")
+def _(ns):
+    f = ns["shortest_bridge"]
+    assert f([[0, 1], [1, 0]]) == 1 and f([[0, 1, 0], [0, 0, 0], [0, 0, 1]]) == 2
+    r = random.Random(1510)
+    for _ in range(100):
+        n = r.randint(2, 5)
+        g = _grid(r, n, n, [0, 0, 1])
+        islands = _island_cells(g)
+        if len(islands) != 2:
+            continue
+        a, b = islands
+        want = min(abs(x - u) + abs(y - v) for x, y in a for u, v in b) - 1
+        assert f([row[:] for row in g]) == want
+
+
+@test(f"{GR}:multi-source#01 Matrix")
+def _(ns):
+    f = ns["update_matrix"]
+    assert f([[0, 0, 0], [0, 1, 0], [1, 1, 1]]) == [[0, 0, 0], [0, 1, 0], [1, 2, 1]]
+    r = random.Random(1511)
+    for _ in range(100):
+        g = _grid(r, r.randint(1, 5), r.randint(1, 5), [0, 1, 1])
+        zeros = [(i, j) for i in range(len(g)) for j in range(len(g[0])) if g[i][j] == 0]
+        if not zeros:
+            continue
+        want = [[min(abs(i - a) + abs(j - b) for a, b in zeros) for j in range(len(g[0]))] for i in range(len(g))]
+        assert f([row[:] for row in g]) == want
+
+
+@test(f"{GR}:multi-source#As far from land as possible")
+def _(ns):
+    f = ns["max_distance"]
+    assert f([[1, 0, 1], [0, 0, 0], [1, 0, 1]]) == 2 and f([[1, 1], [1, 1]]) == -1
+    r = random.Random(1512)
+    for _ in range(100):
+        k = r.randint(1, 5)
+        g = _grid(r, k, k, [0, 0, 1])  # the problem's grids are square
+        land = [(i, j) for i in range(len(g)) for j in range(len(g[0])) if g[i][j]]
+        water = [(i, j) for i in range(len(g)) for j in range(len(g[0])) if not g[i][j]]
+        want = max(min(abs(i - a) + abs(j - b) for a, b in land) for i, j in water) if land and water else -1
+        assert f([row[:] for row in g]) == want
+
+
+@test(f"{GR}:state-bfs")
+def _(ns):
+    f = ns["shortest_path"]
+    assert f([[0, 0, 0], [1, 1, 0], [0, 0, 0], [0, 1, 1], [0, 0, 0]], 1) == 6 and f([[0, 1, 1], [1, 1, 1], [1, 0, 0]], 1) == -1
+    r = random.Random(1513)
+    for _ in range(100):
+        g = _grid(r, r.randint(1, 4), r.randint(1, 4), [0, 0, 1])
+        g[0][0] = g[-1][-1] = 0
+        k = r.randint(0, 3)
+        R, C = len(g), len(g[0])
+        best = -1
+        for steps in range(R * C * (k + 1) + 1):
+            pass
+        from collections import deque
+        q, seen = deque([(0, 0, 0, 0)]), {(0, 0, 0)}
+        while q:
+            a, b, used, d = q.popleft()
+            if (a, b) == (R - 1, C - 1):
+                best = d
+                break
+            for x, y in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                if 0 <= x < R and 0 <= y < C and used + g[x][y] <= k and (x, y, used + g[x][y]) not in seen:
+                    seen.add((x, y, used + g[x][y]))
+                    q.append((x, y, used + g[x][y], d + 1))
+        assert f([row[:] for row in g], k) == best
+
+
+@test(f"{GR}:state-bfs#Sliding puzzle")
+def _(ns):
+    f = ns["sliding_puzzle"]
+    assert f([[1, 2, 3], [4, 0, 5]]) == 1 and f([[1, 2, 3], [5, 4, 0]]) == -1 and f([[4, 1, 2], [5, 0, 3]]) == 5
+
+
+@test(f"{GR}:state-bfs#Minimum knight moves")
+def _(ns):
+    f = ns["min_knight_moves"]
+    assert f(2, 1) == 1 and f(5, 5) == 4
+    from collections import deque
+    dist = {(0, 0): 0}
+    q = deque([(0, 0)])
+    while q:
+        a, b = q.popleft()
+        if dist[(a, b)] >= 6:
+            continue
+        for da, db in ((1, 2), (2, 1), (-1, 2), (-2, 1), (1, -2), (2, -1), (-1, -2), (-2, -1)):
+            n = (a + da, b + db)
+            if n not in dist:
+                dist[n] = dist[(a, b)] + 1
+                q.append(n)
+    for x in range(-6, 7):
+        for y in range(-6, 7):
+            if (x, y) in dist:
+                assert f(x, y) == dist[(x, y)], (x, y)
+
+
+@test(f"{GR}:tree-paths")
+def _(ns):
+    f = ns["minimum_fuel_cost"]
+    assert f([[0, 1], [0, 2], [0, 3]], 5) == 3 and f([[3, 1], [3, 2], [1, 0], [0, 4], [0, 5], [4, 6]], 2) == 7 and f([], 1) == 0
+    r = random.Random(1514)
+    for _ in range(100):
+        n = r.randint(1, 8)
+        edges = [[r.randrange(i), i] for i in range(1, n)]
+        seats = r.randint(1, 4)
+        parent = {i: p for p, i in edges}
+        size = [1] * n
+        for i in range(n - 1, 0, -1):
+            size[parent[i]] += size[i]
+        assert f([e[:] for e in edges], seats) == sum(-(-size[i] // seats) for i in range(1, n))
+
+
+@test(f"{GR}:tree-paths#Most profitable path in a tree")
+def _(ns):
+    f = ns["most_profitable_path"]
+    assert f([[0, 1], [1, 2], [1, 3], [3, 4]], 3, [-2, 4, 2, -4, 6]) == 6 and f([[0, 1]], 1, [-7280, 2350]) == -7280
+    r = random.Random(1515)
+    for _ in range(100):
+        n = r.randint(2, 7)
+        edges = [[r.randrange(i), i] for i in range(1, n)]
+        amount = [r.choice([-6, -4, -2, 2, 4, 6]) for _ in range(n)]
+        bob = r.randrange(1, n)
+        parent = {i: p for p, i in edges}
+        bt, u, t = {}, bob, 0
+        while u != 0:
+            bt[u] = t
+            u, t = parent[u], t + 1
+        bt[0] = t
+        children = {i: [] for i in range(n)}
+        for p, i in edges:
+            children[p].append(i)
+
+        def go(u, time):
+            gain = amount[u]
+            if u in bt:
+                if time > bt[u]:
+                    gain = 0
+                elif time == bt[u]:
+                    gain = amount[u] // 2 if amount[u] % 2 == 0 else int(amount[u] / 2)
+            return gain + (max(go(v, time + 1) for v in children[u]) if children[u] else 0)
+
+        assert f([e[:] for e in edges], bob, amount[:]) == go(0, 0)
+
+
+@test(f"{GR}:topo-dp")
+def _(ns):
+    f = ns["largest_path_value"]
+    assert f("abaca", [[0, 1], [0, 2], [2, 3], [3, 4]]) == 3 and f("a", [[0, 0]]) == -1
+    r = random.Random(1516)
+    for _ in range(100):
+        n = r.randint(1, 6)
+        colors = "".join(r.choice("abc") for _ in range(n))
+        edges = [[a, b] for a in range(n) for b in range(n) if a != b and r.random() < 0.25]
+        reach = _reach_closure(n, edges)
+        if any(reach[i][i] for i in range(n)):
+            assert f(colors, [e[:] for e in edges]) == -1
+            continue
+        best = 0
+
+        def paths(u, cnt):
+            nonlocal best
+            cnt = dict(cnt)
+            cnt[colors[u]] = cnt.get(colors[u], 0) + 1
+            best = max(best, max(cnt.values()))
+            for a, b in edges:
+                if a == u:
+                    paths(b, cnt)
+
+        for s in range(n):
+            paths(s, {})
+        assert f(colors, [e[:] for e in edges]) == best
+
+
+@test(f"{GR}:topo-dp#Find all possible recipes")
+def _(ns):
+    f = ns["find_all_recipes"]
+    assert sorted(f(["bread", "sandwich"], [["yeast", "flour"], ["bread", "meat"]], ["yeast", "flour", "meat"])) == ["bread", "sandwich"]
+    assert f(["bread"], [["yeast", "flour"]], ["yeast"]) == []
+
+
+@test(f"{GR}:topo-dp#All paths lead to the destination")
+def _(ns):
+    f = ns["leads_to_destination"]
+    assert f(4, [[0, 1], [0, 2], [1, 3], [2, 3]], 0, 3) is True and f(3, [[0, 1], [0, 2]], 0, 2) is False and f(4, [[0, 1], [1, 1], [1, 2], [2, 3]], 0, 3) is False
+    r = random.Random(1517)
+    for _ in range(150):
+        n = r.randint(2, 6)
+        edges = [[a, b] for a in range(n) for b in range(n) if r.random() < 0.25]
+        src, dst = r.randrange(n), r.randrange(n)
+        adj = {i: [b for a, b in edges if a == i] for i in range(n)}
+
+        def ok(u, path):
+            if u in path:
+                return False
+            if not adj[u]:
+                return u == dst
+            return all(ok(v, path | {u}) for v in adj[u])
+
+        assert f(n, [e[:] for e in edges], src, dst) is ok(src, frozenset())
+
+
+@test(f"{GR}:short-cycle")
+def _(ns):
+    f = ns["find_shortest_cycle"]
+    assert f(7, [[0, 1], [1, 2], [2, 0], [3, 4], [4, 5], [5, 6], [6, 3]]) == 3 and f(4, [[0, 1], [0, 2]]) == -1
+    r = random.Random(1518)
+    for _ in range(100):
+        n = r.randint(1, 6)
+        edges = [[a, b] for a in range(n) for b in range(a + 1, n) if r.random() < 0.35]
+        adj = {i: set() for i in range(n)}
+        for a, b in edges:
+            adj[a].add(b)
+            adj[b].add(a)
+        best = float("inf")
+        for k in range(3, n + 1):
+            for cyc in _it.permutations(range(n), k):
+                if cyc[0] == min(cyc) and all(cyc[(i + 1) % k] in adj[cyc[i]] for i in range(k)):
+                    best = min(best, k)
+        assert f(n, [e[:] for e in edges]) == (best if best != float("inf") else -1)
+
+
+@test(f"{GR}:short-cycle#Possible bipartition")
+def _(ns):
+    f = ns["possible_bipartition"]
+    assert f(4, [[1, 2], [1, 3], [2, 4]]) is True and f(3, [[1, 2], [1, 3], [2, 3]]) is False
+    r = random.Random(1519)
+    for _ in range(150):
+        n = r.randint(1, 6)
+        d = [[a, b] for a in range(1, n + 1) for b in range(a + 1, n + 1) if r.random() < 0.3]
+        ok = any(all((mask >> (a - 1) & 1) != (mask >> (b - 1) & 1) for a, b in d) for mask in range(1 << n))
+        assert f(n, [x[:] for x in d]) is ok
+
+
+@test(f"{GR}:dsu-time")
+def _(ns):
+    f = ns["earliest_acq"]
+    assert f([[20190101, 0, 1], [20190104, 3, 4], [20190107, 2, 3], [20190211, 1, 5], [20190224, 2, 4], [20190301, 0, 3], [20190312, 1, 2], [20190322, 4, 5]], 6) == 20190301
+    assert f([[0, 2, 0], [1, 0, 1], [3, 0, 3], [4, 1, 2], [7, 3, 1]], 4) == 3
+    assert f([[0, 0, 1]], 3) == -1
+
+
+@test(f"{GR}:dsu-time#Find all people with a secret")
+def _(ns):
+    f = ns["find_all_people"]
+    assert sorted(f(6, [[1, 2, 5], [2, 3, 8], [1, 5, 10]], 1)) == [0, 1, 2, 3, 5]
+    assert sorted(f(4, [[3, 1, 3], [1, 2, 2], [0, 3, 3]], 3)) == [0, 1, 3]
+    r = random.Random(1520)
+    for _ in range(150):
+        n = r.randint(2, 6)
+        meets = [[r.randrange(n), r.randrange(n), r.randint(1, 3)] for _ in range(r.randint(0, 6))]
+        first = r.randrange(1, n)
+        know = {0, first}
+        for t in sorted({m[2] for m in meets}):
+            group = [(a, b) for a, b, tt in meets if tt == t]
+            changed = True
+            while changed:
+                changed = False
+                for a, b in group:
+                    if (a in know) != (b in know):
+                        know |= {a, b}
+                        changed = True
+        assert sorted(f(n, [m[:] for m in meets], first)) == sorted(know)
+
+
+@test(f"{GR}:components-props")
+def _(ns):
+    f = ns["count_pairs"]
+    assert f(3, [[0, 1], [0, 2], [1, 2]]) == 0 and f(7, [[0, 2], [0, 5], [2, 4], [1, 6], [5, 4]]) == 14
+    r = random.Random(1521)
+    for _ in range(150):
+        n = r.randint(1, 7)
+        edges = [[a, b] for a in range(n) for b in range(a + 1, n) if r.random() < 0.25]
+        comp = _components(n, edges)
+        assert f(n, [e[:] for e in edges]) == sum(1 for i in range(n) for j in range(i + 1, n) if comp[i] != comp[j])
+
+
+@test(f"{GR}:components-props#Minimum score of a path between two cities")
+def _(ns):
+    f = ns["min_score"]
+    assert f(4, [[1, 2, 9], [2, 3, 6], [2, 4, 5], [1, 4, 7]]) == 5 and f(4, [[1, 2, 2], [1, 3, 4], [3, 4, 7]]) == 2
+
+
+@test(f"{GR}:components-props#Detonate the maximum bombs")
+def _(ns):
+    f = ns["maximum_detonation"]
+    assert f([[2, 1, 3], [6, 1, 4]]) == 2 and f([[1, 1, 5], [10, 10, 5]]) == 1 and f([[1, 2, 3], [2, 3, 1], [3, 4, 2], [4, 5, 3], [5, 6, 4]]) == 5
+
+
+@test(f"{GR}:indegree")
+def _(ns):
+    f = ns["find_smallest_set_of_vertices"]
+    assert sorted(f(6, [[0, 1], [0, 2], [2, 5], [3, 4], [4, 2]])) == [0, 3] and sorted(f(5, [[0, 1], [2, 1], [3, 1], [1, 4], [2, 4]])) == [0, 2, 3]
+
+
+@test(f"{GR}:indegree#Find champion II")
+def _(ns):
+    f = ns["find_champion"]
+    assert f(3, [[0, 1], [1, 2]]) == 0 and f(4, [[0, 2], [1, 3], [1, 2]]) == -1
+
+
+@test(f"{GR}:indegree#Restore the array from adjacent pairs")
+def _(ns):
+    f = ns["restore_array"]
+    r = random.Random(1522)
+    for _ in range(150):
+        n = r.randint(2, 8)
+        arr = r.sample(range(-20, 20), n)
+        pairs = [[arr[i], arr[i + 1]] for i in range(n - 1)]
+        r.shuffle(pairs)
+        pairs = [p if r.random() < 0.5 else p[::-1] for p in pairs]
+        got = f([p[:] for p in pairs])
+        assert got in (arr, arr[::-1])

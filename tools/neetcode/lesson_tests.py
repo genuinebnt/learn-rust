@@ -2361,3 +2361,147 @@ def _(ns):
         from functools import reduce
 
         assert f(a, qs) == [reduce(lambda x, y: x ^ y, a[l:r_ + 1]) for l, r_ in qs]
+
+
+# ---- extras: lessons for techniques with no must-learn problem (decision 32). A variant's key is "<id>#<tab name>".
+
+
+def _random_graph(r, n, p, directed=False):
+    g = {u: [] for u in range(n)}
+    for u in range(n):
+        for v in range(n):
+            if u != v and r.random() < p and (directed or u < v):
+                g[u].append(v)
+                if not directed:
+                    g[v].append(u)
+    return g
+
+
+def _reachable(g, s):
+    seen, stack = {s}, [s]
+    while stack:
+        u = stack.pop()
+        for v in g[u]:
+            if v not in seen:
+                seen.add(v)
+                stack.append(v)
+    return seen
+
+
+@test("Graphs:dfs")
+def _(ns):
+    f = ns["dfs_recursive"]
+    assert f({0: [1, 2], 1: [3], 2: [3], 3: []}, 0) == [0, 1, 3, 2]
+    r = random.Random(301)
+    for _ in range(200):
+        g = _random_graph(r, r.randint(1, 8), 0.3, directed=True)
+        order = f(g, 0)
+        assert len(order) == len(set(order)) and set(order) == _reachable(g, 0)
+
+
+@test("Graphs:dfs#Iterative (explicit stack)")
+def _(ns):
+    f = ns["dfs_iterative"]
+    assert f({0: [1, 2], 1: [3], 2: [3], 3: []}, 0) == [0, 1, 3, 2]
+    # the same visiting order as the recursive version
+    def rec(g, s):
+        seen, order = set(), []
+
+        def visit(u):
+            seen.add(u)
+            order.append(u)
+            for v in g[u]:
+                if v not in seen:
+                    visit(v)
+
+        visit(s)
+        return order
+
+    r = random.Random(302)
+    for _ in range(300):
+        g = _random_graph(r, r.randint(1, 9), 0.3, directed=True)
+        assert f(g, 0) == rec(g, 0)
+    chain = {i: [i + 1] for i in range(5000)}
+    chain[5000] = []
+    assert len(f(chain, 0)) == 5001  # deeper than the recursion limit
+
+
+@test("Graphs:bfs-levels")
+def _(ns):
+    f = ns["bfs_levels"]
+    assert f({0: [1, 2], 1: [3], 2: [3], 3: []}, 0) == {0: 0, 1: 1, 2: 1, 3: 2}
+    r = random.Random(303)
+    for _ in range(200):
+        g = _random_graph(r, r.randint(1, 8), 0.3, directed=True)
+        got = f(g, 0)
+        # relaxation to a fixed point as an independent model
+        want = {0: 0}
+        changed = True
+        while changed:
+            changed = False
+            for u, d in list(want.items()):
+                for v in g[u]:
+                    if v not in want or want[v] > d + 1:
+                        want[v] = d + 1
+                        changed = True
+        assert got == want
+
+
+@test("Graphs:bidir-bfs")
+def _(ns):
+    f = ns["bidirectional_steps"]
+    path = {i: [j for j in (i - 1, i + 1) if 0 <= j < 6] for i in range(6)}
+    assert f(path, 0, 5) == 5 and f(path, 3, 3) == 0
+    assert f({0: [], 1: []}, 0, 1) == -1
+    r = random.Random(304)
+    for _ in range(400):
+        n = r.randint(2, 9)
+        g = _random_graph(r, n, 0.25)
+        a, b = r.randrange(n), r.randrange(n)
+        dist = {a: 0}
+        queue = deque([a])
+        while queue:
+            u = queue.popleft()
+            for v in g[u]:
+                if v not in dist:
+                    dist[v] = dist[u] + 1
+                    queue.append(v)
+        assert f(g, a, b) == dist.get(b, -1)
+
+
+@test("Graphs:topo-layers")
+def _(ns):
+    f = ns["topo_layers"]
+    assert [sorted(x) for x in f(4, [(0, 1), (0, 2), (1, 3), (2, 3)])] == [[0], [1, 2], [3]]
+    assert f(2, [(0, 1), (1, 0)]) is None and f(3, []) == [[0, 1, 2]]
+    r = random.Random(305)
+    for _ in range(300):
+        n = r.randint(1, 8)
+        edges = [(a, b) for a in range(n) for b in range(a + 1, n) if r.random() < 0.3]
+        got = f(n, edges)
+        depth = [0] * n
+        for b in range(n):  # nodes are numbered in a topological order
+            for a, bb in edges:
+                if bb == b:
+                    depth[b] = max(depth[b], depth[a] + 1)
+        want = [[u for u in range(n) if depth[u] == d] for d in range(max(depth) + 1)]
+        assert [sorted(layer) for layer in got] == want
+
+
+@test("Advanced Graphs:zero-one-bfs")
+def _(ns):
+    f = ns["zero_one_bfs"]
+    g = {0: [(1, 0), (2, 1)], 1: [(2, 0)], 2: []}
+    assert f(g, 0) == {0: 0, 1: 0, 2: 0}
+    r = random.Random(306)
+    inf = float("inf")
+    for _ in range(300):
+        n = r.randint(1, 7)
+        g = {u: [(v, r.randint(0, 1)) for v in range(n) if v != u and r.random() < 0.35] for u in range(n)}
+        want = {u: inf for u in range(n)}
+        want[0] = 0
+        for _ in range(n):  # Bellman-Ford as the model
+            for u in range(n):
+                for v, w in g[u]:
+                    want[v] = min(want[v], want[u] + w)
+        assert f(g, 0) == want

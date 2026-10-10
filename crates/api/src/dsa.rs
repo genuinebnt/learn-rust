@@ -433,6 +433,16 @@ struct LessonTechnique<'a> {
     practice_solved: usize,
 }
 
+/// A lesson for a technique that has no must-learn problem: its example problems, with progress.
+#[derive(Serialize)]
+struct LessonExtra<'a> {
+    id: &'a str,
+    name: &'a str,
+    group: &'a str,
+    lesson: &'a anneal_content::Extra,
+    examples: Vec<ProblemRow<'a>>,
+}
+
 /// A pattern's lessons: each technique with when to use it, a template, its traps, and its problems with progress.
 pub async fn pattern(State(s): State<AppState>, Path(code): Path<String>) -> ApiResult<Json<serde_json::Value>> {
     let track = dsa_tracks(&s.catalog).find(|t| t.code.eq_ignore_ascii_case(&code) || t.slug == code).ok_or_else(|| ApiError::NotFound(format!("pattern {code}")))?;
@@ -456,12 +466,28 @@ pub async fn pattern(State(s): State<AppState>, Path(code): Path<String>) -> Api
             practice_solved: practice.iter().filter(|p| progress.get(&p.id).is_some_and(|r| r.solved)).count(),
         });
     }
+    // Example problems may belong to another pattern's track (0-1 BFS is taught with a problem filed under Advanced Graphs).
+    let mut extra_lessons = Vec::new();
+    for e in s.catalog.dsa.extras.get(&track.name).map(Vec::as_slice).unwrap_or_default() {
+        let examples: Vec<ProblemRow> = e
+            .examples
+            .iter()
+            .filter_map(|slug| {
+                let id = format!("lc-{slug}");
+                dsa_tracks(&s.catalog).find_map(|t| t.problems.iter().find(|p| p.id == id).map(|p| row(t, p, &progress, &by_problem, today)))
+            })
+            .collect();
+        extra_lessons.push(LessonExtra { id: &e.id, name: &e.name, group: &e.group, lesson: e, examples });
+    }
     let value = serde_json::json!({
         "code": track.code,
         "pattern": track.name,
         "intro": s.catalog.dsa.lesson_intros.get(&track.name),
         "total": track.problems.len(),
+        "groups": s.catalog.dsa.lesson_groups.get(&track.name),
         "techniques": techniques,
+        "extras": extra_lessons,
+        "listed": s.catalog.dsa.listed.get(&track.name),
     });
     Ok(Json(value))
 }

@@ -1,8 +1,10 @@
 pattern = "Graphs"
 intro = "Twelve ideas cover almost every graph problem. First decide what the graph is (grid cells, courses, words, people), then which question it asks: reach everything, fewest steps, an order, or which group. The template for each is short; the work is in recognising the shape."
+groups = ["Traversal", "Cycle detection and graph properties", "Topological sort and dependencies", "Union-find (DSU)", "Tree algorithms", "Graph modeling and state-space search", "Core implementation patterns"]
 
 [[technique]]
 id = "Graphs:simulation"
+group = "Graph modeling and state-space search"
 signals = [
     "the rules are given as an order, a mapping or a procedure you can follow directly",
     "no search is needed: check each pair of neighbours, or follow each step",
@@ -22,6 +24,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:degree"
+group = "Cycle detection and graph properties"
 signals = [
     "who is trusted, followed or pointed at by everyone, or by no one",
     "a celebrity, judge, source or sink in a directed graph",
@@ -44,6 +47,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:flood"
+group = "Traversal"
 signals = [
     "a 2-D grid of cells",
     "islands, regions, enclosed areas, connected cells of the same kind",
@@ -86,6 +90,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:clone"
+group = "Traversal"
 signals = [
     "copy a graph or a linked structure where nodes point at each other",
     "the copy must not share any node with the original",
@@ -114,6 +119,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:multi-bfs"
+group = "Traversal"
 signals = [
     "distance from the nearest of many sources",
     "something spreads outward from several places at once (rot, fire, water)",
@@ -148,6 +154,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:border"
+group = "Traversal"
 signals = [
     "which cells can reach (or are cut off from) the border or an ocean",
     "enclosed, surrounded, or flows to both edges",
@@ -178,6 +185,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:tree-walk"
+group = "Tree algorithms"
 signals = [
     "n nodes and n - 1 edges: it is a tree, just given as a list of edges",
     "everything hangs from one root (a capital, a CEO, node 0)",
@@ -209,6 +217,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:topo"
+group = "Topological sort and dependencies"
 signals = [
     "prerequisites, dependencies, build order",
     "is there a valid order? or return one",
@@ -244,6 +253,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:dsu"
+group = "Union-find (DSU)"
 signals = [
     "merge groups and ask whether two things are in the same group",
     "edges arrive one at a time, or you only need to know the number of groups",
@@ -281,6 +291,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:bipartite"
+group = "Cycle detection and graph properties"
 signals = [
     "split the nodes into two groups so that no edge joins two nodes of the same group",
     "two teams, two colours, or someone who must not share a side with a neighbour",
@@ -317,6 +328,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:weighted"
+group = "Graph modeling and state-space search"
 signals = [
     "relationships with a ratio or a multiplier between pairs (a / b = 2.0)",
     "answer a query by combining the relationships along a path",
@@ -359,6 +371,7 @@ pitfalls = [
 
 [[technique]]
 id = "Graphs:bfs-implicit"
+group = "Graph modeling and state-space search"
 signals = [
     "fewest moves, steps or changes to get from one state to another",
     "the graph is never given: you generate each state's neighbours",
@@ -395,3 +408,436 @@ pitfalls = [
     "BFS gives the fewest steps only when every move costs the same. Different costs call for Dijkstra.",
     "Mark states seen when you enqueue them. Check whether the target is reachable at all before searching.",
 ]
+
+[[extra]]
+id = "Graphs:dfs"
+name = "Depth-first search"
+group = "Traversal"
+signals = [
+    "reach, mark or count everything connected to a start",
+    "the answer is built on the way back up: subtree sizes, paths, cycle checks",
+    "a maze, a tree or a dependency graph walked one branch at a time",
+]
+template_name = "Recursive"
+template = '''
+def dfs_recursive(graph, start):
+    """Every node reachable from start, in the order DFS meets them."""
+    seen, order = set(), []
+
+    def visit(u):
+        seen.add(u)
+        order.append(u)
+        for v in graph[u]:
+            if v not in seen:
+                visit(v)
+
+    visit(start)
+    return order
+'''
+pitfalls = [
+    "Python's recursion limit is about 1000 frames: a 10^5 node chain needs the iterative version.",
+    "Mark a node when you enter it, not when you leave it, or a cycle never ends.",
+    "An undirected edge is two directed ones: the visited set (or the parent) stops the walk going back.",
+]
+examples = ["max-area-of-island", "clone-graph", "number-of-provinces", "reorder-routes-to-make-all-paths-lead-to-the-city-zero"]
+
+[[extra.variant]]
+name = "Iterative (explicit stack)"
+note = "The call stack becomes a list: no recursion limit, and the same visiting order as the recursive version."
+template = '''
+def dfs_iterative(graph, start):
+    """The same walk with a stack of your own."""
+    seen, order = set(), []
+    stack = [start]
+    while stack:
+        u = stack.pop()
+        if u in seen:
+            continue  # pushed twice before it was visited
+        seen.add(u)
+        order.append(u)
+        for v in reversed(graph[u]):  # first neighbour is popped first
+            if v not in seen:
+                stack.append(v)
+    return order
+'''
+
+[[extra]]
+id = "Graphs:bfs-levels"
+name = "Breadth-first search by levels"
+group = "Traversal"
+signals = [
+    "the fewest steps, moves or edges between two things when every step costs the same",
+    "the answer is the number of rounds until something is reached or everything is",
+    "level by level: nearest first, then the ones one step further",
+]
+template = '''
+from collections import deque
+
+
+def bfs_levels(graph, start):
+    """Edges from start to every node it can reach."""
+    dist = {start: 0}
+    queue = deque([start])
+    while queue:
+        u = queue.popleft()
+        for v in graph[u]:
+            if v not in dist:
+                dist[v] = dist[u] + 1  # first time seen = shortest
+                queue.append(v)
+    return dist
+'''
+pitfalls = [
+    "Mark a node when you push it, not when you pop it, or one node is queued many times.",
+    "list.pop(0) is O(n): use collections.deque.",
+    "Weighted edges break the first-time-seen rule: use Dijkstra (or 0-1 BFS for weights 0 and 1).",
+]
+examples = ["shortest-path-in-binary-matrix", "snakes-and-ladders", "shortest-path-with-alternating-colors"]
+
+[[extra]]
+id = "Graphs:bidir-bfs"
+name = "Bidirectional BFS"
+group = "Traversal"
+signals = [
+    "one start, one known goal, and the number of states grows fast with each step",
+    "fewest steps in an implicit graph: words one letter apart, lock combinations, puzzle boards",
+    "the moves can be undone, so the search can also run backwards from the goal",
+]
+template = '''
+def bidirectional_steps(graph, src, dst):
+    """Fewest edges from src to dst in an undirected graph, or -1."""
+    if src == dst:
+        return 0
+    front = [{src}, {dst}]
+    seen = [{src}, {dst}]
+    steps = 0
+    while front[0] and front[1]:
+        side = 0 if len(front[0]) <= len(front[1]) else 1  # smaller
+        steps += 1
+        grown = set()
+        for u in front[side]:
+            for v in graph[u]:
+                if v in seen[1 - side]:
+                    return steps  # the two searches touch
+                if v not in seen[side]:
+                    seen[side].add(v)
+                    grown.add(v)
+        front[side] = grown
+    return -1
+'''
+pitfalls = [
+    "Always grow the smaller frontier; alternating blindly keeps the cost of the bigger side.",
+    "Grow a whole level before testing again, or the answer can be one too large.",
+    "It needs undirected moves (or a way to list the predecessors of a state).",
+]
+examples = ["word-ladder", "open-the-lock"]
+
+[[extra]]
+id = "Graphs:topo-layers"
+name = "Topological layers"
+group = "Topological sort and dependencies"
+signals = [
+    "tasks with prerequisites and a question about rounds, semesters or the minimum time with unlimited workers",
+    "everything that is ready can run at the same time",
+    "the longest chain of dependencies is the answer",
+]
+template = '''
+def topo_layers(n, edges):
+    """Layer i holds the nodes whose longest chain of
+    prerequisites has i edges. None when there is a cycle."""
+    nxt = [[] for _ in range(n)]
+    indeg = [0] * n
+    for a, b in edges:  # a must come before b
+        nxt[a].append(b)
+        indeg[b] += 1
+    layer = [u for u in range(n) if indeg[u] == 0]
+    layers, done = [], 0
+    while layer:
+        layers.append(layer)
+        done += len(layer)
+        following = []
+        for u in layer:
+            for v in nxt[u]:
+                indeg[v] -= 1
+                if indeg[v] == 0:
+                    following.append(v)
+        layer = following
+    return layers if done == n else None
+'''
+pitfalls = [
+    "The number of layers is the length of the longest chain: it is the answer to 'how many semesters'.",
+    "A cycle leaves nodes with a positive indegree: compare the count of placed nodes with n.",
+    "Keep a running maximum of finish times when tasks take different times (the critical path).",
+]
+examples = ["parallel-courses", "parallel-courses-iii"]
+
+[[listed]]
+name = "Reverse graph traversal"
+group = "Traversal"
+note = "Partly covered: border walks uphill from the edge on a grid; no reverse adjacency list"
+
+[[listed]]
+name = "Stateful traversal"
+group = "Traversal"
+
+[[listed]]
+name = "Path reconstruction"
+group = "Traversal"
+
+[[listed]]
+name = "Undirected cycle: DFS / BFS / union-find"
+group = "Cycle detection and graph properties"
+note = "Partly covered: union-find (dsu) only; no DFS or BFS cycle tabs"
+
+[[listed]]
+name = "Directed cycle: 3-color DFS / Kahn's algorithm"
+group = "Cycle detection and graph properties"
+note = "Partly covered: Kahn's count in topo only; no 3-color DFS"
+
+[[listed]]
+name = "Bipartite checking (BFS / DFS)"
+group = "Cycle detection and graph properties"
+note = "Partly covered: BFS two-colouring only; no DFS tab"
+
+[[listed]]
+name = "Floyd's tortoise and hare"
+group = "Cycle detection and graph properties"
+
+[[listed]]
+name = "DFS topological sort"
+group = "Topological sort and dependencies"
+
+[[listed]]
+name = "Unique topological ordering"
+group = "Topological sort and dependencies"
+
+[[listed]]
+name = "Ancestor propagation in DAGs"
+group = "Topological sort and dependencies"
+
+[[listed]]
+name = "Critical path in DAGs"
+group = "Topological sort and dependencies"
+
+[[listed]]
+name = "DAG path counting"
+group = "Topological sort and dependencies"
+
+[[listed]]
+name = "Incremental dependency constraints"
+group = "Topological sort and dependencies"
+
+[[listed]]
+name = "DSU with component metadata"
+group = "Union-find (DSU)"
+note = "Partly covered: the size array only; no merged min/max/xor payload"
+
+[[listed]]
+name = "Grid union-find"
+group = "Union-find (DSU)"
+
+[[listed]]
+name = "Weighted / potential DSU"
+group = "Union-find (DSU)"
+
+[[listed]]
+name = "Reverse-time connectivity"
+group = "Union-find (DSU)"
+
+[[listed]]
+name = "Offline dynamic connectivity"
+group = "Union-find (DSU)"
+
+[[listed]]
+name = "Rollback DSU"
+group = "Union-find (DSU)"
+
+[[listed]]
+name = "DSU on tree / small-to-large merging"
+group = "Union-find (DSU)"
+
+[[listed]]
+name = "Tree DFS / subtree aggregation"
+group = "Tree algorithms"
+note = "Partly covered: tree-walk walks an edge-list tree from a root; no subtree aggregation"
+
+[[listed]]
+name = "Tree BFS"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Diameter"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Center"
+group = "Tree algorithms"
+
+[[listed]]
+name = "LCA"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Binary lifting"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Euler tour / entry-exit timestamps"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Heavy-light decomposition"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Rerooting DP"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Centroid decomposition"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Tree DP"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Tree independent set / vertex cover"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Tree path queries"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Virtual tree"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Tree isomorphism / canonical encoding"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Rerooted subtree queries"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Tree matching / domination DP"
+group = "Tree algorithms"
+
+[[listed]]
+name = "DSU on tree"
+group = "Tree algorithms"
+
+[[listed]]
+name = "Constraint graph"
+group = "Graph modeling and state-space search"
+note = "Partly covered: weighted covers the ratio graph only"
+
+[[listed]]
+name = "Super-source / super-sink"
+group = "Graph modeling and state-space search"
+note = "Partly covered: multi-bfs seeds one queue with all sources, which is a super-source without naming it"
+
+[[listed]]
+name = "Product / state-expanded graph"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Keys-and-locks state graph"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Alternating-color / alternating-edge paths"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Parity-expanded graph"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Automaton x graph product"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Resource-constrained paths"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Time-expanded graph"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Reverse-time modeling"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Virtual vertices"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Line graph / edge-state modeling"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Graph compression"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Terminal / boundary compression"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Dominance pruning"
+group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Parent / predecessor arrays"
+group = "Core implementation patterns"
+note = "Partly covered: only articulation passes a parent"
+
+[[listed]]
+name = "Coordinate-to-node mapping"
+group = "Core implementation patterns"
+note = "Partly covered: grid cells are (r, c) tuples; no id mapping"
+
+[[listed]]
+name = "State-to-node encoding"
+group = "Core implementation patterns"
+note = "Partly covered: bfs-implicit keeps states as strings or tuples; no encoding lesson"
+
+[[listed]]
+name = "Compact integer node ids"
+group = "Core implementation patterns"
+note = "Partly covered: one dsu pitfall line on mapping names to integer ids"
+
+[[listed]]
+name = "Reverse adjacency list"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Visitation states (white / gray / black)"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Deque-based 0-1 BFS"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Residual edges"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Bitmask representation"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Memoization over graph states"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Compressed sparse row (CSR)"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Graph invariants and safe updates"
+group = "Core implementation patterns"

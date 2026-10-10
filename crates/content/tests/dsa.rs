@@ -119,3 +119,42 @@ fn lessons_belong_to_a_technique_of_their_pattern_and_are_complete() {
     write("dup.toml", &good);
     assert!(issues(dir.path()).iter().any(|m| m.contains("has two lessons")));
 }
+
+#[test]
+fn a_pattern_page_can_have_groups_variants_extras_and_listed_techniques() {
+    let dir = root_with(&std::fs::read_to_string(fixture().join("dsa/problems.json")).unwrap());
+    std::fs::create_dir_all(dir.path().join("dsa/lessons")).unwrap();
+    let write = |text: &str| std::fs::write(dir.path().join("dsa/lessons/two-pointers.toml"), text).unwrap();
+    let issues = || -> Vec<String> { Catalog::load(dir.path()).unwrap().issues.into_iter().map(|i| i.message).collect() };
+    let head = "pattern = \"Two Pointers\"\nintro = \"x\"\ngroups = [\"Walks\", \"Other\"]\n";
+    let technique = "[[technique]]\nid = \"Two Pointers:opposite\"\ngroup = \"Walks\"\nsignals = [\"a\"]\ntemplate = \"pass\"\npitfalls = [\"b\"]\n";
+    let extra = |body: &str| format!("{head}{technique}\n[[extra]]\nid = \"Two Pointers:meet\"\nname = \"Meet in the middle\"\ngroup = \"Walks\"\nsignals = [\"s\"]\ntemplate = \"pass\"\npitfalls = [\"p\"]\n{body}");
+
+    // A grouped technique, an extra taught with a problem that is in the lists, and a listed technique.
+    write(&format!("{}\n[[listed]]\nname = \"Fast and slow\"\ngroup = \"Other\"\nnote = \"later\"\n", extra("examples = [\"two-sum\"]\n")));
+    let loaded = Catalog::load(dir.path()).unwrap();
+    assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
+    let d = &loaded.catalog.dsa;
+    assert_eq!(d.lesson_groups["Two Pointers"], ["Walks", "Other"]);
+    assert_eq!(d.lessons["Two Pointers:opposite"].group.as_deref(), Some("Walks"));
+    assert_eq!(d.extras["Two Pointers"][0].examples, ["two-sum"]);
+    assert_eq!(d.listed["Two Pointers"][0].name, "Fast and slow");
+
+    // Each way an extra, a variant or a group can be wrong is reported, and the bad entry is not loaded.
+    write(&extra("examples = [\"nope\"]\n"));
+    assert!(issues().iter().any(|m| m.contains("Two Pointers:meet: the example nope isn't a problem in the NeetCode lists")), "{:?}", issues());
+    write(&extra("examples = []\n"));
+    assert!(issues().iter().any(|m| m.contains("needs at least one example problem")), "{:?}", issues());
+    write(&extra("examples = [\"two-sum\"]\n").replace("group = \"Walks\"\nsignals = [\"s\"]", "group = \"Elsewhere\"\nsignals = [\"s\"]"));
+    assert!(issues().iter().any(|m| m.contains("the group \"Elsewhere\" is not declared in `groups`")), "{:?}", issues());
+    write(&extra("examples = [\"two-sum\"]\n").replace("Two Pointers:meet", "Two Pointers:opposite"));
+    assert!(issues().iter().any(|m| m.contains("the id is already taken")), "{:?}", issues());
+    write(&extra("examples = [\"two-sum\"]\n").replace("Two Pointers:meet", "Meet"));
+    assert!(issues().iter().any(|m| m.contains("an extra's id starts with Two Pointers:")), "{:?}", issues());
+    // Variants: the first tab needs a name, and no two tabs share one.
+    let variant = "[[extra.variant]]\nname = \"Iterative\"\ntemplate = \"pass\"\n";
+    write(&extra(&format!("examples = [\"two-sum\"]\n{variant}")));
+    assert!(issues().iter().any(|m| m.contains("variants need `template_name` for the first tab")), "{:?}", issues());
+    write(&extra(&format!("examples = [\"two-sum\"]\ntemplate_name = \"Iterative\"\n{variant}")).replace("template_name = \"Iterative\"\n[[extra.variant]]", "template_name = \"Iterative\"\n\n[[extra.variant]]"));
+    assert!(issues().iter().any(|m| m.contains("two tabs have the same name")), "{:?}", issues());
+}

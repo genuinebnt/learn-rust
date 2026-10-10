@@ -47,60 +47,79 @@ def undefined_names(tree):
     return sorted({n.id for n in ast.walk(tree) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)} - bound - BUILTINS)
 
 
+def run_template(key, template, problems):
+    """Parses, lints and runs one template; returns its namespace, or None after recording why not."""
+    try:
+        tree = ast.parse(template)
+    except SyntaxError as e:
+        problems.append(f"{key}: template syntax error: {e}")
+        return None
+    long = [l for l in template.splitlines() if len(l) > MAX_LINE]
+    if long:
+        problems.append(f"{key}: template line over {MAX_LINE} characters (it would scroll sideways): {long[0].strip()[:50]}...")
+    missing = undefined_names(tree)
+    if missing:
+        problems.append(f"{key}: template uses {', '.join(missing)} without defining or importing it")
+        return None
+    ns = {"__name__": "lesson"}
+    exec("from typing import *", ns)
+    ns.update(page_tests.PROVIDED_CLASSES)
+    try:
+        exec(compile(template, key, "exec"), ns)
+    except Exception as e:  # noqa: BLE001
+        problems.append(f"{key}: template fails to run: {type(e).__name__}: {e}")
+        return None
+    return ns
+
+
 def check(path):
-    problems, tested, count = [], 0, 0
+    """Returns (problems, tested, lessons, extra ids). An extra's behaviour test is keyed by its id, and a variant's by
+    `<id>#<variant name>`; every tab of a lesson is run, so a recursive and an iterative version are both checked."""
+    problems, tested, count, extra_ids = [], 0, 0, set()
     doc = tomllib.loads(path.read_text())
-    for lesson in doc["technique"]:
+    items = [(l, False) for l in doc["technique"]] + [(e, True) for e in doc.get("extra", [])]
+    for lesson, is_extra in items:
         tid = lesson["id"]
         count += 1
-        if tid not in TECHNIQUES:
+        if is_extra:
+            extra_ids.add(tid)
+            if tid in TECHNIQUES:
+                problems.append(f"{tid}: an extra can't reuse a technique id")
+                continue
+        elif tid not in TECHNIQUES:
             problems.append(f"{tid}: isn't a technique")
             continue
         if not lesson["signals"] or not lesson["pitfalls"]:
             problems.append(f"{tid}: needs signals and pitfalls")
-        try:
-            tree = ast.parse(lesson["template"])
-        except SyntaxError as e:
-            problems.append(f"{tid}: template syntax error: {e}")
-            continue
-        long = [l for l in lesson["template"].splitlines() if len(l) > MAX_LINE]
-        if long:
-            problems.append(f"{tid}: template line over {MAX_LINE} characters (it would scroll sideways): {long[0].strip()[:50]}...")
-        missing = undefined_names(tree)
-        if missing:
-            problems.append(f"{tid}: template uses {', '.join(missing)} without defining or importing it")
-            continue
-        ns = {"__name__": "lesson"}
-        exec("from typing import *", ns)
-        ns.update(page_tests.PROVIDED_CLASSES)
-        try:
-            exec(compile(lesson["template"], tid, "exec"), ns)
-        except Exception as e:  # noqa: BLE001
-            problems.append(f"{tid}: template fails to run: {type(e).__name__}: {e}")
-            continue
-        test = lesson_tests.TESTS.get(tid)
-        if test:
-            tested += 1
-            try:
-                test(ns)
-            except Exception as e:  # noqa: BLE001
-                problems.append(f"{tid}: behaviour test fails: {type(e).__name__}: {e}")
-    return problems, tested, count
+        tabs = [(tid, lesson["template"])] + [(f"{tid}#{v['name']}", v["template"]) for v in lesson.get("variant", [])]
+        for key, template in tabs:
+            ns = run_template(key, template, problems)
+            if ns is None:
+                continue
+            test = lesson_tests.TESTS.get(key)
+            if test:
+                tested += 1
+                try:
+                    test(ns)
+                except Exception as e:  # noqa: BLE001
+                    problems.append(f"{key}: behaviour test fails: {type(e).__name__}: {e}")
+    return problems, tested, count, extra_ids
 
 
 def main():
     files = [Path(a) for a in sys.argv[1:]] or sorted(LESSONS.glob("*.toml"))
-    bad, tested, count = [], 0, 0
+    bad, tested, count, extras = [], 0, 0, set()
     for f in files:
-        p, t, c = check(f)
+        p, t, c, e = check(f)
         bad += [f"{f.name}: {x}" for x in p]
         tested += t
         count += c
-    unknown = set(lesson_tests.TESTS) - TECHNIQUES
+        extras |= e
+    unknown = {k for k in lesson_tests.TESTS if k.split("#")[0] not in TECHNIQUES | extras}
     bad += [f"lesson_tests.py: {u} isn't a technique" for u in sorted(unknown)]
     for b in bad:
         print("FAIL", b)
-    print(f"{count} of {len(TECHNIQUES)} lessons, {tested} with a behaviour test, {len(bad)} problems")
+    print(f"{count - len(extras)} of {len(TECHNIQUES)} technique lessons and {len(extras)} extras, {tested} templates with a behaviour test, {len(bad)} problems")
     sys.exit(1 if bad else 0)
 
 

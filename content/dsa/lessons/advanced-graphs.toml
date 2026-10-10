@@ -1,8 +1,10 @@
 pattern = "Advanced Graphs"
 intro = "These are the graph algorithms you name rather than invent: shortest paths with costs, minimum spanning trees, paths that use every edge, and cuts. Each is a template you adapt. Know which question it answers and what it needs from the input (no negative edges, at most k edges, an undirected graph)."
+groups = ["Shortest paths", "Minimum spanning trees", "Connectivity and graph decomposition", "Matching and bipartite graphs", "Network flow", "Graph dynamic programming", "Eulerian and Hamiltonian", "Backtracking and enumeration", "Advanced connectivity and offline algorithms", "Specialized graph algorithms", "Cycle detection and graph properties"]
 
 [[technique]]
 id = "Advanced Graphs:dijkstra"
+group = "Shortest paths"
 signals = [
     "shortest path or cheapest cost where edges have different non-negative weights",
     "time for a signal to reach every node, or the route with the least effort",
@@ -39,6 +41,7 @@ pitfalls = [
 
 [[technique]]
 id = "Advanced Graphs:euler"
+group = "Eulerian and Hamiltonian"
 signals = [
     "use every edge exactly once (every ticket, every road)",
     "the lexicographically smallest valid route",
@@ -70,6 +73,7 @@ pitfalls = [
 
 [[technique]]
 id = "Advanced Graphs:mst"
+group = "Minimum spanning trees"
 signals = [
     "connect every point or node as cheaply as possible",
     "choose edges so the whole graph is connected with the least total weight",
@@ -103,6 +107,7 @@ pitfalls = [
 
 [[technique]]
 id = "Advanced Graphs:bellman"
+group = "Shortest paths"
 signals = [
     "the cheapest path using at most k edges (or k stops)",
     "edges may have negative weights",
@@ -129,6 +134,7 @@ pitfalls = [
 
 [[technique]]
 id = "Advanced Graphs:floyd"
+group = "Shortest paths"
 signals = [
     "shortest distance between every pair of nodes",
     "a small number of nodes (a few hundred at most)",
@@ -155,6 +161,7 @@ pitfalls = [
 
 [[technique]]
 id = "Advanced Graphs:cycles"
+group = "Cycle detection and graph properties"
 signals = [
     "every node has exactly one outgoing edge (a function from nodes to nodes)",
     "the longest cycle, or the length of the cycle a node ends up in",
@@ -185,6 +192,7 @@ pitfalls = [
 
 [[technique]]
 id = "Advanced Graphs:articulation"
+group = "Connectivity and graph decomposition"
 signals = [
     "which single edge or node, if removed, disconnects the graph",
     "the minimum days or edges to split a network",
@@ -230,3 +238,508 @@ pitfalls = [
     "The root is a cut point only if it has more than one DFS child.",
     "Skip the edge back to the parent, but with parallel edges skip it only once.",
 ]
+
+[[extra]]
+id = "Advanced Graphs:zero-one-bfs"
+name = "0-1 BFS"
+group = "Shortest paths"
+signals = [
+    "every edge costs 0 or 1: a turn or no turn, a wall to break or not, a flip or a keep",
+    "a shortest path where some moves are free",
+    "Dijkstra works, but a heap is more machinery than two kinds of cost need",
+]
+template = '''
+from collections import deque
+
+
+def zero_one_bfs(graph, src):
+    """graph[u] = [(v, w)] with w in {0, 1}: distance to every node."""
+    dist = {u: float("inf") for u in graph}
+    dist[src] = 0
+    queue = deque([src])
+    while queue:
+        u = queue.popleft()
+        for v, w in graph[u]:
+            if dist[u] + w < dist[v]:
+                dist[v] = dist[u] + w
+                if w == 0:
+                    queue.appendleft(v)  # free: as near as u
+                else:
+                    queue.append(v)
+    return dist
+'''
+pitfalls = [
+    "A free edge goes to the front of the deque; both ends to the back is plain BFS and gives wrong answers.",
+    "A node can be queued twice: the distance check discards the stale entry.",
+    "On a grid the cost is often on the move (turning costs 1), not on the cell.",
+]
+examples = ["minimum-obstacle-removal-to-reach-corner", "minimum-cost-to-make-at-least-one-valid-path-in-a-grid"]
+
+[[listed]]
+name = "Dijkstra (stale-entry skipping, path reconstruction)"
+group = "Shortest paths"
+note = "Partly covered: stale-entry skipping yes, path reconstruction no"
+
+[[listed]]
+name = "Minimax path"
+group = "Shortest paths"
+note = "Partly covered: one pitfall line on a different combine step; no template"
+
+[[listed]]
+name = "Negative-cycle detection"
+group = "Shortest paths"
+
+[[listed]]
+name = "Johnson's"
+group = "Shortest paths"
+
+[[listed]]
+name = "DAG shortest path"
+group = "Shortest paths"
+
+[[listed]]
+name = "Bidirectional"
+group = "Shortest paths"
+
+[[listed]]
+name = "A*"
+group = "Shortest paths"
+
+[[listed]]
+name = "Product-graph"
+group = "Shortest paths"
+
+[[listed]]
+name = "Shortest-path counting"
+group = "Shortest paths"
+
+[[listed]]
+name = "K-shortest paths"
+group = "Shortest paths"
+
+[[listed]]
+name = "Maximum-bottleneck path"
+group = "Shortest paths"
+
+[[listed]]
+name = "Prim"
+group = "Minimum spanning trees"
+note = "Partly covered: named in a pitfall, no template"
+
+[[listed]]
+name = "Minimum spanning forest"
+group = "Minimum spanning trees"
+note = "Partly covered: the template returns -1 when disconnected, but there is no forest variant"
+
+[[listed]]
+name = "Euclidean MST"
+group = "Minimum spanning trees"
+note = "Partly covered: one pitfall line (Prim with an array is O(n squared))"
+
+[[listed]]
+name = "Maximum spanning tree"
+group = "Minimum spanning trees"
+
+[[listed]]
+name = "MST with preconnected vertices"
+group = "Minimum spanning trees"
+
+[[listed]]
+name = "Bottleneck spanning tree"
+group = "Minimum spanning trees"
+
+[[listed]]
+name = "Second-best MST"
+group = "Minimum spanning trees"
+
+[[listed]]
+name = "MST edge classification"
+group = "Minimum spanning trees"
+
+[[listed]]
+name = "SCC (Kosaraju / Tarjan)"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Condensation DAG"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Biconnected components"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Edge-biconnected components"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Bridge tree"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Block-cut tree"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Strong bridges"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Strong articulation points"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Vertex connectivity"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Edge connectivity"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Offline bridge queries"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Dominators"
+group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Kuhn's"
+group = "Matching and bipartite graphs"
+
+[[listed]]
+name = "Hopcroft-Karp"
+group = "Matching and bipartite graphs"
+
+[[listed]]
+name = "Maximum bipartite matching"
+group = "Matching and bipartite graphs"
+
+[[listed]]
+name = "Minimum vertex cover in bipartite graphs"
+group = "Matching and bipartite graphs"
+
+[[listed]]
+name = "Hall's theorem"
+group = "Matching and bipartite graphs"
+
+[[listed]]
+name = "Hungarian algorithm"
+group = "Matching and bipartite graphs"
+
+[[listed]]
+name = "Blossom (general matching)"
+group = "Matching and bipartite graphs"
+
+[[listed]]
+name = "Minimum path cover in DAGs"
+group = "Matching and bipartite graphs"
+
+[[listed]]
+name = "Maximum independent set in bipartite graphs"
+group = "Matching and bipartite graphs"
+
+[[listed]]
+name = "Ford-Fulkerson"
+group = "Network flow"
+
+[[listed]]
+name = "Edmonds-Karp"
+group = "Network flow"
+
+[[listed]]
+name = "Dinic"
+group = "Network flow"
+
+[[listed]]
+name = "Push-relabel"
+group = "Network flow"
+
+[[listed]]
+name = "Maximum flow"
+group = "Network flow"
+
+[[listed]]
+name = "Minimum cut"
+group = "Network flow"
+
+[[listed]]
+name = "Edge-disjoint paths"
+group = "Network flow"
+
+[[listed]]
+name = "Vertex-disjoint paths"
+group = "Network flow"
+
+[[listed]]
+name = "Bipartite matching via flow"
+group = "Network flow"
+
+[[listed]]
+name = "Circulation with demands"
+group = "Network flow"
+
+[[listed]]
+name = "Lower-bounded flow"
+group = "Network flow"
+
+[[listed]]
+name = "Min-cost max-flow"
+group = "Network flow"
+
+[[listed]]
+name = "Maximum closure"
+group = "Network flow"
+
+[[listed]]
+name = "Residual graph reasoning"
+group = "Network flow"
+
+[[listed]]
+name = "Super-source / super-sink"
+group = "Network flow"
+
+[[listed]]
+name = "DAG DP"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Longest path in DAG"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Path counting"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Shortest-path counting"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Bitmask DP over subsets"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Hamiltonian path DP"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "TSP DP"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "DP over SCCs"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Graph coloring DP"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Independent-set DP"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Probability / expectation DP"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Resource-constrained state DP"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Meet-in-the-middle DP"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "Treewidth / tree-decomposition DP"
+group = "Graph dynamic programming"
+
+[[listed]]
+name = "De Bruijn sequence"
+group = "Eulerian and Hamiltonian"
+
+[[listed]]
+name = "Hamiltonian path / cycle"
+group = "Eulerian and Hamiltonian"
+
+[[listed]]
+name = "TSP"
+group = "Eulerian and Hamiltonian"
+
+[[listed]]
+name = "Longest simple path"
+group = "Eulerian and Hamiltonian"
+
+[[listed]]
+name = "Simple path enumeration"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "All paths in a DAG"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Constrained path search"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Cycle enumeration"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Connected-subgraph enumeration"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Graph coloring by backtracking"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Clique search"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Maximum clique"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Maximum independent set"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Subgraph isomorphism"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Constraint propagation and branching"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Branch-and-bound"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Meet-in-the-middle enumeration"
+group = "Backtracking and enumeration"
+
+[[listed]]
+name = "Menger's theorem applications"
+group = "Advanced connectivity and offline algorithms"
+
+[[listed]]
+name = "SPQR trees"
+group = "Advanced connectivity and offline algorithms"
+
+[[listed]]
+name = "Segment tree over time + rollback DSU"
+group = "Advanced connectivity and offline algorithms"
+
+[[listed]]
+name = "Offline LCA (Tarjan)"
+group = "Advanced connectivity and offline algorithms"
+
+[[listed]]
+name = "Dynamic connectivity"
+group = "Advanced connectivity and offline algorithms"
+
+[[listed]]
+name = "Dynamic bridge / connectivity maintenance"
+group = "Advanced connectivity and offline algorithms"
+
+[[listed]]
+name = "Treewidth-based algorithms"
+group = "Advanced connectivity and offline algorithms"
+
+[[listed]]
+name = "Planar graph algorithms"
+group = "Advanced connectivity and offline algorithms"
+
+[[listed]]
+name = "Separator-based decomposition"
+group = "Advanced connectivity and offline algorithms"
+
+[[listed]]
+name = "Transitive closure / reduction"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Reachability bitsets"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Complement graph BFS"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Greedy graph coloring"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Minimum dominating set"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Graph centrality"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "PageRank / random walks"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Absorbing Markov chains"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Bipartite projection"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Graph sparsification"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Graph isomorphism"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "LCA in DAGs"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Minimum mean cycle (Karp)"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Difference constraints"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "2-SAT implication graph"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Min-cost circulation"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Algebraic path algorithms"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Bitset-optimized graph algorithms"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "External-memory graph algorithms"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Parallel graph traversal"
+group = "Specialized graph algorithms"
+
+[[listed]]
+name = "Approximation algorithms for hard graph problems"
+group = "Specialized graph algorithms"

@@ -298,6 +298,19 @@ pub async fn page(State(s): State<AppState>, Path(id): Path<String>) -> ApiResul
     Ok(Json(dsa.page.clone()))
 }
 
+/// One problem of the site as a row, whether or not it is in a NeetCode list: the problem page of a practice problem reads it.
+pub async fn problem_row(State(s): State<AppState>, Path(id): Path<String>) -> ApiResult<Json<serde_json::Value>> {
+    let (t, p) = s.catalog.problem(&id).ok_or_else(|| ApiError::NotFound(format!("problem {id}")))?;
+    if p.dsa.is_none() {
+        return Err(ApiError::BadRequest(format!("{id} isn't a DSA problem")));
+    }
+    let today = crate::activity::today();
+    let progress = store::progress(&s.db).await?;
+    let reviews = dsa_reviews(&s.catalog, store::reviews(&s.db).await?);
+    let by_problem: HashMap<&str, &ReviewRow> = reviews.iter().map(|r| (r.problem_id.as_str(), r)).collect();
+    Ok(Json(serde_json::to_value(row(t, p, &progress, &by_problem, today)).map_err(|e| ApiError::BadRequest(e.to_string()))?))
+}
+
 #[derive(Deserialize)]
 pub struct LogBody {
     grade: Grade,

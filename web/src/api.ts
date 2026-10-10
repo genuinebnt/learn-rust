@@ -379,8 +379,14 @@ export interface DsaProblem {
   role: "must_learn" | "practice";
   practice_of: string | null;
   order: number;
-  /** A written lesson exists. */
+  /** A written solution exists for it (a page). */
   has_page: boolean;
+  /** `must`, `strong`, `practice` or `warmup`. */
+  priority: "must" | "strong" | "practice" | "warmup";
+  /** Asked by a company of the site's set in the last six months. */
+  recent: boolean;
+  /** The narrowest NeetCode list it is in; null for a problem outside them. */
+  list_tag: "blind75" | "neetcode150" | "neetcode250" | "all" | null;
   state: DsaStanding;
 }
 
@@ -588,22 +594,11 @@ export interface PatternExtra {
   examples: DsaProblem[];
 }
 
-/** A LeetCode problem outside the lists, verified against LeetCode's own index. Not tracked in anneal: it links out. */
-export interface ExternalProblem {
-  slug: string;
-  title: string;
-  number: number;
-  difficulty: "easy" | "medium" | "hard";
-  premium: boolean;
-}
-
 /** A technique that belongs on the page's map and has no lesson yet. */
 export interface PatternListed {
   name: string;
   group: string;
   note: string;
-  /** LeetCode problems that practise it (outside the lists). */
-  problems?: ExternalProblem[];
 }
 
 export interface PatternTechnique {
@@ -628,10 +623,6 @@ export interface PatternLessons {
   techniques: PatternTechnique[];
   extras: PatternExtra[];
   listed: PatternListed[] | null;
-  /** LeetCode topic tag slugs per group: the page links to LeetCode's own list. */
-  group_tags: Record<string, string[]> | null;
-  /** More LeetCode problems per group, outside the lists (they carry one of the group's tags). */
-  group_problems: Record<string, ExternalProblem[]> | null;
 }
 
 export interface DsaTechnique {
@@ -976,6 +967,8 @@ export const api = {
   saveSolution: (sid: number, body: { label: string; code: string; notes: string }) => request<MySolution>("PUT", `/dsa/solutions/${sid}`, body),
   deleteSolution: (sid: number) => request<{ deleted: number }>("DELETE", `/dsa/solutions/${sid}`),
   dsaPage: (id: string) => request<DsaPage | null>("GET", `/dsa/problems/${id}/page`),
+  /** One problem as a row, in a list or not (the problem page of a practice problem). */
+  dsaRow: (id: string) => request<DsaProblem>("GET", `/dsa/problems/${id}/row`),
   patternLessons: (pattern: string) => request<PatternLessons>("GET", `/dsa/patterns/${pattern}`),
   practice: (pattern: string) => request<PracticeList>("GET", `/dsa/practice/${pattern}`),
   logDsa: (id: string, grade: Grade) => request<{ id: string; due: string | null; ideal_days: number | null }>("POST", `/dsa/problems/${id}/log`, { grade }),

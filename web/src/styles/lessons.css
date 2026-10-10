@@ -71,3 +71,24 @@ button.l-lchip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space
 .l-lpanel{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--bg)}
 .l-lpanel p{margin:0}
 .l-lnote{font-size:12px;color:var(--dim)}
+
+/* The problem row of a technique card (docs/DSA_LEARN_PAGE_SPEC.md): tags in a fixed order, companies and topics underneath. */
+.pl{display:flex;flex-direction:column;gap:5px;padding:7px 9px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);min-width:0}
+.pl:hover{border-color:var(--line)}
+.pl.pl-out{border-style:dashed}
+.pl-top{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap;color:inherit}
+.pl-title{flex:1 1 180px;min-width:0;font-size:13px;line-height:1.35}
+.pl-num{font:500 11px var(--mono);color:var(--dim)}
+.pl-tags{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+.pl-sub{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding-left:2px}
+.pl-topics{font:500 10.5px var(--mono);color:var(--dim);margin-left:4px}
+.d-bdg.pri-must{border-color:transparent;background:var(--cab);color:var(--ca)}
+.d-bdg.pri-strong{border-color:color-mix(in oklab,var(--ca) 55%,var(--line));color:var(--ca)}
+.d-bdg.pri-practice{color:var(--dim)}
+.d-bdg.pri-warmup{color:var(--dim);border-style:dashed}
+.d-bdg.lst{color:var(--grn);border-color:color-mix(in oklab,var(--grn) 45%,var(--line))}
+.d-bdg.rec{color:var(--warn);border-color:color-mix(in oklab,var(--warn) 45%,var(--line))}
+.d-bdg.sol{color:var(--vio);border-color:color-mix(in oklab,var(--vio) 50%,var(--line))}
+.l-other{margin-top:18px;padding-top:14px;border-top:1px solid var(--line2);display:flex;flex-direction:column;gap:10px}
+.l-onames{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.l-onames li{padding:4px 10px;border:1px dashed var(--line);border-radius:999px;font-size:12.5px;color:var(--dim)}

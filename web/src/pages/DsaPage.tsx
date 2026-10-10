@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { api, type Activity, type Band, type DsaOverview, type DsaProblem, type TrackSummary } from "../api";
-import { Companies, Mark, useLogger } from "../components/dsaBits";
+import { Companies, Mark, ProblemTags, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
 import { MockRoot, SlidingSeg, rise, useReady } from "../components/mock";
 import { CountUp } from "../components/kit";
@@ -642,7 +642,6 @@ function ProblemGroups({ o, model, pickCompany, picked, uncapped, openGroups, op
 function ProblemCard({ p, o, model, log, pickCompany, picked }: { p: DsaProblem; o: DsaOverview; model: Model; log: ReturnType<typeof useLogger>["log"]; pickCompany: (name: string) => void; picked: ReadonlySet<string> }) {
   const status = statusOf(p, o.today);
   const teacher = p.practice_of ? model.byId.get(p.practice_of) : undefined;
-  const lists = p.lists.filter((l) => l !== "all").map((l) => ({ blind75: "B75", neetcode150: "150", neetcode250: "250", all: "", practice: "practice" })[l]);
   const when =
     status === "due" ? (
       <span className="d-when due">review due {p.state.due && p.state.due < o.today ? "now" : "today"}</span>
@@ -663,27 +662,9 @@ function ProblemCard({ p, o, model, log, pickCompany, picked }: { p: DsaProblem;
           <a className="d-lc" href={leetcode(p.slug)} target="_blank" rel="noreferrer">
             LeetCode ↗
           </a>
-          {p.premium && (
-            <span className="d-bdg prem" title="Needs LeetCode Premium">
-              PREMIUM
-            </span>
-          )}
-          {p.has_page && (
-            <Link className="d-lc" to="/d/$slug" params={{ slug: p.slug }} title="Intuition, approaches and tips">
-              lesson ›
-            </Link>
-          )}
         </div>
         <div className="d-pmeta">
-          <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>
-            {DIFF[p.difficulty][0]}
-          </span>
-          {p.role === "must_learn" ? <span className="d-bdg ml">MUST LEARN</span> : <span className="d-bdg">PRACTICE</span>}
-          {lists.length > 0 && (
-            <span className="d-bdg" title={`in ${lists.join(", ")}`}>
-              {lists[0]}
-            </span>
-          )}
+          <ProblemTags p={p} />
           <span>{p.tags.slice(0, 3).join(" · ")}</span>
           {teacher && (
             <span className="d-of">

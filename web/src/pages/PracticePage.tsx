@@ -2,9 +2,9 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type DsaProblem, type PracticeTechnique } from "../api";
-import { Companies, Mark, useLogger } from "../components/dsaBits";
+import { Companies, Mark, ProblemTags, useLogger } from "../components/dsaBits";
 import { PatternShell } from "../components/PatternShell";
-import { DIFF, GRADES, MINUTES, leetcode } from "../dsa";
+import { GRADES, MINUTES, leetcode } from "../dsa";
 
 /** A pattern's practice: for each technique, LeetCode problems beyond the NeetCode lists that drill it. */
 export function PracticePage({ code }: { code: string }) {
@@ -31,7 +31,7 @@ export function PracticePage({ code }: { code: string }) {
             <>
               <div className="d-note">
                 <div>
-                  <b>More LeetCode problems for the same ideas.</b> They aren't in the NeetCode lists, so they never count toward your goal, and they schedule no reviews. Solve them on LeetCode, then log how it went. Each group says which NeetCode problem teaches the idea.
+                  <b>More LeetCode problems for the same ideas.</b> They aren't in the NeetCode lists (they carry no list tag), so they never count toward your goal, schedule no reviews and are not in the calendar. Open one to read it, solve it on LeetCode, then log how it went: not yet, with help, on your own. Each group says which NeetCode problem teaches the idea.
                 </div>
               </div>
               <div className="d-sum2">
@@ -89,14 +89,15 @@ export function PracticeRow({ p, today, log }: { p: DsaProblem; today: string; l
       <div className="d-pbody">
         <div className="d-ph">
           <span className="d-pnum">#{p.number}</span>
-          <a className="d-ptitle" href={leetcode(p.slug)} target="_blank" rel="noreferrer">
-            {p.title} ↗
+          <Link className="d-ptitle" to="/d/$slug" params={{ slug: p.slug }}>
+            {p.title}
+          </Link>
+          <a className="d-pext" href={leetcode(p.slug)} target="_blank" rel="noreferrer" title="Solve it on LeetCode">
+            LeetCode ↗
           </a>
         </div>
         <div className="d-pmeta">
-          <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>
-            {DIFF[p.difficulty][0]}
-          </span>
+          <ProblemTags p={p} />
           <span>~{MINUTES[p.difficulty]}m</span>
           <span>{p.tags.slice(0, 3).join(" · ")}</span>
         </div>

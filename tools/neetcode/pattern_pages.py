@@ -9,7 +9,7 @@ For each topic document (a numbered list of groups, each a `;`-separated list of
     for the group of that technique;
   - any other item is `[[listed]]`, with the LeetCode problems it names (exact title match against LeetCode's index, which `--fetch`
     downloads: slug, number, difficulty, paid) and, when an existing lesson mentions its key words, a pointer to that lesson;
-  - each group gets LeetCode topic tags (`group_tags`) where its name says which.
+  - sections are only headings (docs/DSA_LEARN_PAGE_SPEC.md): no problems and no tag links hang off them.
 Hand-written parts are kept: `groups` of a file that already has them, a technique's own `group`, every `[[extra]]`.
 Nothing is invented: a problem is attached only when its title is in LeetCode's index.
 """
@@ -367,29 +367,7 @@ def main():
                 listed[owner[g]].append({"name": shown, "group": g, "note": n, "problems": probs})
                 stats["listed"] += 1
                 stats["with_problems"] += bool(probs)
-        # more problems per group: carry one of the group's specific tags, not in the lists, not already attached
-        attached = {p["slug"] for pat in patterns for it in listed[pat] for p in it["problems"]}
-        gprobs = {}
-        used = set()  # a problem is shown under one group of a page only
-        for g, _ in groups:
-            take = []
-            # the curated ones for this section first (checked against the index), then the section's topic tags
-            keys = sorted((k for k in curated_groups if g.lower().startswith(k.lower())), key=len, reverse=True)
-            for sl in (curated_groups[keys[0]] if keys else []):
-                pr = lc_by_slug.get(sl)
-                if pr and sl not in list_by_slug and sl not in attached and sl not in used and pr not in take:
-                    take.append(pr)
-            spec = group_tag_set(g, lc_tags) - GENERIC
-            if spec and len(take) < GROUP_PROBLEMS:
-                pool = [p for p in lc if spec & set(p["tags"]) and p["slug"] not in list_by_slug and p["slug"] not in attached
-                        and p["slug"] not in used and p not in take]
-                pool.sort(key=lambda p: (-len(spec & set(p["tags"])), p["premium"], p["id"]))
-                take += pool[:GROUP_PROBLEMS - len(take)]
-            take = take[:GROUP_PROBLEMS]
-            if take:
-                gprobs[g] = take
-                used |= {p["slug"] for p in take}
-        stats["group_problems"] = sum(len(v) for v in gprobs.values())
+        stats["group_problems"] = 0
         # write the files
         for pat, path in files.items():
             s = path.read_text()
@@ -425,22 +403,10 @@ def main():
                 best = max(v.items(), key=lambda kv: (kv[1], -glist.index(kv[0]) if kv[0] in glist else -999))[0]
                 return m2.group(0) + f"group = {q(best)}\n" if best in glist else m2.group(0)
             s = re.sub(r'\[\[technique\]\]\nid = "([^"]+)"\n', put_group, s)
-            # group tags
-            tags = {}
-            for g in glist:
-                ts = sorted(group_tag_set(g, lc_tags), key=lambda t: (t in GENERIC, t))
-                if ts:
-                    tags[g] = ts
-            s = re.sub(r"\n\[group_tags\]\n(?:(?!\[\[).*\n)*", "\n", s)
-            tag_block = "\n[group_tags]\n" + "".join(f"{q(g)} = [{', '.join(q(t) for t in ts)}]\n" for g, ts in tags.items()) + "\n" if tags else ""
-            s = s.replace("[[technique]]", tag_block + "[[technique]]", 1) if tag_block else s
             # listed: replace all
             s = re.sub(r"\n\[\[listed\]\]\n(?:(?!\n\[\[)(?:.*\n?))*", "", s)
             s = re.sub(r"\n\[\[group_problem\]\]\n(?:(?!\n\[\[)(?:.*\n?))*", "", s).rstrip("\n") + "\n"
-            for g in glist:
-                for p in gprobs.get(g, []):
-                    s += (f"\n[[group_problem]]\ngroup = {q(g)}\nslug = {q(p['slug'])}\ntitle = {q(p['title'])}\nnumber = {p['id']}\n"
-                          f"difficulty = {q(p['difficulty'])}\npremium = {str(p['premium']).lower()}\n")
+            s = re.sub(r"\n\[group_tags\]\n(?:(?!\[\[).*\n)*", "\n", s)
             for it in listed[pat]:
                 s += f"\n[[listed]]\nname = {q(it['name'])}\ngroup = {q(it['group'])}\n"
                 if it["note"]:

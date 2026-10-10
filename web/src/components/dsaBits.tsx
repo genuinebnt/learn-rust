@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { marked } from "marked";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, type DsaCompany, type DsaProblem, type Grade } from "../api";
-import { MARK_GLYPH, markOf, niceDate } from "../dsa";
+import { DIFF, MARK_GLYPH, markOf, niceDate } from "../dsa";
 
 const SAID: Record<Grade, string> = { good: "on your own", hard: "with help", again: "not yet", easy: "easy" };
 
@@ -119,6 +120,54 @@ export function PyCode({ code }: { code: string }) {
         {copied ? "copied" : "copy"}
       </button>
       <pre>{parts}</pre>
+    </div>
+  );
+}
+
+export const LIST_LABEL: Record<NonNullable<DsaProblem["list_tag"]>, string> = {
+  blind75: "BLIND 75",
+  neetcode150: "NEETCODE 150",
+  neetcode250: "NEETCODE 250",
+  all: "NEETCODE ALL",
+};
+export const PRIORITY_LABEL: Record<DsaProblem["priority"], string> = { must: "MUST", strong: "STRONG", practice: "PRACTICE", warmup: "WARM-UP" };
+
+/** The tags of a problem row, always in the same order (docs/DSA_LEARN_PAGE_SPEC.md, section 3): difficulty, priority, the narrowest
+ *  NeetCode list (nothing for a problem outside the lists), recent, whether the site has a written solution, premium. */
+export function ProblemTags({ p }: { p: DsaProblem }) {
+  return (
+    <span className="pl-tags">
+      <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>{DIFF[p.difficulty][0]}</span>
+      <span className={`d-bdg pri-${p.priority}`} title={p.priority === "must" ? "Must solve" : p.priority === "strong" ? "Strong: asked often" : p.priority === "warmup" ? "A warm-up" : "Practice"}>
+        {PRIORITY_LABEL[p.priority]}
+      </span>
+      {p.list_tag && <span className="d-bdg lst" title="The narrowest NeetCode list this problem is in">{LIST_LABEL[p.list_tag]}</span>}
+      {p.recent && <span className="d-bdg rec" title="Asked in the last six months">RECENT</span>}
+      {p.has_page && <span className="d-bdg sol" title="This site has a written solution for it">SOLUTION</span>}
+      {p.premium && <span className="d-bdg prem">PREM</span>}
+    </span>
+  );
+}
+
+/** A problem under a technique: the mark, the title (it opens the site's problem page, which links to LeetCode), the tags, and the
+ *  companies and LeetCode topics that are asked about it. */
+export function ProblemLine({ p, today }: { p: DsaProblem; today: string }) {
+  return (
+    <div className={`pl${p.list_tag ? "" : " pl-out"}`}>
+      <Link to="/d/$slug" params={{ slug: p.slug }} className="pl-top">
+        <Mark p={p} today={today} />
+        <span className="pl-title">
+          <span className="pl-num">#{p.number}</span> {p.title}
+        </span>
+        <ProblemTags p={p} />
+      </Link>
+      <span className="pl-sub">
+        {p.companies.slice(0, 3).map((c) => (
+          <span key={c.name} className={`d-co${c.recent ? " hot" : ""}`} title={c.recent ? `${c.name}: asked in the last six months` : c.name}>{c.name}</span>
+        ))}
+        {p.companies.length > 3 && <span className="d-co more" title={p.companies.slice(3).map((c) => c.name).join(", ")}>+{p.companies.length - 3}</span>}
+        <span className="pl-topics">{p.tags.slice(0, 3).join(" · ")}</span>
+      </span>
     </div>
   );
 }

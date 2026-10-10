@@ -2,9 +2,9 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type DsaProblem } from "../api";
-import { Companies, Mark, useLogger } from "../components/dsaBits";
+import { Companies, Mark, ProblemTags, useLogger } from "../components/dsaBits";
 import { PatternShell } from "../components/PatternShell";
-import { DIFF, MINUTES, REVIEW_GRADES } from "../dsa";
+import { MINUTES, REVIEW_GRADES } from "../dsa";
 
 const LISTS_HERE: [string, string][] = [["neetcode150", "NeetCode 150"], ["neetcode250", "NeetCode 250"], ["all", "All NeetCode"]];
 
@@ -58,11 +58,9 @@ function Row({ p, today, log }: { p: DsaProblem; today: string; log: ReturnType<
                 <div className="d-ph">
                     <span className="d-pnum">#{p.number}</span>
                     <Link className="d-ptitle" to="/d/$slug" params={{ slug: p.slug }}>{p.title}</Link>
-                    {p.role === "must_learn" && <span className="d-bdg ml">MUST LEARN</span>}
-                    {p.premium && <span className="d-bdg prem">PREMIUM</span>}
                 </div>
                 <div className="d-pmeta">
-                    <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>{DIFF[p.difficulty][0]}</span>
+                    <ProblemTags p={p} />
                     <span>~{MINUTES[p.difficulty]}m</span>
                     <span>{p.tags.slice(0, 3).join(" · ")}</span>
                 </div>

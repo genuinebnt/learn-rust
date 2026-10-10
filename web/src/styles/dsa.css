@@ -276,3 +276,6 @@ button.d-co.hot{background:color-mix(in oklch,var(--fn) 13%,transparent)}
 .d-hint:hover:not(:disabled){border-color:var(--ca)}
 .d-hint:disabled{opacity:.5;cursor:default}
 .d-hint.open{display:flex;flex-direction:column;align-items:stretch;gap:6px;border-style:solid;border-color:var(--line2)}
+
+.d-pext{font:500 11px var(--mono);color:var(--dim);margin-left:8px}
+.d-pext:hover{color:var(--fg)}

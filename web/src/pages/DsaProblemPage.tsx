@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { api, type DsaProblem, type Grade, type MySolution } from "../api";
-import { Companies, Md, Mark, PyCode, useLogger } from "../components/dsaBits";
+import { Companies, Md, Mark, ProblemTags, PyCode, useLogger } from "../components/dsaBits";
 import { Header } from "../components/Header";
 import { useEditorSettings } from "../settings";
 import { Editor } from "../workspace/Editor";
@@ -101,7 +101,10 @@ export function DsaProblemPage({ slug }: { slug: string }) {
     const overview = useQuery({ queryKey: ["dsa"], queryFn: api.dsa });
     const o = overview.data;
     const { log, toast, busy } = useLogger(o?.today);
-    const p = o?.problems.find((x) => x.slug === slug);
+    // a problem outside the NeetCode lists is not in the overview: ask for it by itself
+    const listed = o?.problems.find((x) => x.slug === slug);
+    const outside = useQuery({ queryKey: ["dsa-row", slug], queryFn: () => api.dsaRow(`lc-${slug}`), enabled: !!o && !listed, retry: false });
+    const p = listed ?? outside.data;
     const lesson = useQuery({ queryKey: ["dsa-page", p?.id], queryFn: () => api.dsaPage(p!.id), enabled: !!p?.has_page });
     const statement = useQuery({ queryKey: ["dsa-statement", p?.id], queryFn: () => api.statement(p!.id), enabled: !!p, staleTime: Infinity, retry: false });
     const preview = useQuery({ queryKey: ["dsa-preview", p?.id], queryFn: () => api.preview(p!.id), enabled: !!p });
@@ -145,8 +148,8 @@ export function DsaProblemPage({ slug }: { slug: string }) {
             {toast}
         </>
     );
-    if (!o) return frame(<p className="rempty pp-pad">{overview.isError ? "Couldn't reach the API." : "Loading…"}</p>);
-    if (!p) return frame(<p className="notice bad pp-pad">No NeetCode problem called {slug}. <Link to="/dsa">Back to the list</Link></p>);
+    if (!o || (!p && outside.isLoading)) return frame(<p className="rempty pp-pad">{overview.isError ? "Couldn't reach the API." : "Loading…"}</p>);
+    if (!p) return frame(<p className="notice bad pp-pad">No problem called {slug}. <Link to="/dsa">Back to the list</Link></p>);
 
     const pattern = o.patterns.find((x) => x.code === p.pattern);
     const technique = o.techniques.find((t) => t.id === p.technique);
@@ -179,7 +182,7 @@ export function DsaProblemPage({ slug }: { slug: string }) {
             : s.last_grade === "again"
                 ? ["Couldn't solve it yet", s.due ? `Retry ${niceDate(s.due, today)}` : "Retry soon"]
                 : [s.last_grade === "hard" ? "Solved with help" : "Solved on my own", s.due ? `Next review ${niceDate(s.due, today)}` : `${s.reps} logs`]
-        : ["Not logged yet", "Solve it on LeetCode, then log how it went. The next review is scheduled for you."];
+        : ["Not logged yet", p.list_tag ? "Solve it on LeetCode, then log how it went. The next review is scheduled for you." : "Solve it on LeetCode, then log how it went. It is tracked, but not part of your goal, the reviews or the calendar."];
     const lists = p.lists.filter((l) => l !== "practice" || p.lists.length === 1).map((l) => LIST_NAME[l]);
 
     return frame(
@@ -198,9 +201,7 @@ export function DsaProblemPage({ slug }: { slug: string }) {
                         <h1>{p.title}</h1>
                     </div>
                     <div className="pp-badges">
-                        <span className="pp-b" style={{ color: DIFF[p.difficulty][1] }}><i />{DIFF[p.difficulty][0]}</span>
-                        {p.role === "must_learn" ? <span className="pp-b must">MUST LEARN</span> : <span className="pp-b">PRACTICE</span>}
-                        {p.premium && <span className="pp-b prem">PREMIUM</span>}
+                        <ProblemTags p={p} />
                         <span className="pp-b">~{MINUTES[p.difficulty]} min</span>
                         {lists.map((l) => <span key={l} className="pp-b">{l}</span>)}
                         {technique && <span className="pp-b tech">{technique.name}</span>}

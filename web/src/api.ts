@@ -890,6 +890,7 @@ export const api = {
   tracks: () => request<TrackSummary[]>("GET", "/tracks"),
   activity: (sections: readonly Section[]) => request<Activity>("GET", `/activity?sections=${sections.join(",")}`),
   track: (slug: string) => request<TrackDetail>("GET", `/tracks/${slug}`),
+  resetTrack: (slug: string) => request<{ problems: number; attempts_removed: number; drafts_removed: number }>("POST", `/tracks/${slug}/reset`, {}),
   problem: (id: string) => request<ProblemDetail>("GET", `/problems/${id}`),
   saveDraft: (id: string, code: string) => request<void>("PUT", `/problems/${id}/draft`, { code }),
   reset: (id: string) => request<ProblemDetail>("DELETE", `/problems/${id}/draft`),

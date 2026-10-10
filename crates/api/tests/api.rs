@@ -1713,3 +1713,27 @@ async fn progress_resets_for_a_module_a_project_or_the_whole_course(db: PgPool) 
     assert_eq!(page["state"], "todo");
     assert!(page["last_run"].is_null(), "the runs are gone too");
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn a_track_resets_to_nothing_solved_and_leaves_other_tracks_alone(db: PgPool) {
+    let app = test_app(db);
+    let (_, out) = call(&app, Method::POST, &format!("/api/problems/{NDT}/submit"), Some(json!({ "code": solution() }))).await;
+    assert_eq!(out["run"]["status"], "passed", "{out}");
+    assert_eq!(call(&app, Method::PUT, &format!("/api/problems/{NDT}/draft"), Some(json!({ "code": "// wip" }))).await.0, StatusCode::NO_CONTENT);
+    assert_eq!(call(&app, Method::GET, "/api/tracks/d9", None).await.1["solved"], 1);
+
+    assert_eq!(call(&app, Method::POST, "/api/tracks/nope/reset", Some(json!({}))).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(call(&app, Method::GET, "/api/tracks/d9", None).await.1["solved"], 1, "a refused reset changes nothing");
+
+    let (status, r) = call(&app, Method::POST, "/api/tracks/d9/reset", Some(json!({}))).await;
+    assert_eq!(status, StatusCode::OK, "{r}");
+    assert_eq!(r["attempts_removed"], 1);
+    assert_eq!(r["drafts_removed"], 1);
+    let (_, t) = call(&app, Method::GET, "/api/tracks/d9", None).await;
+    assert_eq!(t["solved"], 0, "nothing is solved any more");
+    let (_, p) = call(&app, Method::GET, &format!("/api/problems/{NDT}"), None).await;
+    assert_eq!(p["draft"], Value::Null, "the draft is gone too");
+    assert!(p["attempt"].is_null() || p["attempt"]["solved"] != true, "{p}");
+    // doing it again is harmless
+    assert_eq!(call(&app, Method::POST, "/api/tracks/d9/reset", Some(json!({}))).await.0, StatusCode::OK);
+}

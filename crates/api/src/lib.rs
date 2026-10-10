@@ -65,6 +65,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/problems/{id}/focus", post(routes::focus))
         .route("/tracks", get(routes::tracks))
         .route("/tracks/{track}", get(routes::track))
+        .route("/tracks/{track}/reset", post(routes::reset_track))
         .route("/problems/{id}", get(routes::problem))
         .route(
             "/problems/{id}/draft",

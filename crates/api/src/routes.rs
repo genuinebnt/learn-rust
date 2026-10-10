@@ -111,6 +111,21 @@ pub async fn track(
     Ok(Json(views::track_detail(t, &progress)))
 }
 
+/// `POST /api/tracks/{track}/reset`: forgets the progress on every problem of one track: attempts and their runs, drafts, scratch files,
+/// review schedule and focus time. The learner's written solutions (`dsa_solutions`) and the plan overrides are kept.
+pub async fn reset_track(State(s): State<AppState>, Path(slug): Path<String>) -> ApiResult<Json<serde_json::Value>> {
+    let t = s.catalog.track(&slug).ok_or_else(|| ApiError::NotFound(format!("track {slug}")))?;
+    let ids: Vec<String> = t.problems.iter().map(|p| p.id.clone()).collect();
+    let mut tx = s.db.begin().await?;
+    let attempts = sqlx::query("DELETE FROM attempts WHERE problem_id = ANY($1)").bind(&ids).execute(&mut *tx).await?.rows_affected();
+    let drafts = sqlx::query("DELETE FROM drafts WHERE problem_id = ANY($1)").bind(&ids).execute(&mut *tx).await?.rows_affected();
+    sqlx::query("DELETE FROM scratch WHERE problem_id = ANY($1)").bind(&ids).execute(&mut *tx).await?;
+    sqlx::query("DELETE FROM reviews WHERE problem_id = ANY($1)").bind(&ids).execute(&mut *tx).await?;
+    sqlx::query("DELETE FROM focus_time WHERE problem_id = ANY($1)").bind(&ids).execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(Json(serde_json::json!({ "problems": ids.len(), "attempts_removed": attempts, "drafts_removed": drafts })))
+}
+
 fn find<'a>(s: &'a AppState, id: &str) -> ApiResult<(&'a Track, &'a Problem)> {
     s.catalog
         .problem(id)

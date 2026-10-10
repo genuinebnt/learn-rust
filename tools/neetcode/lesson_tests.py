@@ -9961,3 +9961,576 @@ def _(ns):
         s.reset()
     assert len(counts) == 6 and all(abs(c - 1000) < 150 for c in counts.values()), counts
     assert s.reset() == [1, 2, 3]
+
+
+# ---- arrays & hashing (extras) --------------------------------------------------------------------------------------
+
+AH = "Arrays & Hashing"
+
+
+def _perm_with_dups(r, n):
+    return [r.randint(1, n) for _ in range(n)]
+
+
+@test(f"{AH}:index-hash")
+def _(ns):
+    f = ns["find_disappeared_numbers"]
+    assert f([4, 3, 2, 7, 8, 2, 3, 1]) == [5, 6] and f([1, 1]) == [2]
+    r = random.Random(1300)
+    for _ in range(200):
+        n = r.randint(1, 8)
+        a = _perm_with_dups(r, n)
+        assert f(a[:]) == [v for v in range(1, n + 1) if v not in a]
+
+
+@test(f"{AH}:index-hash#Find all duplicates")
+def _(ns):
+    f = ns["find_duplicates"]
+    assert sorted(f([4, 3, 2, 7, 8, 2, 3, 1])) == [2, 3]
+    r = random.Random(1301)
+    for _ in range(200):
+        n = r.randint(1, 8)
+        a = [r.randint(1, n) for _ in range(n)]
+        want = [v for v in set(a) if a.count(v) == 2]
+        a = [v for v in a]
+        if any(a.count(v) > 2 for v in a):
+            continue
+        assert sorted(f(a[:])) == sorted(want)
+
+
+@test(f"{AH}:index-hash#Set mismatch (cyclic sort)")
+def _(ns):
+    f = ns["find_error_nums"]
+    assert f([1, 2, 2, 4]) == [2, 3] and f([1, 1]) == [1, 2]
+    r = random.Random(1302)
+    for _ in range(200):
+        n = r.randint(2, 8)
+        a = list(range(1, n + 1))
+        dup, miss = r.sample(a, 2)
+        a[a.index(miss)] = dup
+        r.shuffle(a)
+        assert f(a[:]) == [dup, miss]
+
+
+@test(f"{AH}:pattern-key")
+def _(ns):
+    f = ns["is_isomorphic"]
+    assert f("egg", "add") is True and f("foo", "bar") is False and f("paper", "title") is True and f("badc", "baba") is False
+    r = random.Random(1303)
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 6)))
+        t = "".join(r.choice("xyz") for _ in range(len(s)))
+        ok = all(((a == b) == (x == y)) for (a, x) in zip(s, t) for (b, y) in zip(s, t))
+        assert f(s, t) is ok
+
+
+@test(f"{AH}:pattern-key#Word pattern")
+def _(ns):
+    f = ns["word_pattern"]
+    assert f("abba", "dog cat cat dog") is True and f("abba", "dog cat cat fish") is False and f("aaaa", "dog cat cat dog") is False
+    r = random.Random(1304)
+    for _ in range(200):
+        p = "".join(r.choice("ab") for _ in range(r.randint(1, 4)))
+        words = [r.choice(["x", "y"]) for _ in range(r.randint(1, 4))]
+        ok = len(p) == len(words) and all((p[i] == p[j]) == (words[i] == words[j]) for i in range(len(p)) for j in range(len(p)))
+        assert f(p, " ".join(words)) is ok
+
+
+@test(f"{AH}:pattern-key#Find and replace pattern")
+def _(ns):
+    f = ns["find_and_replace_pattern"]
+    assert f(["abc", "deq", "mee", "aqq", "dkd", "ccc"], "abb") == ["mee", "aqq"]
+
+
+@test(f"{AH}:random-set")
+def _(ns):
+    import random as _random
+    cls = ns["RandomizedSet"]
+    r = random.Random(1305)
+    for _ in range(100):
+        s, ref = cls(), set()
+        for _ in range(40):
+            v = r.randint(0, 6)
+            if r.random() < 0.5:
+                assert s.insert(v) is (v not in ref)
+                ref.add(v)
+            else:
+                assert s.remove(v) is (v in ref)
+                ref.discard(v)
+            if ref:
+                assert s.getRandom() in ref
+    _random.seed(3)
+    s = cls()
+    for v in range(3):
+        s.insert(v)
+    counts = [0] * 3
+    for _ in range(3000):
+        counts[s.getRandom()] += 1
+    assert all(abs(c - 1000) < 150 for c in counts)
+
+
+@test(f"{AH}:random-set#Duplicates allowed")
+def _(ns):
+    cls = ns["RandomizedCollection"]
+    r = random.Random(1306)
+    for _ in range(100):
+        s, ref = cls(), []
+        for _ in range(40):
+            v = r.randint(0, 3)
+            if r.random() < 0.5:
+                assert s.insert(v) is (v not in ref)
+                ref.append(v)
+            else:
+                assert s.remove(v) is (v in ref)
+                if v in ref:
+                    ref.remove(v)
+            if ref:
+                assert s.getRandom() in ref
+
+
+@test(f"{AH}:stream-window")
+def _(ns):
+    cls = ns["RecentCounter"]
+    r = random.Random(1307)
+    for _ in range(100):
+        c, t, seen = cls(), 0, []
+        for _ in range(30):
+            t += r.randint(1, 1500)
+            seen.append(t)
+            assert c.ping(t) == sum(1 for x in seen if x >= t - 3000)
+
+
+@test(f"{AH}:stream-window#Moving average")
+def _(ns):
+    cls = ns["MovingAverage"]
+    r = random.Random(1308)
+    for _ in range(100):
+        size = r.randint(1, 4)
+        m, vals = cls(size), []
+        for _ in range(15):
+            v = r.randint(-5, 9)
+            vals.append(v)
+            w = vals[-size:]
+            assert abs(m.next(v) - sum(w) / len(w)) < 1e-9
+
+
+@test(f"{AH}:stream-window#Logger rate limiter")
+def _(ns):
+    cls = ns["Logger"]
+    r = random.Random(1309)
+    for _ in range(100):
+        lg, last, t = cls(), {}, 0
+        for _ in range(30):
+            t += r.randint(0, 6)
+            msg = r.choice("abc")
+            ok = msg not in last or t - last[msg] >= 10
+            assert lg.shouldPrintMessage(t, msg) is ok
+            if ok:
+                last[msg] = t
+
+
+@test(f"{AH}:stream-window#Underground system")
+def _(ns):
+    cls = ns["UndergroundSystem"]
+    u = cls()
+    u.checkIn(45, "Leyton", 3)
+    u.checkIn(32, "Paradise", 8)
+    u.checkIn(27, "Leyton", 10)
+    u.checkOut(45, "Waterloo", 15)
+    u.checkOut(27, "Waterloo", 20)
+    u.checkOut(32, "Cambridge", 22)
+    assert u.getAverageTime("Paradise", "Cambridge") == 14.0 and u.getAverageTime("Leyton", "Waterloo") == 11.0
+
+
+@test(f"{AH}:sparse")
+def _(ns):
+    cls = ns["SparseVector"]
+    r = random.Random(1310)
+    for _ in range(100):
+        n = r.randint(1, 10)
+        a = [r.choice([0, 0, 0, r.randint(-5, 5)]) for _ in range(n)]
+        b = [r.choice([0, 0, r.randint(-5, 5)]) for _ in range(n)]
+        assert cls(a).dotProduct(cls(b)) == sum(x * y for x, y in zip(a, b))
+
+
+@test(f"{AH}:sparse#Sparse matrix multiplication")
+def _(ns):
+    f = ns["multiply"]
+    r = random.Random(1311)
+    for _ in range(100):
+        m, k, n = r.randint(1, 4), r.randint(1, 4), r.randint(1, 4)
+        a = [[r.choice([0, 0, r.randint(-3, 3)]) for _ in range(k)] for _ in range(m)]
+        b = [[r.choice([0, 0, r.randint(-3, 3)]) for _ in range(n)] for _ in range(k)]
+        want = [[sum(a[i][t] * b[t][j] for t in range(k)) for j in range(n)] for i in range(m)]
+        assert f([row[:] for row in a], [row[:] for row in b]) == want
+
+
+@test(f"{AH}:game-counters")
+def _(ns):
+    cls = ns["TicTacToe"]
+    r = random.Random(1312)
+    for _ in range(100):
+        n = r.randint(2, 4)
+        g, board, winner = cls(n), [[0] * n for _ in range(n)], 0
+        cells = [(i, j) for i in range(n) for j in range(n)]
+        r.shuffle(cells)
+        player = 1
+        for i, j in cells:
+            if winner:
+                break
+            board[i][j] = player
+            lines = [row for row in board] + [list(c) for c in zip(*board)] + [[board[k][k] for k in range(n)], [board[k][n - 1 - k] for k in range(n)]]
+            won = player if any(all(v == player for v in line) for line in lines) else 0
+            assert g.move(i, j, player) == won
+            winner = won
+            player = 3 - player
+
+
+@test(f"{AH}:game-counters#Leaderboard")
+def _(ns):
+    cls = ns["Leaderboard"]
+    lb = cls()
+    for pid, sc in [(1, 73), (2, 56), (3, 39), (4, 51), (5, 4)]:
+        lb.addScore(pid, sc)
+    assert lb.top(1) == 73
+    lb.reset(1)
+    lb.reset(2)
+    lb.addScore(2, 51)
+    assert lb.top(3) == 141
+
+
+@test(f"{AH}:split-sums")
+def _(ns):
+    f = ns["pivot_index"]
+    assert f([1, 7, 3, 6, 5, 6]) == 3 and f([1, 2, 3]) == -1 and f([2, 1, -1]) == 0
+    r = random.Random(1313)
+    for _ in range(300):
+        a = [r.randint(-3, 5) for _ in range(r.randint(1, 8))]
+        want = next((i for i in range(len(a)) if sum(a[:i]) == sum(a[i + 1:])), -1)
+        assert f(a[:]) == want
+
+
+@test(f"{AH}:split-sums#Number of ways to split array")
+def _(ns):
+    f = ns["ways_to_split_array"]
+    assert f([10, 4, -8, 7]) == 2 and f([2, 3, 1, 0]) == 2
+    r = random.Random(1314)
+    for _ in range(200):
+        a = [r.randint(-5, 9) for _ in range(r.randint(2, 8))]
+        assert f(a[:]) == sum(1 for i in range(1, len(a)) if sum(a[:i]) >= sum(a[i:]))
+
+
+@test(f"{AH}:split-sums#Sum of absolute differences (sorted)")
+def _(ns):
+    f = ns["get_sum_absolute_differences"]
+    assert f([2, 3, 5]) == [4, 3, 5]
+    r = random.Random(1315)
+    for _ in range(200):
+        a = sorted(r.randint(1, 20) for _ in range(r.randint(1, 8)))
+        assert f(a[:]) == [sum(abs(x - y) for y in a) for x in a]
+
+
+@test(f"{AH}:split-sums#Grid game")
+def _(ns):
+    f = ns["grid_game"]
+    assert f([[2, 5, 4], [1, 5, 1]]) == 4 and f([[3, 3, 1], [8, 5, 2]]) == 4 and f([[1, 3, 1, 15], [1, 3, 3, 1]]) == 7
+    r = random.Random(1316)
+    for _ in range(200):
+        n = r.randint(1, 5)
+        g = [[r.randint(1, 9) for _ in range(n)] for _ in range(2)]
+        best = float("inf")
+        for a in range(n):
+            h = [row[:] for row in g]
+            for j in range(a + 1):
+                h[0][j] = 0
+            for j in range(a, n):
+                h[1][j] = 0
+            second = max(sum(h[0][:b + 1]) + sum(h[1][b:]) for b in range(n))  # down at column b
+            best = min(best, second)
+        # the first robot's path zeroes top[0..a] and bottom[a..n-1]
+        assert f([row[:] for row in g]) == best
+
+
+@test(f"{AH}:fenwick")
+def _(ns):
+    cls = ns["NumArray"]
+    r = random.Random(1317)
+    for _ in range(100):
+        a = [r.randint(-5, 9) for _ in range(r.randint(1, 9))]
+        t, ref = cls(a[:]), a[:]
+        for _ in range(25):
+            if r.random() < 0.5:
+                i, v = r.randrange(len(a)), r.randint(-5, 9)
+                t.update(i, v)
+                ref[i] = v
+            else:
+                lo = r.randrange(len(a))
+                hi = r.randint(lo, len(a) - 1)
+                assert t.sumRange(lo, hi) == sum(ref[lo:hi + 1])
+
+
+@test(f"{AH}:fenwick#2-D Fenwick tree")
+def _(ns):
+    cls = ns["NumMatrix"]
+    r = random.Random(1318)
+    for _ in range(60):
+        R, C = r.randint(1, 4), r.randint(1, 4)
+        m = [[r.randint(-3, 5) for _ in range(C)] for _ in range(R)]
+        t, ref = cls([row[:] for row in m]), [row[:] for row in m]
+        for _ in range(15):
+            if r.random() < 0.5:
+                i, j, v = r.randrange(R), r.randrange(C), r.randint(-3, 5)
+                t.update(i, j, v)
+                ref[i][j] = v
+            else:
+                r1 = r.randrange(R)
+                r2 = r.randint(r1, R - 1)
+                c1 = r.randrange(C)
+                c2 = r.randint(c1, C - 1)
+                assert t.sumRegion(r1, c1, r2, c2) == sum(ref[i][j] for i in range(r1, r2 + 1) for j in range(c1, c2 + 1))
+
+
+@test(f"{AH}:set-ops")
+def _(ns):
+    f = ns["intersect"]
+    r = random.Random(1319)
+    for _ in range(200):
+        a = [r.randint(0, 4) for _ in range(r.randint(0, 7))]
+        b = [r.randint(0, 4) for _ in range(r.randint(0, 7))]
+        from collections import Counter
+        want = sorted((Counter(a) & Counter(b)).elements())
+        assert sorted(f(a[:], b[:])) == want
+
+
+@test(f"{AH}:set-ops#Difference of two arrays")
+def _(ns):
+    f = ns["find_difference"]
+    got = f([1, 2, 3], [2, 4, 6])
+    assert sorted(got[0]) == [1, 3] and sorted(got[1]) == [4, 6]
+
+
+@test(f"{AH}:set-ops#Intersection of multiple arrays")
+def _(ns):
+    f = ns["intersection"]
+    assert f([[3, 1, 2, 4, 5], [1, 2, 3, 4], [3, 4, 5, 6]]) == [3, 4]
+    r = random.Random(1320)
+    for _ in range(100):
+        arrs = [[r.randint(0, 5) for _ in range(r.randint(1, 5))] for _ in range(r.randint(1, 4))]
+        want = sorted(set.intersection(*map(set, arrs)))
+        assert f([a[:] for a in arrs]) == want
+
+
+@test(f"{AH}:custom-sort")
+def _(ns):
+    f = ns["relative_sort_array"]
+    assert f([2, 3, 1, 3, 2, 4, 6, 7, 9, 2, 19], [2, 1, 4, 3, 9, 6]) == [2, 2, 2, 1, 4, 3, 3, 9, 6, 7, 19]
+
+
+@test(f"{AH}:custom-sort#Sort by increasing frequency")
+def _(ns):
+    f = ns["frequency_sort"]
+    assert f([1, 1, 2, 2, 2, 3]) == [3, 1, 1, 2, 2, 2] and f([2, 3, 1, 3, 2]) == [1, 3, 3, 2, 2]
+
+
+@test(f"{AH}:custom-sort#Rank teams by votes")
+def _(ns):
+    f = ns["rank_teams"]
+    assert f(["ABC", "ACB", "ABC", "ACB", "ACB"]) == "ACB" and f(["WXYZ", "XYZW"]) == "XWYZ" and f(["BCA", "CAB", "CBA", "ABC", "ACB", "BAC"]) == "ABC"
+
+
+@test(f"{AH}:justify")
+def _(ns):
+    f = ns["full_justify"]
+    assert f(["This", "is", "an", "example", "of", "text", "justification."], 16) == ["This    is    an", "example  of text", "justification.  "]
+    assert f(["What", "must", "be", "acknowledgment", "shall", "be"], 16) == ["What   must   be", "acknowledgment  ", "shall be        "]
+    r = random.Random(1321)
+    for _ in range(100):
+        words = ["".join("x" for _ in range(r.randint(1, 6))) for _ in range(r.randint(1, 9))]
+        w = r.randint(6, 12)
+        out = f(words[:], w)
+        assert all(len(line) == w for line in out)
+        assert " ".join(" ".join(line.split()) for line in out).split() == words
+
+
+@test(f"{AH}:transformed-key")
+def _(ns):
+    f = ns["count_bad_pairs"]
+    assert f([4, 1, 3, 3]) == 5 and f([1, 2, 3, 4, 5]) == 0
+    r = random.Random(1322)
+    for _ in range(200):
+        a = [r.randint(0, 6) for _ in range(r.randint(1, 9))]
+        assert f(a[:]) == sum(1 for i in range(len(a)) for j in range(i + 1, len(a)) if j - i != a[j] - a[i])
+
+
+@test(f"{AH}:transformed-key#Count nice pairs (reverse digits)")
+def _(ns):
+    f = ns["count_nice_pairs"]
+    assert f([42, 11, 1, 97]) == 2 and f([13, 10, 35, 24, 76]) == 4
+    r = random.Random(1323)
+    for _ in range(200):
+        a = [r.randint(0, 200) for _ in range(r.randint(1, 8))]
+        rev = lambda x: int(str(x)[::-1])
+        want = sum(1 for i in range(len(a)) for j in range(i + 1, len(a)) if a[i] + rev(a[j]) == a[j] + rev(a[i]))
+        assert f(a[:]) == want
+
+
+@test(f"{AH}:transformed-key#Interchangeable rectangles")
+def _(ns):
+    f = ns["interchangeable_rectangles"]
+    assert f([[4, 8], [3, 6], [10, 20], [15, 30]]) == 6 and f([[4, 5], [7, 8]]) == 0
+    r = random.Random(1324)
+    for _ in range(200):
+        rects = [[r.randint(1, 6), r.randint(1, 6)] for _ in range(r.randint(1, 8))]
+        want = sum(1 for i in range(len(rects)) for j in range(i + 1, len(rects)) if rects[i][0] * rects[j][1] == rects[i][1] * rects[j][0])
+        assert f([x[:] for x in rects]) == want
+
+
+@test(f"{AH}:transformed-key#4Sum II")
+def _(ns):
+    f = ns["four_sum_count"]
+    assert f([1, 2], [-2, -1], [-1, 2], [0, 2]) == 2
+    r = random.Random(1325)
+    for _ in range(100):
+        arrs = [[r.randint(-2, 2) for _ in range(r.randint(1, 4))] for _ in range(4)]
+        want = sum(1 for a in arrs[0] for b in arrs[1] for c in arrs[2] for d in arrs[3] if a + b + c + d == 0)
+        assert f(*[x[:] for x in arrs]) == want
+
+
+@test(f"{AH}:pascal")
+def _(ns):
+    from math import comb
+    f = ns["generate"]
+    for n in range(1, 12):
+        assert f(n) == [[comb(i, j) for j in range(i + 1)] for i in range(n)]
+
+
+@test(f"{AH}:pascal#Pascal's triangle II (one row)")
+def _(ns):
+    from math import comb
+    f = ns["get_row"]
+    for n in range(0, 14):
+        assert f(n) == [comb(n, j) for j in range(n + 1)]
+
+
+@test(f"{AH}:pascal#Champagne tower")
+def _(ns):
+    f = ns["champagne_tower"]
+    assert f(1, 1, 1) == 0.0 and f(2, 1, 1) == 0.5 and f(100000009, 33, 17) == 1.0
+    r = random.Random(1326)
+    for _ in range(100):
+        poured, row = r.randint(0, 30), r.randint(0, 6)
+        glasses = {(0, 0): float(poured)}
+        for rr in range(row):
+            for c in range(rr + 1):
+                spill = max(0.0, glasses.get((rr, c), 0) - 1) / 2
+                glasses[(rr + 1, c)] = glasses.get((rr + 1, c), 0) + spill
+                glasses[(rr + 1, c + 1)] = glasses.get((rr + 1, c + 1), 0) + spill
+        col = r.randint(0, row)
+        assert abs(f(poured, row, col) - min(1.0, glasses.get((row, col), 0))) < 1e-9
+
+
+@test(f"{AH}:letter-counts")
+def _(ns):
+    f = ns["word_subsets"]
+    assert f(["amazon", "apple", "facebook", "google", "leetcode"], ["e", "o"]) == ["facebook", "google", "leetcode"]
+    r = random.Random(1327)
+    for _ in range(150):
+        w1 = ["".join(r.choice("abc") for _ in range(r.randint(1, 5))) for _ in range(r.randint(1, 5))]
+        w2 = ["".join(r.choice("abc") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 3))]
+        want = [a for a in w1 if all(all(a.count(c) >= b.count(c) for c in "abc") for b in w2)]
+        assert f(w1[:], w2[:]) == want
+
+
+@test(f"{AH}:letter-counts#Find common characters")
+def _(ns):
+    f = ns["common_chars"]
+    assert sorted(f(["bella", "label", "roller"])) == ["e", "l", "l"]
+    r = random.Random(1328)
+    for _ in range(150):
+        words = ["".join(r.choice("abc") for _ in range(r.randint(1, 5))) for _ in range(r.randint(1, 4))]
+        want = sorted(c for c in "abc" for _ in range(min(w.count(c) for w in words)))
+        assert sorted(f(words[:])) == want
+
+
+@test(f"{AH}:letter-counts#Close strings")
+def _(ns):
+    f = ns["close_strings"]
+    assert f("abc", "bca") is True and f("a", "aa") is False and f("cabbba", "abbccc") is True and f("cabbba", "aabbss") is False
+
+
+@test(f"{AH}:run-counts")
+def _(ns):
+    f = ns["zero_filled_subarray"]
+    assert f([1, 3, 0, 0, 2, 0, 0, 4]) == 6 and f([0, 0, 0, 2, 0, 0]) == 9
+    r = random.Random(1329)
+    for _ in range(200):
+        a = [r.choice([0, 0, 1]) for _ in range(r.randint(1, 10))]
+        assert f(a[:]) == sum(1 for i in range(len(a)) for j in range(i + 1, len(a) + 1) if all(x == 0 for x in a[i:j]))
+
+
+@test(f"{AH}:run-counts#Maximum ascending subarray sum")
+def _(ns):
+    f = ns["max_ascending_sum"]
+    assert f([10, 20, 30, 5, 10, 50]) == 65 and f([12, 17, 15, 13, 10, 11, 12]) == 33
+    r = random.Random(1330)
+    for _ in range(200):
+        a = [r.randint(1, 9) for _ in range(r.randint(1, 9))]
+        want = max(sum(a[i:j]) for i in range(len(a)) for j in range(i + 1, len(a) + 1) if all(a[k] < a[k + 1] for k in range(i, j - 1)))
+        assert f(a[:]) == want
+
+
+@test(f"{AH}:run-counts#Longest monotone subarray")
+def _(ns):
+    f = ns["longest_monotonic_subarray"]
+    assert f([1, 4, 3, 3, 2]) == 2 and f([3, 3, 3]) == 1 and f([3, 2, 1]) == 3
+    r = random.Random(1331)
+    for _ in range(200):
+        a = [r.randint(1, 5) for _ in range(r.randint(1, 9))]
+        want = max(j - i for i in range(len(a)) for j in range(i + 1, len(a) + 1)
+                   if all(a[k] < a[k + 1] for k in range(i, j - 1)) or all(a[k] > a[k + 1] for k in range(i, j - 1)))
+        assert f(a[:]) == want
+
+
+@test(f"{AH}:run-length")
+def _(ns):
+    f = ns["count_and_say"]
+    assert [f(n) for n in range(1, 7)] == ["1", "11", "21", "1211", "111221", "312211"]
+
+
+@test(f"{AH}:run-length#Count binary substrings")
+def _(ns):
+    f = ns["count_binary_substrings"]
+    assert f("00110011") == 6 and f("10101") == 4
+    r = random.Random(1332)
+    for _ in range(200):
+        s = "".join(r.choice("01") for _ in range(r.randint(1, 10)))
+        want = 0
+        for i in range(len(s)):
+            for j in range(i + 2, len(s) + 1, 2):
+                t = s[i:j]
+                h = len(t) // 2
+                if t[:h] == t[0] * h and t[h:] == ("1" if t[0] == "0" else "0") * h:
+                    want += 1
+        assert f(s) == want
+
+
+@test(f"{AH}:prefix-function")
+def _(ns):
+    f = ns["longest_prefix"]
+    assert f("level") == "l" and f("ababab") == "abab" and f("abc") == ""
+    r = random.Random(1333)
+    for _ in range(300):
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 10)))
+        want = max([s[:k] for k in range(len(s)) if s[:k] == s[len(s) - k:] and k > 0] or [""], key=len)
+        assert f(s) == want
+
+
+@test(f"{AH}:prefix-function#Repeated substring pattern")
+def _(ns):
+    f = ns["repeated_substring_pattern"]
+    assert f("abab") is True and f("aba") is False and f("abcabcabcabc") is True
+    r = random.Random(1334)
+    for _ in range(300):
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 10)))
+        want = any(len(s) % k == 0 and s == s[:k] * (len(s) // k) for k in range(1, len(s)))
+        assert f(s) is want

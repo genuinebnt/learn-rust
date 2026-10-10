@@ -419,6 +419,1002 @@ pitfalls = [
     "Each swap puts one value in its final place, so the whole thing is O(n).",
 ]
 
+[[extra]]
+id = "Arrays & Hashing:index-hash"
+name = "The array as its own hash: sign marks and cyclic sort"
+group = "In-place manipulation (cyclic sort, index as hash)"
+signals = [
+    "an array of n numbers in the range 1..n: find the missing, the repeated, or all the duplicates in O(1) extra space",
+    "the value v points at index v - 1: use that cell as a visited mark",
+    "flip the sign of nums[v - 1] to say v was seen, or swap each value into its own slot",
+]
+template_name = "Find all numbers disappeared"
+template = '''
+def find_disappeared_numbers(nums):
+    for v in nums:
+        i = abs(v) - 1  # the slot of the value v
+        if nums[i] > 0:
+            nums[i] = -nums[i]  # mark: v was seen
+    return [i + 1 for i, v in enumerate(nums) if v > 0]  # never marked
+'''
+pitfalls = [
+    "Use abs(v) when reading: an earlier mark may have flipped the sign of the value you are reading.",
+    "Flip only if the cell is still positive, or a duplicate would flip it back.",
+    "This destroys the input: restore the signs if the caller needs it.",
+]
+examples = ["find-all-numbers-disappeared-in-an-array", "find-all-duplicates-in-an-array", "set-mismatch", "find-missing-and-repeated-values", "the-two-sneaky-numbers-of-digitville"]
+
+[[extra.variant]]
+name = "Find all duplicates"
+note = "A value whose slot is already negative has been seen before: it is a duplicate."
+template = '''
+def find_duplicates(nums):
+    out = []
+    for v in nums:
+        i = abs(v) - 1
+        if nums[i] < 0:
+            out.append(abs(v))  # its slot was already marked
+        else:
+            nums[i] = -nums[i]
+    return out
+'''
+
+[[extra.variant]]
+name = "Set mismatch (cyclic sort)"
+note = "Swap every value into its slot; the slot that ends up wrong holds the duplicate and names the missing number."
+template = '''
+def find_error_nums(nums):
+    i = 0
+    while i < len(nums):
+        j = nums[i] - 1  # where nums[i] belongs
+        if nums[i] != nums[j]:
+            nums[i], nums[j] = nums[j], nums[i]
+        else:
+            i += 1
+    for i, v in enumerate(nums):
+        if v != i + 1:
+            return [v, i + 1]  # the duplicate and the missing number
+'''
+
+[[extra]]
+id = "Arrays & Hashing:pattern-key"
+name = "Same shape: normalise to first-seen order"
+group = "Grouping by canonical key"
+signals = [
+    "two strings (or a pattern and words) match when there is a one-to-one mapping between their letters",
+    "replace each item by the index where it first appeared: equal shapes give equal keys",
+    "a bijection needs the mapping to work in both directions",
+]
+template_name = "Isomorphic strings"
+template = '''
+def is_isomorphic(s, t):
+    def shape(x):
+        first = {}
+        # each new letter gets the next number: 0, 1, 2, ...
+        return [first.setdefault(ch, len(first)) for ch in x]
+
+    return shape(s) == shape(t)
+'''
+pitfalls = [
+    "The shape must be computed for both strings: a one-way mapping would allow two letters to map to one.",
+    "setdefault(ch, len(first)) gives each new letter the next number.",
+    "For word patterns apply the same shape function to the words of the sentence.",
+]
+examples = ["isomorphic-strings", "word-pattern", "find-and-replace-pattern", "group-shifted-strings"]
+
+[[extra.variant]]
+name = "Word pattern"
+note = "The shape of the pattern letters equals the shape of the words."
+template = '''
+def word_pattern(pattern, s):
+    words = s.split()
+
+    def shape(items):
+        first = {}
+        return [first.setdefault(x, len(first)) for x in items]
+
+    return len(pattern) == len(words) and shape(pattern) == shape(words)
+'''
+
+[[extra.variant]]
+name = "Find and replace pattern"
+note = "Keep the words whose shape equals the pattern's."
+template = '''
+def find_and_replace_pattern(words, pattern):
+    def shape(x):
+        first = {}
+        return [first.setdefault(ch, len(first)) for ch in x]
+
+    target = shape(pattern)
+    return [w for w in words if shape(w) == target]
+'''
+
+[[extra]]
+id = "Arrays & Hashing:random-set"
+name = "Array plus map: O(1) insert, delete and random"
+group = "Design with hash maps"
+signals = [
+    "insert, remove and return a uniformly random element, all in O(1)",
+    "a list gives random access; a dict from value to index gives O(1) lookup",
+    "to delete from the middle, swap the item with the last one and pop",
+]
+template_name = "Randomized set"
+template = '''
+import random
+
+
+class RandomizedSet:
+    def __init__(self):
+        self.items, self.pos = [], {}  # list, and value -> its index
+
+    def insert(self, val):
+        if val in self.pos:
+            return False
+        self.pos[val] = len(self.items)
+        self.items.append(val)
+        return True
+
+    def remove(self, val):
+        if val not in self.pos:
+            return False
+        i, last = self.pos[val], self.items[-1]
+        self.items[i] = last  # move the last item into the hole
+        self.pos[last] = i
+        self.items.pop()
+        del self.pos[val]  # after fixing pos[last]: val may be last itself
+        return True
+
+    def getRandom(self):
+        return random.choice(self.items)
+'''
+pitfalls = [
+    "Update the moved item's index before deleting val: when val is the last item the order matters.",
+    "Popping the last item is O(1); removing from the middle is O(n).",
+    "With duplicates allowed keep a set of indexes per value.",
+]
+examples = ["insert-delete-getrandom-o1", "insert-delete-getrandom-o1-duplicates-allowed", "design-skiplist"]
+
+[[extra.variant]]
+name = "Duplicates allowed"
+note = "A set of indexes per value; the removed index is replaced by the last index of the list."
+template = '''
+import random
+from collections import defaultdict
+
+
+class RandomizedCollection:
+    def __init__(self):
+        self.items, self.pos = [], defaultdict(set)
+
+    def insert(self, val):
+        self.pos[val].add(len(self.items))
+        self.items.append(val)
+        return len(self.pos[val]) == 1  # true when val was new
+
+    def remove(self, val):
+        if not self.pos[val]:
+            return False
+        i = self.pos[val].pop()
+        last = self.items[-1]
+        self.items[i] = last
+        self.pos[last].add(i)
+        self.pos[last].discard(len(self.items) - 1)
+        self.items.pop()
+        return True
+
+    def getRandom(self):
+        return random.choice(self.items)
+'''
+
+[[extra]]
+id = "Arrays & Hashing:stream-window"
+name = "Streams: a queue of recent events"
+group = "Design with hash maps"
+signals = [
+    "count requests in the last 3000 ms, a moving average, a rate limiter",
+    "events arrive in time order: a queue of timestamps, drop the old ones from the front",
+    "per-key records: a dict from key to the last allowed time",
+]
+template_name = "Number of recent calls"
+template = '''
+from collections import deque
+
+
+class RecentCounter:
+    def __init__(self):
+        self.times = deque()
+
+    def ping(self, t):
+        self.times.append(t)
+        while self.times[0] < t - 3000:  # older than the window
+            self.times.popleft()
+        return len(self.times)
+'''
+pitfalls = [
+    "Drop old events when a new one arrives: the queue never holds more than the window.",
+    "Timestamps are increasing, so the oldest is always at the front.",
+    "A rate limiter keeps the time each key may speak next, in a dict.",
+]
+examples = ["number-of-recent-calls", "moving-average-from-data-stream", "logger-rate-limiter", "design-hit-counter", "design-underground-system"]
+
+[[extra.variant]]
+name = "Moving average"
+note = "A queue of the last size values and a running sum."
+template = '''
+from collections import deque
+
+
+class MovingAverage:
+    def __init__(self, size):
+        self.size, self.window, self.total = size, deque(), 0
+
+    def next(self, val):
+        self.window.append(val)
+        self.total += val
+        if len(self.window) > self.size:
+            self.total -= self.window.popleft()
+        return self.total / len(self.window)
+'''
+
+[[extra.variant]]
+name = "Logger rate limiter"
+note = "Remember when each message may be printed again."
+template = '''
+class Logger:
+    def __init__(self):
+        self.next_ok = {}  # message -> the earliest time it may print
+
+    def shouldPrintMessage(self, timestamp, message):
+        if self.next_ok.get(message, 0) > timestamp:
+            return False
+        self.next_ok[message] = timestamp + 10
+        return True
+'''
+
+[[extra.variant]]
+name = "Underground system"
+note = "Open trips per customer; per station pair keep total time and count."
+template = '''
+from collections import defaultdict
+
+
+class UndergroundSystem:
+    def __init__(self):
+        self.open = {}  # id -> (station, time)
+        self.total = defaultdict(lambda: [0, 0])  # (a, b) -> [sum, count]
+
+    def checkIn(self, id, stationName, t):
+        self.open[id] = (stationName, t)
+
+    def checkOut(self, id, stationName, t):
+        start, t0 = self.open.pop(id)
+        entry = self.total[(start, stationName)]
+        entry[0] += t - t0
+        entry[1] += 1
+
+    def getAverageTime(self, startStation, endStation):
+        s, c = self.total[(startStation, endStation)]
+        return s / c
+'''
+
+[[extra]]
+id = "Arrays & Hashing:sparse"
+name = "Sparse data: keep only the non-zeros"
+group = "Design with hash maps"
+signals = [
+    "vectors or matrices that are mostly zeros: a dot product or a product must not touch the zeros",
+    "store index -> value for the non-zero entries only",
+    "iterate over the smaller of the two maps",
+]
+template_name = "Sparse vector dot product"
+template = '''
+class SparseVector:
+    def __init__(self, nums):
+        self.nz = {i: v for i, v in enumerate(nums) if v}  # non-zeros
+
+    def dotProduct(self, vec):
+        a, b = self.nz, vec.nz
+        if len(a) > len(b):
+            a, b = b, a  # loop over the smaller map
+        return sum(v * b[i] for i, v in a.items() if i in b)
+'''
+pitfalls = [
+    "Loop over the map with fewer entries: the cost is the number of non-zeros of the smaller vector.",
+    "A missing key means zero: do not store zeros.",
+    "A sparse matrix times a matrix is the same idea per row: skip zero entries.",
+]
+examples = ["dot-product-of-two-sparse-vectors", "sparse-matrix-multiplication", "zigzag-iterator"]
+
+[[extra.variant]]
+name = "Sparse matrix multiplication"
+note = "For every non-zero A[i][k], add A[i][k] * B[k][j] for the non-zero entries of row k of B."
+template = '''
+def multiply(mat1, mat2):
+    m, n, p = len(mat1), len(mat2), len(mat2[0])
+    rows2 = [[(j, v) for j, v in enumerate(row) if v] for row in mat2]
+    out = [[0] * p for _ in range(m)]
+    for i in range(m):
+        for k, a in enumerate(mat1[i]):
+            if a:  # skip zeros of the first matrix
+                for j, b in rows2[k]:  # and zeros of the second
+                    out[i][j] += a * b
+    return out
+'''
+
+[[extra]]
+id = "Arrays & Hashing:game-counters"
+name = "Counters instead of boards"
+group = "Design with hash maps"
+signals = [
+    "check a winner or a state after every move without scanning the whole board",
+    "one counter per row, column and diagonal; a move changes at most four counters",
+    "a leaderboard or parking system is a dict of totals",
+]
+template_name = "Tic-tac-toe"
+template = '''
+class TicTacToe:
+    def __init__(self, n):
+        self.n = n
+        self.rows, self.cols = [0] * n, [0] * n
+        self.diag = self.anti = 0
+
+    def move(self, row, col, player):
+        d = 1 if player == 1 else -1  # one player counts up, the other down
+        self.rows[row] += d
+        self.cols[col] += d
+        if row == col:
+            self.diag += d
+        if row + col == self.n - 1:
+            self.anti += d
+        n = self.n
+        if n in (abs(self.rows[row]), abs(self.cols[col]),
+                 abs(self.diag), abs(self.anti)):
+            return player  # someone owns a whole line
+        return 0
+'''
+pitfalls = [
+    "Player 1 adds +1 and player 2 adds -1: a line is won when its counter reaches +n or -n.",
+    "Only the row, the column and the (anti)diagonals of the last move can have changed.",
+    "A move is O(1) instead of O(n).",
+]
+examples = ["design-tic-tac-toe", "design-a-leaderboard", "design-parking-system"]
+
+[[extra.variant]]
+name = "Leaderboard"
+note = "A dict of scores; the top K sum sorts the values."
+template = '''
+import heapq
+
+
+class Leaderboard:
+    def __init__(self):
+        self.scores = {}
+
+    def addScore(self, playerId, score):
+        self.scores[playerId] = self.scores.get(playerId, 0) + score
+
+    def top(self, K):
+        return sum(heapq.nlargest(K, self.scores.values()))
+
+    def reset(self, playerId):
+        self.scores[playerId] = 0
+'''
+
+[[extra]]
+id = "Arrays & Hashing:split-sums"
+name = "Prefix sums at a split point"
+group = "Prefix / suffix products and aggregates"
+signals = [
+    "an index where the sum on the left equals (or compares with) the sum on the right",
+    "total - left - nums[i] is the right sum: one pass with a running left sum",
+    "the cost of a split at each position is a prefix value and a suffix value, computed once",
+]
+template_name = "Find pivot index"
+template = '''
+def pivot_index(nums):
+    total, left = sum(nums), 0
+    for i, v in enumerate(nums):
+        if left == total - left - v:  # left sum equals right sum
+            return i
+        left += v
+    return -1
+'''
+pitfalls = [
+    "The right sum is total - left - nums[i]: no second array is needed.",
+    "Update left after the check: the pivot itself belongs to neither side.",
+    "For 'the best split' keep the best value over all i instead of returning at once.",
+]
+examples = ["find-pivot-index", "number-of-ways-to-split-array", "sum-of-absolute-differences-in-a-sorted-array", "grid-game", "maximum-score-after-splitting-a-string", "minimum-penalty-for-a-shop"]
+
+[[extra.variant]]
+name = "Number of ways to split array"
+note = "Count split points where the left sum is at least the right sum."
+template = '''
+def ways_to_split_array(nums):
+    total, left, count = sum(nums), 0, 0
+    for v in nums[:-1]:  # both parts must be non-empty
+        left += v
+        if left >= total - left:
+            count += 1
+    return count
+'''
+
+[[extra.variant]]
+name = "Sum of absolute differences (sorted)"
+note = "For each element, the distances to smaller and larger elements come from the prefix sum."
+template = '''
+def get_sum_absolute_differences(nums):
+    total, left, out = sum(nums), 0, []
+    n = len(nums)
+    for i, v in enumerate(nums):
+        right = total - left - v
+        smaller = v * i - left  # distance to the elements before
+        larger = right - v * (n - 1 - i)  # and to the ones after
+        out.append(smaller + larger)
+        left += v
+    return out
+'''
+
+[[extra.variant]]
+name = "Grid game"
+note = "The second robot takes the better of the leftover top suffix and the leftover bottom prefix; the first minimises that."
+template = '''
+def grid_game(grid):
+    top, bottom = sum(grid[0]), 0
+    best = float("inf")
+    for i in range(len(grid[0])):
+        top -= grid[0][i]  # what is left on top after column i
+        best = min(best, max(top, bottom))  # the second robot's best path
+        bottom += grid[1][i]
+    return best
+'''
+
+[[extra]]
+id = "Arrays & Hashing:fenwick"
+name = "Fenwick tree: prefix sums that change"
+group = "Prefix / suffix products and aggregates"
+signals = [
+    "range sums with point updates: a plain prefix-sum array would need O(n) to update",
+    "a binary indexed tree stores partial sums: update and query in O(log n)",
+    "the lowest set bit i & -i says how many items a cell covers",
+]
+template_name = "Range sum query - mutable"
+template = '''
+class NumArray:
+    def __init__(self, nums):
+        self.n = len(nums)
+        self.nums = nums[:]
+        self.tree = [0] * (self.n + 1)  # 1-based
+        for i, v in enumerate(nums):
+            self._add(i + 1, v)
+
+    def _add(self, i, delta):
+        while i <= self.n:
+            self.tree[i] += delta
+            i += i & -i  # the next cell that covers i
+
+    def _prefix(self, i):
+        total = 0
+        while i > 0:
+            total += self.tree[i]
+            i -= i & -i  # drop the lowest set bit
+        return total
+
+    def update(self, index, val):
+        self._add(index + 1, val - self.nums[index])
+        self.nums[index] = val
+
+    def sumRange(self, left, right):
+        return self._prefix(right + 1) - self._prefix(left)
+'''
+pitfalls = [
+    "The tree is 1-based: shift every index by one.",
+    "update takes the difference from the old value, not the new value.",
+    "A range sum is the difference of two prefix sums.",
+]
+examples = ["range-sum-query-mutable", "range-sum-query-2d-mutable", "range-sum-query-immutable"]
+
+[[extra.variant]]
+name = "2-D Fenwick tree"
+note = "The same idea in two dimensions: update and prefix walk both indexes."
+template = '''
+class NumMatrix:
+    def __init__(self, matrix):
+        self.m, self.n = len(matrix), len(matrix[0])
+        self.a = [[0] * self.n for _ in range(self.m)]
+        self.t = [[0] * (self.n + 1) for _ in range(self.m + 1)]
+        for i in range(self.m):
+            for j in range(self.n):
+                self.update(i, j, matrix[i][j])
+
+    def update(self, row, col, val):
+        delta, self.a[row][col] = val - self.a[row][col], val
+        i = row + 1
+        while i <= self.m:
+            j = col + 1
+            while j <= self.n:
+                self.t[i][j] += delta
+                j += j & -j
+            i += i & -i
+
+    def _prefix(self, row, col):  # the sum of rows < row and cols < col
+        total, i = 0, row
+        while i > 0:
+            j = col
+            while j > 0:
+                total += self.t[i][j]
+                j -= j & -j
+            i -= i & -i
+        return total
+
+    def sumRegion(self, r1, c1, r2, c2):
+        return (self._prefix(r2 + 1, c2 + 1) - self._prefix(r1, c2 + 1)
+                - self._prefix(r2 + 1, c1) + self._prefix(r1, c1))
+'''
+
+[[extra]]
+id = "Arrays & Hashing:set-ops"
+name = "Intersections and differences of arrays"
+group = "Duplicate detection"
+signals = [
+    "the common elements of two arrays, with or without counting duplicates",
+    "the elements that are in one array and not in the other",
+    "sets for distinct values, a Counter for multiplicities",
+]
+template_name = "Intersection of two arrays II"
+template = '''
+from collections import Counter
+
+
+def intersect(nums1, nums2):
+    count = Counter(nums1)
+    out = []
+    for x in nums2:
+        if count[x] > 0:  # a copy of x is still available
+            out.append(x)
+            count[x] -= 1
+    return out
+'''
+pitfalls = [
+    "A Counter tracks how many copies are still unused: decrement on every match.",
+    "Use a set when the result must contain each value once.",
+    "If both arrays are sorted, two pointers use O(1) extra memory.",
+]
+examples = ["intersection-of-two-arrays-ii", "intersection-of-two-arrays", "find-the-difference-of-two-arrays", "intersection-of-multiple-arrays"]
+
+[[extra.variant]]
+name = "Difference of two arrays"
+note = "Two sets, and the elements of each that the other lacks."
+template = '''
+def find_difference(nums1, nums2):
+    a, b = set(nums1), set(nums2)
+    return [list(a - b), list(b - a)]
+'''
+
+[[extra.variant]]
+name = "Intersection of multiple arrays"
+note = "Count in how many arrays each value appears; keep those in all of them."
+template = '''
+from collections import Counter
+
+
+def intersection(nums):
+    count = Counter()
+    for arr in nums:
+        count.update(set(arr))  # each array counts a value once
+    return sorted(v for v, c in count.items() if c == len(nums))
+'''
+
+[[extra]]
+id = "Arrays & Hashing:custom-sort"
+name = "Sort by a custom key"
+group = "Sorting-based approaches"
+signals = [
+    "order items by a given order, by frequency, by several keys, by a rank computed per item",
+    "build one key function that returns a tuple: earlier parts are more important",
+    "negate a number to sort it in descending order inside the tuple",
+]
+template_name = "Relative sort array"
+template = '''
+def relative_sort_array(arr1, arr2):
+    rank = {v: i for i, v in enumerate(arr2)}  # the position in arr2
+    # items of arr2 first in their order, the rest after, ascending
+    return sorted(arr1, key=lambda x: (rank.get(x, len(arr2)), x))
+'''
+pitfalls = [
+    "A tuple key sorts by the first element, then by the second on ties.",
+    "Use a large rank for items that are not in the given order so they come last.",
+    "Python's sort is stable: equal keys keep their original order.",
+]
+examples = ["relative-sort-array", "custom-sort-string", "sort-array-by-increasing-frequency", "rank-teams-by-votes", "sort-the-jumbled-numbers"]
+
+[[extra.variant]]
+name = "Sort by increasing frequency"
+note = "Least frequent first; equal frequencies in decreasing value."
+template = '''
+from collections import Counter
+
+
+def frequency_sort(nums):
+    count = Counter(nums)
+    return sorted(nums, key=lambda x: (count[x], -x))
+'''
+
+[[extra.variant]]
+name = "Rank teams by votes"
+note = "A vote count for each rank per team; sort by the counts (descending) then by the letter."
+template = '''
+def rank_teams(votes):
+    n = len(votes[0])
+    score = {t: [0] * n for t in votes[0]}
+    for vote in votes:
+        for rank, team in enumerate(vote):
+            score[team][rank] += 1
+    # more first-place votes first, then second place, and so on
+    return "".join(sorted(score, key=lambda t: ([-c for c in score[t]], t)))
+'''
+
+[[extra]]
+id = "Arrays & Hashing:justify"
+name = "Text justification: pack words, then pad"
+group = "Simulation"
+signals = [
+    "lay out words in lines of a fixed width, spreading the spaces evenly",
+    "first pack as many words as fit with one space each, then distribute the extra spaces",
+    "the last line and single-word lines are left-aligned",
+]
+template = '''
+def full_justify(words, max_width):
+    out, line, chars = [], [], 0  # chars: letters in the current line
+    for w in words:
+        if chars + len(w) + len(line) > max_width:  # w does not fit
+            gaps = len(line) - 1
+            spaces = max_width - chars
+            if gaps == 0:
+                out.append(line[0] + " " * spaces)  # a single word: left
+            else:
+                q, r = divmod(spaces, gaps)
+                # the left gaps get the extra spaces
+                parts = [word + " " * (q + (i < r))
+                         for i, word in enumerate(line[:-1])]
+                out.append("".join(parts) + line[-1])
+            line, chars = [], 0
+        line.append(w)
+        chars += len(w)
+    last = " ".join(line)
+    out.append(last + " " * (max_width - len(last)))  # the last line: left
+    return out
+'''
+pitfalls = [
+    "A word fits when letters + words already in the line (one space each) + its length is within the width.",
+    "Extra spaces go to the left gaps first: gap i gets one more when i < remainder.",
+    "The last line is joined with single spaces and padded on the right.",
+]
+examples = ["text-justification"]
+
+[[extra]]
+id = "Arrays & Hashing:transformed-key"
+name = "Pair counting with a transformed key"
+group = "Two-sum family"
+signals = [
+    "count pairs (i < j) where a condition links nums[i] and nums[j]: rewrite it as f(i, nums[i]) == g(j, nums[j])",
+    "bad pairs: j - i != nums[j] - nums[i], so count good pairs by nums[i] - i",
+    "keep a counter of keys seen so far and add the matching count for each new element",
+]
+template_name = "Count bad pairs"
+template = '''
+from collections import Counter
+
+
+def count_bad_pairs(nums):
+    seen, good = Counter(), 0
+    for i, v in enumerate(nums):
+        good += seen[v - i]  # earlier j with v_j - j == v_i - i
+        seen[v - i] += 1
+    n = len(nums)
+    return n * (n - 1) // 2 - good  # all pairs minus the good ones
+'''
+pitfalls = [
+    "Move everything that depends on one index to one side: j - i == a[j] - a[i] means a[j] - j == a[i] - i.",
+    "It is often easier to count the good pairs and subtract from n * (n - 1) / 2.",
+    "Add to the counter after looking up, so an element does not pair with itself.",
+]
+examples = ["count-number-of-bad-pairs", "count-nice-pairs-in-an-array", "number-of-pairs-of-interchangeable-rectangles", "4sum-ii", "number-of-good-pairs"]
+
+[[extra.variant]]
+name = "Count nice pairs (reverse digits)"
+note = "nums[i] + rev(nums[j]) == nums[j] + rev(nums[i]) means nums[i] - rev(nums[i]) == nums[j] - rev(nums[j])."
+template = '''
+from collections import Counter
+
+
+def count_nice_pairs(nums):
+    seen, total = Counter(), 0
+    for x in nums:
+        key = x - int(str(x)[::-1])
+        total += seen[key]
+        seen[key] += 1
+    return total % (10**9 + 7)
+'''
+
+[[extra.variant]]
+name = "Interchangeable rectangles"
+note = "A ratio w / h as a reduced fraction; equal fractions pair up."
+template = '''
+from collections import Counter
+from math import gcd
+
+
+def interchangeable_rectangles(rectangles):
+    seen, total = Counter(), 0
+    for w, h in rectangles:
+        g = gcd(w, h)
+        key = (w // g, h // g)  # exact, no floats
+        total += seen[key]
+        seen[key] += 1
+    return total
+'''
+
+[[extra.variant]]
+name = "4Sum II"
+note = "Count pair sums of the first two arrays; look up the negated sums of the last two."
+template = '''
+from collections import Counter
+
+
+def four_sum_count(nums1, nums2, nums3, nums4):
+    ab = Counter(a + b for a in nums1 for b in nums2)
+    return sum(ab[-(c + d)] for c in nums3 for d in nums4)
+'''
+
+[[extra]]
+id = "Arrays & Hashing:pascal"
+name = "A row from the previous row"
+group = "Simulation"
+signals = [
+    "each row (or state) is computed from the previous one: Pascal's triangle, the champagne tower",
+    "build row by row, adding neighbours; keep only the previous row to save memory",
+    "one row alone: update in place from right to left",
+]
+template_name = "Pascal's triangle"
+template = '''
+def generate(num_rows):
+    rows = []
+    for i in range(num_rows):
+        row = [1] * (i + 1)
+        for j in range(1, i):
+            row[j] = rows[i - 1][j - 1] + rows[i - 1][j]  # the two above
+        rows.append(row)
+    return rows
+'''
+pitfalls = [
+    "The edges of each row are 1; only the inner cells are sums.",
+    "For a single row update from right to left so the values you still need are not overwritten.",
+    "Row n is also the binomial coefficients C(n, k).",
+]
+examples = ["pascals-triangle", "pascals-triangle-ii", "champagne-tower"]
+
+[[extra.variant]]
+name = "Pascal's triangle II (one row)"
+note = "Update the row in place, right to left."
+template = '''
+def get_row(row_index):
+    row = [1] + [0] * row_index
+    for i in range(1, row_index + 1):
+        for j in range(i, 0, -1):  # right to left keeps row[j - 1] old
+            row[j] += row[j - 1]
+    return row
+'''
+
+[[extra.variant]]
+name = "Champagne tower"
+note = "Pour into the top glass; every glass overflows half of its excess to each glass below."
+template = '''
+def champagne_tower(poured, query_row, query_glass):
+    tower = [[0.0] * (r + 1) for r in range(query_row + 2)]
+    tower[0][0] = poured
+    for r in range(query_row + 1):
+        for c in range(r + 1):
+            extra = max(0.0, tower[r][c] - 1)  # what a full glass spills
+            tower[r + 1][c] += extra / 2
+            tower[r + 1][c + 1] += extra / 2
+    return min(1.0, tower[query_row][query_glass])
+'''
+
+[[extra]]
+id = "Arrays & Hashing:letter-counts"
+name = "Letter counts across words"
+group = "Frequency counting"
+signals = [
+    "does a word contain all the letters of another, how many letters do all words share",
+    "per word a count of letters; combine them with max (for 'at least') or min (for 'in common')",
+    "two strings are close when they have the same letters and the same multiset of counts",
+]
+template_name = "Word subsets"
+template = '''
+from collections import Counter
+
+
+def word_subsets(words1, words2):
+    need = Counter()
+    for w in words2:
+        for ch, c in Counter(w).items():
+            need[ch] = max(need[ch], c)  # the most any single word needs
+    # nothing is missing when need - Counter(w) is empty
+    return [w for w in words1 if not need - Counter(w)]
+'''
+pitfalls = [
+    "Merge the requirements with max, not with a sum: one word satisfies every need at once.",
+    "need - Counter(w) keeps only the letters still lacking: empty means all are covered.",
+    "For common characters take the minimum count over all words.",
+]
+examples = ["word-subsets", "find-common-characters", "determine-if-two-strings-are-close", "minimum-number-of-steps-to-make-two-strings-anagram"]
+
+[[extra.variant]]
+name = "Find common characters"
+note = "The minimum count of each letter over all words."
+template = '''
+from collections import Counter
+
+
+def common_chars(words):
+    common = Counter(words[0])
+    for w in words[1:]:
+        common &= Counter(w)  # & keeps the minimum of each count
+    return list(common.elements())
+'''
+
+[[extra.variant]]
+name = "Close strings"
+note = "The same set of letters and the same multiset of frequencies."
+template = '''
+from collections import Counter
+
+
+def close_strings(word1, word2):
+    c1, c2 = Counter(word1), Counter(word2)
+    return set(c1) == set(c2) and sorted(c1.values()) == sorted(c2.values())
+'''
+
+[[extra]]
+id = "Arrays & Hashing:run-counts"
+name = "Runs: count subarrays by run length"
+group = "Simulation"
+signals = [
+    "count subarrays made only of zeros (or equal values): a run of length k gives k * (k + 1) / 2",
+    "longest ascending or monotone stretch, the sum of an ascending run",
+    "one pass with the length of the current run, reset when the rule breaks",
+]
+template_name = "Zero-filled subarrays"
+template = '''
+def zero_filled_subarray(nums):
+    total = run = 0
+    for x in nums:
+        run = run + 1 if x == 0 else 0  # length of the current run of zeros
+        total += run  # subarrays that end at this position
+    return total
+'''
+pitfalls = [
+    "A run of k zeros has 1 + 2 + ... + k subarrays: add the current run length at every step.",
+    "Reset the run when the element breaks the rule, not before reading it.",
+    "For the sum of the best ascending run keep a running sum and reset it with the run.",
+]
+examples = ["number-of-zero-filled-subarrays", "maximum-ascending-subarray-sum", "longest-strictly-increasing-or-strictly-decreasing-subarray", "find-good-days-to-rob-the-bank"]
+
+[[extra.variant]]
+name = "Maximum ascending subarray sum"
+note = "The sum of the current strictly increasing run."
+template = '''
+def max_ascending_sum(nums):
+    best = run = nums[0]
+    for prev, x in zip(nums, nums[1:]):
+        run = run + x if x > prev else x  # extend, or start a new run
+        best = max(best, run)
+    return best
+'''
+
+[[extra.variant]]
+name = "Longest monotone subarray"
+note = "Track the lengths of the current increasing and decreasing runs."
+template = '''
+def longest_monotonic_subarray(nums):
+    best = inc = dec = 1
+    for prev, x in zip(nums, nums[1:]):
+        inc = inc + 1 if x > prev else 1
+        dec = dec + 1 if x < prev else 1
+        best = max(best, inc, dec)
+    return best
+'''
+
+[[extra]]
+id = "Arrays & Hashing:run-length"
+name = "Run-length encoding"
+group = "Simulation"
+signals = [
+    "describe a string by its runs: 21 is 'one 2, one 1'; count the groups of equal digits",
+    "groupby over the characters gives (character, run length) pairs",
+    "the number of substrings with equal 0s and 1s is the sum of the minimum of neighbouring run lengths",
+]
+template_name = "Count and say"
+template = '''
+from itertools import groupby
+
+
+def count_and_say(n):
+    s = "1"
+    for _ in range(n - 1):
+        # for each run: its length, then its digit
+        s = "".join(str(len(list(g))) + ch for ch, g in groupby(s))
+    return s
+'''
+pitfalls = [
+    "groupby groups consecutive equal items: the group length is the run length.",
+    "Build each term from the previous one: n - 1 steps from '1'.",
+    "A group iterator can be consumed only once: take its length with len(list(g)).",
+]
+examples = ["count-and-say", "count-binary-substrings"]
+
+[[extra.variant]]
+name = "Count binary substrings"
+note = "Each pair of neighbouring runs contributes min(a, b) substrings with equal 0s and 1s."
+template = '''
+def count_binary_substrings(s):
+    prev, cur, total = 0, 1, 0  # lengths of the previous and current runs
+    for i in range(1, len(s)):
+        if s[i] == s[i - 1]:
+            cur += 1
+        else:
+            total += min(prev, cur)
+            prev, cur = cur, 1
+    return total + min(prev, cur)
+'''
+
+[[extra]]
+id = "Arrays & Hashing:prefix-function"
+name = "Prefix function (KMP) for borders"
+group = "Hashing structures"
+signals = [
+    "the longest proper prefix of a string that is also a suffix (a border)",
+    "the failure table pi[i]: the border length of s[:i + 1], built in O(n)",
+    "a string is a repetition of a shorter block when n - pi[-1] divides n",
+]
+template_name = "Longest happy prefix"
+template = '''
+def longest_prefix(s):
+    pi = [0] * len(s)  # pi[i]: longest border of s[:i + 1]
+    k = 0
+    for i in range(1, len(s)):
+        while k and s[i] != s[k]:
+            k = pi[k - 1]  # fall back to a shorter border
+        if s[i] == s[k]:
+            k += 1
+        pi[i] = k
+    return s[:pi[-1]] if s else ""
+'''
+pitfalls = [
+    "On a mismatch fall back to pi[k - 1], not to 0: a shorter border may still match.",
+    "k never decreases more than it has increased, so the whole loop is O(n).",
+    "The same table drives KMP search: run it over pattern + '#' + text.",
+]
+examples = ["longest-happy-prefix", "repeated-substring-pattern", "shortest-palindrome", "find-the-index-of-the-first-occurrence-in-a-string"]
+
+[[extra.variant]]
+name = "Repeated substring pattern"
+note = "The shortest repeating block has length n - pi[-1]; the string repeats it when that divides n."
+template = '''
+def repeated_substring_pattern(s):
+    n = len(s)
+    pi, k = [0] * n, 0
+    for i in range(1, n):
+        while k and s[i] != s[k]:
+            k = pi[k - 1]
+        if s[i] == s[k]:
+            k += 1
+        pi[i] = k
+    block = n - pi[-1]
+    return pi[-1] > 0 and n % block == 0
+'''
+
 [[listed]]
 name = "Hash-map counting"
 group = "Frequency counting"

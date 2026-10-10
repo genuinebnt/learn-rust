@@ -100,6 +100,7 @@ pub enum PlanType {
     Aggregation,
     Limit,
     Offset,
+    SetOp,
     NestedLoopJoin,
     NestedIndexJoin,
     HashJoin,
@@ -131,6 +132,8 @@ pub enum PlanKind {
     Limit { limit: usize },
     /// Drops the first `offset` rows of its one child.
     Offset { offset: usize },
+    /// Two children with the same columns: `UNION [ALL]`, `INTERSECT [ALL]` or `EXCEPT [ALL]` of their rows.
+    SetOp { op: crate::sql::ast::SetOperator, all: bool },
     /// Two children (left, right) and a predicate over a pair of tuples.
     NestedLoopJoin { predicate: ExprRef, join_type: JoinType },
     /// One child (the outer side); the inner side is looked up in `index_oid` with `key_predicate`.
@@ -185,6 +188,7 @@ impl PlanNode {
             PlanKind::Aggregation { .. } => PlanType::Aggregation,
             PlanKind::Limit { .. } => PlanType::Limit,
             PlanKind::Offset { .. } => PlanType::Offset,
+            PlanKind::SetOp { .. } => PlanType::SetOp,
             PlanKind::NestedLoopJoin { .. } => PlanType::NestedLoopJoin,
             PlanKind::NestedIndexJoin { .. } => PlanType::NestedIndexJoin,
             PlanKind::HashJoin { .. } => PlanType::HashJoin,
@@ -244,6 +248,7 @@ impl PlanNode {
             }
             PlanKind::Limit { limit } => format!("Limit {{ limit={limit} }}"),
             PlanKind::Offset { offset } => format!("Offset {{ offset={offset} }}"),
+            PlanKind::SetOp { op, all } => format!("SetOp {{ op={op:?}, all={all} }}"),
             PlanKind::NestedLoopJoin { predicate, join_type } => format!("NestedLoopJoin {{ type={join_type}, predicate={predicate} }}"),
             PlanKind::NestedIndexJoin { key_predicate, index_name, index_table_name, join_type, .. } => {
                 format!("NestedIndexJoin {{ type={join_type}, key_predicate={key_predicate}, index={index_name}, index_table={index_table_name} }}")

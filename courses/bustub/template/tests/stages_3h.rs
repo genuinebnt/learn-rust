@@ -515,8 +515,13 @@ proptest! {
         let _ = columns;
         let p = plan(&db, &query);
         let all_keys = conjuncts.iter().all(Conjunct::is_key);
-        prop_assert_eq!(p.contains("HashJoin"), all_keys, "{}\n{}", query, p);
-        prop_assert_eq!(!p.contains("NestedLoopJoin"), all_keys, "{}\n{}", query, p);
+        // Module 3j moves a condition on one table out of a comma join's WHERE clause before the join rules run, which can leave only
+        // cross equalities: then a hash join is right, and so is the nested loop of a course that has not reached 3j. Either plan must give the rows.
+        let movable = where_form && !left && conjuncts.iter().any(Conjunct::is_key) && conjuncts.iter().all(|c| c.is_key() || matches!(c, Conjunct::EqConst { .. } | Conjunct::SameSide { .. }));
+        if !movable {
+            prop_assert_eq!(p.contains("HashJoin"), all_keys, "{}\n{}", query, p);
+            prop_assert_eq!(!p.contains("NestedLoopJoin"), all_keys, "{}\n{}", query, p);
+        }
         let want = model::naive_join(&a, &b, 3, left, holds);
         let (optimized, plain) = both_ways(&db, &query);
         prop_assert_eq!(optimized, want.clone(), "with the rule: {}", query);

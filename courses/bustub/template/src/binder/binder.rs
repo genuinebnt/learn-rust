@@ -264,6 +264,7 @@ impl<'c, 'a> Binder<'c, 'a> {
                 });
             }
             QueryBody::Select(core) => core,
+            QueryBody::SetOp { op, all, left, right } => return self.bind_set_op(query, *op, *all, left, right),
         };
 
         let mut ctes = vec![];
@@ -317,6 +318,40 @@ impl<'c, 'a> Binder<'c, 'a> {
             ctes,
             is_distinct: core.distinct,
         })
+    }
+
+    /// `left UNION right ORDER BY ... LIMIT ...` is a select of everything from a table that is the union: the clauses of the whole query
+    /// refer to its columns, which are named like the left query's.
+    fn bind_set_op(&mut self, query: &Query, op: SetOperator, all: bool, left: &Query, right: &Query) -> Result<SelectStatement> {
+        let mut ctes = vec![];
+        for cte in &query.ctes {
+            if cte.recursive {
+                return Err(not_implemented("recursive CTE not supported"));
+            }
+            ctes.push(self.bind_subquery(&cte.query, &cte.name)?);
+        }
+        for cte in &ctes {
+            self.cte_scope.push(CteInfo { name: cte.alias.clone(), select_list_name: cte.select_list_name.clone() });
+        }
+        let alias = format!("__setop#{}", self.next_id());
+        let l = self.bind_subquery(left, &format!("{alias}.left"))?;
+        let r = self.bind_subquery(right, &format!("{alias}.right"))?;
+        let select_list_name = l.select_list_name.clone();
+        let table = BoundTableRef::SetOp { op, all, left: Box::new(l), right: Box::new(r), alias: alias.clone(), select_list_name: select_list_name.clone() };
+        let select_list = select_list_name
+            .iter()
+            .map(|n| BoundExpression::ColumnRef(std::iter::once(alias.clone()).chain(n.iter().cloned()).collect()))
+            .collect();
+        let limit_count = match &query.limit {
+            Some(e) => self.bind_expression(e, &table)?,
+            None => BoundExpression::Invalid,
+        };
+        let limit_offset = match &query.offset {
+            Some(e) => self.bind_expression(e, &table)?,
+            None => BoundExpression::Invalid,
+        };
+        let sort = self.bind_sort(&query.order_by, &table)?;
+        Ok(SelectStatement { table, select_list, where_: BoundExpression::Invalid, group_by: vec![], having: BoundExpression::Invalid, limit_count, limit_offset, sort, ctes, is_distinct: false })
     }
 
     fn bind_sort(&mut self, items: &[OrderItem], scope: &BoundTableRef) -> Result<Vec<BoundOrderBy>> {
@@ -582,6 +617,7 @@ impl<'c, 'a> Binder<'c, 'a> {
             }
             BoundTableRef::Subquery(s) => Self::resolve_column_ref_from_subquery(&s.select_list_name, &s.alias, col_name),
             BoundTableRef::Cte { alias, select_list_name, .. } => Self::resolve_column_ref_from_subquery(select_list_name, alias, col_name),
+            BoundTableRef::SetOp { alias, select_list_name, .. } => Self::resolve_column_ref_from_subquery(select_list_name, alias, col_name),
             _ => Err(exception("unsupported TableReferenceType")),
         }
     }

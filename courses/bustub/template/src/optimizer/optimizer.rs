@@ -245,6 +245,67 @@ impl<'c, 'a> Optimizer<'c, 'a> {
         optimized
     }
 
+
+    // ---- filters and outer joins (module 3j) --------------------------------------------------------------------------------
+
+    /// The `col_idx` of every column the expression reads (all with tuple index 0: this is a filter, before it is merged into a join).
+    pub fn columns_read(expr: &ExprRef, out: &mut Vec<u32>) {
+        if let Some(c) = expr.as_any().downcast_ref::<ColumnValueExpression>() {
+            out.push(c.col_idx());
+        }
+        for child in expr.children() {
+            Self::columns_read(child, out);
+        }
+    }
+
+    /// The same expression with every column index moved down by `by` (the columns of the right side of a join, as the right child sees them).
+    pub fn shift_columns(expr: &ExprRef, by: u32) -> ExprRef {
+        if let Some(c) = expr.as_any().downcast_ref::<ColumnValueExpression>() {
+            return Arc::new(ColumnValueExpression::new(c.tuple_idx(), c.col_idx() - by, c.return_type().clone()));
+        }
+        let children = expr.children().iter().map(|c| Self::shift_columns(c, by)).collect();
+        expr.clone_with_children(children)
+    }
+
+    /// `a AND b AND ...` (the constant TRUE for an empty list).
+    pub fn and_all(parts: Vec<ExprRef>) -> ExprRef {
+        let mut it = parts.into_iter();
+        let Some(first) = it.next() else {
+            return Arc::new(ConstantValueExpression::new(crate::types::value::Value::boolean(true)));
+        };
+        it.fold(first, |acc, e| Arc::new(LogicExpression::new(acc, e, LogicType::And).expect("conjuncts are booleans")))
+    }
+
+    /// A filter above a join, split so that the parts that can be applied to one input below the join are. Which parts may move depends on
+    /// the join: an INNER join can take parts on either side; a LEFT join only parts on the left (a part on the right would remove
+    /// right tuples before the join pads the unmatched left ones with NULLs, which a filter above the join would then have removed);
+    /// a RIGHT join only parts on the right; a FULL join none. What cannot move stays in a filter above.
+    pub fn optimize_filter_pushdown(&self, plan: &PlanRef) -> PlanRef {
+        plan.clone() // 3j-02: a Filter whose child is a NestedLoopJoin: split the predicate into conjuncts (Optimizer::conjuncts), find which columns each reads (columns_read) and move the ones that only read one input below the join when the join type allows it (see the doc comment), shifting the right side's columns (shift_columns); keep the rest above (and_all); then apply the rule to the new children; any other node: apply it to the children
+    }
+
+    /// Is `expr` certainly NULL when every one of the columns `cols` is NULL? (Arithmetic, comparisons, LIKE and `||` are: their operand is.)
+    pub fn is_null_when(expr: &ExprRef, cols: &dyn Fn(u32) -> bool) -> bool {
+        false // 3j-03: a column of the set is; a comparison, LIKE, arithmetic or `||` (but not IS NULL / IS NOT NULL) is when any of its operands is
+    }
+
+    /// Does the condition fail (is not TRUE) whenever every column of `cols` is NULL? This is what lets a filter above an outer join remove
+    /// the rows the join padded with NULLs.
+    pub fn rejects_nulls(expr: &ExprRef, cols: &dyn Fn(u32) -> bool) -> bool {
+        false // 3j-03: AND rejects if either side does, OR if both do; `x IS NOT NULL` if x is NULL when the columns are; anything else if is_null_when says its value is NULL; NOT and IS NULL never (be careful: they can be TRUE for NULL)
+    }
+
+    /// The type a join has once a filter above it rejects NULL-padded rows on the given sides.
+    pub fn simplified_join_type(join_type: JoinType, rejects_left_nulls: bool, rejects_right_nulls: bool) -> JoinType {
+        join_type // 3j-03: LEFT pads the right with NULLs: if the filter rejects those rows it is an INNER join; RIGHT likewise for the left side; FULL pads both sides: each side the filter rejects is dropped (rejects the right padding: RIGHT join; the left: LEFT join; both: INNER)
+    }
+
+    /// A filter above an outer join that fails on every NULL-padded row makes the padding pointless: the join is cheaper as an INNER (or a
+    /// one-sided) join, and may be reordered or pushed into like one.
+    pub fn optimize_outer_join_simplification(&self, plan: &PlanRef) -> PlanRef {
+        plan.clone() // 3j-03: a Filter over a NestedLoopJoin that is not INNER: does some conjunct reject NULLs on the left columns (col_idx < the left child's column count)? on the right? Then change the join type (simplified_join_type); apply the rule to the children
+    }
+
     // ---- the rules you write ------------------------------------------------------------------------------------------------
 
     /// Splits a predicate into its conjuncts: `a AND (b AND c)` is `[a, b, c]`; anything else (an `OR`, a comparison) is one conjunct.

@@ -41,12 +41,15 @@ COPY content /app/content
 # Course definitions for the Courses pages. The reference solution is not in git and is excluded by .dockerignore.
 COPY courses /app/courses
 COPY --from=web /web/dist /app/web/dist
+# The CLI built for macOS and Linux by CI (empty in a local build): /install.sh downloads from here.
+COPY dist-cli /app/downloads
 
 WORKDIR /app
 ENV ANNEAL_ADDR=0.0.0.0:8787 \
     ANNEAL_CONTENT=/app/content \
     ANNEAL_COURSES=/app/courses \
     ANNEAL_WEB_DIST=/app/web/dist \
+    ANNEAL_DOWNLOADS=/app/downloads \
     ANNEAL_SANDBOX=docker \
     ANNEAL_DOCKER_CONTEXT= \
     ANNEAL_COOKIE_SECURE=true \

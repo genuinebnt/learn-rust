@@ -45,10 +45,19 @@ pub struct Cte {
     pub recursive: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SetOperator {
+    Union,
+    Intersect,
+    Except,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum QueryBody {
     Select(Box<SelectCore>),
     Values(Vec<Vec<Expr>>),
+    /// `left UNION [ALL] right`, also `INTERSECT` and `EXCEPT`. Each side is a whole query: a parenthesised one keeps its own ORDER BY and LIMIT.
+    SetOp { op: SetOperator, all: bool, left: Box<Query>, right: Box<Query> },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -209,6 +218,10 @@ pub fn visit_exprs_mut(statements: &mut [Statement], f: &mut dyn FnMut(&mut Expr
         }
         match &mut q.body {
             QueryBody::Values(rows) => rows.iter_mut().flatten().for_each(|e| expr(e, f)),
+            QueryBody::SetOp { left, right, .. } => {
+                query(left, f);
+                query(right, f);
+            }
             QueryBody::Select(core) => {
                 for item in &mut core.items {
                     if let SelectItem::Expr { expr: e, .. } = item {

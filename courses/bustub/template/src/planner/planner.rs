@@ -10,6 +10,7 @@ use crate::binder::bound_expression::{BoundExpression, BoundWindow, WindowBounda
 use crate::binder::bound_order_by::OrderBy;
 use crate::binder::bound_statement::{BoundStatement, SelectStatement};
 use crate::binder::bound_table_ref::{BoundSubqueryRef, BoundTableRef};
+use crate::sql::ast::SetOperator;
 use crate::catalog::catalog::Catalog;
 use crate::catalog::column::Column;
 use crate::catalog::schema::{Schema, SchemaRef};
@@ -240,6 +241,7 @@ impl<'c, 'a> Planner<'c, 'a> {
             }
             BoundTableRef::ExpressionList { values, identifier } => self.plan_expression_list_ref(values, identifier),
             BoundTableRef::Subquery(s) => self.plan_subquery(s, &s.alias),
+            BoundTableRef::SetOp { op, all, left, right, alias, select_list_name } => self.plan_set_op(*op, *all, left, right, alias, select_list_name),
             BoundTableRef::Cte { cte_name, alias, .. } => {
                 let ctes = self.ctx.last().and_then(|c| c.cte_list.clone());
                 if let Some(ctes) = ctes {
@@ -253,6 +255,14 @@ impl<'c, 'a> Planner<'c, 'a> {
             }
             other => Err(exception(format!("the table ref type {other} is not supported in planner yet"))),
         }
+    }
+
+    /// `left UNION [ALL] right` and its relatives. Both sides must have the same number of columns, of the same types in the same order
+    /// (PostgreSQL would convert an INTEGER to a DECIMAL; this engine says no). The result's columns are named after the left side, under
+    /// `alias`.
+    fn plan_set_op(&mut self, op: SetOperator, all: bool, left: &BoundSubqueryRef, right: &BoundSubqueryRef, alias: &str, names: &[Vec<String>]) -> Result<PlanRef> {
+        let _ = (op, all, left, right, alias, names);
+        Err(not_implemented("set operations are not planned yet"))
     }
 
     fn plan_subquery(&mut self, table_ref: &BoundSubqueryRef, alias: &str) -> Result<PlanRef> {

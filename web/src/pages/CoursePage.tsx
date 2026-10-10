@@ -380,15 +380,30 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                 <div className="k-sc k-rv" style={{ "--i": 6 } as CSSProperties}>
                                     <h5>
                                         <span>GET STARTED</span>
-                                        <span>4 steps</span>
+                                        <span>5 steps</span>
                                     </h5>
-                                    {[`anneal course init ${c.id}`, `cd ${c.id}-rs`, `anneal course login ${location.origin}`, "anneal course test"].map((cmd, i) => (
+                                    {[`curl -fsSL ${location.origin}/install.sh | sh`, `anneal course init ${c.id}`, `cd ${c.id}-rs`, `anneal course login ${location.origin}`, "anneal course test"].map((cmd, i) => (
                                         <div className="k-cmd" key={cmd}>
                                             <span className="k-n">{i + 1}</span>
                                             <span>{cmd}</span>
                                             <MockCopy text={cmd} />
                                         </div>
                                     ))}
+                                    <p className="k-note">Step 1 installs the CLI on macOS or Linux. It needs git, curl and Rust.</p>
+                                </div>
+                                <div className="k-sc k-rv" style={{ "--i": 6 } as CSSProperties}>
+                                    <h5>
+                                        <span>ANOTHER LAPTOP</span>
+                                        <span>3 steps</span>
+                                    </h5>
+                                    {[`curl -fsSL ${location.origin}/install.sh | sh`, `anneal course login ${location.origin}`, "anneal course restore"].map((cmd, i) => (
+                                        <div className="k-cmd" key={cmd}>
+                                            <span className="k-n">{i + 1}</span>
+                                            <span>{cmd}</span>
+                                            <MockCopy text={cmd} />
+                                        </div>
+                                    ))}
+                                    <p className="k-note">Restores what you committed and pushed. Once, on your first laptop: create a private GitHub repository, run <code>anneal course remote &lt;its URL&gt;</code>, then <code>git push -u origin HEAD</code>.</p>
                                 </div>
                                 <div className="k-sc k-rv" style={{ "--i": 7 } as CSSProperties}>
                                     <h5>

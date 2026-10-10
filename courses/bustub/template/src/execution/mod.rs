@@ -26,3 +26,8 @@ pub mod radix_sort;
 pub mod in_set;
 pub mod not_in;
 pub mod analyze_times;
+pub mod hash_outer_join;
+pub mod outer_join_counts;
+pub mod set_laws;
+pub mod merge_set_ops;
+pub mod null_rejection;

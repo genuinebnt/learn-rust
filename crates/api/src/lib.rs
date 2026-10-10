@@ -31,9 +31,9 @@ use anneal_content::Catalog;
 use anneal_runner::Runner;
 use axum::Router;
 use axum::extract::Request;
-use axum::http::{HeaderValue, header};
+use axum::http::{HeaderMap, HeaderValue, header};
 use axum::middleware::{self, Next};
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use sqlx::PgPool;
 use tower_http::services::{ServeDir, ServeFile};
@@ -108,6 +108,7 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .route("/courses/{course}/runs/start", post(course::start_run))
         .route("/courses/{course}/reset", post(course::reset_progress))
         .route("/courses/{course}/solutions", put(course::put_solutions))
+        .route("/courses/{course}/repo", get(course::get_repo).put(course::put_repo))
         .route("/settings", get(settings::get))
         .route("/format", post(format::format))
         .route("/settings/editor", put(settings::put_editor))
@@ -123,6 +124,11 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         .merge(protected)
         .with_state(state);
     let mut router = Router::new().nest("/api", api);
+    // The CLI for other computers: public, because it is fetched before there is anything to sign in with (docs/CLI_INSTALL.md).
+    router = router.route("/install.sh", get(install_script));
+    if let Some(dir) = std::env::var_os("ANNEAL_DOWNLOADS").map(std::path::PathBuf::from).filter(|d| d.is_dir()) {
+        router = router.merge(Router::new().nest_service("/downloads", ServeDir::new(dir)).layer(middleware::from_fn(revalidate)));
+    }
     if let Some(dist) = web_dist.filter(|d| d.join("index.html").is_file()) {
         // Vite names everything under /assets by content hash, so those files never change: browsers and
         // Cloudflare may keep them for a year without asking again. A missing one is a plain 404, never the
@@ -137,6 +143,20 @@ pub fn app(state: AppState, web_dist: Option<&Path>) -> Router {
         router = router.merge(assets).merge(pages);
     }
     router.layer(TraceLayer::new_for_http())
+}
+
+const INSTALL_SH: &str = include_str!("install.sh");
+
+/// `GET /install.sh`: the installer, with the address it was fetched from filled in.
+async fn install_script(headers: HeaderMap) -> impl IntoResponse {
+    let header_text = |name: &str| headers.get(name).and_then(|v| v.to_str().ok()).map(|v| v.split(',').next().unwrap_or("").trim().to_owned());
+    let host = header_text("x-forwarded-host")
+        .or_else(|| header_text("host"))
+        .filter(|h| !h.is_empty() && h.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | ':')))
+        .unwrap_or_else(|| "localhost:8787".into());
+    let local = host.starts_with("localhost") || host.starts_with("127.");
+    let proto = header_text("x-forwarded-proto").filter(|p| p == "http" || p == "https").unwrap_or_else(|| if local { "http" } else { "https" }.into());
+    ([(header::CONTENT_TYPE, "text/x-shellscript; charset=utf-8")], INSTALL_SH.replace("__BASE__", &format!("{proto}://{host}")))
 }
 
 async fn cache_for_a_year(req: Request, next: Next) -> Response {

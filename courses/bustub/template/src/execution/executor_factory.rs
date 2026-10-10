@@ -22,7 +22,7 @@ use super::executors::seq_scan_executor::SeqScanExecutor;
 use super::executors::update_executor::UpdateExecutor;
 use super::executors::values_executor::ValuesExecutor;
 use super::check_options::CheckOption;
-use super::plans::plan_node::{PlanRef, PlanType};
+use super::plans::plan_node::{JoinType, PlanKind, PlanRef, PlanType};
 use crate::common::exception::{Exception, ExceptionType, Result};
 
 /// The executor for `plan`, measured when the execution is an `EXPLAIN ANALYZE`.
@@ -82,6 +82,9 @@ fn create_plain_executor<'e>(ctx: &'e ExecutorContext<'e>, plan: &PlanRef) -> Re
         PlanType::Limit => {
             let child = create_executor(ctx, &plan.children[0])?;
             Ok(Box::new(LimitExecutor::new(plan.clone(), child)))
+        }
+        PlanType::SetOp => {
+            Err(Exception::new(ExceptionType::NotImplemented, "a SetOp plan has no executor yet"))
         }
         PlanType::Offset => {
             Err(Exception::new(ExceptionType::NotImplemented, "an Offset plan has no executor yet"))

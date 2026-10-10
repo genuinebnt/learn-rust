@@ -1737,3 +1737,45 @@ async fn a_track_resets_to_nothing_solved_and_leaves_other_tracks_alone(db: PgPo
     // doing it again is harmless
     assert_eq!(call(&app, Method::POST, "/api/tracks/d9/reset", Some(json!({}))).await.0, StatusCode::OK);
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn the_repository_of_a_course_is_recorded_and_read_back(db: PgPool) {
+    let app = test_app(db);
+    let url = "/api/courses/bustub/repo";
+    assert_eq!(call(&app, Method::GET, url, None).await.1["url"], Value::Null, "nothing recorded yet");
+    let (status, r) = call(&app, Method::PUT, url, Some(json!({ "url": "git@github.com:me/bustub-rs.git" }))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(r["url"], "git@github.com:me/bustub-rs.git");
+    assert_eq!(call(&app, Method::PUT, url, Some(json!({ "url": "https://github.com/me/other.git" }))).await.0, StatusCode::OK, "recording again replaces it");
+    assert_eq!(call(&app, Method::GET, url, None).await.1["url"], "https://github.com/me/other.git");
+    for bad in ["", "two words", &"x".repeat(501)] {
+        assert_eq!(call(&app, Method::PUT, url, Some(json!({ "url": bad }))).await.0, StatusCode::BAD_REQUEST, "{bad:?}");
+    }
+    assert_eq!(call(&app, Method::GET, "/api/courses/nope/repo", None).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(call(&app, Method::GET, url, None).await.1["url"], "https://github.com/me/other.git", "refused requests change nothing");
+}
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn the_installer_names_the_address_it_was_fetched_from(db: PgPool) {
+    let app = test_app(db);
+    let get = |host: &'static str, proto: Option<&'static str>| {
+        let app = app.clone();
+        async move {
+            let mut req = Request::builder().uri("/install.sh").header("host", host);
+            if let Some(p) = proto {
+                req = req.header("x-forwarded-proto", p);
+            }
+            let res = app.oneshot(req.body(Body::empty()).unwrap()).await.unwrap();
+            let status = res.status();
+            let text = String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
+            (status, text)
+        }
+    };
+    let (status, script) = get("anneal.example.dev", Some("https")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(script.starts_with("#!/bin/sh"), "a shell script");
+    assert!(script.contains("base=\"https://anneal.example.dev\""), "the address it came from");
+    assert!(!script.contains("__BASE__"), "nothing left to fill in");
+    assert!(get("127.0.0.1:8787", None).await.1.contains("base=\"http://127.0.0.1:8787\""), "plain http for a local server");
+    assert!(get("evil.example/\";rm -rf ~;\"", None).await.1.contains("base=\"http://localhost:8787\""), "a host with odd characters is not echoed into the script");
+}

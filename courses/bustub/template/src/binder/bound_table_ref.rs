@@ -7,6 +7,7 @@ use super::bound_expression::BoundExpression;
 use super::bound_statement::SelectStatement;
 use crate::catalog::schema::Schema;
 use crate::execution::plans::plan_node::{JoinType, TableOid};
+use crate::sql::ast::SetOperator;
 
 #[derive(Clone, Debug)]
 pub struct BoundSubqueryRef {
@@ -29,6 +30,8 @@ pub enum BoundTableRef {
     ExpressionList { values: Vec<Vec<BoundExpression>>, identifier: String },
     /// A reference to a `WITH` query: the name it was defined with, the name it is used under, and its columns.
     Cte { cte_name: String, alias: String, select_list_name: Vec<Vec<String>> },
+    /// `left UNION [ALL] right` (or INTERSECT, EXCEPT) used as a table: its columns are named like the left query's, under `alias`.
+    SetOp { op: SetOperator, all: bool, left: Box<BoundSubqueryRef>, right: Box<BoundSubqueryRef>, alias: String, select_list_name: Vec<Vec<String>> },
 }
 
 impl BoundTableRef {
@@ -65,6 +68,9 @@ impl fmt::Display for BoundTableRef {
                 write!(f, "BoundExpressionListRef {{ identifier={identifier}, values=[{}] }}", rows.join(", "))
             }
             BoundTableRef::Cte { cte_name, alias, .. } => write!(f, "BoundCTERef {{ cte_name={cte_name}, alias={alias} }}"),
+            BoundTableRef::SetOp { op, all, left, right, .. } => {
+                write!(f, "BoundSetOp {{ op={op:?}, all={all}, left={}, right={} }}", left.subquery, right.subquery)
+            }
         }
     }
 }

@@ -192,6 +192,29 @@ pub fn reset_remote(course: &str, scope: &serde_json::Value) -> Option<anyhow::R
     })
 }
 
+/// The repository URL the app remembers for a course: `None` when nobody is signed in, `Some(Ok(None))` when none was recorded.
+pub fn repo_remote(course: &str) -> Option<anyhow::Result<Option<String>>> {
+    let s = load_session()?;
+    Some(match curl("GET", &format!("{}/api/courses/{course}/repo", s.url), Some(&s.token), None) {
+        Ok((200, _, b)) => Ok(serde_json::from_str::<serde_json::Value>(&b).ok().and_then(|v| v["url"].as_str().map(str::to_owned))),
+        Ok((401, ..)) => Err(anyhow::anyhow!("the session expired: run `anneal course login {}`", s.url)),
+        Ok((st, _, b)) => Err(anyhow::anyhow!("the app refused ({st}): {}", b.trim())),
+        Err(e) => Err(e),
+    })
+}
+
+/// Tells the app which repository holds the learner's work. `None` when nobody is signed in.
+pub fn set_repo_remote(course: &str, url: &str) -> Option<anyhow::Result<()>> {
+    let s = load_session()?;
+    let body = serde_json::json!({ "url": url }).to_string();
+    Some(match curl("PUT", &format!("{}/api/courses/{course}/repo", s.url), Some(&s.token), Some(&body)) {
+        Ok((200 | 204, ..)) => Ok(()),
+        Ok((401, ..)) => Err(anyhow::anyhow!("the session expired: run `anneal course login {}`", s.url)),
+        Ok((st, _, b)) => Err(anyhow::anyhow!("the app refused ({st}): {}", b.trim())),
+        Err(e) => Err(e),
+    })
+}
+
 /// Reports one stage run, if a session exists. Never fails the caller. A run that cannot be delivered now is queued in
 /// `.anneal/outbox.jsonl` and goes out with the next report or `anneal course sync`.
 pub fn report_run(repo: &Path, course: &str, stage: &str, tests: &[(String, bool, String)], problem: Option<&str>, commit: &str, ms: u64) {

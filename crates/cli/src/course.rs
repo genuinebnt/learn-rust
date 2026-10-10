@@ -124,6 +124,20 @@ pub enum CourseCmd {
     Sync,
     /// Install (or reinstall) the git hooks in this repo.
     Hooks,
+    /// Link this repo to your own GitHub repository (the `origin` remote) and tell the app, so `anneal course restore` can fetch it on another laptop.
+    Remote {
+        /// The repository's URL, e.g. git@github.com:you/bustub-rs.git. Without it, the current `origin` is recorded.
+        url: Option<String>,
+    },
+    /// Continue on another laptop: clone your repo (committed work only), install the hooks and show where you are.
+    Restore {
+        /// The repository's URL. Without it, the one recorded by `anneal course remote` is asked from the app you signed in to.
+        url: Option<String>,
+        /// Where to clone it. Default: the repository's name.
+        dir: Option<PathBuf>,
+        #[arg(long, default_value = "bustub")]
+        course: String,
+    },
     /// Bring in the stages, tests and stubs added since `init` (new modules), without touching your code.
     Update {
         #[arg(long, default_value = "bustub")]
@@ -783,6 +797,8 @@ pub fn run(cmd: CourseCmd) -> anyhow::Result<ExitCode> {
             println!("hooks installed");
             Ok(ExitCode::SUCCESS)
         }
+        CourseCmd::Remote { url } => remote(url),
+        CourseCmd::Restore { url, dir, course } => restore(url, dir, &course),
         CourseCmd::Hook { name } => match name.as_str() {
             "pre-push" => test(None, TestOpts { all: false, only: false, verbose: false, hook: true }, None),
             other => bail!("no hook {other:?}"),
@@ -1038,6 +1054,78 @@ fn init(course_id: &str, dir: Option<PathBuf>, courses: &Path) -> anyhow::Result
         println!("(The first commit didn't happen: set git user.name and user.email, then `git commit -am start`.)");
     }
     println!("\n  cd {}\n  anneal course show      # read the first stage\n  anneal course test      # run its tests\n  git commit -am work && git push   # the hook runs the tests too", dir.display());
+    Ok(ExitCode::SUCCESS)
+}
+
+/// `anneal course remote [url]`: makes `origin` point at the learner's own repository and records it in the app.
+fn remote(url: Option<String>) -> anyhow::Result<ExitCode> {
+    let repo = find_repo()?;
+    let course = learner_course(&repo)?.meta.id;
+    let git = |args: &[&str]| Command::new("git").current_dir(&repo).args(args).output();
+    let current = git(&["remote", "get-url", "origin"]).ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned());
+    let url = match (url, &current) {
+        (Some(u), _) => u,
+        (None, Some(c)) => c.clone(),
+        (None, None) => bail!("no remote yet: create an empty private repository on GitHub and run `anneal course remote git@github.com:YOU/{}.git`", repo.file_name().and_then(|n| n.to_str()).unwrap_or("bustub-rs")),
+    };
+    if url.chars().any(char::is_whitespace) {
+        bail!("{url:?} is not a repository URL");
+    }
+    if current.as_deref() != Some(url.as_str()) {
+        let verb = if current.is_some() { "set-url" } else { "add" };
+        let out = git(&["remote", verb, "origin", &url])?;
+        if !out.status.success() {
+            bail!("git remote {verb} failed: {}", String::from_utf8_lossy(&out.stderr).trim());
+        }
+    }
+    println!("origin is {url}");
+    match course_sync::set_repo_remote(&course, &url) {
+        None => println!("Not signed in, so the app doesn't know it yet: `anneal course login <app url>`, then run this again."),
+        Some(Ok(())) => println!("The app remembers it: on another laptop, `anneal course login <app url>` and `anneal course restore`."),
+        Some(Err(e)) => println!("The app wasn't told: {e}"),
+    }
+    println!("\nYour work reaches GitHub when you commit and push it:\n  git push -u origin HEAD     # the hook runs the current stage's tests and reports the result");
+    Ok(ExitCode::SUCCESS)
+}
+
+/// `anneal course restore [url] [dir]`: your committed work on a new laptop.
+fn restore(url: Option<String>, dir: Option<PathBuf>, course: &str) -> anyhow::Result<ExitCode> {
+    let url = match url {
+        Some(u) => u,
+        None => match course_sync::repo_remote(course) {
+            Some(Ok(Some(u))) => u,
+            Some(Ok(None)) => bail!("the app has no repository for {course} yet: run `anneal course remote <url>` on the laptop that has your work, or pass the URL here"),
+            Some(Err(e)) => bail!("asking the app for your repository failed: {e}"),
+            None => bail!("pass the repository's URL, or sign in first (`anneal course login <app url>`) so the app can tell it"),
+        },
+    };
+    let dir = dir.unwrap_or_else(|| {
+        // "git@github.com:you/bustub-rs.git" -> "bustub-rs"
+        let last = url.trim_end_matches('/').rsplit(['/', ':']).next().unwrap_or("");
+        let name = last.strip_suffix(".git").unwrap_or(last);
+        PathBuf::from(if name.is_empty() { format!("{course}-rs") } else { name.to_owned() })
+    });
+    if dir.exists() && fs::read_dir(&dir)?.next().is_some() {
+        bail!("{} already exists and isn't empty", dir.display());
+    }
+    println!("Cloning {url} into {} ...", dir.display());
+    let status = Command::new("git").args(["clone", &url]).arg(&dir).status().context("running git clone (is git installed?)")?;
+    if !status.success() {
+        bail!("git clone failed: check the URL and that this laptop can reach the repository (an SSH key or `gh auth login`)");
+    }
+    if !dir.join(STATE_DIR).join("course.toml").exists() {
+        bail!("{} has no {STATE_DIR}/course.toml: it isn't a repository made by `anneal course init`", dir.display());
+    }
+    install_hooks(&dir)?;
+    let shipped = learner_course(&dir)?;
+    let progress = load_progress(&dir);
+    let done = shipped.stages.iter().filter(|s| progress.passed.contains_key(&s.def.id)).count();
+    println!("\nRestored {}: {done} of {} stages passed in your committed work.", dir.display(), shipped.stages.len());
+    if let Some(next) = current(&shipped, &progress) {
+        println!("Next: {} {}", next.def.id, next.def.title);
+    }
+    println!("\n  cd {}\n  anneal course login <app url>   # so test runs are reported\n  anneal course test", dir.display());
+    println!("(Anything you had not committed on the other laptop is not here. `anneal course update` brings in modules added since.)");
     Ok(ExitCode::SUCCESS)
 }
 

@@ -426,3 +426,30 @@ pub async fn reset_progress(State(s): State<AppState>, Path(course): Path<String
     tx.commit().await?;
     Ok(Json(json!({ "stages": ids.len(), "stage_states_removed": stages, "runs_removed": runs })))
 }
+
+/// `GET …/repo`: the repository that holds the learner's work, if `anneal course remote` recorded one.
+pub async fn get_repo(State(s): State<AppState>, Path(course): Path<String>) -> ApiResult<Json<Value>> {
+    let c = find(&s, &course)?;
+    let url: Option<String> = sqlx::query_scalar("SELECT url FROM course_repos WHERE course = $1").bind(&c.id).fetch_optional(&s.db).await?;
+    Ok(Json(json!({ "url": url })))
+}
+
+#[derive(Deserialize)]
+pub struct RepoBody {
+    url: String,
+}
+
+/// `PUT …/repo`: records the repository (sent by `anneal course remote`).
+pub async fn put_repo(State(s): State<AppState>, Path(course): Path<String>, Json(b): Json<RepoBody>) -> ApiResult<Json<Value>> {
+    let c = find(&s, &course)?;
+    let url = b.url.trim();
+    if url.is_empty() || url.len() > 500 || url.chars().any(char::is_whitespace) {
+        return Err(ApiError::BadRequest("a repository URL has no spaces and is at most 500 characters".into()));
+    }
+    sqlx::query("INSERT INTO course_repos (course, url) VALUES ($1, $2) ON CONFLICT (course) DO UPDATE SET url = $2, updated_at = now()")
+        .bind(&c.id)
+        .bind(url)
+        .execute(&s.db)
+        .await?;
+    Ok(Json(json!({ "url": url })))
+}

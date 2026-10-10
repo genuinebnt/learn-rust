@@ -11,3 +11,6 @@ __pycache__/
 tools/*/target
 web/test-results
 web/playwright-report
+
+# CLI binaries built by CI for the app image
+dist-cli/anneal-*

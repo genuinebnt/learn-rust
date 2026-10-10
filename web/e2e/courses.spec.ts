@@ -150,11 +150,14 @@ test("/ focuses the find box, and Escape leaves it", async ({ page }) => {
 
 test("each get-started command has its own copy button", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-    await expect(page.locator(".k-cmd")).toHaveCount(4);
-    const second = page.locator(".k-cmd").nth(1);
-    await second.getByRole("button").click();
-    await expect(second.getByRole("button")).toHaveText("COPIED");
+    // five steps to get started, then three for another laptop
+    await expect(page.locator(".k-cmd")).toHaveCount(8);
+    const third = page.locator(".k-cmd").nth(2);
+    await third.getByRole("button").click();
+    await expect(third.getByRole("button")).toHaveText("COPIED");
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("cd bustub-rs");
+    await expect(page.locator(".k-cmd").first()).toContainText("/install.sh | sh");
+    await expect(page.locator(".k-cmd").last()).toContainText("anneal course restore");
 });
 
 test("a project's progress bar opens that project's first module", async ({ page }) => {

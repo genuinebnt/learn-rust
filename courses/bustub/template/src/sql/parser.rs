@@ -386,11 +386,11 @@ impl Parser {
             let core = self.select_core()?;
             Query { ctes: vec![], body: QueryBody::Select(Box::new(core)), order_by: vec![], limit: None, offset: None }
         };
-        if !ctes.is_empty() {
-            query.ctes = ctes;
-        }
         if self.at_word("union") || self.at_word("intersect") || self.at_word("except") {
             return Err(parse_error("set operations (UNION, INTERSECT, EXCEPT) are not supported"));
+        }
+        if !ctes.is_empty() {
+            query.ctes = ctes;
         }
         if self.eat_word("order") {
             self.expect_word("by")?;
@@ -456,6 +456,52 @@ impl Parser {
         let having = if self.eat_word("having") { Some(self.expr()?) } else { None };
         Ok(SelectCore { distinct, distinct_on, items, from, filter, group_by, having })
     }
+
+    /// One side of a set operation: a SELECT without its ORDER BY and LIMIT (those belong to the whole query), or a parenthesised query,
+    /// which keeps its own.
+    fn set_operand(&mut self) -> P<Query> {
+        if self.eat_symbol("(") {
+            let q = self.query()?;
+            self.expect_symbol(")")?;
+            return Ok(q);
+        }
+        let core = self.select_core()?;
+        Ok(Query { ctes: vec![], body: QueryBody::Select(Box::new(core)), order_by: vec![], limit: None, offset: None })
+    }
+
+    /// The set operator at the cursor, if there is one, with its precedence: INTERSECT binds tighter than UNION and EXCEPT.
+    fn peek_set_op(&self) -> Option<(SetOperator, u8)> {
+        if self.at_word("union") {
+            Some((SetOperator::Union, 1))
+        } else if self.at_word("except") {
+            Some((SetOperator::Except, 1))
+        } else if self.at_word("intersect") {
+            Some((SetOperator::Intersect, 2))
+        } else {
+            None
+        }
+    }
+
+    fn set_node(op: SetOperator, all: bool, left: Query, right: Query) -> Query {
+        Query { ctes: vec![], body: QueryBody::SetOp { op, all, left: Box::new(left), right: Box::new(right) }, order_by: vec![], limit: None, offset: None }
+    }
+
+    /// `first [UNION | INTERSECT | EXCEPT [ALL | DISTINCT] operand]...`: the chain of set operations that follows a query.
+    fn set_ops(&mut self, first: Query) -> P<Query> {
+        let mut left = first;
+        while let Some((op, _)) = self.peek_set_op() {
+            self.pos += 1;
+            let all = self.eat_word("all");
+            if !all {
+                self.eat_word("distinct");
+            }
+            let right = self.set_operand()?;
+            left = Self::set_node(op, all, left, right);
+        }
+        Ok(left)
+    }
+
+    // TODO(3j-06): a helper of yours
 
     fn order_items(&mut self) -> P<Vec<OrderItem>> {
         let mut items = vec![];

@@ -284,6 +284,707 @@ pitfalls = [
 ]
 examples = ["minimum-obstacle-removal-to-reach-corner", "minimum-cost-to-make-at-least-one-valid-path-in-a-grid"]
 
+[[extra]]
+id = "Advanced Graphs:dijkstra-products"
+name = "Dijkstra with products and with path counts"
+group = "Shortest paths"
+signals = [
+    "the most probable path: multiply probabilities and maximise instead of adding and minimising",
+    "how many shortest paths lead to the destination: carry a count next to each distance",
+    "any cost that only gets worse along a path keeps Dijkstra correct",
+]
+template_name = "Path with maximum probability"
+template = '''
+import heapq
+
+
+def max_probability(n, edges, succ_prob, start, end):
+    adj = [[] for _ in range(n)]
+    for (a, b), p in zip(edges, succ_prob):
+        adj[a].append((b, p))
+        adj[b].append((a, p))
+    best = [0.0] * n
+    best[start] = 1.0
+    heap = [(-1.0, start)]  # a max-heap of probabilities, negated
+    while heap:
+        neg, u = heapq.heappop(heap)
+        if u == end:
+            return -neg
+        if -neg < best[u]:
+            continue  # a stale entry
+        for v, p in adj[u]:
+            if best[u] * p > best[v]:
+                best[v] = best[u] * p
+                heapq.heappush(heap, (-best[v], v))
+    return 0.0
+'''
+pitfalls = [
+    "A probability never exceeds 1, so extending a path never helps: that is the property Dijkstra needs.",
+    "Negate the probability to use heapq as a max-heap.",
+    "Skip stale heap entries whose value is worse than the best known.",
+]
+examples = ["path-with-maximum-probability", "number-of-ways-to-arrive-at-destination", "minimum-time-to-visit-a-cell-in-a-grid", "second-minimum-time-to-reach-destination"]
+
+[[extra.variant]]
+name = "Number of ways to arrive"
+note = "When a path ties the best distance, add the number of ways; when it beats it, replace."
+template = '''
+import heapq
+
+
+def count_paths(n, roads):
+    adj = [[] for _ in range(n)]
+    for a, b, t in roads:
+        adj[a].append((b, t))
+        adj[b].append((a, t))
+    dist, ways = [float("inf")] * n, [0] * n
+    dist[0], ways[0] = 0, 1
+    heap = [(0, 0)]
+    while heap:
+        d, u = heapq.heappop(heap)
+        if d > dist[u]:
+            continue
+        for v, t in adj[u]:
+            if d + t < dist[v]:
+                dist[v], ways[v] = d + t, ways[u]  # a strictly better path
+                heapq.heappush(heap, (dist[v], v))
+            elif d + t == dist[v]:
+                ways[v] = (ways[v] + ways[u]) % (10**9 + 7)  # a tie
+    return ways[n - 1] % (10**9 + 7)
+'''
+
+[[extra.variant]]
+name = "Minimum time to visit a cell (waiting)"
+note = "A cell opens at time grid[r][c]; if you arrive early you can bounce between two cells until it opens, losing a parity."
+template = '''
+import heapq
+
+
+def minimum_time(grid):
+    rows, cols = len(grid), len(grid[0])
+    if grid[0][1] > 1 and grid[1][0] > 1:
+        return -1  # stuck at the start: no neighbour opens at time 1
+    best = [[float("inf")] * cols for _ in range(rows)]
+    best[0][0] = 0
+    heap = [(0, 0, 0)]
+    while heap:
+        t, r, c = heapq.heappop(heap)
+        if (r, c) == (rows - 1, cols - 1):
+            return t
+        if t > best[r][c]:
+            continue
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < rows and 0 <= b < cols:
+                need = max(t + 1, grid[a][b])
+                if (need - t) % 2 == 0:
+                    need += 1  # waiting costs even steps: fix the parity
+                if need < best[a][b]:
+                    best[a][b] = need
+                    heapq.heappush(heap, (need, a, b))
+'''
+
+[[extra]]
+id = "Advanced Graphs:floyd-small"
+name = "Floyd-Warshall for small graphs"
+group = "Shortest paths"
+signals = [
+    "the distance between every pair of nodes, with at most a few hundred nodes",
+    "the city with the fewest neighbours within a threshold, the cheapest way to convert one letter into another",
+    "three nested loops: the intermediate node k is the outermost",
+]
+template_name = "City with the fewest neighbours"
+template = '''
+def find_the_city(n, edges, distance_threshold):
+    inf = float("inf")
+    dist = [[inf] * n for _ in range(n)]
+    for i in range(n):
+        dist[i][i] = 0
+    for a, b, w in edges:
+        dist[a][b] = dist[b][a] = w
+    for k in range(n):  # the intermediate node is the outer loop
+        for i in range(n):
+            for j in range(n):
+                if dist[i][k] + dist[k][j] < dist[i][j]:
+                    dist[i][j] = dist[i][k] + dist[k][j]
+    best, city = inf, -1
+    for i in range(n):
+        reach = sum(1 for j in range(n)
+                    if i != j and dist[i][j] <= distance_threshold)
+        if reach <= best:  # ties go to the larger city number
+            best, city = reach, i
+    return city
+'''
+pitfalls = [
+    "k must be the outermost loop, or the shortest paths through later intermediates are missed.",
+    "Initialise dist[i][i] = 0 and missing edges to infinity.",
+    "O(n^3) time: only for small n (a few hundred).",
+]
+examples = ["find-the-city-with-the-smallest-number-of-neighbors-at-a-threshold-distance", "minimum-cost-to-convert-string-i"]
+
+[[extra.variant]]
+name = "Minimum cost to convert a string"
+note = "Letters are nodes, a conversion is an edge with a cost; the answer sums the cheapest path per position."
+template = '''
+def minimum_cost(source, target, original, changed, cost):
+    inf = float("inf")
+    dist = [[inf] * 26 for _ in range(26)]
+    for i in range(26):
+        dist[i][i] = 0
+    for a, b, c in zip(original, changed, cost):
+        x, y = ord(a) - 97, ord(b) - 97
+        dist[x][y] = min(dist[x][y], c)  # several rules for one pair
+    for k in range(26):
+        for i in range(26):
+            for j in range(26):
+                dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j])
+    total = 0
+    for s, t in zip(source, target):
+        d = dist[ord(s) - 97][ord(t) - 97]
+        if d == inf:
+            return -1
+        total += d
+    return total
+'''
+
+[[extra]]
+id = "Advanced Graphs:kruskal-types"
+name = "Kruskal with edge types"
+group = "Minimum spanning trees"
+signals = [
+    "keep the graph connected for two people with different edge types, deleting as many edges as possible",
+    "shared edges first: they help both; then each person's own edges",
+    "an edge is removable when it joins nodes that are already connected",
+]
+template_name = "Remove the maximum number of edges"
+template = '''
+def max_num_edges_to_remove(n, edges):
+    def make():
+        return list(range(n + 1))
+
+    def find(p, x):
+        while p[x] != x:
+            p[x] = p[p[x]]
+            x = p[x]
+        return x
+
+    alice, bob = make(), make()
+    used = 0
+
+    def union(p, a, b):
+        ra, rb = find(p, a), find(p, b)
+        if ra == rb:
+            return False
+        p[ra] = rb
+        return True
+
+    for t, a, b in edges:  # shared edges (type 3) first
+        if t == 3:
+            ok_a, ok_b = union(alice, a, b), union(bob, a, b)
+            used += ok_a or ok_b  # useful for at least one of them
+    for t, a, b in edges:
+        if t == 1:
+            used += union(alice, a, b)
+        elif t == 2:
+            used += union(bob, a, b)
+    ca = len({find(alice, i) for i in range(1, n + 1)})
+    cb = len({find(bob, i) for i in range(1, n + 1)})
+    return len(edges) - used if ca == 1 and cb == 1 else -1
+'''
+pitfalls = [
+    "Process the shared edges first: one shared edge replaces two private ones.",
+    "An edge is kept only if it merges two components for at least one of the people.",
+    "At the end both people must see a single component, or the answer is -1.",
+]
+examples = ["remove-max-number-of-edges-to-keep-graph-fully-traversable", "find-critical-and-pseudo-critical-edges-in-minimum-spanning-tree"]
+
+[[extra]]
+id = "Advanced Graphs:group-bfs"
+name = "BFS over groups instead of nodes"
+group = "Shortest paths"
+signals = [
+    "the fewest buses (or trains, airlines) to get from a stop to another",
+    "a node is a route, and two routes are neighbours when they share a stop",
+    "a map from stop to the routes that serve it avoids comparing every pair of routes",
+]
+template_name = "Bus routes"
+template = '''
+from collections import defaultdict, deque
+
+
+def num_buses_to_destination(routes, source, target):
+    if source == target:
+        return 0
+    stops = defaultdict(list)  # stop -> the routes that serve it
+    for i, route in enumerate(routes):
+        for s in route:
+            stops[s].append(i)
+    queue, seen_routes, seen_stops = deque([(source, 0)]), set(), {source}
+    while queue:
+        stop, buses = queue.popleft()
+        for r in stops[stop]:
+            if r in seen_routes:
+                continue  # this route was already ridden
+            seen_routes.add(r)
+            for nxt in routes[r]:
+                if nxt == target:
+                    return buses + 1
+                if nxt not in seen_stops:
+                    seen_stops.add(nxt)
+                    queue.append((nxt, buses + 1))
+    return -1
+'''
+pitfalls = [
+    "Count buses, not stops: boarding a route costs one, riding along it is free.",
+    "Mark a route as used the first time it is boarded: all its stops are then reached in the same number of buses.",
+    "Without the stop-to-routes map the neighbour search is quadratic in the number of routes.",
+]
+examples = ["bus-routes"]
+
+[[extra]]
+id = "Advanced Graphs:flip-one"
+name = "Component sizes, then try one change"
+group = "Connectivity and graph decomposition"
+signals = [
+    "the largest island after turning at most one 0 into a 1",
+    "label every island with its size first, then for each 0 add the sizes of the distinct islands around it",
+    "count each neighbouring island only once per cell",
+]
+template_name = "Making a large island"
+template = '''
+def largest_island(grid):
+    n = len(grid)
+    size, label = {}, 2  # island ids start at 2: 0 and 1 are taken
+    for r in range(n):
+        for c in range(n):
+            if grid[r][c] == 1:
+                stack, grid[r][c], count = [(r, c)], label, 0
+                while stack:
+                    a, b = stack.pop()
+                    count += 1
+                    for x, y in ((a + 1, b), (a - 1, b),
+                                 (a, b + 1), (a, b - 1)):
+                        if 0 <= x < n and 0 <= y < n and grid[x][y] == 1:
+                            grid[x][y] = label
+                            stack.append((x, y))
+                size[label] = count
+                label += 1
+    best = max(size.values(), default=0)
+    for r in range(n):
+        for c in range(n):
+            if grid[r][c] == 0:
+                around = ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1))
+                near = {grid[x][y] for x, y in around
+                        if 0 <= x < n and 0 <= y < n and grid[x][y] > 1}
+                # the cell itself plus every distinct island around it
+                best = max(best, 1 + sum(size[i] for i in near))
+    return best
+'''
+pitfalls = [
+    "Use a set of neighbouring island ids: the same island may touch the cell on two sides.",
+    "Start labels at 2 so they differ from the original 0 and 1.",
+    "If there is no 0, the answer is the size of the grid (the max size already holds it).",
+]
+examples = ["making-a-large-island", "minimum-number-of-days-to-disconnect-island"]
+
+[[extra.variant]]
+name = "Days to disconnect an island"
+note = "The answer is 0, 1 or 2: check whether it is already disconnected, then whether removing any single land cell disconnects it."
+template = '''
+def min_days(grid):
+    rows, cols = len(grid), len(grid[0])
+
+    def islands():
+        seen, count = set(), 0
+        for r in range(rows):
+            for c in range(cols):
+                if grid[r][c] and (r, c) not in seen:
+                    count += 1
+                    stack = [(r, c)]
+                    seen.add((r, c))
+                    while stack:
+                        a, b = stack.pop()
+                        for x, y in ((a + 1, b), (a - 1, b),
+                                     (a, b + 1), (a, b - 1)):
+                            inside = 0 <= x < rows and 0 <= y < cols
+                            if inside and grid[x][y] and (x, y) not in seen:
+                                seen.add((x, y))
+                                stack.append((x, y))
+        return count
+
+    if islands() != 1:
+        return 0  # disconnected (or empty) already
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c]:
+                grid[r][c] = 0
+                broken = islands() != 1
+                grid[r][c] = 1
+                if broken:
+                    return 1  # one cell is a cut point
+    return 2  # two removals always suffice
+'''
+
+[[extra]]
+id = "Advanced Graphs:topo-constraints"
+name = "Topological order from constraints"
+group = "Graph dynamic programming"
+signals = [
+    "place numbers in a matrix so that rows and columns obey 'above' and 'left of' rules",
+    "recover the alphabet order from sorted words, or check that a sequence is the only order",
+    "a unique order exists only when the queue never holds more than one node",
+]
+template_name = "Build a matrix with conditions"
+template = '''
+from collections import deque
+
+
+def build_matrix(k, row_conditions, col_conditions):
+    def topo(conditions):
+        adj = [[] for _ in range(k + 1)]
+        indeg = [0] * (k + 1)
+        for a, b in conditions:
+            adj[a].append(b)
+            indeg[b] += 1
+        queue = deque(i for i in range(1, k + 1) if indeg[i] == 0)
+        order = []
+        while queue:
+            u = queue.popleft()
+            order.append(u)
+            for v in adj[u]:
+                indeg[v] -= 1
+                if indeg[v] == 0:
+                    queue.append(v)
+        return order if len(order) == k else None  # a cycle: impossible
+
+    rows, cols = topo(row_conditions), topo(col_conditions)
+    if rows is None or cols is None:
+        return []
+    col_of = {v: i for i, v in enumerate(cols)}
+    grid = [[0] * k for _ in range(k)]
+    for r, v in enumerate(rows):
+        grid[r][col_of[v]] = v  # row from one order, column from the other
+    return grid
+'''
+pitfalls = [
+    "The row order and the column order are independent problems: solve each with its own topological sort.",
+    "A cycle in either set of conditions makes the matrix impossible.",
+    "A number goes to (its position in the row order, its position in the column order).",
+]
+examples = ["build-a-matrix-with-conditions", "alien-dictionary", "sequence-reconstruction"]
+
+[[extra.variant]]
+name = "Alien dictionary"
+note = "Adjacent words give at most one letter ordering each; topologically sort the letters."
+template = '''
+from collections import deque
+
+
+def alien_order(words):
+    adj = {c: set() for w in words for c in w}
+    indeg = {c: 0 for c in adj}
+    for a, b in zip(words, words[1:]):
+        for x, y in zip(a, b):
+            if x != y:
+                if y not in adj[x]:
+                    adj[x].add(y)
+                    indeg[y] += 1
+                break  # only the first difference counts
+        else:
+            if len(a) > len(b):
+                return ""  # "abc" before "ab" is impossible
+    queue = deque(c for c in adj if indeg[c] == 0)
+    out = []
+    while queue:
+        c = queue.popleft()
+        out.append(c)
+        for d in adj[c]:
+            indeg[d] -= 1
+            if indeg[d] == 0:
+                queue.append(d)
+    return "".join(out) if len(out) == len(adj) else ""  # a cycle
+'''
+
+[[extra.variant]]
+name = "Sequence reconstruction (unique order)"
+note = "The sequence is the only valid order exactly when the queue holds one node at every step."
+template = '''
+from collections import deque
+
+
+def sequence_reconstruction(nums, sequences):
+    n = len(nums)
+    adj = [[] for _ in range(n + 1)]
+    indeg = [0] * (n + 1)
+    for seq in sequences:
+        for a, b in zip(seq, seq[1:]):
+            adj[a].append(b)
+            indeg[b] += 1
+    queue = deque(i for i in range(1, n + 1) if indeg[i] == 0)
+    order = []
+    while queue:
+        if len(queue) > 1:
+            return False  # two candidates: the order is not unique
+        u = queue.popleft()
+        order.append(u)
+        for v in adj[u]:
+            indeg[v] -= 1
+            if indeg[v] == 0:
+                queue.append(v)
+    return order == nums
+'''
+
+[[extra]]
+id = "Advanced Graphs:prime-dsu"
+name = "Union by shared prime factors"
+group = "Connectivity and graph decomposition"
+signals = [
+    "can you travel between any two indices when numbers with a common factor are neighbours",
+    "do not compare every pair: connect each number to each of its prime factors",
+    "two numbers are connected when they share a prime, and a prime joins every number it divides",
+]
+template_name = "Greatest common divisor traversal"
+template = '''
+def can_traverse_all_pairs(nums):
+    if len(nums) == 1:
+        return True
+    if 1 in nums:
+        return False  # 1 has no common factor with anything
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for x in nums:
+        p, n = 2, x
+        while p * p <= n:
+            if n % p == 0:
+                parent[find(x)] = find(p)  # connect x to its prime p
+                while n % p == 0:
+                    n //= p
+            p += 1
+        if n > 1:
+            parent[find(x)] = find(n)  # the leftover prime
+    return len({find(x) for x in nums}) == 1
+'''
+pitfalls = [
+    "Connect each number to its prime factors, not to other numbers: that keeps it near-linear.",
+    "A single leftover factor greater than sqrt is itself a prime.",
+    "The number 1 has no prime factors: with other numbers present the answer is False.",
+]
+examples = ["greatest-common-divisor-traversal", "number-of-good-paths"]
+
+[[extra]]
+id = "Advanced Graphs:two-phase"
+name = "Two phases: distances first, then a path"
+group = "Shortest paths"
+signals = [
+    "the safest path in a grid: maximise the minimum distance to any thief along the path",
+    "phase one: a multi-source BFS gives every cell its distance to the nearest thief",
+    "phase two: a Dijkstra with a max-heap on the smallest distance seen so far on the path",
+]
+template_name = "Find the safest path in a grid"
+template = '''
+import heapq
+from collections import deque
+
+
+def maximum_safeness_factor(grid):
+    n = len(grid)
+    dist = [[-1] * n for _ in range(n)]
+    queue = deque()
+    for r in range(n):
+        for c in range(n):
+            if grid[r][c] == 1:
+                dist[r][c] = 0
+                queue.append((r, c))
+    while queue:  # distance to the nearest thief
+        r, c = queue.popleft()
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < n and 0 <= b < n and dist[a][b] < 0:
+                dist[a][b] = dist[r][c] + 1
+                queue.append((a, b))
+    best = [[-1] * n for _ in range(n)]
+    best[0][0] = dist[0][0]
+    heap = [(-dist[0][0], 0, 0)]  # the safest known path first
+    while heap:
+        neg, r, c = heapq.heappop(heap)
+        if (r, c) == (n - 1, n - 1):
+            return -neg
+        if -neg < best[r][c]:
+            continue
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < n and 0 <= b < n:
+                safe = min(-neg, dist[a][b])  # as safe as its worst cell
+                if safe > best[a][b]:
+                    best[a][b] = safe
+                    heapq.heappush(heap, (-safe, a, b))
+'''
+pitfalls = [
+    "A path's safeness is the minimum distance over its cells: the same pattern as maximising the minimum edge.",
+    "The BFS must start from all thieves at once.",
+    "Start and end can be thieves themselves: their distance is 0, and the answer is 0.",
+]
+examples = ["find-the-safest-path-in-a-grid", "trapping-rain-water-ii"]
+
+[[extra.variant]]
+name = "Trapping rain water II"
+note = "Water is held by the lowest wall of the boundary: pop the lowest boundary cell and fill its lower neighbours up to it."
+template = '''
+import heapq
+
+
+def trap_rain_water(height):
+    rows, cols = len(height), len(height[0])
+    if rows < 3 or cols < 3:
+        return 0
+    heap, seen = [], set()
+    for r in range(rows):
+        for c in range(cols):
+            if r in (0, rows - 1) or c in (0, cols - 1):
+                heapq.heappush(heap, (height[r][c], r, c))  # the boundary
+                seen.add((r, c))
+    water = 0
+    while heap:
+        h, r, c = heapq.heappop(heap)  # the lowest wall so far
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < rows and 0 <= b < cols and (a, b) not in seen:
+                seen.add((a, b))
+                water += max(0, h - height[a][b])  # filled up to the wall
+                heapq.heappush(heap, (max(h, height[a][b]), a, b))
+    return water
+'''
+
+[[extra]]
+id = "Advanced Graphs:diameter"
+name = "Tree diameter by two searches"
+group = "Specialized graph algorithms"
+signals = [
+    "the longest path in a tree, or the best way to join two trees by one edge",
+    "BFS from any node finds one end of a diameter; BFS from that end finds the other",
+    "joining two trees: the new diameter is the max of both diameters and the two radii plus one",
+]
+template_name = "Diameter of a tree"
+template = '''
+from collections import defaultdict, deque
+
+
+def tree_diameter(edges):
+    adj = defaultdict(list)
+    for a, b in edges:
+        adj[a].append(b)
+        adj[b].append(a)
+    if not adj:
+        return 0
+
+    def farthest(start):
+        dist, queue = {start: 0}, deque([start])
+        last = start
+        while queue:
+            u = queue.popleft()
+            last = u
+            for v in adj[u]:
+                if v not in dist:
+                    dist[v] = dist[u] + 1
+                    queue.append(v)
+        return last, dist[last]
+
+    end, _ = farthest(next(iter(adj)))  # one end of the longest path
+    return farthest(end)[1]
+'''
+pitfalls = [
+    "The first BFS can start anywhere: the farthest node is always an end of some diameter.",
+    "The diameter is the distance found by the second BFS.",
+    "Joining at the centers of two trees gives max(d1, d2, ceil(d1 / 2) + ceil(d2 / 2) + 1).",
+]
+examples = ["find-minimum-diameter-after-merging-two-trees", "tree-diameter"]
+
+[[extra.variant]]
+name = "Minimum diameter after merging two trees"
+note = "Connect the centres: the new diameter is the largest of the two old ones and the two radii joined by an edge."
+template = '''
+from collections import defaultdict, deque
+
+
+def minimum_diameter_after_merge(edges1, edges2):
+    def diameter(edges):
+        adj = defaultdict(list)
+        for a, b in edges:
+            adj[a].append(b)
+            adj[b].append(a)
+        if not adj:
+            return 0
+
+        def far(s):
+            dist, q, last = {s: 0}, deque([s]), s
+            while q:
+                u = q.popleft()
+                last = u
+                for v in adj[u]:
+                    if v not in dist:
+                        dist[v] = dist[u] + 1
+                        q.append(v)
+            return last, dist[last]
+
+        return far(far(next(iter(adj)))[0])[1]
+
+    d1, d2 = diameter(edges1), diameter(edges2)
+    return max(d1, d2, (d1 + 1) // 2 + (d2 + 1) // 2 + 1)
+'''
+
+[[extra]]
+id = "Advanced Graphs:dsu-values"
+name = "Union nodes in order of value"
+group = "Advanced connectivity and offline algorithms"
+signals = [
+    "count paths whose two ends are equal and whose inner values do not exceed them",
+    "process nodes in increasing value: when a node is added, union it with neighbours that are not larger",
+    "inside each component count the nodes of the current value: pairs among them are good paths",
+]
+template_name = "Number of good paths"
+template = '''
+from collections import defaultdict
+
+
+def number_of_good_paths(vals, edges):
+    n = len(vals)
+    adj = [[] for _ in range(n)]
+    for a, b in edges:
+        adj[a].append(b)
+        adj[b].append(a)
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    by_value = defaultdict(list)
+    for i, v in enumerate(vals):
+        by_value[v].append(i)
+    total = n  # every single node is a path
+    for v in sorted(by_value):
+        for u in by_value[v]:
+            for w in adj[u]:
+                if vals[w] <= v:
+                    parent[find(u)] = find(w)  # join not-larger neighbours
+        count = defaultdict(int)
+        for u in by_value[v]:
+            count[find(u)] += 1  # nodes of value v in each component
+        total += sum(k * (k - 1) // 2 for k in count.values())
+    return total
+'''
+pitfalls = [
+    "Union with a neighbour only when its value is at most the current one: larger nodes would break the path rule.",
+    "Count the pairs inside each component only after all unions for this value are done.",
+    "Add n for the single-node paths.",
+]
+examples = ["number-of-good-paths"]
+
 [[listed]]
 name = "Unweighted"
 group = "Shortest paths"

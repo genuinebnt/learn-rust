@@ -11574,3 +11574,378 @@ def _(ns):
         pairs = [p if r.random() < 0.5 else p[::-1] for p in pairs]
         got = f([p[:] for p in pairs])
         assert got in (arr, arr[::-1])
+
+
+# ---- advanced graphs (extras) ---------------------------------------------------------------------------------------
+
+AG = "Advanced Graphs"
+
+
+def _apsp(n, edges, directed=False):
+    inf = float("inf")
+    d = [[inf] * n for _ in range(n)]
+    for i in range(n):
+        d[i][i] = 0
+    for a, b, w in edges:
+        d[a][b] = min(d[a][b], w)
+        if not directed:
+            d[b][a] = min(d[b][a], w)
+    for k in range(n):
+        for i in range(n):
+            for j in range(n):
+                d[i][j] = min(d[i][j], d[i][k] + d[k][j])
+    return d
+
+
+@test(f"{AG}:dijkstra-products")
+def _(ns):
+    f = ns["max_probability"]
+    assert abs(f(3, [[0, 1], [1, 2], [0, 2]], [0.5, 0.5, 0.2], 0, 2) - 0.25) < 1e-6 and f(3, [[0, 1]], [0.5], 0, 2) == 0
+    r = random.Random(1600)
+    for _ in range(100):
+        n = r.randint(2, 5)
+        edges = [[a, b] for a in range(n) for b in range(a + 1, n) if r.random() < 0.5]
+        probs = [round(r.uniform(0.1, 1), 2) for _ in edges]
+        s, t = r.sample(range(n), 2)
+        best = 0.0
+
+        def dfs(u, seen, p):
+            nonlocal best
+            if u == t:
+                best = max(best, p)
+                return
+            for (a, b), q in zip(edges, probs):
+                for x, y in ((a, b), (b, a)):
+                    if x == u and y not in seen:
+                        dfs(y, seen | {y}, p * q)
+
+        dfs(s, {s}, 1.0)
+        assert abs(f(n, [e[:] for e in edges], probs[:], s, t) - best) < 1e-9
+
+
+@test(f"{AG}:dijkstra-products#Number of ways to arrive")
+def _(ns):
+    f = ns["count_paths"]
+    assert f(7, [[0, 6, 7], [0, 1, 2], [1, 2, 3], [1, 3, 3], [6, 3, 3], [3, 5, 1], [6, 5, 1], [2, 5, 1], [0, 4, 5], [4, 6, 2]]) == 4 and f(2, [[1, 0, 10]]) == 1
+    r = random.Random(1601)
+    for _ in range(100):
+        n = r.randint(2, 5)
+        roads = [[a, b, r.randint(1, 4)] for a in range(n) for b in range(a + 1, n) if r.random() < 0.6]
+        if not roads:
+            continue
+        paths = []
+
+        def dfs(u, seen, d):
+            if u == n - 1:
+                paths.append(d)
+                return
+            for a, b, t in roads:
+                for x, y in ((a, b), (b, a)):
+                    if x == u and y not in seen:
+                        dfs(y, seen | {y}, d + t)
+
+        dfs(0, {0}, 0)
+        if not paths:
+            continue
+        assert f(n, [x[:] for x in roads]) == paths.count(min(paths))
+
+
+@test(f"{AG}:dijkstra-products#Minimum time to visit a cell (waiting)")
+def _(ns):
+    f = ns["minimum_time"]
+    assert f([[0, 1, 3, 2], [5, 1, 2, 5], [4, 3, 8, 6]]) == 7 and f([[0, 2, 4], [3, 2, 1], [1, 0, 4]]) == -1
+    from collections import deque
+    r = random.Random(1602)
+    for _ in range(80):
+        R, C = r.randint(2, 3), r.randint(2, 3)
+        g = [[r.randint(0, 6) for _ in range(C)] for _ in range(R)]
+        g[0][0] = 0
+        # time-expanded BFS: at each second you must move to a neighbour whose open time <= arrival time
+        best, frontier = -1, {(0, 0)}
+        for t in range(1, 40):
+            nxt = set()
+            for a, b in frontier:
+                for x, y in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                    if 0 <= x < R and 0 <= y < C and g[x][y] <= t:
+                        nxt.add((x, y))
+            frontier = nxt
+            if (R - 1, C - 1) in frontier:
+                best = t
+                break
+            if not frontier:
+                break
+        assert f([row[:] for row in g]) == best, g
+
+
+@test(f"{AG}:floyd-small")
+def _(ns):
+    f = ns["find_the_city"]
+    assert f(4, [[0, 1, 3], [1, 2, 1], [1, 3, 4], [2, 3, 1]], 4) == 3 and f(5, [[0, 1, 2], [0, 4, 8], [1, 2, 3], [1, 4, 2], [2, 3, 1], [3, 4, 1]], 2) == 0
+    r = random.Random(1603)
+    for _ in range(100):
+        n = r.randint(2, 6)
+        edges = [[a, b, r.randint(1, 5)] for a in range(n) for b in range(a + 1, n) if r.random() < 0.5]
+        th = r.randint(1, 8)
+        d = _apsp(n, edges)
+        counts = [sum(1 for j in range(n) if j != i and d[i][j] <= th) for i in range(n)]
+        want = max(i for i in range(n) if counts[i] == min(counts))
+        assert f(n, [e[:] for e in edges], th) == want
+
+
+@test(f"{AG}:floyd-small#Minimum cost to convert a string")
+def _(ns):
+    f = ns["minimum_cost"]
+    assert f("abcd", "acbe", list("abcbbc"[:6]) and ["a", "b", "c", "c", "e", "d"], ["b", "c", "b", "e", "b", "e"], [2, 5, 5, 1, 2, 20]) == 28 and f("aaaa", "bbbb", ["a", "c"], ["c", "b"], [1, 2]) == 12 and f("abcd", "abce", ["a"], ["e"], [10000]) == -1
+
+
+@test(f"{AG}:kruskal-types")
+def _(ns):
+    f = ns["max_num_edges_to_remove"]
+    assert f(4, [[3, 1, 2], [3, 2, 3], [1, 1, 3], [1, 2, 4], [1, 1, 2], [2, 3, 4]]) == 2 and f(4, [[3, 1, 2], [3, 2, 3], [1, 1, 4], [2, 1, 4]]) == 0 and f(4, [[3, 2, 3], [1, 1, 2], [2, 3, 4]]) == -1
+    r = random.Random(1604)
+    for _ in range(100):
+        n = r.randint(2, 4)
+        edges = [[r.choice([1, 2, 3]), a, b] for a in range(1, n + 1) for b in range(a + 1, n + 1) if r.random() < 0.7]
+        m = len(edges)
+
+        def connected(person, kept):
+            parent = list(range(n + 1))
+
+            def find(x):
+                while parent[x] != x:
+                    x = parent[x]
+                return x
+
+            for t, a, b in kept:
+                if t in (3, person):
+                    parent[find(a)] = find(b)
+            return len({find(i) for i in range(1, n + 1)}) == 1
+
+        best = -1
+        for mask in range(1 << m):
+            kept = [edges[i] for i in range(m) if mask >> i & 1]
+            if connected(1, kept) and connected(2, kept):
+                best = max(best, m - len(kept))
+        assert f(n, [e[:] for e in edges]) == best
+
+
+@test(f"{AG}:group-bfs")
+def _(ns):
+    f = ns["num_buses_to_destination"]
+    assert f([[1, 2, 7], [3, 6, 7]], 1, 6) == 2 and f([[7, 12], [4, 5, 15], [6], [15, 19], [9, 12, 13]], 15, 12) == -1 and f([[1, 2]], 1, 1) == 0
+    from collections import deque
+    r = random.Random(1605)
+    for _ in range(100):
+        routes = [r.sample(range(8), r.randint(1, 4)) for _ in range(r.randint(1, 4))]
+        s, t = r.randrange(8), r.randrange(8)
+        dist, q = {s: 0}, deque([s])
+        # a state is a stop; riding a route to any of its stops costs one bus
+        while q:
+            u = q.popleft()
+            for route in routes:
+                if u in route:
+                    for v in route:
+                        if v not in dist:
+                            dist[v] = dist[u] + 1
+                            q.append(v)
+        assert f([x[:] for x in routes], s, t) == dist.get(t, -1), (routes, s, t)
+
+
+@test(f"{AG}:flip-one")
+def _(ns):
+    f = ns["largest_island"]
+    assert f([[1, 0], [0, 1]]) == 3 and f([[1, 1], [1, 0]]) == 4 and f([[1, 1], [1, 1]]) == 4
+    r = random.Random(1606)
+    for _ in range(100):
+        n = r.randint(1, 4)
+        g = _grid(r, n, n, [0, 1])
+        best = max([len(c) for c in _island_cells(g)] or [0])
+        for i in range(n):
+            for j in range(n):
+                if g[i][j] == 0:
+                    h = [row[:] for row in g]
+                    h[i][j] = 1
+                    best = max(best, max(len(c) for c in _island_cells(h)))
+        assert f([row[:] for row in g]) == best
+
+
+@test(f"{AG}:flip-one#Days to disconnect an island")
+def _(ns):
+    f = ns["min_days"]
+    assert f([[0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]]) == 2 and f([[1, 1]]) == 2 and f([[1, 0, 1]]) == 0
+    r = random.Random(1607)
+    for _ in range(100):
+        g = _grid(r, r.randint(1, 4), r.randint(1, 4), [0, 1, 1])
+        R, C = len(g), len(g[0])
+        def comps(h):
+            return len(_island_cells(h))
+        if comps(g) != 1:
+            want = 0
+        else:
+            want = 2
+            for i in range(R):
+                for j in range(C):
+                    if g[i][j]:
+                        h = [row[:] for row in g]
+                        h[i][j] = 0
+                        if comps(h) != 1:
+                            want = 1
+        assert f([row[:] for row in g]) == want
+
+
+@test(f"{AG}:topo-constraints")
+def _(ns):
+    f = ns["build_matrix"]
+    out = f(3, [[1, 2], [3, 2]], [[2, 1], [3, 2]])
+    pos = {v: (i, j) for i, row in enumerate(out) for j, v in enumerate(row) if v}
+    assert pos[1][0] < pos[2][0] and pos[3][0] < pos[2][0] and pos[2][1] < pos[1][1] and pos[3][1] < pos[2][1]
+    assert f(3, [[1, 2], [2, 3], [3, 1], [2, 3]], [[2, 1]]) == []
+
+
+@test(f"{AG}:topo-constraints#Alien dictionary")
+def _(ns):
+    f = ns["alien_order"]
+    assert f(["wrt", "wrf", "er", "ett", "rftt"]) == "wertf" and f(["z", "x", "z"]) == "" and f(["abc", "ab"]) == ""
+    r = random.Random(1608)
+    for _ in range(100):
+        order = r.sample("abcd", 4)
+        key = {c: i for i, c in enumerate(order)}
+        words = sorted(["".join(r.choice("abcd") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 5))], key=lambda w: [key[c] for c in w])
+        words = list(dict.fromkeys(words))
+        out = f(words[:])
+        letters = {c for w in words for c in w}
+        assert set(out) == letters
+        rank = {c: i for i, c in enumerate(out)}
+        assert all([rank[c] for c in a] <= [rank[c] for c in b] for a, b in zip(words, words[1:]))
+
+
+@test(f"{AG}:topo-constraints#Sequence reconstruction (unique order)")
+def _(ns):
+    f = ns["sequence_reconstruction"]
+    assert f([1, 2, 3], [[1, 2], [1, 3]]) is False and f([1, 2, 3], [[1, 2]]) is False and f([1, 2, 3], [[1, 2], [1, 3], [2, 3]]) is True and f([4, 1, 5, 2, 6, 3], [[5, 2, 6, 3], [4, 1, 5, 2]]) is True
+
+
+@test(f"{AG}:prime-dsu")
+def _(ns):
+    from math import gcd
+    f = ns["can_traverse_all_pairs"]
+    assert f([2, 3, 6]) is True and f([3, 9, 5]) is False and f([4, 3, 12, 8]) is True
+    r = random.Random(1609)
+    for _ in range(200):
+        a = [r.randint(1, 30) for _ in range(r.randint(1, 6))]
+        comp = _components(len(a), [(i, j) for i in range(len(a)) for j in range(i) if gcd(a[i], a[j]) > 1])
+        want = len(set(comp)) == 1
+        assert f(a[:]) is want, a
+
+
+@test(f"{AG}:two-phase")
+def _(ns):
+    f = ns["maximum_safeness_factor"]
+    assert f([[1, 0, 0], [0, 0, 0], [0, 0, 1]]) == 0 and f([[0, 0, 1], [0, 0, 0], [0, 0, 0]]) == 2 and f([[0, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0]]) == 2
+    r = random.Random(1610)
+    for _ in range(80):
+        n = r.randint(2, 4)
+        g = _grid(r, n, n, [0, 0, 1])
+        if not any(any(row) for row in g):
+            continue
+        thieves = [(i, j) for i in range(n) for j in range(n) if g[i][j]]
+        d = [[min(abs(i - a) + abs(j - b) for a, b in thieves) for j in range(n)] for i in range(n)]
+        best = 0
+        for t in range(0, 2 * n):
+            seen, stack = {(0, 0)} if d[0][0] >= t else set(), [(0, 0)] if d[0][0] >= t else []
+            while stack:
+                a, b = stack.pop()
+                for x, y in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                    if 0 <= x < n and 0 <= y < n and d[x][y] >= t and (x, y) not in seen:
+                        seen.add((x, y))
+                        stack.append((x, y))
+            if (n - 1, n - 1) in seen:
+                best = t
+        assert f([row[:] for row in g]) == best
+
+
+@test(f"{AG}:two-phase#Trapping rain water II")
+def _(ns):
+    f = ns["trap_rain_water"]
+    assert f([[1, 4, 3, 1, 3, 2], [3, 2, 1, 3, 2, 4], [2, 3, 3, 2, 3, 1]]) == 4 and f([[3, 3, 3, 3, 3], [3, 2, 2, 2, 3], [3, 2, 1, 2, 3], [3, 2, 2, 2, 3], [3, 3, 3, 3, 3]]) == 10
+    r = random.Random(1611)
+    for _ in range(60):
+        R, C = r.randint(1, 4), r.randint(1, 4)
+        h = [[r.randint(0, 5) for _ in range(C)] for _ in range(R)]
+        # fixed point of: level[i][j] = max(h, min over neighbours of level), border = h
+        lvl = [[10**9] * C for _ in range(R)]
+        for i in range(R):
+            for j in range(C):
+                if i in (0, R - 1) or j in (0, C - 1):
+                    lvl[i][j] = h[i][j]
+        changed = True
+        while changed:
+            changed = False
+            for i in range(R):
+                for j in range(C):
+                    nb = [lvl[x][y] for x, y in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)) if 0 <= x < R and 0 <= y < C]
+                    v = max(h[i][j], min(nb)) if nb and not (i in (0, R - 1) or j in (0, C - 1)) else lvl[i][j]
+                    if v < lvl[i][j]:
+                        lvl[i][j] = v
+                        changed = True
+        assert f([row[:] for row in h]) == sum(lvl[i][j] - h[i][j] for i in range(R) for j in range(C))
+
+
+@test(f"{AG}:diameter")
+def _(ns):
+    f = ns["tree_diameter"]
+    assert f([[0, 1], [0, 2]]) == 2 and f([[0, 1], [1, 2], [2, 3], [1, 4], [4, 5]]) == 4 and f([]) == 0
+    r = random.Random(1612)
+    for _ in range(100):
+        n = r.randint(1, 8)
+        edges = [[r.randrange(i), i] for i in range(1, n)]
+        d = _apsp(n, [(a, b, 1) for a, b in edges])
+        assert f([e[:] for e in edges]) == (max(max(row) for row in d) if n > 1 else 0)
+
+
+@test(f"{AG}:diameter#Minimum diameter after merging two trees")
+def _(ns):
+    f = ns["minimum_diameter_after_merge"]
+    assert f([[0, 1], [0, 2], [0, 3]], [[0, 1]]) == 3 and f([[0, 1], [0, 2], [0, 3], [2, 4], [2, 5], [3, 6], [2, 7]], [[0, 1], [0, 2], [0, 3], [2, 4], [2, 5], [3, 6], [2, 7]]) == 5
+    r = random.Random(1613)
+    for _ in range(60):
+        def tree(n):
+            return [[r.randrange(i), i] for i in range(1, n)]
+
+        n1, n2 = r.randint(1, 5), r.randint(1, 5)
+        e1, e2 = tree(n1), tree(n2)
+        best = float("inf")
+        for a in range(n1):
+            for b in range(n2):
+                edges = [(x, y, 1) for x, y in e1] + [(x + n1, y + n1, 1) for x, y in e2] + [(a, b + n1, 1)]
+                d = _apsp(n1 + n2, edges)
+                best = min(best, max(max(row) for row in d))
+        assert f([e[:] for e in e1], [e[:] for e in e2]) == best
+
+
+@test(f"{AG}:dsu-values")
+def _(ns):
+    f = ns["number_of_good_paths"]
+    assert f([1, 3, 2, 1, 3], [[0, 1], [0, 2], [2, 3], [2, 4]]) == 6 and f([1, 1, 2, 2, 3], [[0, 1], [1, 2], [2, 3], [2, 4]]) == 7 and f([1], []) == 1
+    r = random.Random(1614)
+    for _ in range(100):
+        n = r.randint(1, 6)
+        vals = [r.randint(1, 3) for _ in range(n)]
+        edges = [[r.randrange(i), i] for i in range(1, n)]
+        adj = {i: [] for i in range(n)}
+        for a, b in edges:
+            adj[a].append(b)
+            adj[b].append(a)
+
+        def path(a, b):
+            stack = [(a, [a])]
+            while stack:
+                u, p = stack.pop()
+                if u == b:
+                    return p
+                for v in adj[u]:
+                    if v not in p:
+                        stack.append((v, p + [v]))
+
+        want = n + sum(1 for i in range(n) for j in range(i + 1, n) if vals[i] == vals[j] and all(vals[k] <= vals[i] for k in path(i, j)))
+        assert f(vals[:], [e[:] for e in edges]) == want

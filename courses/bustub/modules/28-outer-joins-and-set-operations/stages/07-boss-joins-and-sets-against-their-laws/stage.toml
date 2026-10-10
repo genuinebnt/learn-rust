@@ -1,0 +1,9 @@
+id = "3j-07"
+title = "Boss: joins and sets against their laws"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_3j::s3j_07"]
+learn = ["checking an engine against algebraic identities", "the identities that relate the join kinds", "differential testing of an optimizer"]
+concepts = ["outer-joins-and-null-padding", "set-operations-and-bag-arithmetic", "filters-above-and-below-outer-joins"]
+concepts_optional = ["model-based-testing", "property-testing-and-fuzzing", "sql-types-and-three-valued-logic"]
+retest = true

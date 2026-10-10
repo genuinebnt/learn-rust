@@ -1,0 +1,8 @@
+id = "3j-c2"
+title = "Challenge: the customer with one order"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3j::s3j_c2"]
+learn = ["what count(*) counts after an outer join", "count of a column versus count of rows", "reading a query as a table of cases"]
+concepts = []
+concepts_optional = ["outer-joins-and-null-padding", "sql-types-and-three-valued-logic", "property-testing-and-fuzzing"]

@@ -1,0 +1,8 @@
+id = "3j-c3"
+title = "Challenge: the union that kept a duplicate"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3j::s3j_c3"]
+learn = ["the six set operations as functions on lists", "reading code for the one that is wrong", "why dedup is not distinct"]
+concepts = []
+concepts_optional = ["set-operations-and-bag-arithmetic", "property-testing-and-fuzzing", "model-based-testing"]

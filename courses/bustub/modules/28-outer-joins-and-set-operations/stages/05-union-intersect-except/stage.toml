@@ -1,0 +1,8 @@
+id = "3j-05"
+title = "UNION, INTERSECT and EXCEPT"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3j::s3j_05"]
+learn = ["set operations as arithmetic on row counts", "two NULLs are the same row here", "a hash key for whole rows"]
+concepts = ["set-operations-and-bag-arithmetic", "hash-aggregation"]
+concepts_optional = ["sql-types-and-three-valued-logic", "hashing-values-and-keys", "model-based-testing", "errors-3h"]

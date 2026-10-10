@@ -1,0 +1,8 @@
+id = "3j-c1"
+title = "Challenge: a hash outer join"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3j::s3j_c1"]
+learn = ["an outer join in linear time", "remembering which build rows were hit", "NULL keys in a hash table"]
+concepts = []
+concepts_optional = ["outer-joins-and-null-padding", "join-algorithms", "property-testing-and-fuzzing"]

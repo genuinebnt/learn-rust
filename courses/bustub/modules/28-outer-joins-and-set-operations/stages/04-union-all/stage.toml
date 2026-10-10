@@ -1,0 +1,8 @@
+id = "3j-04"
+title = "UNION ALL"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3j::s3j_04"]
+learn = ["a query whose result is two queries one after the other", "checking that two sides agree on columns and types", "a new kind of table in FROM"]
+concepts = ["set-operations-and-bag-arithmetic", "the-iterator-model"]
+concepts_optional = ["expression-trees", "errors-3d", "errors-3f"]

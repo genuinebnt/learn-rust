@@ -1,0 +1,8 @@
+id = "3j-c4"
+title = "Challenge: set operations by merging"
+kind = "challenge"
+difficulty = "hard"
+tests = ["stages_3j::s3j_c4"]
+learn = ["a streaming set operation on sorted input", "constant memory and laziness", "run-length counting instead of a hash table"]
+concepts = []
+concepts_optional = ["set-operations-and-bag-arithmetic", "iterators-and-closures", "external-merge-sort"]

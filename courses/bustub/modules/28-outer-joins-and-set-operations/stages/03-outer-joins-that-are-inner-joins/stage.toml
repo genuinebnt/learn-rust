@@ -1,0 +1,8 @@
+id = "3j-03"
+title = "Outer joins that are really inner joins"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_3j::s3j_03"]
+learn = ["when a filter makes the NULL padding of an outer join pointless", "which conditions are certainly not true for a NULL operand", "why a wrong yes here silently drops rows"]
+concepts = ["filters-above-and-below-outer-joins", "sql-types-and-three-valued-logic"]
+concepts_optional = ["outer-joins-and-null-padding", "rule-based-query-optimization", "conjunctive-predicates", "expression-trees"]

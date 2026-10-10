@@ -1,0 +1,21 @@
+code = "3j"
+title = "Outer joins and set operations"
+summary = "The two parts of everyday SQL that BusTub's engine stops short of: the joins that keep rows without a partner (`RIGHT` and `FULL`, next to the `LEFT` join you already have), what a `WHERE` clause may do to them in the optimizer (filters move below a join only where the join type allows; a filter that rejects NULLs turns an outer join into an inner one), and the set operations `UNION`, `INTERSECT` and `EXCEPT` with and without `ALL`, with their precedence, parentheses, `ORDER BY` and `LIMIT`. Every result is checked against a model: the joins against nested loops over vectors, the set operations against row-count arithmetic. New in this course: none of it is in BusTub's projects."
+lectures = ["joins", "queryexecution1", "optimization1"]
+bustub = []
+files = []
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: joins (LEFT, RIGHT, FULL)"
+url = "https://www.postgresql.org/docs/current/queries-table-expressions.html#QUERIES-FROM"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: combining queries (UNION, INTERSECT, EXCEPT)"
+url = "https://www.postgresql.org/docs/current/queries-union.html"
+
+[[resources]]
+kind = "docs"
+title = "SQLite: the SELECT statement and compound selects"
+url = "https://www.sqlite.org/lang_select.html#compound_select_statements"

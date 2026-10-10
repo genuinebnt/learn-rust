@@ -1,0 +1,8 @@
+id = "3j-c5"
+title = "Challenge: which filters reject NULLs"
+kind = "challenge"
+difficulty = "hard"
+tests = ["stages_3j::s3j_c5"]
+learn = ["an analysis that is sound and as exact as it can be", "three-valued logic through NOT, AND and OR", "abstract interpretation with a set of possible values"]
+concepts = []
+concepts_optional = ["filters-above-and-below-outer-joins", "sql-types-and-three-valued-logic", "expression-trees"]

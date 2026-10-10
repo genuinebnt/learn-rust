@@ -1,0 +1,8 @@
+id = "3j-06"
+title = "Precedence, parentheses, ORDER BY and LIMIT"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3j::s3j_06"]
+learn = ["INTERSECT binds tighter than UNION and EXCEPT", "precedence climbing for a second operator family", "what ORDER BY and LIMIT apply to in a chain"]
+concepts = ["set-operations-and-bag-arithmetic", "lexers-and-precedence-climbing"]
+concepts_optional = ["expression-trees", "sort-keys-and-null-ordering", "errors-3d"]

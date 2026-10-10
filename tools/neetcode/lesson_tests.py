@@ -6998,3 +6998,591 @@ def _(ns):
             out.append(pick)
             free_at[pick] = t + d
         assert f(servers[:], tasks[:]) == out
+
+
+# ---- stack (extras) -------------------------------------------------------------------------------------------------
+
+def _next_greater(a, circular=False):
+    n = len(a)
+    out = []
+    for i in range(n):
+        v = -1
+        rng = range(1, n) if circular else range(1, n - i)
+        for d in rng:
+            x = a[(i + d) % n]
+            if x > a[i]:
+                v = x
+                break
+        out.append(v)
+    return out
+
+
+@test("Stack:next-greater")
+def _(ns):
+    f = ns["next_greater_elements"]
+    assert f([1, 2, 1]) == [2, -1, 2] and f([1, 2, 3, 4, 3]) == [2, 3, 4, -1, 4]
+    r = random.Random(600)
+    for _ in range(200):
+        a = [r.randint(0, 6) for _ in range(r.randint(1, 9))]
+        assert f(a[:]) == _next_greater(a, True)
+
+
+@test("Stack:next-greater#Next greater element I")
+def _(ns):
+    f = ns["next_greater_element"]
+    assert f([4, 1, 2], [1, 3, 4, 2]) == [-1, 3, -1]
+    r = random.Random(601)
+    for _ in range(150):
+        b = r.sample(range(10), r.randint(1, 8))
+        a = r.sample(b, r.randint(1, len(b)))
+        want = [next((x for x in b[b.index(v) + 1:] if x > v), -1) for v in a]
+        assert f(a[:], b[:]) == want
+
+
+@test("Stack:next-greater#Final prices (next smaller or equal)")
+def _(ns):
+    f = ns["final_prices"]
+    assert f([8, 4, 6, 2, 3]) == [4, 2, 4, 2, 3]
+    r = random.Random(602)
+    for _ in range(200):
+        p = [r.randint(1, 9) for _ in range(r.randint(1, 9))]
+        want = [p[i] - next((p[j] for j in range(i + 1, len(p)) if p[j] <= p[i]), 0) for i in range(len(p))]
+        assert f(p[:]) == want
+
+
+def _max_rect_brute(m):
+    best = 0
+    R, C = len(m), len(m[0])
+    for r1 in range(R):
+        for r2 in range(r1, R):
+            for c1 in range(C):
+                for c2 in range(c1, C):
+                    if all(m[i][j] in ("1", 1) for i in range(r1, r2 + 1) for j in range(c1, c2 + 1)):
+                        best = max(best, (r2 - r1 + 1) * (c2 - c1 + 1))
+    return best
+
+
+@test("Stack:histogram-rows")
+def _(ns):
+    f = ns["maximal_rectangle"]
+    assert f([["1", "0", "1", "0", "0"], ["1", "0", "1", "1", "1"], ["1", "1", "1", "1", "1"], ["1", "0", "0", "1", "0"]]) == 6 and f([]) == 0
+    r = random.Random(603)
+    for _ in range(150):
+        m = [[r.choice("01") for _ in range(r.randint(1, 5))] for _ in range(1)]
+        c = len(m[0])
+        m = [[r.choice("01") for _ in range(c)] for _ in range(r.randint(1, 5))]
+        assert f([row[:] for row in m]) == _max_rect_brute(m)
+
+
+@test("Stack:histogram-rows#Count submatrices of ones")
+def _(ns):
+    f = ns["num_submat"]
+    assert f([[1, 0, 1], [1, 1, 0], [1, 1, 0]]) == 13
+    r = random.Random(604)
+    for _ in range(100):
+        c = r.randint(1, 4)
+        m = [[r.randint(0, 1) for _ in range(c)] for _ in range(r.randint(1, 4))]
+        R, C = len(m), c
+        want = sum(1 for r1 in range(R) for r2 in range(r1, R) for c1 in range(C) for c2 in range(c1, C)
+                   if all(m[i][j] for i in range(r1, r2 + 1) for j in range(c1, c2 + 1)))
+        assert f([row[:] for row in m]) == want
+
+
+@test("Stack:ramp")
+def _(ns):
+    f = ns["max_width_ramp"]
+    assert f([6, 0, 8, 2, 1, 5]) == 4 and f([9, 8, 1, 0, 1, 9, 4, 0, 4, 1]) == 7
+    r = random.Random(605)
+    for _ in range(300):
+        a = [r.randint(0, 8) for _ in range(r.randint(1, 10))]
+        want = max([j - i for i in range(len(a)) for j in range(i, len(a)) if a[i] <= a[j]])
+        assert f(a[:]) == want
+
+
+@test("Stack:ramp#132 pattern")
+def _(ns):
+    f = ns["find132pattern"]
+    assert f([1, 2, 3, 4]) is False and f([3, 1, 4, 2]) is True and f([-1, 3, 2, 0]) is True
+    r = random.Random(606)
+    for _ in range(300):
+        a = [r.randint(-5, 5) for _ in range(r.randint(1, 8))]
+        want = any(a[i] < a[k] < a[j] for i in range(len(a)) for j in range(i + 1, len(a)) for k in range(j + 1, len(a)))
+        assert f(a[:]) is want
+
+
+def _balanced(s):
+    d = 0
+    for ch in s:
+        d += 1 if ch == "(" else -1
+        if d < 0:
+            return False
+    return d == 0
+
+
+def _valid_strings(n):
+    out = []
+
+    def go(s, o, c):
+        if len(s) == 2 * n:
+            out.append(s)
+            return
+        if o < n:
+            go(s + "(", o + 1, c)
+        if c < o:
+            go(s + ")", o, c + 1)
+
+    go("", 0, 0)
+    return out
+
+
+@test("Stack:parens-depth")
+def _(ns):
+    f = ns["score_of_parentheses"]
+    assert f("()") == 1 and f("(())") == 2 and f("()()") == 2 and f("(()(()))") == 6
+
+    def brute(s):
+        if s == "()":
+            return 1
+        d = 0
+        for i, ch in enumerate(s):
+            d += 1 if ch == "(" else -1
+            if d == 0:
+                return brute(s[1:i]) * 2 + (brute(s[i + 1:]) if s[i + 1:] else 0) if i > 1 else 1 + (brute(s[i + 1:]) if s[i + 1:] else 0)
+
+    for n in range(1, 6):
+        for s in _valid_strings(n):
+            assert f(s) == brute(s), s
+
+
+@test("Stack:parens-depth#Remove outermost parentheses")
+def _(ns):
+    f = ns["remove_outer_parentheses"]
+    assert f("(()())(())") == "()()()" and f("()()") == ""
+    for n in range(1, 6):
+        for s in _valid_strings(n):
+            parts, d, st = [], 0, 0
+            for i, ch in enumerate(s):
+                d += 1 if ch == "(" else -1
+                if d == 0:
+                    parts.append(s[st + 1:i])
+                    st = i + 1
+            assert f(s) == "".join(parts)
+
+
+@test("Stack:parens-depth#Split into two valid strings")
+def _(ns):
+    f = ns["max_depth_after_split"]
+    for n in range(1, 6):
+        for s in _valid_strings(n):
+            g = f(s)
+            groups = [[ch for ch, k in zip(s, g) if k == v] for v in (0, 1)]
+            assert all(_balanced("".join(x)) for x in groups)
+
+            def depth(x):
+                d = m = 0
+                for ch in x:
+                    d += 1 if ch == "(" else -1
+                    m = max(m, d)
+                return m
+
+            full = depth(s)
+            assert max(depth(x) for x in groups) == (full + 1) // 2
+
+
+@test("Stack:valid-length")
+def _(ns):
+    f = ns["longest_valid_parentheses"]
+    assert f("(()") == 2 and f(")()())") == 4 and f("") == 0
+    r = random.Random(607)
+    for _ in range(300):
+        s = "".join(r.choice("()") for _ in range(r.randint(0, 12)))
+        want = max([j - i for i in range(len(s) + 1) for j in range(i, len(s) + 1) if _balanced(s[i:j])] or [0])
+        assert f(s) == want
+
+
+@test("Stack:run-length")
+def _(ns):
+    f = ns["remove_duplicates"]
+    assert f("deeedbbcccbdaa", 3) == "aa" and f("pbbcggttciiippooaais", 2) == "ps"
+    r = random.Random(608)
+    for _ in range(200):
+        s = "".join(r.choice("abc") for _ in range(r.randint(0, 12)))
+        k = r.randint(2, 4)
+        t = s
+        while True:
+            u = t
+            for ch in "abc":
+                u = u.replace(ch * k, "", 1) if ch * k in u else u
+            if u == t:
+                break
+            t = u
+        # the stack and the repeated removal agree when removals are applied leftmost first; compare to a direct simulation
+        st = []
+        for ch in s:
+            st.append(ch)
+            if len(st) >= k and len(set(st[-k:])) == 1:
+                del st[-k:]
+        assert f(s, k) == "".join(st)
+
+
+@test("Stack:run-length#Make the string great")
+def _(ns):
+    f = ns["make_good"]
+    assert f("leEeetcode") == "leetcode" and f("abBAcC") == "" and f("s") == "s"
+    r = random.Random(609)
+    for _ in range(200):
+        s = "".join(r.choice("aAbB") for _ in range(r.randint(0, 10)))
+        t = s
+        while True:
+            u = next((t[:i] + t[i + 2:] for i in range(len(t) - 1) if t[i] != t[i + 1] and t[i].lower() == t[i + 1].lower()), None)
+            if u is None:
+                break
+            t = u
+        assert f(s) == t
+
+
+@test("Stack:run-length#Remove a pattern repeatedly")
+def _(ns):
+    f = ns["remove_occurrences"]
+    assert f("daabcbaabcbc", "abc") == "dab" and f("axxxxyyyyb", "xy") == "ab"
+    r = random.Random(610)
+    for _ in range(200):
+        s = "".join(r.choice("abc") for _ in range(r.randint(0, 12)))
+        part = "".join(r.choice("abc") for _ in range(r.randint(1, 3)))
+        t = s
+        while part in t:
+            t = t.replace(part, "", 1)
+        assert f(s, part) == t
+
+
+@test("Stack:call-stack")
+def _(ns):
+    f = ns["exclusive_time"]
+    assert f(2, ["0:start:0", "1:start:2", "1:end:5", "0:end:6"]) == [3, 4]
+    assert f(1, ["0:start:0", "0:start:2", "0:end:5", "0:start:6", "0:end:6", "0:end:7"]) == [8]
+    assert f(2, ["0:start:0", "0:start:2", "0:end:5", "1:start:6", "1:end:6", "0:end:7"]) == [7, 1]
+    r = random.Random(611)
+    for _ in range(100):
+        t, logs, stack, work = 0, [], [], [0] * 3
+        for _ in range(r.randint(1, 6)):
+            if stack and r.random() < 0.5:
+                fid = stack.pop()
+                work[fid] += 0
+                logs.append(f"{fid}:end:{t}")
+                t += 1
+            else:
+                stack.append(r.randrange(3))
+                logs.append(f"{stack[-1]}:start:{t}")
+                t += r.randint(0, 2)
+        while stack:
+            logs.append(f"{stack.pop()}:end:{t}")
+            t += 1
+        # brute force: every tick belongs to the function on top of the stack at that tick
+        want, st, cur = [0] * 3, [], 0
+        events = [(l.split(":")[0], l.split(":")[1], int(l.split(":")[2])) for l in logs]
+        tick = 0
+        for fid, kind, at in events:
+            fid = int(fid)
+            if kind == "start":
+                while tick < at:
+                    if st:
+                        want[st[-1]] += 1
+                    tick += 1
+                st.append(fid)
+            else:
+                while tick <= at:
+                    want[st[-1]] += 1
+                    tick += 1
+                st.pop()
+        assert f(3, logs) == want, logs
+
+
+@test("Stack:call-stack#Longest absolute file path")
+def _(ns):
+    f = ns["length_longest_path"]
+    assert f("dir\n\tsubdir1\n\tsubdir2\n\t\tfile.ext") == 20
+    assert f("dir\n\tsubdir1\n\t\tfile1.ext\n\t\tsubsubdir1\n\tsubdir2\n\t\tsubsubdir2\n\t\t\tfile2.ext") == 32 and f("a") == 0
+
+
+@test("Stack:call-stack#Simplify path")
+def _(ns):
+    f = ns["simplify_path"]
+    assert f("/home/") == "/home" and f("/../") == "/" and f("/home//foo/") == "/home/foo" and f("/a/./b/../../c/") == "/c"
+
+
+@test("Stack:two-stack-cursor")
+def _(ns):
+    cls = ns["TextEditor"]
+    r = random.Random(612)
+    for _ in range(100):
+        e, text, cur = cls(), [], 0
+        for _ in range(15):
+            op = r.choice("adlr")
+            if op == "a":
+                t = "".join(r.choice("xyz") for _ in range(r.randint(1, 4)))
+                e.addText(t)
+                text[cur:cur] = list(t)
+                cur += len(t)
+            elif op == "d":
+                k = r.randint(1, 5)
+                got = e.deleteText(k)
+                k2 = min(k, cur)
+                assert got == k2
+                del text[cur - k2:cur]
+                cur -= k2
+            elif op == "l":
+                k = r.randint(1, 5)
+                cur = max(0, cur - k)
+                assert e.cursorLeft(k) == "".join(text[max(0, cur - 10):cur])
+            else:
+                k = r.randint(1, 5)
+                cur = min(len(text), cur + k)
+                assert e.cursorRight(k) == "".join(text[max(0, cur - 10):cur])
+
+
+@test("Stack:two-stack-cursor#Browser history")
+def _(ns):
+    cls = ns["BrowserHistory"]
+    r = random.Random(613)
+    for _ in range(100):
+        h, pages, at = cls("home"), ["home"], 0
+        for i in range(15):
+            op = r.choice("vbf")
+            if op == "v":
+                h.visit(f"p{i}")
+                pages = pages[:at + 1] + [f"p{i}"]
+                at += 1
+            elif op == "b":
+                k = r.randint(1, 4)
+                at = max(0, at - k)
+                assert h.back(k) == pages[at]
+            else:
+                k = r.randint(1, 4)
+                at = min(len(pages) - 1, at + k)
+                assert h.forward(k) == pages[at]
+
+
+@test("Stack:lazy-increment")
+def _(ns):
+    cls = ns["CustomStack"]
+    r = random.Random(614)
+    for _ in range(150):
+        cap = r.randint(1, 5)
+        s, ref = cls(cap), []
+        for _ in range(25):
+            op = r.choice("ppi")
+            if op == "p" and r.random() < 0.6:
+                x = r.randint(0, 9)
+                s.push(x)
+                if len(ref) < cap:
+                    ref.append(x)
+            elif op == "i":
+                k, v = r.randint(1, 6), r.randint(1, 5)
+                s.increment(k, v)
+                for i in range(min(k, len(ref))):
+                    ref[i] += v
+            else:
+                assert s.pop() == (ref.pop() if ref else -1)
+
+
+@test("Stack:holding-buffer")
+def _(ns):
+    f = ns["validate_stack_sequences"]
+    assert f([1, 2, 3, 4, 5], [4, 5, 3, 2, 1]) is True and f([1, 2, 3, 4, 5], [4, 3, 5, 1, 2]) is False
+    r = random.Random(615)
+    for _ in range(300):
+        n = r.randint(0, 6)
+        pushed = list(range(n))
+        popped = pushed[:]
+        r.shuffle(popped)
+        seen = set()
+        want = False
+
+        def go(i, st, j):
+            if j == n:
+                return True
+            if st and st[-1] == popped[j] and go(i, st[:-1], j + 1):
+                return True
+            return i < n and go(i + 1, st + [pushed[i]], j)
+
+        want = go(0, [], 0)
+        assert f(pushed[:], popped[:]) is want
+
+
+@test("Stack:holding-buffer#Robot prints the smallest string")
+def _(ns):
+    f = ns["robot_with_string"]
+    assert f("zza") == "azz" and f("bac") == "abc" and f("bdda") == "addb"
+    r = random.Random(616)
+    for _ in range(300):
+        s = "".join(r.choice("abcd") for _ in range(r.randint(1, 7)))
+
+        def best(i, st):
+            out = [("".join(reversed(st)))] if i == len(s) else []
+            if i < len(s):
+                out += [best(i + 1, st + [s[i]])]
+            if st:
+                rest = best(i, st[:-1])
+                out += [st[-1] + rest]
+            return min(out)
+
+        assert f(s) == best(0, [])
+
+
+@test("Stack:chunks")
+def _(ns):
+    f = ns["max_chunks_to_sorted"]
+    assert f([5, 4, 3, 2, 1]) == 1 and f([2, 1, 3, 4, 4]) == 4
+    r = random.Random(617)
+    for _ in range(300):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 8))]
+        best = 1
+        s = sorted(a)
+        for mask in range(1 << (len(a) - 1)):
+            cuts = [0] + [i + 1 for i in range(len(a) - 1) if mask >> i & 1] + [len(a)]
+            if all(sorted(a[x:y]) == s[x:y] for x, y in zip(cuts, cuts[1:])):
+                best = max(best, len(cuts) - 1)
+        assert f(a[:]) == best
+
+
+@test("Stack:chunks#Shortest unsorted subarray")
+def _(ns):
+    f = ns["find_unsorted_subarray"]
+    assert f([2, 6, 4, 8, 10, 9, 15]) == 5 and f([1, 2, 3, 4]) == 0 and f([1]) == 0
+    r = random.Random(618)
+    for _ in range(300):
+        a = [r.randint(0, 6) for _ in range(r.randint(1, 8))]
+        s = sorted(a)
+        diff = [i for i in range(len(a)) if a[i] != s[i]]
+        assert f(a[:]) == (diff[-1] - diff[0] + 1 if diff else 0)
+
+
+@test("Stack:deque-prefix")
+def _(ns):
+    f = ns["shortest_subarray"]
+    assert f([1], 1) == 1 and f([1, 2], 4) == -1 and f([2, -1, 2], 3) == 3
+    r = random.Random(619)
+    for _ in range(300):
+        a = [r.randint(-4, 6) for _ in range(r.randint(1, 9))]
+        k = r.randint(1, 8)
+        want = min([j - i for i in range(len(a)) for j in range(i + 1, len(a) + 1) if sum(a[i:j]) >= k] or [-1])
+        assert f(a[:], k) == want
+
+
+@test("Stack:deque-prefix#Two deques: max and min in the window")
+def _(ns):
+    f = ns["longest_subarray"]
+    assert f([8, 2, 4, 7], 4) == 2 and f([10, 1, 2, 4, 7, 2], 5) == 4 and f([4, 2, 2, 2, 4, 4, 2, 2], 0) == 3
+    r = random.Random(620)
+    for _ in range(300):
+        a = [r.randint(0, 9) for _ in range(r.randint(1, 10))]
+        lim = r.randint(0, 6)
+        want = max(j - i for i in range(len(a)) for j in range(i + 1, len(a) + 1) if max(a[i:j]) - min(a[i:j]) <= lim)
+        assert f(a[:], lim) == want
+
+
+@test("Stack:parser")
+def _(ns):
+    f = ns["parse_ternary"]
+    assert f("T?2:3") == "2" and f("F?1:T?4:5") == "4" and f("T?T?F:5:3") == "F"
+
+    def gen(r, d):
+        if d == 0 or r.random() < 0.3:
+            return r.choice("0123456789TF")
+        return r.choice("TF") + "?" + gen(r, d - 1) + ":" + gen(r, d - 1)
+
+    def ev(e):
+        def go(i):  # returns (value, next index)
+            c = e[i]
+            if i + 1 < len(e) and e[i + 1] == "?":
+                a, j = go(i + 2)
+                b, k = go(j + 1)
+                return (a if c == "T" else b), k
+            return c, i + 1
+
+        return go(0)[0]
+
+    r = random.Random(621)
+    for _ in range(200):
+        e = gen(r, 3)
+        assert f(e) == ev(e), e
+
+
+@test("Stack:parser#Boolean expression")
+def _(ns):
+    f = ns["parse_bool_expr"]
+    assert f("&(|(f))") is False and f("|(f,f,f,t)") is True and f("!(&(f,t))") is True
+    r = random.Random(622)
+
+    def gen(d):
+        if d == 0 or r.random() < 0.3:
+            return r.choice("tf")
+        op = r.choice("!&|")
+        k = 1 if op == "!" else r.randint(1, 3)
+        return op + "(" + ",".join(gen(d - 1) for _ in range(k)) + ")"
+
+    def ev(e):
+        return eval(e.replace("t", "True").replace("f", "False").replace("!", "not ").replace("&(", "all([").replace("|(", "any([").replace(")", "])" if False else ")")) if False else None
+
+    def ev2(e):
+        def go(i):
+            if e[i] in "tf":
+                return e[i] == "t", i + 1
+            op = e[i]
+            i += 2
+            vals = []
+            while True:
+                v, i = go(i)
+                vals.append(v)
+                if e[i] == ",":
+                    i += 1
+                else:
+                    break
+            return (not vals[0] if op == "!" else all(vals) if op == "&" else any(vals)), i + 1
+
+        return go(0)[0]
+
+    for _ in range(300):
+        e = gen(3)
+        assert f(e) is ev2(e), e
+
+
+@test("Stack:parser#Mini parser (nested integers)")
+def _(ns):
+    f = ns["deserialize"]
+    assert f("324") == 324 and f("[123,[456,[789]]]") == [123, [456, [789]]] and f("[-1,[]]") == [-1, []] and f("[]") == []
+    r = random.Random(623)
+
+    def gen(d):
+        if d == 0 or r.random() < 0.4:
+            return r.randint(-50, 99)
+        return [gen(d - 1) for _ in range(r.randint(0, 3))]
+
+    def dump(x):
+        return str(x) if isinstance(x, int) else "[" + ",".join(dump(y) for y in x) + "]"
+
+    for _ in range(300):
+        x = [gen(3) for _ in range(r.randint(0, 3))]
+        assert f(dump(x)) == x, dump(x)
+
+
+@test("Stack:encoded-index")
+def _(ns):
+    f = ns["decode_at_index"]
+    assert f("leet2code3", 10) == "o" and f("ha22", 5) == "h" and f("a2345678999999999999999", 1) == "a"
+    r = random.Random(624)
+    for _ in range(300):
+        s = ""
+        for _ in range(r.randint(1, 5)):
+            s += "".join(r.choice("abc") for _ in range(r.randint(1, 3))) + str(r.randint(2, 3))
+        s = s[:-1] if r.random() < 0.5 else s
+        if not s[0].isalpha():
+            continue
+        t = ""
+        for ch in s:
+            t = t * int(ch) if ch.isdigit() else t + ch
+            if len(t) > 3000:
+                break
+        else:
+            for k in range(1, min(len(t), 40) + 1):
+                assert f(s, k) == t[k - 1], (s, k)

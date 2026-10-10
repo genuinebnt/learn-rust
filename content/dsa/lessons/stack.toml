@@ -291,49 +291,750 @@ pitfalls = [
     "Items still on the stack at the end have no smaller item to their right: use n - j.",
 ]
 
+[[extra]]
+id = "Stack:next-greater"
+name = "Next greater element, also around a circle"
+group = "Monotonic stack"
+signals = [
+    "for every element, the next element to its right that is bigger (or smaller)",
+    "a stack of elements still waiting for their answer: each new element answers all smaller ones on top",
+    "a circular array: walk the indexes twice",
+]
+template_name = "Circular array"
+template = '''
+def next_greater_elements(nums):
+    n = len(nums)
+    out = [-1] * n
+    stack = []  # indexes still waiting; their values never increase
+    for i in range(2 * n):  # the second lap sees the elements before them
+        x = nums[i % n]
+        while stack and nums[stack[-1]] < x:
+            out[stack.pop()] = x
+        if i < n:
+            stack.append(i)  # only the first lap asks for an answer
+    return out
+'''
+pitfalls = [
+    "Pop while the top is smaller: every popped element has just found its answer.",
+    "Store indexes, not values, when the answer is a position or a distance.",
+    "For a circle push only during the first lap; the second lap only answers.",
+]
+examples = ["next-greater-element-ii", "next-greater-element-i", "next-greater-node-in-linked-list", "final-prices-with-a-special-discount-in-a-shop", "daily-temperatures"]
+
+[[extra.variant]]
+name = "Next greater element I"
+note = "Answer the whole of nums2 once, keep the result in a dict, and look up nums1."
+template = '''
+def next_greater_element(nums1, nums2):
+    nxt, stack = {}, []
+    for x in nums2:
+        while stack and stack[-1] < x:
+            nxt[stack.pop()] = x
+        stack.append(x)
+    return [nxt.get(x, -1) for x in nums1]
+'''
+
+[[extra.variant]]
+name = "Final prices (next smaller or equal)"
+note = "The discount of an item is the first later price that is not higher."
+template = '''
+def final_prices(prices):
+    out, stack = prices[:], []
+    for i, p in enumerate(prices):
+        while stack and prices[stack[-1]] >= p:
+            out[stack.pop()] -= p  # p is its discount
+        stack.append(i)
+    return out
+'''
+
+[[extra]]
+id = "Stack:histogram-rows"
+name = "Rows as histograms: maximal rectangle"
+group = "Monotonic stack"
+signals = [
+    "the largest rectangle (or the number of rectangles) of ones in a binary matrix",
+    "build a histogram of consecutive ones above each row, then solve each row as the largest rectangle in a histogram",
+    "the histogram needs the nearest smaller bar on both sides: a monotonic stack",
+]
+template_name = "Maximal rectangle"
+template = '''
+def maximal_rectangle(matrix):
+    if not matrix:
+        return 0
+    cols, heights, best = len(matrix[0]), [0] * len(matrix[0]), 0
+    for row in matrix:
+        for j in range(cols):
+            heights[j] = heights[j] + 1 if row[j] == "1" else 0
+        stack = []  # indexes of bars with increasing heights
+        for j in range(cols + 1):
+            # a bar of height 0 at the end flushes the stack
+            h = heights[j] if j < cols else 0
+            while stack and heights[stack[-1]] >= h:
+                height = heights[stack.pop()]
+                left = stack[-1] if stack else -1
+                best = max(best, height * (j - left - 1))
+            stack.append(j)
+    return best
+'''
+pitfalls = [
+    "Reset a column's height to 0 on a zero, otherwise add one: that is the histogram of the row.",
+    "Flush the stack at the end with a bar of height 0, or the last bars are never counted.",
+    "The width of a popped bar runs from the new top of the stack + 1 to the current index - 1.",
+]
+examples = ["maximal-rectangle", "count-submatrices-with-all-ones", "largest-rectangle-in-histogram"]
+
+[[extra.variant]]
+name = "Count submatrices of ones"
+note = "For every row, sum the number of rectangles ending at each cell with a running count over the histogram."
+template = '''
+def num_submat(mat):
+    rows, cols, total = len(mat), len(mat[0]), 0
+    heights = [0] * cols
+    for r in range(rows):
+        for c in range(cols):
+            heights[c] = heights[c] + 1 if mat[r][c] else 0
+        stack = []
+        count = [0] * cols  # count[j]: rectangles ending at column j
+        for j in range(cols):
+            while stack and heights[stack[-1]] >= heights[j]:
+                stack.pop()
+            if stack:
+                k = stack[-1]
+                count[j] = count[k] + heights[j] * (j - k)
+            else:
+                count[j] = heights[j] * (j + 1)
+            stack.append(j)
+            total += count[j]
+    return total
+'''
+
+[[extra]]
+id = "Stack:ramp"
+name = "Candidates on a stack, then scan back"
+group = "Monotonic stack"
+signals = [
+    "the widest pair i < j with nums[i] <= nums[j], or the 132 pattern",
+    "only the prefix minima can be the left end: keep them on a decreasing stack",
+    "scan the right end from the back and pop every candidate it can use",
+]
+template_name = "Maximum width ramp"
+template = '''
+def max_width_ramp(nums):
+    stack = []  # left candidates: indexes of strictly smaller values
+    for i, x in enumerate(nums):
+        if not stack or x < nums[stack[-1]]:
+            stack.append(i)
+    best = 0
+    for j in range(len(nums) - 1, -1, -1):  # right end, from the back
+        while stack and nums[stack[-1]] <= nums[j]:
+            best = max(best, j - stack.pop())  # its widest ramp
+    return best
+'''
+pitfalls = [
+    "Only a new strict minimum is a useful left end: any other index has a smaller one to its left that is at least as wide.",
+    "Scan j from the far end: the first j that accepts a candidate gives that candidate its widest ramp.",
+    "A candidate that is popped is never needed again, so the scan is linear.",
+]
+examples = ["maximum-width-ramp", "132-pattern", "beautiful-towers-ii"]
+
+[[extra.variant]]
+name = "132 pattern"
+note = "Walk from the right keeping the best 'two' (the largest value popped by a bigger one); a smaller 'one' to its left proves the pattern."
+template = '''
+def find132pattern(nums):
+    two, stack = float("-inf"), []  # best "2"; stack of "3" candidates
+    for x in reversed(nums):
+        if x < two:
+            return True  # x is the "1" below a known "2" and "3"
+        while stack and stack[-1] < x:
+            two = stack.pop()  # x is a "3"; the largest popped is "2"
+        stack.append(x)
+    return False
+'''
+
+[[extra]]
+id = "Stack:parens-depth"
+name = "Depth of nested parentheses"
+group = "Matching and nesting"
+signals = [
+    "the score, the outer layer, the nesting depth or a split of a valid parentheses string",
+    "a counter of open brackets is enough: no stack of characters is needed",
+    "a closing bracket at depth d belongs to the pair that opened at depth d",
+]
+template_name = "Score of parentheses"
+template = '''
+def score_of_parentheses(s):
+    score, depth = 0, 0
+    for i, ch in enumerate(s):
+        depth += 1 if ch == "(" else -1
+        if ch == ")" and s[i - 1] == "(":
+            score += 1 << depth  # a "()" at this depth counts 2^depth
+    return score
+'''
+pitfalls = [
+    "Only a direct \"()\" adds to the score: its value is 2 to the power of its depth after closing.",
+    "Track depth with a number, not a stack, unless the content of the bracket matters.",
+    "Remove the outer layer by skipping the brackets that bring the depth to or from zero.",
+]
+examples = ["score-of-parentheses", "remove-outermost-parentheses", "maximum-nesting-depth-of-the-parentheses", "maximum-nesting-depth-of-two-valid-parentheses-strings"]
+
+[[extra.variant]]
+name = "Remove outermost parentheses"
+note = "Keep a bracket unless it opens at depth 0 or closes back to depth 0."
+template = '''
+def remove_outer_parentheses(s):
+    out, depth = [], 0
+    for ch in s:
+        if ch == "(":
+            if depth:
+                out.append(ch)
+            depth += 1
+        else:
+            depth -= 1
+            if depth:
+                out.append(ch)
+    return "".join(out)
+'''
+
+[[extra.variant]]
+name = "Split into two valid strings"
+note = "Give each bracket to group 0 or 1 by the parity of its depth: no group gets deeper than half."
+template = '''
+def max_depth_after_split(seq):
+    out, depth = [], 0
+    for ch in seq:
+        if ch == "(":
+            depth += 1
+            out.append(depth % 2)
+        else:
+            out.append(depth % 2)
+            depth -= 1
+    return out
+'''
+
+[[extra]]
+id = "Stack:valid-length"
+name = "Longest valid parentheses: a stack of indexes"
+group = "Matching and nesting"
+signals = [
+    "the longest well-formed substring of brackets",
+    "push indexes, with a base index under the stack: the distance to the base is the current valid length",
+    "an unmatched close bracket becomes the new base",
+]
+template = '''
+def longest_valid_parentheses(s):
+    stack, best = [-1], 0  # the base: the index before the current run
+    for i, ch in enumerate(s):
+        if ch == "(":
+            stack.append(i)
+        else:
+            stack.pop()
+            if stack:
+                best = max(best, i - stack[-1])  # the run since the new top
+            else:
+                stack.append(i)  # unmatched ")": a new base
+    return best
+'''
+pitfalls = [
+    "Start with -1 on the stack: it is the base for a run that begins at index 0.",
+    "After popping, an empty stack means the \")\" was unmatched: push its index as the new base.",
+    "The length is i - stack[-1], measured from whatever is on top after the pop.",
+]
+examples = ["longest-valid-parentheses", "minimum-remove-to-make-valid-parentheses", "valid-parenthesis-string"]
+
+[[extra]]
+id = "Stack:run-length"
+name = "Cancel adjacent items with run-length entries"
+group = "Simulation with a stack"
+signals = [
+    "remove adjacent duplicates, k equal letters in a row, or a letter and its opposite case",
+    "the stack holds (item, run length): equal items extend the top entry",
+    "an entry that reaches the limit is popped; removals can chain",
+]
+template_name = "Remove k adjacent duplicates"
+template = '''
+def remove_duplicates(s, k):
+    stack = []  # [letter, how many in a row]
+    for ch in s:
+        if stack and stack[-1][0] == ch:
+            stack[-1][1] += 1
+            if stack[-1][1] == k:
+                stack.pop()  # k in a row disappear
+        else:
+            stack.append([ch, 1])
+    return "".join(ch * n for ch, n in stack)
+'''
+pitfalls = [
+    "Compare with the top of the stack, not with the previous input character: after a removal the neighbours change.",
+    "Rebuild the string from the entries with their counts.",
+    "A letter and its opposite case cancel: compare with ch.swapcase() instead of equality.",
+]
+examples = ["remove-all-adjacent-duplicates-in-string-ii", "remove-all-adjacent-duplicates-in-string", "make-the-string-great", "clear-digits", "removing-stars-from-a-string", "remove-all-occurrences-of-a-substring"]
+
+[[extra.variant]]
+name = "Make the string great"
+note = "Two letters cancel when they are the same letter in different cases."
+template = '''
+def make_good(s):
+    stack = []
+    for ch in s:
+        if stack and stack[-1] == ch.swapcase():
+            stack.pop()
+        else:
+            stack.append(ch)
+    return "".join(stack)
+'''
+
+[[extra.variant]]
+name = "Remove a pattern repeatedly"
+note = "Push characters; when the top of the stack ends with the pattern, pop it."
+template = '''
+def remove_occurrences(s, part):
+    stack = []
+    for ch in s:
+        stack.append(ch)
+        if len(stack) >= len(part) and "".join(stack[-len(part):]) == part:
+            del stack[-len(part):]  # gone: earlier text re-joins
+    return "".join(stack)
+'''
+
+[[extra]]
+id = "Stack:call-stack"
+name = "A stack of contexts: logs and paths"
+group = "Simulation with a stack"
+signals = [
+    "function start and end logs with timestamps, or a path made of directories",
+    "the stack is the chain of open scopes; the top is the one that is running now",
+    "work done by a child must be taken out of its parent",
+]
+template_name = "Exclusive time of functions"
+template = '''
+def exclusive_time(n, logs):
+    out, stack, prev = [0] * n, [], 0
+    for log in logs:
+        fid, kind, t = log.split(":")
+        fid, t = int(fid), int(t)
+        if kind == "start":
+            if stack:
+                out[stack[-1]] += t - prev  # the parent ran until now
+            stack.append(fid)
+            prev = t
+        else:
+            out[stack.pop()] += t - prev + 1  # an end is inclusive
+            prev = t + 1  # the next tick starts after it
+    return out
+'''
+pitfalls = [
+    "A start log is at the beginning of the tick and an end log at its end: the end adds 1.",
+    "When a child starts, credit the parent for the time until now; when a child ends, the parent resumes after it.",
+    "prev is the time from which the current top is running.",
+]
+examples = ["exclusive-time-of-functions", "longest-absolute-file-path", "simplify-path", "crawler-log-folder"]
+
+[[extra.variant]]
+name = "Longest absolute file path"
+note = "A stack of the path length at each depth; a file's depth is the number of tabs."
+template = '''
+def length_longest_path(text):
+    best, lengths = 0, [0]  # lengths[d]: length of the path to depth d
+    for line in text.split("\n"):
+        name = line.lstrip("\t")
+        depth = len(line) - len(name)
+        del lengths[depth + 1:]  # leave the deeper directories
+        if "." in name:
+            best = max(best, lengths[depth] + len(name))  # a file
+        else:
+            lengths.append(lengths[depth] + len(name) + 1)  # dir + "/"
+    return best
+'''
+
+[[extra.variant]]
+name = "Simplify path"
+note = "Split on slashes; '..' pops, '.' and empty parts are ignored."
+template = '''
+def simplify_path(path):
+    stack = []
+    for part in path.split("/"):
+        if part == "..":
+            if stack:
+                stack.pop()
+        elif part and part != ".":
+            stack.append(part)
+    return "/" + "/".join(stack)
+'''
+
+[[extra]]
+id = "Stack:two-stack-cursor"
+name = "Two stacks around a cursor: text editor, browser history"
+group = "Stack and queue design"
+signals = [
+    "an editor with a cursor, or a history with back and forward",
+    "the stack on the left of the cursor holds what was passed; the stack on the right holds what is ahead",
+    "moving the cursor moves items from one stack to the other",
+]
+template_name = "Text editor"
+template = '''
+class TextEditor:
+    def __init__(self):
+        self.left, self.right = [], []  # before / after the cursor
+
+    def addText(self, text):
+        self.left.extend(text)
+
+    def deleteText(self, k):
+        k = min(k, len(self.left))
+        del self.left[len(self.left) - k:]
+        return k
+
+    def cursorLeft(self, k):
+        for _ in range(min(k, len(self.left))):
+            self.right.append(self.left.pop())
+        return "".join(self.left[-10:])
+
+    def cursorRight(self, k):
+        for _ in range(min(k, len(self.right))):
+            self.left.append(self.right.pop())
+        return "".join(self.left[-10:])
+'''
+pitfalls = [
+    "Clamp k to the number of characters that exist before moving or deleting.",
+    "Moving left pushes onto the right stack in reverse: popping it later restores the order.",
+    "The editor returns the last 10 characters before the cursor, not the whole text.",
+]
+examples = ["design-a-text-editor", "design-browser-history"]
+
+[[extra.variant]]
+name = "Browser history"
+note = "A list of pages and a position; visiting drops everything ahead."
+template = '''
+class BrowserHistory:
+    def __init__(self, homepage):
+        self.pages, self.at = [homepage], 0
+
+    def visit(self, url):
+        del self.pages[self.at + 1:]  # forward history is gone
+        self.pages.append(url)
+        self.at += 1
+
+    def back(self, steps):
+        self.at = max(0, self.at - steps)
+        return self.pages[self.at]
+
+    def forward(self, steps):
+        self.at = min(len(self.pages) - 1, self.at + steps)
+        return self.pages[self.at]
+'''
+
+[[extra]]
+id = "Stack:lazy-increment"
+name = "Stack with lazy increments"
+group = "Stack and queue design"
+signals = [
+    "increment the bottom k elements of a stack many times, with push and pop in O(1)",
+    "do not touch the k elements: remember the increment on the k-th position",
+    "when an element is popped, its pending increment moves down to the element below",
+]
+template = '''
+class CustomStack:
+    def __init__(self, maxSize):
+        self.cap, self.a = maxSize, []
+        self.add = []  # add[i]: pending +v for elements 0..i
+
+    def push(self, x):
+        if len(self.a) < self.cap:
+            self.a.append(x)
+            self.add.append(0)
+
+    def pop(self):
+        if not self.a:
+            return -1
+        inc = self.add.pop()
+        if self.add:
+            self.add[-1] += inc  # it covers the element below too
+        return self.a.pop() + inc
+
+    def increment(self, k, val):
+        if self.a:
+            self.add[min(k, len(self.a)) - 1] += val  # one note, not k
+'''
+pitfalls = [
+    "Record the increment once, at index min(k, size) - 1, and resolve it on pop.",
+    "On pop pass the increment down: elements below were covered by the same operation.",
+    "Check the empty stack before increment and pop.",
+]
+examples = ["design-a-stack-with-increment-operation", "build-an-array-with-stack-operations"]
+
+[[extra]]
+id = "Stack:holding-buffer"
+name = "A stack as a holding buffer"
+group = "Sorting with stacks"
+signals = [
+    "items move through a stack on the way to the output: the order out depends on when you pop",
+    "pop whenever the top is no worse than everything still to come",
+    "check if a push/pop sequence is possible by simulating it",
+]
+template_name = "Validate stack sequences"
+template = '''
+def validate_stack_sequences(pushed, popped):
+    stack, j = [], 0
+    for x in pushed:
+        stack.append(x)
+        while stack and j < len(popped) and stack[-1] == popped[j]:
+            stack.pop()  # this is the next item to leave
+            j += 1
+    return not stack
+'''
+pitfalls = [
+    "Pop greedily: when the top equals the next popped value, popping now is never worse.",
+    "The sequence is valid exactly when the stack is empty at the end.",
+    "The same idea builds the smallest string: pop while the top is at most every letter still to come.",
+]
+examples = ["validate-stack-sequences", "using-a-robot-to-print-the-lexicographically-smallest-string"]
+
+[[extra.variant]]
+name = "Robot prints the smallest string"
+note = "Pop while the top is not larger than the smallest letter still unread."
+template = '''
+def robot_with_string(s):
+    left, out, stack = [0] * 27, [], []
+    for ch in s:
+        left[ord(ch) - 97] += 1
+    for ch in s:
+        stack.append(ch)
+        left[ord(ch) - 97] -= 1
+        # the smallest letter that is still unread
+        low = next((i for i in range(26) if left[i]), 26)
+        while stack and ord(stack[-1]) - 97 <= low:
+            out.append(stack.pop())  # nothing smaller is coming: print it
+    return "".join(out)
+'''
+
+[[extra]]
+id = "Stack:chunks"
+name = "Chunks that sort independently"
+group = "Sorting with stacks"
+signals = [
+    "the most pieces you can cut an array into so that sorting each piece sorts the whole",
+    "a stack of chunk maxima: a smaller new element merges the chunks above it",
+    "the shortest subarray to sort so the whole array is sorted",
+]
+template_name = "Max chunks to make sorted II"
+template = '''
+def max_chunks_to_sorted(arr):
+    stack = []  # the maximum of each chunk, increasing
+    for x in arr:
+        biggest = x
+        while stack and stack[-1] > x:
+            biggest = max(biggest, stack.pop())  # x merges these chunks
+        stack.append(biggest)
+    return len(stack)
+'''
+pitfalls = [
+    "A new element smaller than a chunk's maximum merges with that chunk (and every chunk above the first smaller maximum).",
+    "Push the largest value of the merged chunk: it is the new chunk's maximum.",
+    "The answer is the number of chunks left on the stack.",
+]
+examples = ["max-chunks-to-make-sorted-ii", "max-chunks-to-make-sorted", "shortest-unsorted-continuous-subarray"]
+
+[[extra.variant]]
+name = "Shortest unsorted subarray"
+note = "The right end is the last element smaller than the running maximum, the left end the first larger than the running minimum from the right."
+template = '''
+def find_unsorted_subarray(nums):
+    n, hi, lo = len(nums), float("-inf"), float("inf")
+    end = start = -1
+    for i in range(n):
+        hi = max(hi, nums[i])
+        if nums[i] < hi:
+            end = i  # something bigger came before: out of order
+    for i in range(n - 1, -1, -1):
+        lo = min(lo, nums[i])
+        if nums[i] > lo:
+            start = i
+    return 0 if end == -1 else end - start + 1
+'''
+
+[[extra]]
+id = "Stack:deque-prefix"
+name = "Monotonic deque over prefix sums"
+group = "Monotonic queue (cross-reference: Sliding Window)"
+template_name = "Prefix sums"
+signals = [
+    "the shortest subarray with sum at least k, when values can be negative (a sliding window fails)",
+    "prefix sums turn it into: the closest earlier prefix that is at most the current one minus k",
+    "a deque of increasing prefix sums: pop from the front while the answer is met, from the back while it is not smaller",
+]
+template = '''
+from collections import deque
+
+
+def shortest_subarray(nums, k):
+    prefix = [0]
+    for x in nums:
+        prefix.append(prefix[-1] + x)
+    best, dq = len(nums) + 1, deque()  # indexes with increasing prefix sums
+    for i, p in enumerate(prefix):
+        while dq and p - prefix[dq[0]] >= k:
+            best = min(best, i - dq.popleft())  # later ends are longer
+        while dq and prefix[dq[-1]] >= p:
+            dq.pop()  # a larger earlier prefix is never a better start
+        dq.append(i)
+    return best if best <= len(nums) else -1
+'''
+pitfalls = [
+    "Negative numbers break the usual two-pointer window: that is why the deque of prefix sums is needed.",
+    "Pop the front when it already satisfies the sum: any later end only makes it longer.",
+    "Pop the back while it is not smaller than the new prefix: the new one starts shorter and sums at least as much.",
+]
+examples = ["shortest-subarray-with-sum-at-least-k", "longest-continuous-subarray-with-absolute-diff-less-than-or-equal-to-limit"]
+
+[[extra.variant]]
+name = "Two deques: max and min in the window"
+note = "A window is valid while max - min is at most the limit; shrink from the left when it is not."
+template = '''
+from collections import deque
+
+
+def longest_subarray(nums, limit):
+    big, small, left, best = deque(), deque(), 0, 0
+    for right, x in enumerate(nums):
+        while big and big[-1] < x:
+            big.pop()
+        big.append(x)
+        while small and small[-1] > x:
+            small.pop()
+        small.append(x)
+        while big[0] - small[0] > limit:
+            if big[0] == nums[left]:
+                big.popleft()  # the leaving element was the maximum
+            if small[0] == nums[left]:
+                small.popleft()
+            left += 1
+        best = max(best, right - left + 1)
+    return best
+'''
+
+[[extra]]
+id = "Stack:parser"
+name = "Recursive-descent parsing with an index"
+group = "Parsing"
+signals = [
+    "a nested format: lists, a boolean expression, a ternary, a tag tree",
+    "one function per kind of thing, sharing an index that moves through the text",
+    "a function parses its own part and returns, leaving the index after it",
+]
+template_name = "Ternary expression"
+template = '''
+def parse_ternary(expression):
+    # a ? b : c  is right associative: read from the right with a stack
+    stack = []
+    i = len(expression) - 1
+    while i >= 0:
+        ch = expression[i]
+        if stack and stack[-1] == "?":
+            stack.pop()  # "?"
+            first = stack.pop()
+            stack.pop()  # ":"
+            second = stack.pop()
+            stack.append(first if ch == "T" else second)
+        else:
+            stack.append(ch)
+        i -= 1
+    return stack[0]
+'''
+pitfalls = [
+    "Read from the right: the nearest condition is then the one in front of a completed pair of branches.",
+    "When the item below the stack top is \"?\", the current character is a condition: resolve it.",
+    "A recursive-descent version keeps one shared index and a function per construct.",
+]
+examples = ["ternary-expression-parser", "parsing-a-boolean-expression", "mini-parser", "tag-validator", "parse-lisp-expression"]
+
+[[extra.variant]]
+name = "Boolean expression"
+note = "Operators with arguments in parentheses: a stack of operators and results, folded at the closing bracket."
+template = '''
+def parse_bool_expr(expression):
+    stack = []
+    for ch in expression:
+        if ch in ",":
+            continue
+        if ch == ")":
+            vals = set()
+            while stack[-1] != "(":
+                vals.add(stack.pop())  # the arguments
+            stack.pop()  # "("
+            op = stack.pop()
+            if op == "!":
+                stack.append("f" if "t" in vals else "t")
+            elif op == "&":
+                stack.append("f" if "f" in vals else "t")
+            else:
+                stack.append("t" if "t" in vals else "f")
+        else:
+            stack.append(ch)
+    return stack[0] == "t"
+'''
+
+[[extra.variant]]
+name = "Mini parser (nested integers)"
+note = "A stack of open lists; a number is read when a comma or bracket ends it."
+template = '''
+def deserialize(s):
+    if s[0] != "[":
+        return int(s)  # a single integer
+    stack, num, sign = [], "", 1
+    for ch in s:
+        if ch == "[":
+            stack.append([])
+        elif ch == "-":
+            sign = -1
+        elif ch.isdigit():
+            num += ch
+        else:  # "," or "]": end of a number, and maybe of a list
+            if num:
+                stack[-1].append(sign * int(num))
+                num, sign = "", 1
+            if ch == "]" and len(stack) > 1:
+                inner = stack.pop()
+                stack[-1].append(inner)
+    return stack[0]
+'''
+
+[[extra]]
+id = "Stack:encoded-index"
+name = "Index into an encoded string without expanding it"
+group = "Parsing"
+signals = [
+    "the k-th character of a string that would be enormous if expanded (letters repeat by digits)",
+    "compute the expanded length first, then walk back, shrinking k by the length with modulo",
+    "never build the string: only lengths",
+]
+template = '''
+def decode_at_index(s, k):
+    size = 0
+    for ch in s:  # the length of the expanded string
+        size = size * int(ch) if ch.isdigit() else size + 1
+    for ch in reversed(s):
+        k %= size
+        if k == 0 and ch.isalpha():
+            return ch  # the end of this prefix is the k-th character
+        size = size // int(ch) if ch.isdigit() else size - 1
+'''
+pitfalls = [
+    "Walk backwards: undoing a digit divides the size, undoing a letter subtracts one.",
+    "Take k modulo the current size first: a repeat means the same text again.",
+    "When k becomes 0 on a letter, that letter is the answer.",
+]
+examples = ["decoded-string-at-index"]
+
 [[listed]]
 name = "Balanced brackets, one kind / several kinds"
-group = "Matching and nesting"
-
-[[listed]]
-name = "Minimum insertions to balance"
-group = "Matching and nesting"
-note = "e.g. counter or stack"
-problems = [
-    { slug = "minimum-insertions-to-balance-a-parentheses-string", title = "Minimum Insertions to Balance a Parentheses String", number = 1541, difficulty = "medium", premium = false },
-]
-
-[[listed]]
-name = "Minimum removals to make valid"
-group = "Matching and nesting"
-note = "e.g. stack of indices to delete"
-
-[[listed]]
-name = "Wildcard parentheses"
-group = "Matching and nesting"
-note = "e.g. range of open counts / two index stacks"
-
-[[listed]]
-name = "Nesting depth and depth assignment"
-group = "Matching and nesting"
-
-[[listed]]
-name = "Score by depth"
-group = "Matching and nesting"
-note = "e.g. stack of partial scores"
-
-[[listed]]
-name = "Strip the outer layer"
 group = "Matching and nesting"
 
 [[listed]]
 name = "Reverse inside each pair of brackets"
 group = "Matching and nesting"
 note = "Related lesson: Nested structures with a stack"
-
-[[listed]]
-name = "Tag and markup validation"
-group = "Matching and nesting"
 
 [[listed]]
 name = "Per-key stack"
@@ -346,42 +1047,9 @@ group = "Matching and nesting"
 note = "e.g. backtracking, BFS; cross-reference"
 
 [[listed]]
-name = "Circular array"
-group = "Monotonic stack"
-note = "e.g. scan 2n, index mod n"
-
-[[listed]]
-name = "Maximal rectangle / submatrices of ones"
-group = "Monotonic stack"
-note = "e.g. histogram per row"
-problems = [
-    { slug = "maximal-rectangle", title = "Maximal Rectangle", number = 85, difficulty = "hard", premium = false },
-]
-
-[[listed]]
-name = "Line of sight"
-group = "Monotonic stack"
-note = "e.g. buildings with a view"
-
-[[listed]]
 name = "Two stacks"
 group = "Monotonic stack"
 note = "Related lesson: Queue and stack from each other"
-
-[[listed]]
-name = "Preorder validity with a lower-bound stack"
-group = "Monotonic stack"
-note = "e.g. BST from preorder"
-
-[[listed]]
-name = "Binary searchable elements"
-group = "Monotonic stack"
-note = "e.g. prefix maximum / suffix minimum"
-
-[[listed]]
-name = "Postfix"
-group = "Expression evaluation"
-note = "Related lesson: Evaluating expressions with a stack"
 
 [[listed]]
 name = "Infix with + - * /"
@@ -408,21 +1076,9 @@ group = "Expression evaluation"
 note = "e.g. infix to postfix with an operator stack"
 
 [[listed]]
-name = "Operators that cycle"
-group = "Expression evaluation"
-note = "Related lesson: Evaluating expressions with a stack"
-problems = [
-    { slug = "clumsy-factorial", title = "Clumsy Factorial", number = 1006, difficulty = "medium", premium = false },
-]
-
-[[listed]]
 name = "Right-associative operators"
 group = "Expression evaluation"
 note = "Related lesson: Evaluating expressions with a stack"
-
-[[listed]]
-name = "Boolean expressions with nested calls"
-group = "Expression evaluation"
 
 [[listed]]
 name = "Expressions with scopes and variables"
@@ -445,23 +1101,9 @@ group = "Expression evaluation"
 note = "e.g. backtracking with the last operand; cross-reference"
 
 [[listed]]
-name = "Frequency stack"
-group = "Stack and queue design"
-note = "Related lesson: Stack that tracks running state"
-
-[[listed]]
 name = "Queue from two stacks / stack from queues"
 group = "Stack and queue design"
 note = "Related lesson: Queue and stack from each other"
-
-[[listed]]
-name = "Stack with lazy increments"
-group = "Stack and queue design"
-
-[[listed]]
-name = "Undo / redo"
-group = "Stack and queue design"
-note = "Related lesson: Stack simulation (undo, collide, cancel)"
 
 [[listed]]
 name = "Iterators over a stack"
@@ -471,11 +1113,6 @@ note = "Related lesson: Stack simulation (undo, collide, cancel)"
 [[listed]]
 name = "Circular queue / circular deque"
 group = "Stack and queue design"
-
-[[listed]]
-name = "Front, middle and back operations"
-group = "Stack and queue design"
-note = "e.g. two deques"
 
 [[listed]]
 name = "Online monotonic design"
@@ -491,39 +1128,6 @@ note = "e.g. moving average, hit counter, first unique"
 name = "Set of stacks with capacity"
 group = "Stack and queue design"
 note = "Related lesson: Queue and stack from each other"
-
-[[listed]]
-name = "Cancel adjacent equal items"
-group = "Simulation with a stack"
-note = "Related lesson: Stack simulation (undo, collide, cancel)"
-
-[[listed]]
-name = "Remove a pattern repeatedly"
-group = "Simulation with a stack"
-note = "e.g. substring at the top of the stack"
-
-[[listed]]
-name = "Collisions"
-group = "Simulation with a stack"
-note = "e.g. asteroids, robots, cars"
-
-[[listed]]
-name = "Path normalisation"
-group = "Simulation with a stack"
-note = "e.g. cd, .., ."
-
-[[listed]]
-name = "Call-stack timing"
-group = "Simulation with a stack"
-note = "e.g. exclusive time of functions"
-problems = [
-    { slug = "exclusive-time-of-functions", title = "Exclusive Time of Functions", number = 636, difficulty = "medium", premium = false },
-]
-
-[[listed]]
-name = "Push/pop sequence validity"
-group = "Simulation with a stack"
-note = "e.g. can this output come from a stack?"
 
 [[listed]]
 name = "Inorder"
@@ -574,37 +1178,9 @@ group = "Sorting with stacks"
 note = "Related lesson: Stack that tracks running state"
 
 [[listed]]
-name = "Stack as a holding buffer for the lexicographically smallest output"
-group = "Sorting with stacks"
-
-[[listed]]
-name = "Chunks that sort independently"
-group = "Sorting with stacks"
-note = "e.g. monotonic stack of maximums"
-
-[[listed]]
-name = "Minimal unsorted window"
-group = "Sorting with stacks"
-note = "e.g. stack or two scans"
-
-[[listed]]
-name = "Permutation from an increase/decrease string"
-group = "Sorting with stacks"
-note = "e.g. reverse runs with a stack"
-
-[[listed]]
 name = "Stack-based iterative quick sort / merge sort"
 group = "Sorting with stacks"
 note = "e.g. cross-reference"
-
-[[listed]]
-name = "Window maximum / minimum"
-group = "Monotonic queue (cross-reference: Sliding Window)"
-note = "Related lesson: Stack that tracks running state"
-
-[[listed]]
-name = "Two deques: max and min inside the window"
-group = "Monotonic queue (cross-reference: Sliding Window)"
 
 [[listed]]
 name = "DP optimisation"
@@ -628,20 +1204,6 @@ problems = [
 ]
 
 [[listed]]
-name = "Lexicographically smallest after deleting k"
-group = "Stack and greedy"
-note = "e.g. pop while worse"
-
-[[listed]]
-name = "Smallest subsequence of distinct letters"
-group = "Stack and greedy"
-note = "e.g. last occurrence plus in-stack set"
-
-[[listed]]
-name = "Merge two best subsequences into the maximum number"
-group = "Stack and greedy"
-
-[[listed]]
 name = "Greedy removal order"
 group = "Stack and greedy"
 note = "e.g. higher-scoring pair first"
@@ -650,10 +1212,6 @@ note = "e.g. higher-scoring pair first"
 name = "Minimum operations by popping larger values"
 group = "Stack and greedy"
 note = "e.g. zero out an array"
-
-[[listed]]
-name = "Removing stars with the smallest letter first"
-group = "Stack and greedy"
 
 [[listed]]
 name = "Counters instead of a stack"
@@ -696,27 +1254,9 @@ group = "Parsing"
 note = "e.g. stack of maps"
 
 [[listed]]
-name = "Nested data structures"
-group = "Parsing"
-note = "Related lesson: Nested structures with a stack"
-
-[[listed]]
 name = "Expression grammars"
 group = "Parsing"
 note = "Related lesson: Evaluating expressions with a stack"
-
-[[listed]]
-name = "Paths and file systems with depth"
-group = "Parsing"
-
-[[listed]]
-name = "Tag validators"
-group = "Parsing"
-
-[[listed]]
-name = "Indexing into an encoded string without expanding it"
-group = "Parsing"
-note = "Related lesson: Nested structures with a stack"
 
 [[listed]]
 name = "Recursive descent versus an explicit stack"
@@ -821,11 +1361,6 @@ note = "Related lesson: Monotonic stack"
 [[listed]]
 name = "Two passes for circular input"
 group = "Core implementation patterns"
-
-[[listed]]
-name = "Run-length entries"
-group = "Core implementation patterns"
-note = "Related lesson: Evaluating expressions with a stack"
 
 [[listed]]
 name = "Lazy propagation and lazy deletion"

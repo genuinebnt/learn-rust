@@ -10,5 +10,5 @@ pub mod model;
 pub mod test_source;
 
 pub use catalog::{Catalog, Issue, LoadError, Loaded, Problem, ProblemFiles, Track};
-pub use dsa::{Approach, Company, CompanyGroup, DsaCatalog, DsaProblem, Lesson, Page, Role, Technique};
+pub use dsa::{Approach, Company, CompanyGroup, DsaCatalog, DsaProblem, Extra, Lesson, Listed, Page, Role, Technique, Variant};
 pub use model::{Band, COMPANIES, Language, Mode, Perf, Rules, Section, Status, Tier};

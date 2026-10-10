@@ -110,6 +110,54 @@ pub struct DsaCatalog {
     pub lessons: BTreeMap<String, Lesson>,
     /// A sentence or two introducing each pattern's lessons, by pattern name.
     pub lesson_intros: BTreeMap<String, String>,
+    /// The groups a pattern's lessons are sorted into, in display order, by pattern name (empty: no grouping).
+    pub lesson_groups: BTreeMap<String, Vec<String>>,
+    /// Lessons for techniques with no must-learn problem in the lists, by pattern name, in file order (decision 32).
+    pub extras: BTreeMap<String, Vec<Extra>>,
+    /// Techniques that are known and not written yet, by pattern name, in file order.
+    pub listed: BTreeMap<String, Vec<Listed>>,
+}
+
+/// One more tab of a template: the same idea written another way (recursive and iterative DFS).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Variant {
+    pub name: String,
+    /// One sentence on when this version is the one to write.
+    #[serde(default)]
+    pub note: String,
+    pub template: String,
+}
+
+/// A lesson for a technique that has no must-learn problem in the NeetCode lists. It is taught with example problems.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Extra {
+    /// `<Pattern>:<slug>`, unique, never a technique id.
+    pub id: String,
+    pub name: String,
+    pub group: String,
+    pub signals: Vec<String>,
+    pub template: String,
+    /// The name of the first tab when there are variants.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template_name: Option<String>,
+    #[serde(default, rename = "variant", skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<Variant>,
+    pub pitfalls: Vec<String>,
+    /// Slugs of problems in the lists that use the technique (they are `lc-<slug>` in `problems.json`).
+    pub examples: Vec<String>,
+}
+
+/// A technique that belongs on the page's map and has no lesson yet.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Listed {
+    pub name: String,
+    pub group: String,
+    /// What is missing or how it relates to a written lesson.
+    #[serde(default)]
+    pub note: String,
 }
 
 /// What a pattern lesson says about one technique: when to reach for it, a Python template to adapt, and the usual traps.
@@ -123,6 +171,14 @@ pub struct Lesson {
     pub signals: Vec<String>,
     pub template: String,
     pub pitfalls: Vec<String>,
+    /// The group of the pattern's page this lesson is shown under.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
+    /// The name of the first tab when there are variants.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template_name: Option<String>,
+    #[serde(default, rename = "variant", skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<Variant>,
 }
 
 /// `<root>/dsa/lessons/<pattern>.toml`: the lessons of one pattern.
@@ -132,7 +188,14 @@ struct LessonFile {
     /// The pattern's name, as in `problems.json`.
     pattern: String,
     intro: String,
+    /// The groups of the page, in order. Every `group` below is one of them.
+    #[serde(default)]
+    groups: Vec<String>,
     technique: Vec<Lesson>,
+    #[serde(default)]
+    extra: Vec<Extra>,
+    #[serde(default)]
+    listed: Vec<Listed>,
 }
 
 #[derive(Deserialize)]
@@ -272,8 +335,20 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
         })
         .collect();
     let practice_tracks = load_practice(root, &file, &tracks, &names, issues);
-    let (lessons, lesson_intros) = load_lessons(root, &file.techniques, issues);
-    Loaded { tracks, practice_tracks, catalog: DsaCatalog { techniques: file.techniques, company_groups: file.company_groups, lessons, lesson_intros } }
+    let loaded = load_lessons(root, &file.techniques, &by_id, issues);
+    Loaded {
+        tracks,
+        practice_tracks,
+        catalog: DsaCatalog {
+            techniques: file.techniques,
+            company_groups: file.company_groups,
+            lessons: loaded.lessons,
+            lesson_intros: loaded.intros,
+            lesson_groups: loaded.groups,
+            extras: loaded.extras,
+            listed: loaded.listed,
+        },
+    }
 }
 
 /// `<root>/dsa/practice.json`: LeetCode problems **outside** the NeetCode lists that drill a technique (decision 24).
@@ -380,13 +455,24 @@ fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path, page: Option<&Pag
     }
 }
 
+/// What `load_lessons` read.
+#[derive(Default)]
+struct LoadedLessons {
+    lessons: BTreeMap<String, Lesson>,
+    intros: BTreeMap<String, String>,
+    groups: BTreeMap<String, Vec<String>>,
+    extras: BTreeMap<String, Vec<Extra>>,
+    listed: BTreeMap<String, Vec<Listed>>,
+}
+
 /// `<root>/dsa/lessons/*.toml`: the pattern lessons. A lesson for an unknown technique, one filed under the wrong pattern,
-/// a duplicate or an empty one is reported. Techniques without a lesson are allowed (the page says so).
-fn load_lessons(root: &Path, techniques: &[Technique], issues: &mut Vec<Issue>) -> (BTreeMap<String, Lesson>, BTreeMap<String, String>) {
+/// a duplicate or an empty one is reported, and so is a group the file did not declare, an extra whose id is taken or whose
+/// example is not a problem in the lists, and a variant without a template. Techniques without a lesson are allowed (the
+/// page says so).
+fn load_lessons(root: &Path, techniques: &[Technique], by_id: &BTreeMap<&str, &Raw>, issues: &mut Vec<Issue>) -> LoadedLessons {
     let dir = root.join("dsa").join("lessons");
-    let mut lessons = BTreeMap::new();
-    let mut intros = BTreeMap::new();
-    let Ok(entries) = std::fs::read_dir(&dir) else { return (lessons, intros) };
+    let mut out = LoadedLessons::default();
+    let Ok(entries) = std::fs::read_dir(&dir) else { return out };
     let mut files: Vec<_> = entries.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "toml")).collect();
     files.sort();
     for path in files {
@@ -404,23 +490,83 @@ fn load_lessons(root: &Path, techniques: &[Technique], issues: &mut Vec<Issue>) 
         if file.intro.trim().is_empty() {
             issues.push(Issue { path: path.clone(), message: "the intro is empty".into() });
         }
-        intros.insert(file.pattern.clone(), file.intro);
+        let issue = |what: &str, message: String| Issue { path: path.clone(), message: format!("{what}: {message}") };
+        let group_ok = |group: &str| file.groups.is_empty() || file.groups.iter().any(|g| g == group);
+        let variants_ok = |template_name: &Option<String>, variants: &[Variant]| -> Option<String> {
+            if variants.is_empty() {
+                return None;
+            }
+            let mut names: Vec<&str> = vec![template_name.as_deref().unwrap_or("")];
+            for v in variants {
+                if v.name.trim().is_empty() || v.template.trim().is_empty() {
+                    return Some("a variant needs a name and a template".into());
+                }
+                names.push(&v.name);
+            }
+            if names[0].trim().is_empty() {
+                return Some("variants need `template_name` for the first tab".into());
+            }
+            let mut sorted = names.clone();
+            sorted.sort();
+            sorted.dedup();
+            (sorted.len() != names.len()).then(|| "two tabs have the same name".into())
+        };
+        out.intros.insert(file.pattern.clone(), file.intro.clone());
+        if !file.groups.is_empty() {
+            out.groups.insert(file.pattern.clone(), file.groups.clone());
+        }
         for lesson in file.technique {
-            let problem = |message: String| Issue { path: path.clone(), message: format!("{}: {message}", lesson.id) };
+            let problem = |message: String| issue(&lesson.id, message);
             match techniques.iter().find(|t| t.id == lesson.id) {
                 None => issues.push(problem("isn't a technique".into())),
                 Some(t) if t.pattern != file.pattern => issues.push(problem(format!("belongs to {}, not {}", t.pattern, file.pattern))),
-                Some(_) if lessons.contains_key(&lesson.id) => issues.push(problem("has two lessons".into())),
+                Some(_) if out.lessons.contains_key(&lesson.id) => issues.push(problem("has two lessons".into())),
                 Some(_) if lesson.signals.is_empty() || lesson.pitfalls.is_empty() || lesson.template.trim().is_empty() => {
                     issues.push(problem("needs signals, a template and pitfalls".into()));
                 }
+                Some(_) if lesson.group.as_deref().is_some_and(|g| !group_ok(g)) => issues.push(problem(format!("the group {:?} is not declared in `groups`", lesson.group.as_deref().unwrap_or("")))),
+                Some(_) if variants_ok(&lesson.template_name, &lesson.variants).is_some() => {
+                    issues.push(problem(variants_ok(&lesson.template_name, &lesson.variants).unwrap_or_default()));
+                }
                 Some(_) => {
-                    lessons.insert(lesson.id.clone(), lesson);
+                    out.lessons.insert(lesson.id.clone(), lesson);
                 }
             }
         }
+        let prefix = format!("{}:", file.pattern);
+        let mut seen: Vec<String> = Vec::new();
+        for extra in file.extra {
+            let problem = |message: String| issue(&extra.id, message);
+            if !extra.id.starts_with(&prefix) || extra.id.len() == prefix.len() {
+                issues.push(problem(format!("an extra's id starts with {prefix}")));
+            } else if techniques.iter().any(|t| t.id == extra.id) || seen.contains(&extra.id) {
+                issues.push(problem("the id is already taken".into()));
+            } else if extra.name.trim().is_empty() || extra.signals.is_empty() || extra.pitfalls.is_empty() || extra.template.trim().is_empty() {
+                issues.push(problem("needs a name, signals, a template and pitfalls".into()));
+            } else if extra.examples.is_empty() {
+                issues.push(problem("needs at least one example problem (use `listed` for a technique with no lesson)".into()));
+            } else if !group_ok(&extra.group) {
+                issues.push(problem(format!("the group {:?} is not declared in `groups`", extra.group)));
+            } else if let Some(m) = variants_ok(&extra.template_name, &extra.variants) {
+                issues.push(problem(m));
+            } else if let Some(bad) = extra.examples.iter().find(|s| !by_id.contains_key(format!("lc-{s}").as_str())) {
+                issues.push(problem(format!("the example {bad} isn't a problem in the NeetCode lists")));
+            } else {
+                seen.push(extra.id.clone());
+                out.extras.entry(file.pattern.clone()).or_default().push(extra);
+            }
+        }
+        for item in file.listed {
+            if item.name.trim().is_empty() {
+                issues.push(issue("listed", "a name is empty".into()));
+            } else if !group_ok(&item.group) {
+                issues.push(issue(&item.name, format!("the group {:?} is not declared in `groups`", item.group)));
+            } else {
+                out.listed.entry(file.pattern.clone()).or_default().push(item);
+            }
+        }
     }
-    (lessons, intros)
+    out
 }
 
 /// `<root>/dsa/pages/<slug>.toml`, by slug. A page for a problem that isn't in the lists is reported.

@@ -140,6 +140,7 @@ html[data-width="wide"]{--pw:1560px;--pw-lg:1760px}
 .btn{height:54px;padding:0 26px;display:inline-flex;align-items:center;gap:12px;border-radius:4px;border:1px solid var(--line);font-size:16px;font-weight:500;white-space:nowrap}
 .btn.go{background:var(--grn);border-color:var(--grn);color:var(--on-acc);font-weight:700}
 .btn.sm{height:38px;padding:0 16px;font-size:13.5px}
+@media (max-width:640px){.btn{white-space:normal;height:auto;min-height:54px;padding-top:10px;padding-bottom:10px;max-width:100%;text-align:left}.btn.sm{min-height:38px;padding-top:6px;padding-bottom:6px}}
 .btn .kb{font:500 11px var(--mono);opacity:.7}
 .panel{position:relative;border:1px solid var(--line2);border-radius:8px;background:var(--panel)}
 .plabel{font:500 11px var(--mono);letter-spacing:.2em;color:var(--dim)}

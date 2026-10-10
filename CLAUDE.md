@@ -12,6 +12,7 @@ The rules that matter most:
 - Do only what's asked. Propose extras with a recommendation and wait. Never drop existing controls.
 - Mock up new screens and big UI changes in HTML and get approval before building them.
 - No visible scrollbars. 4-space indent. Don't run prettier (there's no config; match the surrounding style).
+- DSA Learn pages and problem tags: the owner fixed them in [docs/DSA_LEARN_PAGE_SPEC.md](docs/DSA_LEARN_PAGE_SPEC.md). Read it before touching `content/dsa/lessons`, `practice.json` or the pattern pages; never deviate.
 - Check content with `cargo run -q -p anneal-cli -- verify <track>`, which works without Docker.
 - End commit messages with the `Co-Authored-By` line for your model.
 - Courses (`courses/`, the Courses pages): read [docs/COURSE_STANDARDS.md](docs/COURSE_STANDARDS.md) first and run `anneal course lint`. Do not rebuild from memory what the owner has already decided.

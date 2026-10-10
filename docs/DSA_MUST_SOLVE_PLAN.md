@@ -1,6 +1,6 @@
 # Must-solve problems beyond the NeetCode lists: plan
 
-Status: **plan, nothing built** (2026-10-10). It needs the owner's answers to the questions in section 9, and a mockup (docs/DSA.md
+Status: **superseded in its decisions by DSA_LEARN_PAGE_SPEC.md (2026-10-10), which is what to follow.** This file keeps the scoring and the numbers. (Original status: plan, nothing built.) It needs the owner's answers to the questions in section 9, and a mockup (docs/DSA.md
 decision 13) before any screen is built.
 
 The owner's request: find the problems that are worth solving **beyond what the NeetCode lists already cover**, judged by

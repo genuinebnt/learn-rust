@@ -51,6 +51,7 @@ const anchor = (id: string) => `t-${id.split(":")[1] ?? id}`;
 function Grouped({ d, today }: { d: PatternLessons; today: string }) {
   const groups = d.groups ?? [];
   const listed = d.listed ?? [];
+  // a section with nothing written and nothing to practise is not worth a heading
   const inGroup = (g: string) => ({
     techniques: d.techniques.filter((t) => t.lesson?.group === g),
     extras: d.extras.filter((e) => e.group === g),
@@ -74,7 +75,7 @@ function Grouped({ d, today }: { d: PatternLessons; today: string }) {
                 {x.extras.map((e) => (
                   <a key={e.id} href={`#${anchor(e.id)}`} className="ex"><i />{e.name}</a>
                 ))}
-                {x.techniques.length + x.extras.length === 0 && <span className="l-nolesson">{x.listed.length} listed, no lesson written yet</span>}
+                {x.techniques.length + x.extras.length === 0 && <span className="l-nolesson">no lesson written yet</span>}
               </div>
             </div>
           );
@@ -89,12 +90,13 @@ function Grouped({ d, today }: { d: PatternLessons; today: string }) {
       {groups.map((g) => {
         const x = inGroup(g);
         const n = x.techniques.length + x.extras.length;
-        if (n + x.listed.length === 0) return null;
+        const hasProblems = (d.group_problems?.[g]?.length ?? 0) > 0 || x.listed.some((l) => (l.problems?.length ?? 0) > 0);
+        if (n === 0 && !hasProblems) return null;
         return (
           <section key={g} aria-label={g} className="l-gsec">
             <div className="l-grp">
               <h2>{g}</h2>
-              <small>{n} written{x.listed.length > 0 ? ` · ${x.listed.length} listed` : ""}</small>
+              <small>{n} written</small>
               {(d.group_tags?.[g] ?? []).length > 0 && (
                 <span className="l-tags">
                   on LeetCode:{" "}
@@ -144,17 +146,18 @@ function MoreProblems({ problems }: { problems: ExternalProblem[] }) {
 const tagName = (slug: string) => slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
 /** Techniques that are known and not written yet. Collapsed: a chip with problems opens them, with a link to LeetCode for each. */
-function Listed({ items }: { items: PatternListed[] }) {
+function Listed({ items: all }: { items: PatternListed[] }) {
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState<string | null>(null);
-  const withProblems = items.filter((l) => (l.problems?.length ?? 0) > 0).length;
+  // A name with nothing behind it (no template, no problems) is not shown: only techniques that come with LeetCode problems are.
+  const items = all.filter((l) => (l.problems?.length ?? 0) > 0);
   const chosen = items.find((l) => l.name === sel);
+  if (items.length === 0) return null;
   return (
     <div className="l-listed">
       <button className="l-ltoggle" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span aria-hidden="true">{open ? "▾" : "▸"}</span>
-        {items.length} more technique{items.length === 1 ? "" : "s"} listed, no lesson yet
-        {withProblems > 0 && <small> · {withProblems} with LeetCode problems</small>}
+        {items.length} technique{items.length === 1 ? "" : "s"} with LeetCode problems, lesson not written yet
       </button>
       {open && (
         <>

@@ -17,11 +17,14 @@ test("a grouped pattern page shows its groups, version tabs, example-only lesson
     await expect(dfs.locator(".l-prow")).toHaveCount(4);
     await expect(dfs.locator(".d-bdg.ex").first()).toHaveText("EXAMPLE");
 
-    // techniques that are known and not written are listed, not hidden
-    const listed = page.locator(".l-listed").filter({ hasText: "listed, no lesson yet" }).first();
+    // a technique that is not written yet is shown only when it comes with LeetCode problems (a name alone is not content)
+    await page.goto("/dsa/patterns/D13");
+    const listed = page.locator(".l-listed").filter({ hasText: "with LeetCode problems, lesson not written yet" }).first();
     await expect(listed).toBeVisible();
     await listed.getByRole("button").first().click();
-    await expect(listed.locator(".l-lchip").first()).toBeVisible();
+    await listed.locator(".l-lchip").first().click();
+    await expect(listed.locator('.l-prow[href^="https://leetcode.com/problems/"]').first()).toBeVisible();
+    await page.goto("/dsa/patterns/D11");
     // a group links to LeetCode's own tag page and lists problems that are not in your lists
     await expect(page.locator('.l-tags a[href^="https://leetcode.com/tag/"]').first()).toBeVisible();
     await page.getByRole("button", { name: /more LeetCode problems for this section/ }).first().click();

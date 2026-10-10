@@ -573,7 +573,7 @@ function Rules({ p, note, open, setOpen, setRules, topicName, commit, busy, onDe
                         </div>
                     ))}
                 </div>
-                <p className="cap">A target also covers the topics before it, from where you started. Topics keep your order until a target needs the time, then they move up just enough.</p>
+                <p className="cap">A target also covers the topics before it.</p>
                 {sg && (
                     <div className="c-sg">
                         <span><b>{sg.name}</b> is {sg.late >= 9999 ? "out of reach" : `${sg.late} days late`}. {sg.remedy.kind === "add_days" ? <>Make {sg.remedy.days.map(long).join(" and ")} problem day{sg.remedy.days.length > 1 ? "s" : ""} and it lands <b>{short(sg.remedy.end)}</b>.</> : <>The days you have free aren't enough.{sg.remedy.end && sg.late < 9999 ? <> At this pace it lands <b>{short(sg.remedy.end)}</b>.</> : null}</>}</span>

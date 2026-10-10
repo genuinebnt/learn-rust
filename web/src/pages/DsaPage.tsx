@@ -500,7 +500,7 @@ function PracticeGrid({ o, log }: { o: DsaOverview; log: ReturnType<typeof useLo
   return (
     <>
       <div className="s-flab">PRACTICE · THE NEXT PROBLEMS FOR EACH PATTERN</div>
-      <p className="pg-hint">More LeetCode problems for the same ideas. They never count toward your goal and schedule no reviews. Each one says which NeetCode problem teaches its idea.</p>
+      <p className="pg-hint">Not in a NeetCode list: no goal, no reviews.</p>
       {withPractice.map((pat, i) => {
         const techniques = lists[i]?.data?.techniques ?? [];
         const next = techniques.flatMap((t) => t.problems.filter((p) => !p.state.solved).slice(0, 2).map((p) => ({ p, from: t.must_learn }))).slice(0, 3);

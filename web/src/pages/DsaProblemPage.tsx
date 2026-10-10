@@ -91,7 +91,7 @@ function MySolutions({ p, template }: { p: DsaProblem; template: string }) {
             {editing === null && (
                 <button className="pp-add" onClick={() => open(null)}>+ {solutions.length ? "Add another solution" : "Add my solution"}</button>
             )}
-            {!solutions.length && editing === null && !list.isLoading && <p className="rempty">Paste or write the solution you submitted, with notes if you like. It stays here for next time.</p>}
+            {!solutions.length && editing === null && !list.isLoading && <p className="rempty">Save the solution you submitted, with notes.</p>}
         </section>
     );
 }
@@ -268,7 +268,7 @@ export function DsaProblemPage({ slug }: { slug: string }) {
                             <p className="pp-lead">Starts with <Link to="/d/$slug" params={{ slug: mustLearn.slug }} style={{ color: "var(--ca)" }}>{mustLearn.title}</Link>.</p>
                         )}
                         {lesson.data && <Md text={lesson.data.intuition} />}
-                        {!p.has_page && <p className="rempty">The written lesson for this problem isn't written yet. Solve it on LeetCode and log how it went.</p>}
+                        {!p.has_page && <p className="rempty">No written lesson yet. Solve it on LeetCode, then log it.</p>}
                     </section>
 
                     {lesson.data && (

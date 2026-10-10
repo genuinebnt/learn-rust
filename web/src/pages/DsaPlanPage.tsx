@@ -25,7 +25,7 @@ export function DsaPlanPage() {
             <span>PLAN</span>
           </div>
           <h1 className="h1 md">Your plan</h1>
-          <p className="lead">Set the target date and which weekdays are for new problems, practice or rest. The pace follows from the problems left. Nothing here blocks you: the target is a goal, not a deadline.</p>
+          <p className="lead">Pick a target date and what each weekday is for. The target is a goal, not a deadline.</p>
           {o ? <Editor key={o.today} o={o} /> : <p className="rempty">{overview.isError ? "Couldn't reach the API." : "Loading…"}</p>}
         </div>
       </main>
@@ -174,8 +174,8 @@ function Editor({ o }: { o: DsaOverview }) {
               </select>
             </label>
           </div>
-          <p className="p-hint">Important means the Blind 75 first, then the NeetCode 150 and the 250, plus the problems that teach a technique and the ones many companies ask. It only decides which reviews a full day keeps; it never moves an interval. The core retention target does: Blind 75 and must-learn problems come back a little sooner.</p>
-          <p className="p-hint">A problem's first review waits for the review day, so the week's problems come back together. The numbers under each day are how many reviews it can take; the rest wait for the next day with room, so a missed day never piles up.</p>
+          <p className="p-hint">Important: Blind 75 first, then the 150 and 250, then technique problems. It only picks which reviews a full day keeps.</p>
+          <p className="p-hint">The number under each day is how many reviews it takes; the rest wait for the next day with room.</p>
         </section>
       </div>
 

@@ -299,7 +299,7 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                 <span>{data.rounds.length} ROUND{data.rounds.length === 1 ? "" : "S"} TAKEN</span>
             </div>
             <h1 className="mi-h1">Build your interview</h1>
-            <p className="mi-sub">Pick a shape, narrow the pool, set the clock. The problems are drawn when you press start, so you never see them early.</p>
+            <p className="mi-sub">Pick a shape, narrow the pool, set the clock. Problems are drawn at start.</p>
 
             <div className="mi-presets" role="group" aria-label="Presets">
                 {PRESETS.map((p) => (
@@ -352,24 +352,22 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                                             </button>
                                         ))}
                                     </div>
-                                    <p className="mi-hint">Practice problems are the other LeetCode problems for each technique. They never schedule reviews. Premium problems are always left out.</p>
+                                    <p className="mi-hint">Practice = problems outside the lists. Premium is always left out.</p>
                                 </div>
                                 <div className="mi-sec">
                                     <span className="t">YOUR HISTORY <em>which of those can be drawn</em></span>
                                     <Seg label="History" value={c.status} options={MOCK_STATUS.map(([k, l]) => [k, l])} onPick={(status) => edit((cur) => ({ ...cur, status }))} />
-                                    <p className="mi-hint">{MOCK_STATUS.find(([k]) => k === c.status)?.[2]}</p>
                                 </div>
                                 <div className="mi-sec">
                                     <span className="t">HOW TO DRAW</span>
                                     <Seg label="How to draw" value={c.favour} options={FAVOUR.map(([k, l]) => [k, l])} onPick={(favour) => edit((cur) => ({ ...cur, favour }))} />
-                                    <p className="mi-hint">{FAVOUR.find(([k]) => k === c.favour)?.[2]}</p>
                                 </div>
                             </>
                         )}
 
                         {tab === "topics" && (
                             <div className="mi-sec">
-                                <span className="t">TOPICS <em>{included || excluded ? `${included} included · ${excluded} excluded` : "click once to include, twice to exclude, three times to clear"}</em></span>
+                                <span className="t">TOPICS <em>{included || excluded ? `${included} included · ${excluded} excluded` : "click: include · exclude · clear"}</em></span>
                                 <div className="mi-chips">
                                     {data.patterns.map((pt) => {
                                         const v = c.topics[pt.code];
@@ -380,7 +378,7 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                                         );
                                     })}
                                 </div>
-                                <p className="mi-hint">With no topic included, every topic is allowed except the ones you exclude.</p>
+                                <p className="mi-hint">No topic included = all topics except the excluded.</p>
                             </div>
                         )}
 
@@ -419,7 +417,7 @@ function Setup({ data, initial, onStart, error }: { data: MockData; initial: Moc
                                     <Seg label="Timer format" value={c.format} options={[["total", "Countdown for the round"], ["per", "Countdown per problem"], ["up", "Stopwatch only"]]} onPick={(format) => edit((cur) => ({ ...cur, format }))} />
                                 </div>
                                 {c.format === "up" ? (
-                                    <p className="mi-hint">No limit. The clock counts up, and each problem shows its time against the suggested time ({c.per.join(" / ")} min for easy, medium, hard).</p>
+                                    <p className="mi-hint">No limit. The clock counts up ({c.per.join(" / ")} min suggested).</p>
                                 ) : (
                                     <div className="mi-fields">
                                         {c.format === "total" && (
@@ -732,7 +730,7 @@ function Live({ data, round, update, onFinish }: { data: MockData; round: Round;
                             {problem.companies.length > 0 && <span className="co">Asked by {problem.companies.slice(0, 4).map((x) => x.name).join(", ")}{problem.companies.length > 4 ? ` +${problem.companies.length - 4}` : ""}</span>}
                         </div>
                     ) : (
-                        <div className="blind"><span className="lock" aria-hidden="true">🔒</span><span><b>Blind mode.</b> The number, topic, tags and companies are hidden until you log this problem. Open it on LeetCode, solve it there, then come back and say how it went.</span></div>
+                        <div className="blind"><span className="lock" aria-hidden="true">🔒</span><span><b>Blind mode.</b> Number, topic and companies stay hidden until you log it.</span></div>
                     )}
                 </section>
 
@@ -752,7 +750,7 @@ function Live({ data, round, update, onFinish }: { data: MockData; round: Round;
                         )}
                         <button className="mi-go" disabled={!logged} onClick={next}>{lastOne ? "Finish the round →" : "Next problem →"}</button>
                         {!logged && <button className="mi-ghost" onClick={skip}>Skip this problem</button>}
-                        <p className="mi-note">Logging stops this problem's clock and shows its topic. Skipping logs nothing, so it doesn't change your history or reviews.</p>
+                        <p className="mi-note">Logging stops the clock and shows the topic. Skipping logs nothing.</p>
                     </section>
                     <section className="mi-card">
                         <h3 className="mi-h3"><span>THIS ROUND</span><em>{round.marks.filter((m) => m.grade).length} of {round.ids.length} logged</em></h3>

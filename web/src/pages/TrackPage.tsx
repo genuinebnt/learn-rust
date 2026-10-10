@@ -386,7 +386,7 @@ export function TrackPage({ slug }: { slug: string }) {
                 )}
               </div>
             </div>
-            {tagged.length > 0 && <p className="conote">Company tags reflect commonly reported interview questions. They are approximate, not an official list.</p>}
+            {tagged.length > 0 && <p className="conote">Company tags are approximate, from reported questions.</p>}
           </section>
         </div>
       </main>

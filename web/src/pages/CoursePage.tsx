@@ -54,7 +54,7 @@ function ResetPanel({ course, c, onDone }: { course: string; c: CourseOverview; 
                     ))}
                 </select>
             </label>
-            <p>Forgets which stages you passed, the runs, and the hints and solutions you opened. Your code in your repo is not touched.</p>
+            <p>Forgets passed stages, runs and opened hints. Your code is not touched.</p>
             <label>
                 Type <b>reset</b> to confirm
                 <input value={word} onChange={(e) => setWord(e.target.value)} placeholder="reset" autoComplete="off" />

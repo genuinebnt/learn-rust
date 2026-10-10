@@ -479,7 +479,7 @@ function Reviews({ r }: { r: ReviewsView }) {
           <Forecast days={r.forecast} />
           <div className="insight" style={{ background: "var(--raise)", color: "var(--mut)" }}>
             <span>ⓘ</span>
-            <span>An assisted solve comes back in 3 days. Each unassisted re-solve moves it on, 3 → 7 → 21 → 60 days; an assisted one sends it back to 3. A first unassisted solve gets one check at 21 days.</span>
+            <span>Reviews: 3 → 7 → 21 → 60 days. An assisted solve goes back to 3.</span>
           </div>
         </Box>
       </div>

@@ -270,7 +270,7 @@ function Check({ item, spent, lesson, loading, tab, setTab, grade, busy, error }
       ) : (
         !loading && (
           <div className="rv-reveal">
-            <p style={{ margin: 0 }}>There is no written page for this problem yet. Check your sketch against the problem itself.</p>
+            <p style={{ margin: 0 }}>No written page yet. Check your sketch against the problem.</p>
             <div className="rv-row">
               <Link className="rv-ghost" to="/d/$slug" params={{ slug: p.slug }}>The problem page</Link>
               <a className="rv-ghost" href={leetcode(p.slug)} target="_blank" rel="noreferrer">LeetCode ↗</a>
@@ -292,7 +292,7 @@ function Check({ item, spent, lesson, loading, tab, setTab, grade, busy, error }
           ))}
         </div>
         {error && <p className="rv-err">{error}</p>}
-        <p className="rv-note" style={{ marginTop: 10 }}>Couldn't recall it? Solve it again on LeetCode now, then press Again. It comes back tomorrow, so the memory has a second chance to form.</p>
+        <p className="rv-note" style={{ marginTop: 10 }}>Couldn't recall it? Solve it again, then press Again. It returns tomorrow.</p>
       </div>
     </>
   );

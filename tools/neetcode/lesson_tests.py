@@ -7985,3 +7985,462 @@ def _(ns):
         k = r.randint(0, 3)
         want = [sum(a[i - k:i + k + 1]) // (2 * k + 1) if i - k >= 0 and i + k < len(a) else -1 for i in range(len(a))]
         assert f(a[:], k) == want
+
+
+# ---- linked list (extras) -------------------------------------------------------------------------------------------
+
+LL = "Linked List"
+
+
+def _rl(r, lo=0, hi=9, n=None):
+    return [r.randint(lo, hi) for _ in range(r.randint(0, 9) if n is None else n)]
+
+
+@test(f"{LL}:swap-groups")
+def _(ns):
+    f = ns["swap_pairs"]
+    r = random.Random(800)
+    for _ in range(100):
+        a = _rl(r)
+        h = _ll(a)
+        nodes = _ll_nodes_list(h)
+        out = f(h)
+        want = []
+        for i in range(0, len(a) - 1, 2):
+            want += [a[i + 1], a[i]]
+        if len(a) % 2:
+            want.append(a[-1])
+        assert _ll_vals(out) == want
+        assert {id(x) for x in _ll_nodes_list(out)} == {id(x) for x in nodes}, "relink nodes, do not copy values"
+
+
+def _ll_nodes_list(h):
+    out = []
+    while h:
+        out.append(h)
+        h = h.next
+    return out
+
+
+@test(f"{LL}:swap-groups#Reverse nodes in even-length groups")
+def _(ns):
+    f = ns["reverse_even_length_groups"]
+    assert _ll_vals(f(_ll([5, 2, 6, 3, 9, 1, 7, 3, 8, 4]))) == [5, 6, 2, 3, 9, 1, 4, 8, 3, 7]
+    r = random.Random(801)
+    for _ in range(100):
+        a = _rl(r, n=r.randint(1, 12))
+        want, i, size = [], 0, 1
+        while i < len(a):
+            g = a[i:i + size]
+            want += g[::-1] if len(g) % 2 == 0 else g
+            i += size
+            size += 1
+        assert _ll_vals(f(_ll(a))) == want
+
+
+@test(f"{LL}:sort-list")
+def _(ns):
+    f = ns["sort_list"]
+    r = random.Random(802)
+    for _ in range(150):
+        a = _rl(r)
+        assert _ll_vals(f(_ll(a))) == sorted(a)
+    assert _ll_vals(f(_ll(list(range(3000, 0, -1))))) == list(range(1, 3001))
+
+
+@test(f"{LL}:sort-list#Insertion sort")
+def _(ns):
+    f = ns["insertion_sort_list"]
+    r = random.Random(803)
+    for _ in range(150):
+        a = _rl(r)
+        assert _ll_vals(f(_ll(a))) == sorted(a)
+
+
+@test(f"{LL}:partition")
+def _(ns):
+    f = ns["partition"]
+    r = random.Random(804)
+    for _ in range(150):
+        a = _rl(r)
+        x = r.randint(0, 9)
+        want = [v for v in a if v < x] + [v for v in a if v >= x]
+        assert _ll_vals(f(_ll(a), x)) == want
+
+
+@test(f"{LL}:partition#Odd even linked list")
+def _(ns):
+    f = ns["odd_even_list"]
+    r = random.Random(805)
+    for _ in range(150):
+        a = _rl(r)
+        assert _ll_vals(f(_ll(a))) == a[0::2] + a[1::2]
+
+
+@test(f"{LL}:partition#Rotate list")
+def _(ns):
+    f = ns["rotate_right"]
+    r = random.Random(806)
+    for _ in range(150):
+        a = _rl(r)
+        k = r.randint(0, 20)
+        want = a[-(k % len(a)):] + a[:-(k % len(a))] if a and k % len(a) else a
+        assert _ll_vals(f(_ll(a), k)) == want
+
+
+@test(f"{LL}:remove-runs")
+def _(ns):
+    f = ns["delete_duplicates"]
+    r = random.Random(807)
+    for _ in range(150):
+        a = sorted(_rl(r, 0, 5))
+        want = [v for v in a if a.count(v) == 1]
+        assert _ll_vals(f(_ll(a))) == want
+
+
+@test(f"{LL}:remove-runs#Unsorted: remove values that repeat")
+def _(ns):
+    f = ns["delete_duplicates_unsorted"]
+    r = random.Random(808)
+    for _ in range(150):
+        a = _rl(r, 0, 5)
+        assert _ll_vals(f(_ll(a))) == [v for v in a if a.count(v) == 1]
+
+
+@test(f"{LL}:remove-runs#Remove zero-sum runs (prefix sums)")
+def _(ns):
+    f = ns["remove_zero_sum_sublists"]
+    assert _ll_vals(f(_ll([1, 2, -3, 3, 1]))) in ([3, 1], [1, 2, 1]) and _ll_vals(f(_ll([1, 2, 3, -3, 4]))) == [1, 2, 4]
+    r = random.Random(809)
+    for _ in range(200):
+        a = _rl(r, -3, 3)
+        out = _ll_vals(f(_ll(a)))
+        # no consecutive run sums to zero, and the output is a subsequence of the input made by cutting zero-sum runs
+        assert all(sum(out[i:j]) != 0 for i in range(len(out)) for j in range(i + 1, len(out) + 1))
+        it = iter(a)
+        assert all(v in it for v in out)
+
+
+@test(f"{LL}:delete-by-rule")
+def _(ns):
+    f = ns["remove_nodes"]
+    assert _ll_vals(f(_ll([5, 2, 13, 3, 8]))) == [13, 8] and _ll_vals(f(_ll([1, 1, 1, 1]))) == [1, 1, 1, 1]
+    r = random.Random(810)
+    for _ in range(150):
+        a = _rl(r, 1, 9)
+        want = [v for i, v in enumerate(a) if all(v >= w for w in a[i + 1:])]
+        assert _ll_vals(f(_ll(a))) == want
+
+
+@test(f"{LL}:delete-by-rule#Delete nodes present in an array")
+def _(ns):
+    f = ns["modified_list"]
+    r = random.Random(811)
+    for _ in range(150):
+        a = _rl(r, 0, 6)
+        gone = r.sample(range(7), r.randint(0, 4))
+        assert _ll_vals(f(gone, _ll(a))) == [v for v in a if v not in gone]
+
+
+@test(f"{LL}:delete-by-rule#Delete the middle node")
+def _(ns):
+    f = ns["delete_middle"]
+    r = random.Random(812)
+    for _ in range(100):
+        a = _rl(r, 0, 9, n=r.randint(1, 9))
+        want = a[:len(a) // 2] + a[len(a) // 2 + 1:]
+        assert _ll_vals(f(_ll(a))) == want
+
+
+@test(f"{LL}:delete-by-rule#Delete a node given only that node")
+def _(ns):
+    f = ns["delete_node"]
+    r = random.Random(813)
+    for _ in range(100):
+        a = _rl(r, 0, 9, n=r.randint(2, 9))
+        h = _ll(a)
+        nodes = _ll_nodes_list(h)
+        i = r.randrange(len(a) - 1)
+        f(nodes[i])
+        assert _ll_vals(h) == a[:i] + a[i + 1:]
+
+
+def _digits(v):
+    return [int(c) for c in str(v)]
+
+
+@test(f"{LL}:number-lists")
+def _(ns):
+    f = ns["add_two_numbers"]
+    r = random.Random(814)
+    for _ in range(200):
+        x, y = r.randint(0, 10**r.randint(1, 6)), r.randint(0, 10**r.randint(1, 6))
+        assert _ll_vals(f(_ll(_digits(x)), _ll(_digits(y)))) == _digits(x + y)
+
+
+@test(f"{LL}:number-lists#Plus one")
+def _(ns):
+    f = ns["plus_one"]
+    r = random.Random(815)
+    for _ in range(200):
+        x = int("9" * r.randint(0, 3) + str(r.randint(0, 99)) + "9" * r.randint(0, 3)) if r.random() < 0.7 else r.randint(0, 999)
+        assert _ll_vals(f(_ll(_digits(x)))) == _digits(x + 1)
+
+
+@test(f"{LL}:number-lists#Double a number")
+def _(ns):
+    f = ns["double_it"]
+    r = random.Random(816)
+    for _ in range(200):
+        x = r.randint(1, 10**r.randint(1, 8))
+        assert _ll_vals(f(_ll(_digits(x)))) == _digits(2 * x)
+
+
+class _MNode:
+    def __init__(self, val):
+        self.val, self.prev, self.next, self.child = val, None, None, None
+
+
+@test(f"{LL}:flatten-levels")
+def _(ns):
+    f = ns["flatten"]
+    r = random.Random(817)
+    counter = [0]
+
+    def build(depth):
+        n = r.randint(1, 4)
+        nodes = []
+        for _ in range(n):
+            counter[0] += 1
+            nodes.append(_MNode(counter[0]))
+        for a, b in zip(nodes, nodes[1:]):
+            a.next, b.prev = b, a
+        for nd in nodes:
+            if depth and r.random() < 0.4:
+                nd.child = build(depth - 1)
+        return nodes[0]
+
+    def order(h):
+        out = []
+        while h:
+            out.append(h.val)
+            if h.child:
+                out += order(h.child)
+            h = h.next
+        return out
+
+    for _ in range(100):
+        counter[0] = 0
+        head = build(3)
+        want = order(head)
+        out = f(head)
+        got, prev, node = [], None, out
+        while node:
+            assert node.child is None and node.prev is prev
+            got.append(node.val)
+            prev, node = node, node.next
+        assert got == want
+    assert f(None) is None
+
+
+@test(f"{LL}:split-parts")
+def _(ns):
+    f = ns["split_list_to_parts"]
+    r = random.Random(818)
+    for _ in range(150):
+        a = _rl(r)
+        k = r.randint(1, 6)
+        parts = f(_ll(a), k)
+        assert len(parts) == k
+        got = [_ll_vals(p) for p in parts]
+        size, extra = divmod(len(a), k)
+        want, i = [], 0
+        for j in range(k):
+            ln = size + (j < extra)
+            want.append(a[i:i + ln])
+            i += ln
+        assert got == want
+
+
+@test(f"{LL}:split-parts#Linked list components")
+def _(ns):
+    f = ns["num_components"]
+    assert f(_ll([0, 1, 2, 3]), [0, 1, 3]) == 2 and f(_ll([0, 1, 2, 3, 4]), [0, 3, 1, 4]) == 2
+    r = random.Random(819)
+    for _ in range(150):
+        a = r.sample(range(10), r.randint(0, 8))
+        sub = r.sample(range(10), r.randint(0, 6))
+        want, run = 0, False
+        for v in a:
+            if v in sub:
+                want += not run
+                run = True
+            else:
+                run = False
+        assert f(_ll(a), sub) == want
+
+
+@test(f"{LL}:half-reverse")
+def _(ns):
+    f = ns["is_palindrome"]
+    r = random.Random(820)
+    for _ in range(200):
+        a = _rl(r, 0, 2, n=r.randint(1, 8))
+        if r.random() < 0.5:
+            a = a + a[::-1][r.randint(0, 1):]
+        assert f(_ll(a)) is (a == a[::-1])
+
+
+@test(f"{LL}:half-reverse#Maximum twin sum")
+def _(ns):
+    f = ns["pair_sum"]
+    assert f(_ll([5, 4, 2, 1])) == 6 and f(_ll([4, 2, 2, 3])) == 7
+    r = random.Random(821)
+    for _ in range(150):
+        a = _rl(r, 1, 9, n=2 * r.randint(1, 5))
+        assert f(_ll(a)) == max(a[i] + a[-1 - i] for i in range(len(a) // 2))
+
+
+@test(f"{LL}:reservoir")
+def _(ns):
+    import random as _random
+    cls = ns["Solution"]
+    _random.seed(5)
+    for n in (1, 2, 5):
+        s = cls(_ll(list(range(n))))
+        counts = [0] * n
+        for _ in range(4000):
+            counts[s.getRandom()] += 1
+        assert all(abs(c - 4000 / n) < 4000 / n * 0.15 for c in counts), counts
+
+
+@test(f"{LL}:splice-between")
+def _(ns):
+    f = ns["merge_in_between"]
+    r = random.Random(822)
+    for _ in range(150):
+        a = _rl(r, 0, 9, n=r.randint(3, 9))
+        lo = r.randint(1, len(a) - 2)
+        hi = r.randint(lo, len(a) - 2)
+        b = _rl(r, 10, 19, n=r.randint(1, 4))
+        assert _ll_vals(f(_ll(a), lo, hi, _ll(b))) == a[:lo] + b + a[hi + 1:]
+
+
+@test(f"{LL}:splice-between#Merge nodes between zeros")
+def _(ns):
+    f = ns["merge_nodes"]
+    assert _ll_vals(f(_ll([0, 3, 1, 0, 4, 5, 2, 0]))) == [4, 11]
+    r = random.Random(823)
+    for _ in range(150):
+        groups = [[r.randint(1, 5) for _ in range(r.randint(1, 4))] for _ in range(r.randint(1, 4))]
+        a = [0]
+        for g in groups:
+            a += g + [0]
+        assert _ll_vals(f(_ll(a))) == [sum(g) for g in groups]
+
+
+@test(f"{LL}:splice-between#Swap the k-th from each end")
+def _(ns):
+    f = ns["swap_nodes"]
+    r = random.Random(824)
+    for _ in range(150):
+        a = _rl(r, 0, 9, n=r.randint(1, 9))
+        k = r.randint(1, len(a))
+        want = a[:]
+        want[k - 1], want[-k] = want[-k], want[k - 1]
+        assert _ll_vals(f(_ll(a), k)) == want
+
+
+@test(f"{LL}:splice-between#Critical points")
+def _(ns):
+    f = ns["nodes_between_critical_points"]
+    assert f(_ll([3, 1])) == [-1, -1] and f(_ll([5, 3, 1, 2, 5, 1, 2])) == [1, 3] and f(_ll([1, 3, 2, 2, 3, 2, 2, 2, 7])) == [3, 3]
+    r = random.Random(825)
+    for _ in range(300):
+        a = _rl(r, 1, 5, n=r.randint(2, 10))
+        crit = [i for i in range(1, len(a) - 1) if (a[i] > a[i - 1] and a[i] > a[i + 1]) or (a[i] < a[i - 1] and a[i] < a[i + 1])]
+        want = [-1, -1] if len(crit) < 2 else [min(y - x for x, y in zip(crit, crit[1:])), crit[-1] - crit[0]]
+        assert f(_ll(a)) == want
+
+
+@test(f"{LL}:bucket-list")
+def _(ns):
+    cls = ns["AllOne"]
+    r = random.Random(826)
+    for _ in range(100):
+        t, cnt = cls(), {}
+        for _ in range(40):
+            k = r.choice("abcd")
+            if r.random() < 0.6 or not cnt.get(k):
+                t.inc(k)
+                cnt[k] = cnt.get(k, 0) + 1
+            else:
+                t.dec(k)
+                cnt[k] -= 1
+                if cnt[k] == 0:
+                    del cnt[k]
+            if cnt:
+                mx, mn = max(cnt.values()), min(cnt.values())
+                assert cnt[t.getMaxKey()] == mx and cnt[t.getMinKey()] == mn
+            else:
+                assert t.getMaxKey() == "" and t.getMinKey() == ""
+
+
+@test(f"{LL}:circular-loop")
+def _(ns):
+    f = ns["circular_array_loop"]
+    assert f([2, -1, 1, 2, 2]) is True and f([-1, -2, -3, -4, -5, 6]) is False and f([1, -1, 5, 1, 4]) is True
+    r = random.Random(827)
+    for _ in range(300):
+        a = [r.choice([-3, -2, -1, 1, 2, 3]) for _ in range(r.randint(1, 8))]
+        n = len(a)
+        want = False
+        for s in range(n):
+            seen, i = [], s
+            while i not in seen:
+                seen.append(i)
+                i = (i + a[i]) % n
+            cyc = seen[seen.index(i):]
+            if len(cyc) > 1 and (all(a[j] > 0 for j in cyc) or all(a[j] < 0 for j in cyc)):
+                want = True
+        assert f(a[:]) is want, a
+
+
+@test(f"{LL}:circular-loop#Happy number")
+def _(ns):
+    f = ns["is_happy"]
+    assert f(19) is True and f(2) is False
+    def ref(n):
+        seen = set()
+        while n != 1 and n not in seen:
+            seen.add(n)
+            n = sum(int(d) ** 2 for d in str(n))
+        return n == 1
+    for n in range(1, 200):
+        assert f(n) is ref(n)
+
+
+@test(f"{LL}:two-deque-queue")
+def _(ns):
+    cls = ns["FrontMiddleBackQueue"]
+    r = random.Random(828)
+    for _ in range(150):
+        q, ref = cls(), []
+        for i in range(30):
+            op = r.choice(["pf", "pm", "pb", "qf", "qm", "qb"])
+            n = len(ref)
+            if op == "pf":
+                q.pushFront(i)
+                ref.insert(0, i)
+            elif op == "pm":
+                q.pushMiddle(i)
+                ref.insert(n // 2, i)
+            elif op == "pb":
+                q.pushBack(i)
+                ref.append(i)
+            elif op == "qf":
+                assert q.popFront() == (ref.pop(0) if ref else -1)
+            elif op == "qm":
+                assert q.popMiddle() == (ref.pop((n - 1) // 2) if ref else -1)
+            else:
+                assert q.popBack() == (ref.pop() if ref else -1)

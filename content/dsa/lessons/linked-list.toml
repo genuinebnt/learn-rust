@@ -321,12 +321,853 @@ pitfalls = [
     "Merging in pairs (like merge sort) is the alternative, with the same O(n log k) cost.",
 ]
 
-[[listed]]
-name = "Whole list reversal (iterative with prev/cur/next) / recursive reversal"
+[[extra]]
+id = "Linked List:swap-groups"
+name = "Swap in pairs, reverse in groups"
 group = "Reversal"
+signals = [
+    "swap every two adjacent nodes by relinking, not by changing values",
+    "reverse every group of a given size (or only the groups of even length)",
+    "a dummy head and a pointer to the node before the group keep the code free of special cases",
+]
+template_name = "Swap nodes in pairs"
+template = '''
+def swap_pairs(head):
+    dummy = ListNode(0, head)
+    prev = dummy  # the node before the pair
+    while prev.next and prev.next.next:
+        a, b = prev.next, prev.next.next
+        a.next = b.next  # a now points past the pair
+        b.next = a  # b comes first
+        prev.next = b
+        prev = a  # the next pair starts after a
+    return dummy.next
+'''
+pitfalls = [
+    "Relink in an order that never loses a node: a.next first, then b.next, then prev.next.",
+    "Stop when fewer than two nodes remain after prev.",
+    "A dummy head makes swapping the first pair the same as any other.",
+]
+examples = ["swap-nodes-in-pairs", "reverse-nodes-in-even-length-groups", "reverse-nodes-in-k-group"]
+
+[[extra.variant]]
+name = "Reverse nodes in even-length groups"
+note = "Group sizes grow 1, 2, 3, ...; reverse a group only when its real length is even."
+template = '''
+def reverse_even_length_groups(head):
+    dummy = ListNode(0, head)
+    prev, size = dummy, 1
+    while prev.next:
+        # count the real length of this group (it may be cut short)
+        n, node = 0, prev.next
+        while node and n < size:
+            node, n = node.next, n + 1
+        if n % 2 == 0:
+            cur = prev.next  # reverse n nodes
+            for _ in range(n - 1):
+                nxt = cur.next
+                cur.next = nxt.next
+                nxt.next = prev.next
+                prev.next = nxt
+            prev = cur
+        else:
+            for _ in range(n):
+                prev = prev.next
+        size += 1
+    return dummy.next
+'''
+
+[[extra]]
+id = "Linked List:sort-list"
+name = "Sort a linked list: merge sort and insertion sort"
+group = "Merging and sorting"
+signals = [
+    "sort a list in O(n log n) without random access",
+    "split at the middle with fast and slow pointers, sort both halves, merge them",
+    "a list can be merged in place with no extra memory, unlike an array",
+]
+template_name = "Merge sort"
+template = '''
+def sort_list(head):
+    if not head or not head.next:
+        return head
+    slow, fast = head, head.next  # slow ends at the end of the first half
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+    second, slow.next = slow.next, None  # cut the list in two
+    a, b = sort_list(head), sort_list(second)
+    tail = dummy = ListNode()
+    while a and b:
+        if a.val <= b.val:  # <= keeps the sort stable
+            tail.next, a = a, a.next
+        else:
+            tail.next, b = b, b.next
+        tail = tail.next
+    tail.next = a or b
+    return dummy.next
+'''
+pitfalls = [
+    "Start fast one step ahead so that slow stops at the end of the first half (and a two-node list splits as 1 + 1).",
+    "Cut the list (slow.next = None) before sorting the halves, or they would still be linked.",
+    "Recursion depth is log n: fine. A bottom-up version gets O(1) extra space.",
+]
+examples = ["sort-list", "insertion-sort-list"]
+
+[[extra.variant]]
+name = "Insertion sort"
+note = "Take nodes one at a time and insert each into the sorted part: O(n^2) but simple."
+template = '''
+def insertion_sort_list(head):
+    dummy = ListNode(0)  # the sorted list starts empty
+    while head:
+        nxt = head.next
+        prev = dummy
+        while prev.next and prev.next.val < head.val:
+            prev = prev.next  # find the place
+        head.next = prev.next
+        prev.next = head
+        head = nxt
+    return dummy.next
+'''
+
+[[extra]]
+id = "Linked List:partition"
+name = "Partition and regroup with two dummy lists"
+group = "Partition and reorder"
+signals = [
+    "reorder nodes by a rule while keeping the original order inside each part: less than x first, odd positions first",
+    "build each part on its own dummy head, then join the parts",
+    "rotating by k is a cut and a join at a computed position",
+]
+template_name = "Partition list"
+template = '''
+def partition(head, x):
+    small = s = ListNode()
+    large = l = ListNode()
+    while head:
+        if head.val < x:
+            s.next, s = head, head
+        else:
+            l.next, l = head, head
+        head = head.next
+    l.next = None  # the last large node must not point back into the list
+    s.next = large.next  # join the two parts
+    return small.next
+'''
+pitfalls = [
+    "Set the tail of the second list to None: it may still point to a node that moved to the first list.",
+    "Stability: each part keeps the order the nodes had in the input.",
+    "Join with the head of the second dummy (large.next), not the dummy itself.",
+]
+examples = ["partition-list", "odd-even-linked-list", "rotate-list"]
+
+[[extra.variant]]
+name = "Odd even linked list"
+note = "Odd-position nodes first, even-position nodes after, in place and in O(1) memory."
+template = '''
+def odd_even_list(head):
+    if not head:
+        return head
+    odd, even = head, head.next
+    even_head = even  # where the even nodes start
+    while even and even.next:
+        odd.next = even.next
+        odd = odd.next
+        even.next = odd.next
+        even = even.next
+    odd.next = even_head
+    return head
+'''
+
+[[extra.variant]]
+name = "Rotate list"
+note = "Make the list circular, then cut it at the new tail, n - k % n steps from the head."
+template = '''
+def rotate_right(head, k):
+    if not head or not head.next:
+        return head
+    n, tail = 1, head
+    while tail.next:
+        tail, n = tail.next, n + 1
+    k %= n
+    if k == 0:
+        return head
+    tail.next = head  # circular
+    new_tail = head
+    for _ in range(n - k - 1):
+        new_tail = new_tail.next
+    new_head, new_tail.next = new_tail.next, None  # cut
+    return new_head
+'''
+
+[[extra]]
+id = "Linked List:remove-runs"
+name = "Remove duplicates with a dummy head"
+group = "Dummy head and in-place surgery"
+signals = [
+    "delete every value that appears more than once, or keep one copy of each",
+    "a sorted list puts equal values next to each other: compare with the next node",
+    "the head itself may be deleted, so start from a dummy node",
+]
+template_name = "Remove all duplicates (sorted)"
+template = '''
+def delete_duplicates(head):
+    dummy = ListNode(0, head)
+    prev = dummy  # the last node that is certainly kept
+    while head:
+        if head.next and head.val == head.next.val:
+            dup = head.val
+            while head and head.val == dup:
+                head = head.next  # skip the whole run
+            prev.next = head
+        else:
+            prev = head
+            head = head.next
+    return dummy.next
+'''
+pitfalls = [
+    "Skip the entire run of equal values, including its first node.",
+    "Advance prev only when a node is kept; after a deletion prev stays where it is.",
+    "For 'keep one copy' it is enough to compare with the next node and unlink it.",
+]
+examples = ["remove-duplicates-from-sorted-list-ii", "remove-duplicates-from-sorted-list", "remove-duplicates-from-an-unsorted-linked-list", "remove-zero-sum-consecutive-nodes-from-linked-list"]
+
+[[extra.variant]]
+name = "Unsorted: remove values that repeat"
+note = "Count values first, then delete every node whose count is above one."
+template = '''
+from collections import Counter
+
+
+def delete_duplicates_unsorted(head):
+    count = Counter()
+    node = head
+    while node:
+        count[node.val] += 1
+        node = node.next
+    dummy = ListNode(0, head)
+    prev = dummy
+    while prev.next:
+        if count[prev.next.val] > 1:
+            prev.next = prev.next.next  # unlink and stay
+        else:
+            prev = prev.next
+    return dummy.next
+'''
+
+[[extra.variant]]
+name = "Remove zero-sum runs (prefix sums)"
+note = "Two nodes with the same prefix sum bound a run that sums to zero: jump the earlier one over it."
+template = '''
+def remove_zero_sum_sublists(head):
+    dummy = ListNode(0, head)
+    last, prefix, node = {}, 0, dummy
+    while node:  # the last node with each prefix sum
+        prefix += node.val
+        last[prefix] = node
+        node = node.next
+    prefix, node = 0, dummy
+    while node:
+        prefix += node.val
+        node.next = last[prefix].next  # skip to the last equal prefix
+        node = node.next
+    return dummy.next
+'''
+
+[[extra]]
+id = "Linked List:delete-by-rule"
+name = "Delete nodes by a rule"
+group = "Dummy head and in-place surgery"
+signals = [
+    "remove nodes that are in a set, that have a greater value to their right, or that sit in the middle",
+    "a rule that depends on the right side: reverse, or keep a stack of survivors",
+    "given only the node to delete, copy the next node into it and unlink the next",
+]
+template_name = "Remove nodes with a greater value to the right"
+template = '''
+def remove_nodes(head):
+    stack = []  # the survivors, with values that never increase
+    while head:
+        while stack and stack[-1].val < head.val:
+            stack.pop()  # head is greater and to its right
+        stack.append(head)
+        head = head.next
+    for a, b in zip(stack, stack[1:]):
+        a.next = b  # relink the survivors
+    if stack:
+        stack[-1].next = None
+    return stack[0] if stack else None
+'''
+pitfalls = [
+    "Pop while the top is smaller than the new node: those have a greater node to their right.",
+    "Relink the survivors and cut the last one's next, or removed nodes stay reachable.",
+    "Another way: reverse the list, keep a running maximum, reverse again.",
+]
+examples = ["remove-nodes-from-linked-list", "delete-nodes-from-linked-list-present-in-array", "delete-the-middle-node-of-a-linked-list", "delete-node-in-a-linked-list"]
+
+[[extra.variant]]
+name = "Delete nodes present in an array"
+note = "Put the values in a set and unlink every node that is in it."
+template = '''
+def modified_list(nums, head):
+    gone = set(nums)
+    dummy = ListNode(0, head)
+    prev = dummy
+    while prev.next:
+        if prev.next.val in gone:
+            prev.next = prev.next.next  # unlink and stay
+        else:
+            prev = prev.next
+    return dummy.next
+'''
+
+[[extra.variant]]
+name = "Delete the middle node"
+note = "Fast and slow, with a trailing pointer to the node before the middle."
+template = '''
+def delete_middle(head):
+    if not head.next:
+        return None
+    slow, fast = ListNode(0, head), head  # slow stops before the middle
+    dummy = slow
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+    slow.next = slow.next.next
+    return dummy.next
+'''
+
+[[extra.variant]]
+name = "Delete a node given only that node"
+note = "Copy the next node's value into it, then unlink the next node."
+template = '''
+def delete_node(node):
+    node.val = node.next.val  # become the next node
+    node.next = node.next.next
+'''
+
+[[extra]]
+id = "Linked List:number-lists"
+name = "Numbers stored as lists"
+group = "Arithmetic on lists"
+signals = [
+    "add one to a number, double it, or add two numbers whose digits are stored most significant first",
+    "carries travel from the end: use stacks, a reversal, or find the last digit that is not 9",
+    "never convert to an int when the list can be longer than the language's integer",
+]
+template_name = "Add two numbers II"
+template = '''
+def add_two_numbers(l1, l2):
+    s1, s2 = [], []
+    while l1:
+        s1.append(l1.val)
+        l1 = l1.next
+    while l2:
+        s2.append(l2.val)
+        l2 = l2.next
+    head, carry = None, 0
+    while s1 or s2 or carry:
+        total = carry + (s1.pop() if s1 else 0) + (s2.pop() if s2 else 0)
+        carry, digit = divmod(total, 10)
+        head = ListNode(digit, head)  # least significant digit first
+    return head
+'''
+pitfalls = [
+    "Pop from the two stacks together: they hold the digits from the least significant end.",
+    "Continue while a carry is left, or 99 + 1 loses its leading 1.",
+    "Insert each new digit at the head: the list comes out in the right order without reversing.",
+]
+examples = ["add-two-numbers-ii", "plus-one-linked-list", "double-a-number-represented-as-a-linked-list", "convert-binary-number-in-a-linked-list-to-integer"]
+
+[[extra.variant]]
+name = "Plus one"
+note = "The carry stops at the last digit that is not 9: add one there and zero the 9s after it."
+template = '''
+def plus_one(head):
+    dummy = ListNode(0, head)
+    not_nine = dummy  # the last node whose digit is not 9
+    while head:
+        if head.val != 9:
+            not_nine = head
+        head = head.next
+    not_nine.val += 1
+    node = not_nine.next
+    while node:
+        node.val = 0  # the 9s roll over
+        node = node.next
+    return dummy if dummy.val else dummy.next
+'''
+
+[[extra.variant]]
+name = "Double a number"
+note = "Each digit doubles; it gets a carry from the digit after it, so look one node ahead."
+template = '''
+def double_it(head):
+    if head.val > 4:
+        head = ListNode(0, head)  # room for a leading carry
+    node = head
+    while node:
+        node.val = (node.val * 2) % 10
+        if node.next and node.next.val > 4:
+            node.val += 1  # the carry from the next digit
+        node = node.next
+    return head
+'''
+
+[[extra]]
+id = "Linked List:flatten-levels"
+name = "Flatten a multilevel list"
+group = "Flattening and linking structure"
+signals = [
+    "each node may also have a child list, which must be spliced in right after the node",
+    "a stack of the nodes whose next is waiting while a child list is walked",
+    "fix both next and prev pointers, and clear the child pointer",
+]
+template = '''
+def flatten(head):
+    node, stack = head, []
+    while node:
+        if node.child:
+            if node.next:
+                stack.append(node.next)  # come back to this later
+            node.next = node.child  # splice the child in
+            node.next.prev = node
+            node.child = None
+        elif not node.next and stack:
+            node.next = stack.pop()  # the child ended: back to the parent
+            node.next.prev = node
+        node = node.next
+    return head
+'''
+pitfalls = [
+    "Remember the old next on a stack before overwriting it.",
+    "Set prev as well as next, and set child to None.",
+    "The end of a child list continues with the most recent saved next.",
+]
+examples = ["flatten-a-multilevel-doubly-linked-list", "flatten-binary-tree-to-linked-list"]
+
+[[extra]]
+id = "Linked List:split-parts"
+name = "Split a list into parts"
+group = "Splitting"
+signals = [
+    "cut a list into k parts of nearly equal size, the first ones longer",
+    "length // k per part, and the first length % k parts get one extra node",
+    "cut each part by setting its tail's next to None",
+]
+template = '''
+def split_list_to_parts(head, k):
+    n, node = 0, head
+    while node:
+        n, node = n + 1, node.next
+    size, extra = divmod(n, k)
+    out, node = [], head
+    for i in range(k):
+        part = node
+        for _ in range(size + (i < extra) - 1):  # to the end of this part
+            node = node.next
+        if node:
+            node.next, node = None, node.next  # cut here and move on
+        out.append(part)
+    return out
+'''
+pitfalls = [
+    "A part can be empty when k > n: the loop must leave node as None and append None.",
+    "Cut after reading the next pointer: save it, set next to None, then move on.",
+    "The first (n % k) parts are one node longer.",
+]
+examples = ["split-linked-list-in-parts", "linked-list-components"]
+
+[[extra.variant]]
+name = "Linked list components"
+note = "Count maximal runs of nodes whose values are in a given set."
+template = '''
+def num_components(head, nums):
+    present, count, in_run = set(nums), 0, False
+    while head:
+        if head.val in present:
+            if not in_run:
+                count += 1  # a new component starts
+            in_run = True
+        else:
+            in_run = False
+        head = head.next
+    return count
+'''
+
+[[extra]]
+id = "Linked List:half-reverse"
+name = "Reverse the second half: palindromes and twin sums"
+group = "Intersection and comparison"
+signals = [
+    "compare the first half with the second half read backwards, in O(1) extra memory",
+    "find the middle, reverse the second half, then walk both halves together",
+    "the same pairs give a sum of each node with its mirror (twin sums)",
+]
+template_name = "Palindrome list"
+template = '''
+def is_palindrome(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+    prev = None
+    while slow:  # reverse the second half
+        slow.next, prev, slow = prev, slow, slow.next
+    a, b = head, prev
+    while b:
+        if a.val != b.val:
+            return False
+        a, b = a.next, b.next
+    return True
+'''
+pitfalls = [
+    "For an odd length slow ends on the middle node; the middle can be skipped or compared with itself, both are fine.",
+    "Walk until the second half ends: it is the shorter or equal one.",
+    "To leave the input intact, reverse the half back before returning.",
+]
+examples = ["palindrome-linked-list", "maximum-twin-sum-of-a-linked-list"]
+
+[[extra.variant]]
+name = "Maximum twin sum"
+note = "Node i pairs with node n - 1 - i: the first half against the reversed second half."
+template = '''
+def pair_sum(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+    prev = None
+    while slow:
+        slow.next, prev, slow = prev, slow, slow.next
+    best, a, b = 0, head, prev
+    while b:
+        best = max(best, a.val + b.val)
+        a, b = a.next, b.next
+    return best
+'''
+
+[[extra]]
+id = "Linked List:reservoir"
+name = "Reservoir sampling: a random node"
+group = "Random node"
+signals = [
+    "pick a random node of a list whose length you do not know, in one pass",
+    "keep one candidate: the i-th node replaces it with probability 1 / i",
+    "every node ends up chosen with the same probability 1 / n",
+]
+template = '''
+import random
+
+
+class Solution:
+    def __init__(self, head):
+        self.head = head
+
+    def getRandom(self):
+        choice, node, i = None, self.head, 0
+        while node:
+            i += 1
+            if random.randrange(i) == 0:  # a 1 / i chance
+                choice = node.val
+            node = node.next
+        return choice
+'''
+pitfalls = [
+    "The first node is always taken (randrange(1) is 0); later nodes replace it with a smaller and smaller chance.",
+    "Do not store the list in an array unless the length is known and small: reservoir sampling needs O(1) memory.",
+    "For a sample of size k, fill k slots first, then replace a random slot with probability k / i.",
+]
+examples = ["linked-list-random-node"]
+
+[[extra]]
+id = "Linked List:splice-between"
+name = "Splice between boundary nodes"
+group = "Dummy head and in-place surgery"
+signals = [
+    "replace the nodes between positions a and b with another list",
+    "walk to the node before a and to the node after b, then connect the new list between them",
+    "sums between sentinel values, or the gap between local extremes, are single passes with a previous pointer",
+]
+template_name = "Merge in between linked lists"
+template = '''
+def merge_in_between(list1, a, b, list2):
+    before = list1
+    for _ in range(a - 1):
+        before = before.next  # the node just before position a
+    after = before
+    for _ in range(b - a + 2):
+        after = after.next  # the node just after position b
+    before.next = list2
+    tail = list2
+    while tail.next:
+        tail = tail.next
+    tail.next = after
+    return list1
+'''
+pitfalls = [
+    "Find the node before a and the node after b first; then there is nothing to lose.",
+    "Attach the end of list2 to the node after b.",
+    "Positions are zero-based: count the steps carefully.",
+]
+examples = ["merge-in-between-linked-lists", "merge-nodes-in-between-zeros", "swapping-nodes-in-a-linked-list", "find-the-minimum-and-maximum-number-of-nodes-between-critical-points", "insert-into-a-sorted-circular-linked-list"]
+
+[[extra.variant]]
+name = "Merge nodes between zeros"
+note = "Sum the values between two zeros into one node."
+template = '''
+def merge_nodes(head):
+    dummy = tail = ListNode()
+    total = 0
+    node = head.next
+    while node:
+        if node.val == 0:
+            tail.next = ListNode(total)  # the group is complete
+            tail = tail.next
+            total = 0
+        else:
+            total += node.val
+        node = node.next
+    return dummy.next
+'''
+
+[[extra.variant]]
+name = "Swap the k-th from each end"
+note = "Find the k-th from the start; a second pointer, k nodes behind the end, is the k-th from the end."
+template = '''
+def swap_nodes(head, k):
+    first = head
+    for _ in range(k - 1):
+        first = first.next
+    second, fast = head, first
+    while fast.next:
+        second, fast = second.next, fast.next
+    first.val, second.val = second.val, first.val
+    return head
+'''
+
+[[extra.variant]]
+name = "Critical points"
+note = "A local maximum or minimum compares a node with its neighbours; keep the first and last positions."
+template = '''
+def nodes_between_critical_points(head):
+    prev, cur, i = head, head.next, 1
+    first = last = None
+    smallest = float("inf")
+    while cur.next:
+        nxt = cur.next
+        if (cur.val > prev.val and cur.val > nxt.val) or (
+                cur.val < prev.val and cur.val < nxt.val):
+            if first is None:
+                first = i
+            else:
+                smallest = min(smallest, i - last)
+            last = i
+        prev, cur, i = cur, nxt, i + 1
+    if first is None or first == last:
+        return [-1, -1]
+    return [smallest, last - first]
+'''
+
+[[extra]]
+id = "Linked List:bucket-list"
+name = "A doubly linked list of count buckets"
+group = "Design with linked lists"
+signals = [
+    "increment, decrement, get-max-key and get-min-key must all be O(1)",
+    "buckets ordered by count in a doubly linked list; each bucket holds the keys with that count",
+    "a key moves to the neighbouring bucket on increment or decrement, creating or removing buckets",
+]
+template = '''
+class Bucket:
+    def __init__(self, count):
+        self.count, self.keys = count, set()
+        self.prev = self.next = None
+
+
+class AllOne:
+    def __init__(self):
+        self.head, self.tail = Bucket(0), Bucket(0)  # sentinels
+        self.head.next, self.tail.prev = self.tail, self.head
+        self.where = {}  # key -> its bucket
+
+    def _insert_after(self, node, count):
+        b = Bucket(count)
+        b.prev, b.next = node, node.next
+        node.next.prev = b
+        node.next = b
+        return b
+
+    def _drop_if_empty(self, b):
+        if not b.keys:
+            b.prev.next, b.next.prev = b.next, b.prev
+
+    def inc(self, key):
+        cur = self.where.get(key)
+        count = cur.count if cur else 0
+        after = cur if cur else self.head
+        nxt = after.next
+        if nxt is self.tail or nxt.count != count + 1:
+            nxt = self._insert_after(after, count + 1)
+        nxt.keys.add(key)
+        self.where[key] = nxt
+        if cur:
+            cur.keys.discard(key)
+            self._drop_if_empty(cur)
+
+    def dec(self, key):
+        cur = self.where[key]
+        if cur.count == 1:
+            del self.where[key]
+        else:
+            before = cur.prev
+            if before is self.head or before.count != cur.count - 1:
+                before = self._insert_after(before, cur.count - 1)
+            before.keys.add(key)
+            self.where[key] = before
+        cur.keys.discard(key)
+        self._drop_if_empty(cur)
+
+    def getMaxKey(self):
+        b = self.tail.prev  # the bucket with the largest count
+        return next(iter(b.keys)) if b is not self.head else ""
+
+    def getMinKey(self):
+        b = self.head.next  # the bucket with the smallest count
+        return next(iter(b.keys)) if b is not self.tail else ""
+'''
+pitfalls = [
+    "Sentinel head and tail buckets remove every null check.",
+    "A bucket is created only when the neighbour does not already have the wanted count, and removed when it becomes empty.",
+    "A hash map from key to bucket makes finding a key O(1).",
+]
+examples = ["all-oone-data-structure", "design-authentication-manager", "lfu-cache"]
+
+[[extra]]
+id = "Linked List:circular-loop"
+name = "Cycles in arrays: values as next pointers"
+group = "Cycles in functional graphs"
+signals = [
+    "an array where each value says where to go next: a cycle exists, how long, where does it start?",
+    "the array is a functional graph: every node has one outgoing edge, so slow and fast pointers apply",
+    "a happy number or the duplicate in n + 1 values is the same cycle problem",
+]
+template_name = "Circular array loop"
+template = '''
+def circular_array_loop(nums):
+    n = len(nums)
+
+    def nxt(i):
+        return (i + nums[i]) % n
+
+    for start in range(n):
+        slow, fast = start, start
+        direction = nums[start] > 0
+        while True:  # slow and fast must stay in one direction
+            slow = nxt(slow)
+            if (nums[slow] > 0) != direction:
+                break
+            fast = nxt(fast)
+            if (nums[fast] > 0) != direction:
+                break
+            fast = nxt(fast)
+            if (nums[fast] > 0) != direction:
+                break
+            if slow == fast:
+                if nxt(slow) != slow:  # a loop of length 1 does not count
+                    return True
+                break
+    return False
+'''
+pitfalls = [
+    "All numbers on the loop must have the same sign: stop as soon as a step changes direction.",
+    "A self-loop (an index that points to itself) is not a valid cycle.",
+    "Mark visited indexes (set them to 0) to keep the whole scan linear.",
+]
+examples = ["circular-array-loop", "find-the-duplicate-number", "happy-number"]
+
+[[extra.variant]]
+name = "Happy number"
+note = "The digit-square sum is the next pointer: it reaches 1 or falls into a cycle."
+template = '''
+def is_happy(n):
+    def step(x):
+        return sum(int(d) ** 2 for d in str(x))
+
+    slow, fast = n, step(n)
+    while fast != 1 and slow != fast:
+        slow = step(slow)
+        fast = step(step(fast))
+    return fast == 1
+'''
+
+[[extra]]
+id = "Linked List:two-deque-queue"
+name = "A queue with a middle: two deques"
+group = "Design with linked lists"
+signals = [
+    "push and pop at the front, the middle and the back of a queue in O(1)",
+    "keep two halves in two deques so that the middle is always at their boundary",
+    "rebalance after each operation: the front half is never more than one bigger than the back half",
+]
+template = '''
+from collections import deque
+
+
+class FrontMiddleBackQueue:
+    def __init__(self):
+        # invariant: len(front) <= len(back) <= len(front) + 1
+        self.front, self.back = deque(), deque()
+
+    def _balance(self):
+        if len(self.front) > len(self.back):
+            self.back.appendleft(self.front.pop())
+        elif len(self.back) > len(self.front) + 1:
+            self.front.append(self.back.popleft())
+
+    def pushFront(self, v):
+        self.front.appendleft(v)
+        self._balance()
+
+    def pushMiddle(self, v):
+        if len(self.front) < len(self.back):
+            self.front.append(v)  # the end of the front half
+        else:
+            self.back.appendleft(v)
+        self._balance()
+
+    def pushBack(self, v):
+        self.back.append(v)
+        self._balance()
+
+    def _pop(self, d, left):
+        v = d.popleft() if left else d.pop()
+        self._balance()
+        return v
+
+    def popFront(self):
+        if not self.front and not self.back:
+            return -1
+        return self._pop(self.front if self.front else self.back, True)
+
+    def popMiddle(self):
+        if not self.front and not self.back:
+            return -1
+        if len(self.front) == len(self.back):
+            return self._pop(self.front, False)
+        return self._pop(self.back, True)
+
+    def popBack(self):
+        if not self.front and not self.back:
+            return -1
+        return self._pop(self.back if self.back else self.front, False)
+'''
+pitfalls = [
+    "Fix the invariant after every operation: len(front) <= len(back) <= len(front) + 1.",
+    "With an even number of items the middle is the last item of the front half, otherwise the first of the back half.",
+    "Return -1 on pop from an empty queue.",
+]
+examples = ["design-front-middle-back-queue", "design-circular-deque", "design-circular-queue"]
 
 [[listed]]
-name = "Swap adjacent pairs"
+name = "Whole list reversal (iterative with prev/cur/next) / recursive reversal"
 group = "Reversal"
 
 [[listed]]
@@ -348,25 +1189,12 @@ group = "Fast and slow pointers"
 note = "Related lesson: Reversing pointers in place"
 
 [[listed]]
-name = "Delete the middle node"
-group = "Fast and slow pointers"
-note = "Related lesson: Editing and splicing nodes in place"
-problems = [
-    { slug = "delete-the-middle-node-of-a-linked-list", title = "Delete the Middle Node of a Linked List", number = 2095, difficulty = "medium", premium = false },
-]
-
-[[listed]]
 name = "K-th node from the end"
 group = "Fast and slow pointers"
 note = "Related lesson: Reversing pointers in place"
 
 [[listed]]
 name = "Split at the middle"
-group = "Fast and slow pointers"
-note = "Related lesson: Fast and slow pointers"
-
-[[listed]]
-name = "Palindrome check"
 group = "Fast and slow pointers"
 note = "Related lesson: Fast and slow pointers"
 
@@ -378,11 +1206,6 @@ note = "Related lesson: Fast and slow pointers"
 [[listed]]
 name = "The gap pointer as a variant of the two-speed idea"
 group = "Fast and slow pointers"
-
-[[listed]]
-name = "Merge sort on a list"
-group = "Merging and sorting"
-note = "Related lesson: K-way merge with a heap"
 
 [[listed]]
 name = "Stable merge"
@@ -404,20 +1227,6 @@ group = "Merging and sorting"
 note = "e.g. three-value lists by counting"
 
 [[listed]]
-name = "Partition around a pivot value (two dummy lists, stitch) / stable partition"
-group = "Partition and reorder"
-
-[[listed]]
-name = "Odd-even position regrouping"
-group = "Partition and reorder"
-note = "Related lesson: Designing list-backed structures"
-
-[[listed]]
-name = "Rotate by k"
-group = "Partition and reorder"
-note = "e.g. find length, make circular, cut"
-
-[[listed]]
 name = "Move all nodes with a value to the end"
 group = "Partition and reorder"
 note = "Related lesson: Editing and splicing nodes in place"
@@ -428,11 +1237,6 @@ group = "Partition and reorder"
 note = "Related lesson: Two pointers a fixed gap apart"
 
 [[listed]]
-name = "Swap the k-th from the start and the k-th from the end"
-group = "Partition and reorder"
-note = "Related lesson: Fast and slow pointers"
-
-[[listed]]
 name = "Reverse alternate segments"
 group = "Partition and reorder"
 
@@ -440,26 +1244,6 @@ group = "Partition and reorder"
 name = "Remove all nodes with a value"
 group = "Dummy head and in-place surgery"
 note = "Related lesson: Editing and splicing nodes in place"
-
-[[listed]]
-name = "Delete nodes present in a set"
-group = "Dummy head and in-place surgery"
-note = "Related lesson: Editing and splicing nodes in place"
-
-[[listed]]
-name = "Delete a node given only that node"
-group = "Dummy head and in-place surgery"
-note = "Related lesson: Editing and splicing nodes in place"
-
-[[listed]]
-name = "Remove nodes with a greater node to the right"
-group = "Dummy head and in-place surgery"
-note = "Related lesson: Reversing pointers in place"
-
-[[listed]]
-name = "Remove zero-sum consecutive runs"
-group = "Dummy head and in-place surgery"
-note = "e.g. prefix-sum map"
 
 [[listed]]
 name = "Insert between nodes"
@@ -472,40 +1256,13 @@ group = "Dummy head and in-place surgery"
 note = "Related lesson: Editing and splicing nodes in place"
 
 [[listed]]
-name = "Replace a range of nodes with another list"
-group = "Dummy head and in-place surgery"
-note = "Related lesson: Reversing pointers in place"
-
-[[listed]]
-name = "Collapse runs between sentinel values"
-group = "Dummy head and in-place surgery"
-
-[[listed]]
 name = "Unlinking with a trailing pointer / a pointer-to-pointer"
 group = "Dummy head and in-place surgery"
-
-[[listed]]
-name = "Double a number"
-group = "Arithmetic on lists"
-note = "e.g. carry from the next node"
-
-[[listed]]
-name = "Multiply or subtract numbers stored as lists"
-group = "Arithmetic on lists"
-note = "e.g. same carry or borrow loop"
 
 [[listed]]
 name = "Compare two numbers stored as lists"
 group = "Arithmetic on lists"
 note = "Related lesson: K-way merge with a heap"
-
-[[listed]]
-name = "Convert a binary list to an integer"
-group = "Arithmetic on lists"
-note = "e.g. shift and add"
-problems = [
-    { slug = "convert-binary-number-in-a-linked-list-to-integer", title = "Convert Binary Number in a Linked List to Integer", number = 1290, difficulty = "easy", premium = false },
-]
 
 [[listed]]
 name = "Lists of different lengths"
@@ -520,24 +1277,6 @@ note = "Related lesson: Dummy head and merge"
 name = "Compare two lists for equality"
 group = "Intersection and comparison"
 note = "Related lesson: K-way merge with a heap"
-
-[[listed]]
-name = "Palindrome"
-group = "Intersection and comparison"
-note = "e.g. compare front with reversed back"
-
-[[listed]]
-name = "Twin sums"
-group = "Intersection and comparison"
-note = "e.g. pair node i with node n-1-i"
-
-[[listed]]
-name = "Check whether one list is a path in a tree or another structure"
-group = "Intersection and comparison"
-
-[[listed]]
-name = "Count components in a list given a subset of values"
-group = "Intersection and comparison"
 
 [[listed]]
 name = "Intersection of lists that may contain cycles"
@@ -576,14 +1315,6 @@ name = "Clone a graph as a generalization of the same map idea"
 group = "Copy with a random pointer"
 
 [[listed]]
-name = "Flatten a multilevel doubly linked list"
-group = "Flattening and linking structure"
-note = "Related lesson: Hash map plus doubly linked list"
-problems = [
-    { slug = "flatten-a-multilevel-doubly-linked-list", title = "Flatten a Multilevel Doubly Linked List", number = 430, difficulty = "medium", premium = false },
-]
-
-[[listed]]
 name = "Flatten a binary tree to a list"
 group = "Flattening and linking structure"
 note = "e.g. pre-order, Morris-style rewiring"
@@ -605,32 +1336,6 @@ note = "Related lesson: K-way merge with a heap"
 name = "Thread a structure through its own next pointers"
 group = "Flattening and linking structure"
 note = "Related lesson: Copy with an old-to-new map"
-
-[[listed]]
-name = "All-O(1) key counters"
-group = "Design with linked lists"
-note = "e.g. buckets in order"
-
-[[listed]]
-name = "Expiring tokens by recency"
-group = "Design with linked lists"
-
-[[listed]]
-name = "Browser history"
-group = "Design with linked lists"
-
-[[listed]]
-name = "Circular queue / deque with a list or an array"
-group = "Design with linked lists"
-note = "Related lesson: Designing list-backed structures"
-
-[[listed]]
-name = "Front-middle-back queue"
-group = "Design with linked lists"
-note = "e.g. two deques or a list"
-problems = [
-    { slug = "design-front-middle-back-queue", title = "Design Front Middle Back Queue", number = 1670, difficulty = "medium", premium = false },
-]
 
 [[listed]]
 name = "Text editor with a cursor"
@@ -691,11 +1396,6 @@ group = "List and structure conversion"
 note = "Related lesson: Designing list-backed structures"
 
 [[listed]]
-name = "Split into k parts of nearly equal size"
-group = "Splitting"
-note = "e.g. length, then size and remainder"
-
-[[listed]]
 name = "Split into odd and even position lists"
 group = "Splitting"
 
@@ -752,51 +1452,9 @@ group = "Cycles in functional graphs"
 note = "Related lesson: Hash map plus doubly linked list"
 
 [[listed]]
-name = "Array values as next pointers"
-group = "Cycles in functional graphs"
-note = "Related lesson: Fast and slow pointers"
-
-[[listed]]
-name = "Circular array loop detection"
-group = "Cycles in functional graphs"
-problems = [
-    { slug = "circular-array-loop", title = "Circular Array Loop", number = 457, difficulty = "medium", premium = false },
-]
-
-[[listed]]
 name = "Brent's algorithm. Cross-reference: [DSA_GRAPH_PATTERNS.md](DSA_GRAPH_PATTERNS.md) group 2"
 group = "Cycles in functional graphs"
 note = "e.g. functional graph cycle detection, Floyd's tortoise and hare"
-
-[[listed]]
-name = "Reservoir sampling of size 1 over a list of unknown length"
-group = "Random node"
-note = "e.g. keep the i-th node with probability 1/i"
-problems = [
-    { slug = "linked-list-random-node", title = "Linked List Random Node", number = 382, difficulty = "medium", premium = false },
-    { slug = "random-pick-index", title = "Random Pick Index", number = 398, difficulty = "medium", premium = false },
-]
-
-[[listed]]
-name = "Reservoir sampling of size k"
-group = "Random node"
-problems = [
-    { slug = "linked-list-random-node", title = "Linked List Random Node", number = 382, difficulty = "medium", premium = false },
-    { slug = "random-pick-index", title = "Random Pick Index", number = 398, difficulty = "medium", premium = false },
-]
-
-[[listed]]
-name = "Random pick when the length is known"
-group = "Random node"
-note = "e.g. count first, then walk"
-
-[[listed]]
-name = "Random pick with weights"
-group = "Random node"
-
-[[listed]]
-name = "Random pick from a stream"
-group = "Random node"
 
 [[listed]]
 name = "Reverse the second half in place instead of using a stack"

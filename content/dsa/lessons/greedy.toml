@@ -1,8 +1,27 @@
 pattern = "Greedy"
 intro = "A greedy solution makes the locally best choice at each step and never looks back. It is only correct when that choice can't hurt later, so the real work is the argument for why. For each idea below, the one-line reason is in the pitfalls. If you can't state it, try a small counter-example before trusting the greedy."
+groups = ["Sorting-based greedy", "Interval scheduling and covering", "Jump game family", "Gas station", "Two-pointer greedy", "Heap-assisted greedy", "Exchange arguments", "Stack-based greedy", "Number construction", "Partition labels", "Candy two-pass", "Stock problems", "Activity selection", "Huffman", "Greedy on graphs", "Counting greedy", "Bit greedy", "When greedy fails", "Running-state scans", "Window flips and grouping", "Greedy simulation", "Core implementation patterns"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Sorting-based greedy" = ["sorting"]
+"Two-pointer greedy" = ["two-pointers"]
+"Heap-assisted greedy" = ["heap-priority-queue"]
+"Stack-based greedy" = ["monotonic-stack"]
+"Huffman" = ["heap-priority-queue"]
+"Greedy on graphs" = ["graph"]
+"Counting greedy" = ["counting"]
+"Bit greedy" = ["bit-manipulation"]
 
 [[technique]]
 id = "Greedy:scan-balance"
+group = "Running-state scans"
 signals = [
     "one pass over the data keeping a running total, a balance or a count",
     "every rise (or deposit) is worth collecting on its own",
@@ -24,6 +43,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:sort-pick"
+group = "Sorting-based greedy"
 signals = [
     "choose as many items as possible under a budget, or the best few of a list",
     "the order of the items does not matter, only their values",
@@ -47,6 +67,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:swap-greedy"
+group = "Number construction"
 signals = [
     "rearrange digits or characters to make the largest or smallest result",
     "one or two swaps are allowed, or any rearrangement",
@@ -67,6 +88,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:count-greedy"
+group = "Sorting-based greedy"
 signals = [
     "the answer depends on how many of each thing there is, not on where they are",
     "check whether strings can be made equal, rearranged, or matched",
@@ -89,6 +111,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:flip-window"
+group = "Bit greedy"
 signals = [
     "flip a block of k consecutive items, and the goal is the fewest flips",
     "scanning left to right, the leftmost wrong item can only be fixed by a flip that starts there",
@@ -141,6 +164,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:reach"
+group = "Jump game family"
 signals = [
     "can you get to the end when each position says how far you may jump?",
     "the minimum number of jumps",
@@ -163,6 +187,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:surplus"
+group = "Running-state scans"
 signals = [
     "a circular route where each stop adds some and costs some",
     "find the starting point from which you can complete the loop",
@@ -187,6 +212,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:group-smallest"
+group = "Sorting-based greedy"
 signals = [
     "split items into groups of a given size, each a run of consecutive values",
     "the smallest remaining value has to start a group",
@@ -217,6 +243,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:simulate-greedy"
+group = "Greedy simulation"
 signals = [
     "players or items act in turn, each removing or blocking an opponent",
     "the best move is always against the opponent who acts soonest",
@@ -270,6 +297,7 @@ pitfalls = [
 
 [[technique]]
 id = "Greedy:last-seen"
+group = "Two-pointer greedy"
 signals = [
     "split a string into as many parts as possible so that each letter appears in only one part",
     "each part must reach at least as far as its letters' last occurrences",
@@ -315,3 +343,915 @@ pitfalls = [
     "Clamp lo at 0. A negative count is never a real state, because you can choose differently.",
     "Fail as soon as hi < 0. At the end the count 0 must be inside the range, which means lo == 0.",
 ]
+
+[[group_problem]]
+group = "Interval scheduling and covering"
+slug = "video-stitching"
+title = "Video Stitching"
+number = 1024
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Interval scheduling and covering"
+slug = "minimum-number-of-taps-to-open-to-water-a-garden"
+title = "Minimum Number of Taps to Open to Water a Garden"
+number = 1326
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Jump game family"
+slug = "jump-game-iii"
+title = "Jump Game III"
+number = 1306
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Jump game family"
+slug = "jump-game-iv"
+title = "Jump Game IV"
+number = 1345
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Jump game family"
+slug = "jump-game-v"
+title = "Jump Game V"
+number = 1340
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Jump game family"
+slug = "jump-game-vi"
+title = "Jump Game VI"
+number = 1696
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Gas station"
+slug = "minimum-number-of-refueling-stops"
+title = "Minimum Number of Refueling Stops"
+number = 871
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Exchange arguments"
+slug = "reorder-data-in-log-files"
+title = "Reorder Data in Log Files"
+number = 937
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Exchange arguments"
+slug = "queue-reconstruction-by-height"
+title = "Queue Reconstruction by Height"
+number = 406
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Exchange arguments"
+slug = "maximum-units-on-a-truck"
+title = "Maximum Units on a Truck"
+number = 1710
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Exchange arguments"
+slug = "reduce-array-size-to-the-half"
+title = "Reduce Array Size to The Half"
+number = 1338
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stack-based greedy"
+slug = "maximal-rectangle"
+title = "Maximal Rectangle"
+number = 85
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Stack-based greedy"
+slug = "remove-duplicate-letters"
+title = "Remove Duplicate Letters"
+number = 316
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stack-based greedy"
+slug = "create-maximum-number"
+title = "Create Maximum Number"
+number = 321
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Stack-based greedy"
+slug = "next-greater-element-ii"
+title = "Next Greater Element II"
+number = 503
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stack-based greedy"
+slug = "shortest-unsorted-continuous-subarray"
+title = "Shortest Unsorted Continuous Subarray"
+number = 581
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stack-based greedy"
+slug = "maximum-binary-tree"
+title = "Maximum Binary Tree"
+number = 654
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stack-based greedy"
+slug = "max-chunks-to-make-sorted-ii"
+title = "Max Chunks To Make Sorted II"
+number = 768
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Stack-based greedy"
+slug = "odd-even-jump"
+title = "Odd Even Jump"
+number = 975
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Number construction"
+slug = "monotone-increasing-digits"
+title = "Monotone Increasing Digits"
+number = 738
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Number construction"
+slug = "smallest-string-with-a-given-numeric-value"
+title = "Smallest String With A Given Numeric Value"
+number = 1663
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Number construction"
+slug = "largest-multiple-of-three"
+title = "Largest Multiple of Three"
+number = 1363
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Number construction"
+slug = "maximum-69-number"
+title = "Maximum 69 Number"
+number = 1323
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Partition labels"
+slug = "split-a-string-in-balanced-strings"
+title = "Split a String in Balanced Strings"
+number = 1221
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Partition labels"
+slug = "maximum-number-of-non-overlapping-substrings"
+title = "Maximum Number of Non-Overlapping Substrings"
+number = 1520
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Partition labels"
+slug = "divide-array-in-sets-of-k-consecutive-numbers"
+title = "Divide Array in Sets of K Consecutive Numbers"
+number = 1296
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Partition labels"
+slug = "split-array-into-consecutive-subsequences"
+title = "Split Array into Consecutive Subsequences"
+number = 659
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stock problems"
+slug = "best-time-to-buy-and-sell-stock-iii"
+title = "Best Time to Buy and Sell Stock III"
+number = 123
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Stock problems"
+slug = "best-time-to-buy-and-sell-stock-iv"
+title = "Best Time to Buy and Sell Stock IV"
+number = 188
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Stock problems"
+slug = "best-time-to-buy-and-sell-stock-with-transaction-fee"
+title = "Best Time to Buy and Sell Stock with Transaction Fee"
+number = 714
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Activity selection"
+slug = "maximum-number-of-events-that-can-be-attended"
+title = "Maximum Number of Events That Can Be Attended"
+number = 1353
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Activity selection"
+slug = "course-schedule-iii"
+title = "Course Schedule III"
+number = 630
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Running-state scans"
+slug = "longest-mountain-in-array"
+title = "Longest Mountain in Array"
+number = 845
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Running-state scans"
+slug = "increasing-triplet-subsequence"
+title = "Increasing Triplet Subsequence"
+number = 334
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Window flips and grouping"
+slug = "minimum-adjacent-swaps-for-k-consecutive-ones"
+title = "Minimum Adjacent Swaps for K Consecutive Ones"
+number = 1703
+difficulty = "hard"
+premium = false
+
+[[listed]]
+name = "Sort ascending and take while the budget lasts"
+group = "Sorting-based greedy"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Sort and take the k best"
+group = "Sorting-based greedy"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Sort by one key, then sweep"
+group = "Sorting-based greedy"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Sort both sides and match rank to rank"
+group = "Sorting-based greedy"
+
+[[listed]]
+name = "Sort and pair smallest with largest"
+group = "Sorting-based greedy"
+note = "Related lesson: Greedy swaps and digit rearrangement"
+
+[[listed]]
+name = "Custom comparator order"
+group = "Sorting-based greedy"
+note = "e.g. concatenation order"
+
+[[listed]]
+name = "Fractional knapsack by value ratio"
+group = "Sorting-based greedy"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Sort the gains and take the k largest differences"
+group = "Sorting-based greedy"
+
+[[listed]]
+name = "Counting sort when the values are small"
+group = "Sorting-based greedy"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Merge overlapping intervals"
+group = "Interval scheduling and covering"
+
+[[listed]]
+name = "Insert into a sorted interval list"
+group = "Interval scheduling and covering"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Intersect two interval lists / find free time"
+group = "Interval scheduling and covering"
+
+[[listed]]
+name = "Fewest removals so the rest do not overlap"
+group = "Interval scheduling and covering"
+note = "e.g. earliest end first"
+
+[[listed]]
+name = "Fewest points that stab every interval"
+group = "Interval scheduling and covering"
+
+[[listed]]
+name = "Fewest intervals or taps to cover a range"
+group = "Interval scheduling and covering"
+
+[[listed]]
+name = "Minimum rooms or groups"
+group = "Interval scheduling and covering"
+note = "e.g. sweep / min-heap of ends"
+
+[[listed]]
+name = "Attend the most events"
+group = "Interval scheduling and covering"
+note = "e.g. earliest deadline first"
+
+[[listed]]
+name = "Furthest reachable position"
+group = "Jump game family"
+note = "Related lesson: Furthest reachable"
+
+[[listed]]
+name = "Minimum jumps by BFS layers"
+group = "Jump game family"
+note = "Related lesson: Furthest reachable"
+
+[[listed]]
+name = "Jump with a window of allowed distances"
+group = "Jump game family"
+note = "e.g. prefix counts / deque"
+
+[[listed]]
+name = "Jump as graph search"
+group = "Jump game family"
+note = "e.g. BFS on indices"
+
+[[listed]]
+name = "Jump with costs"
+group = "Jump game family"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Reach a target by exact steps"
+group = "Jump game family"
+note = "Related lesson: Filter by constraints"
+
+[[listed]]
+name = "Circular route with a total and a running surplus"
+group = "Gas station"
+note = "Related lesson: Running surplus and reset"
+
+[[listed]]
+name = "Split point where the prefix sum equals a target part"
+group = "Gas station"
+
+[[listed]]
+name = "Refuel from a heap of passed stations"
+group = "Gas station"
+
+[[listed]]
+name = "Spend the scarcest resource only when stuck"
+group = "Gas station"
+note = "e.g. bricks and ladders"
+
+[[listed]]
+name = "Smallest starting energy so the running total never drops below zero"
+group = "Gas station"
+
+[[listed]]
+name = "Pair the lightest with the heaviest"
+group = "Two-pointer greedy"
+
+[[listed]]
+name = "Match each item with the smallest sufficient partner"
+group = "Two-pointer greedy"
+
+[[listed]]
+name = "Spend low, gain high"
+group = "Two-pointer greedy"
+note = "e.g. two ends of a sorted list"
+
+[[listed]]
+name = "Move the shorter side inward"
+group = "Two-pointer greedy"
+
+[[listed]]
+name = "One skip allowed, then check the rest"
+group = "Two-pointer greedy"
+
+[[listed]]
+name = "Greedy subsequence matching"
+group = "Two-pointer greedy"
+note = "e.g. advance only on a match"
+
+[[listed]]
+name = "Pairs summing to a target, taken from both ends"
+group = "Two-pointer greedy"
+
+[[listed]]
+name = "Take the best available, which unlocks more"
+group = "Heap-assisted greedy"
+note = "e.g. project selection"
+
+[[listed]]
+name = "Heap of the k best by a sorted key"
+group = "Heap-assisted greedy"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Regret: undo the worst earlier choice"
+group = "Heap-assisted greedy"
+
+[[listed]]
+name = "Most frequent first with a cooldown or spacing"
+group = "Heap-assisted greedy"
+
+[[listed]]
+name = "Largest marginal gain each step"
+group = "Heap-assisted greedy"
+
+[[listed]]
+name = "Merge the two smallest"
+group = "Heap-assisted greedy"
+note = "Related lesson: Greedy swaps and digit rearrangement"
+
+[[listed]]
+name = "Earliest deadline first"
+group = "Heap-assisted greedy"
+
+[[listed]]
+name = "Largest letter first with a repeat limit"
+group = "Heap-assisted greedy"
+
+[[listed]]
+name = "Adjacent-swap ordering with a comparator"
+group = "Exchange arguments"
+
+[[listed]]
+name = "Deadline ordering, replacing the largest taken job"
+group = "Exchange arguments"
+
+[[listed]]
+name = "Order by cost difference"
+group = "Exchange arguments"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Stay-ahead proof"
+group = "Exchange arguments"
+note = "e.g. the greedy is never behind an optimal solution"
+
+[[listed]]
+name = "Exchange on an assignment or matching"
+group = "Exchange arguments"
+
+[[listed]]
+name = "Minimise maximum lateness / weighted completion time"
+group = "Exchange arguments"
+note = "e.g. sort by ratio"
+
+[[listed]]
+name = "Monotone stack for the smallest number after k removals"
+group = "Stack-based greedy"
+
+[[listed]]
+name = "Smallest subsequence with every distinct letter once"
+group = "Stack-based greedy"
+
+[[listed]]
+name = "Lexicographically smallest output from a stack and counts"
+group = "Stack-based greedy"
+
+[[listed]]
+name = "Bracket repair by counting opens"
+group = "Stack-based greedy"
+note = "e.g. stack / counter"
+
+[[listed]]
+name = "Remove pairs in order of highest score"
+group = "Stack-based greedy"
+
+[[listed]]
+name = "Chunks through a monotone stack of maxima"
+group = "Stack-based greedy"
+
+[[listed]]
+name = "Visible elements"
+group = "Stack-based greedy"
+note = "e.g. ocean view"
+
+[[listed]]
+name = "Rebuild a sequence from a pattern with a stack"
+group = "Stack-based greedy"
+
+[[listed]]
+name = "Swap once for the largest value"
+group = "Number construction"
+note = "Related lesson: Greedy swaps and digit rearrangement"
+
+[[listed]]
+name = "Largest odd or best-looking result from the same digits"
+group = "Number construction"
+note = "Related lesson: Greedy swaps and digit rearrangement"
+
+[[listed]]
+name = "Smallest or largest number from an I / D pattern"
+group = "Number construction"
+note = "Related lesson: Greedy swaps and digit rearrangement"
+
+[[listed]]
+name = "Merge two digit lists into the largest number"
+group = "Number construction"
+note = "Related lesson: Greedy swaps and digit rearrangement"
+
+[[listed]]
+name = "Change one character to break a palindrome"
+group = "Number construction"
+
+[[listed]]
+name = "Fewest additions to reach a digit-sum target"
+group = "Number construction"
+
+[[listed]]
+name = "Smallest number from a product"
+group = "Number construction"
+note = "Related lesson: Greedy swaps and digit rearrangement"
+
+[[listed]]
+name = "Sort digits by parity and place them back"
+group = "Number construction"
+
+[[listed]]
+name = "Smallest array or string with swaps inside components"
+group = "Number construction"
+note = "Related lesson: Range of open counts"
+
+[[listed]]
+name = "Partition by last occurrence"
+group = "Partition labels"
+note = "Related lesson: Greedy with last occurrence"
+
+[[listed]]
+name = "Chunks where the prefix maximum equals the index"
+group = "Partition labels"
+
+[[listed]]
+name = "Start a new group when a seen set resets"
+group = "Partition labels"
+note = "Related lesson: Group the smallest first"
+
+[[listed]]
+name = "Partition into equal-sum parts"
+group = "Partition labels"
+note = "Related lesson: Greedy with last occurrence"
+problems = [
+    { slug = "partition-array-into-three-parts-with-equal-sum", title = "Partition Array Into Three Parts With Equal Sum", number = 1013, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "Partition by a digit requirement"
+group = "Partition labels"
+note = "e.g. deci-binary: the largest digit"
+
+[[listed]]
+name = "Fewest groups under a size or count constraint"
+group = "Partition labels"
+note = "Related lesson: Group the smallest first"
+
+[[listed]]
+name = "Left pass, then right pass on ratings"
+group = "Candy two-pass"
+note = "Related lesson: Greedy flips with a difference array"
+
+[[listed]]
+name = "Prefix maximum and suffix maximum"
+group = "Candy two-pass"
+note = "e.g. two passes"
+
+[[listed]]
+name = "Lengths of increasing and decreasing runs"
+group = "Candy two-pass"
+
+[[listed]]
+name = "Remove the shortest middle so prefix and suffix are sorted"
+group = "Candy two-pass"
+
+[[listed]]
+name = "One transaction: running minimum"
+group = "Stock problems"
+
+[[listed]]
+name = "Unlimited transactions: sum of the rises"
+group = "Stock problems"
+note = "Related lesson: One pass with a running balance"
+
+[[listed]]
+name = "Unlimited transactions with a fee"
+group = "Stock problems"
+note = "Related lesson: One pass with a running balance"
+
+[[listed]]
+name = "With a cooldown"
+group = "Stock problems"
+note = "Related lesson: One pass with a running balance"
+
+[[listed]]
+name = "At most two or k transactions"
+group = "Stock problems"
+note = "e.g. prefix / suffix split or DP"
+
+[[listed]]
+name = "Stock with one change of strategy"
+group = "Stock problems"
+
+[[listed]]
+name = "Best pair with a distance penalty"
+group = "Stock problems"
+note = "e.g. running best of a[i] + i"
+
+[[listed]]
+name = "Most non-overlapping activities by earliest finish"
+group = "Activity selection"
+
+[[listed]]
+name = "Most events attended on distinct days"
+group = "Activity selection"
+
+[[listed]]
+name = "Fewest resources for all activities"
+group = "Activity selection"
+
+[[listed]]
+name = "Weighted activity selection"
+group = "Activity selection"
+note = "e.g. DP, not greedy"
+
+[[listed]]
+name = "Two activities, earliest combined finish"
+group = "Activity selection"
+
+[[listed]]
+name = "Choose k non-overlapping jobs for the largest total"
+group = "Activity selection"
+
+[[listed]]
+name = "Merge the two smallest repeatedly"
+group = "Huffman"
+note = "e.g. connect sticks / optimal merge"
+
+[[listed]]
+name = "Merge many sorted files at least total cost"
+group = "Huffman"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Greedy on node degrees and weights"
+group = "Greedy on graphs"
+
+[[listed]]
+name = "Leaf-first removal in trees"
+group = "Greedy on graphs"
+
+[[listed]]
+name = "Greedy graph colouring by degree order"
+group = "Greedy on graphs"
+
+[[listed]]
+name = "Palindromes from letter counts"
+group = "Counting greedy"
+
+[[listed]]
+name = "Make frequencies distinct or equal"
+group = "Counting greedy"
+
+[[listed]]
+name = "Split a count into groups of 2 and 3"
+group = "Counting greedy"
+note = "Related lesson: Group the smallest first"
+
+[[listed]]
+name = "Redistribute characters among strings"
+group = "Counting greedy"
+
+[[listed]]
+name = "Count the mismatches, then pair them up"
+group = "Counting greedy"
+
+[[listed]]
+name = "Bucket by frequency instead of sorting"
+group = "Counting greedy"
+
+[[listed]]
+name = "Count across lines"
+group = "Counting greedy"
+note = "e.g. laser beams"
+
+[[listed]]
+name = "Smallest missing value from residue counts"
+group = "Counting greedy"
+note = "Related lesson: Group the smallest first"
+
+[[listed]]
+name = "Build the answer from the highest bit down"
+group = "Bit greedy"
+
+[[listed]]
+name = "Maximum XOR by prefix / trie greedy"
+group = "Bit greedy"
+problems = [
+    { slug = "maximum-xor-of-two-numbers-in-an-array", title = "Maximum XOR of Two Numbers in an Array", number = 421, difficulty = "medium", premium = false },
+    { slug = "maximum-xor-with-an-element-from-array", title = "Maximum XOR With an Element From Array", number = 1707, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Fewest operations to reduce a number to zero"
+group = "Bit greedy"
+note = "Related lesson: Range of open counts"
+
+[[listed]]
+name = "Flip rows, then columns, by bit weight"
+group = "Bit greedy"
+
+[[listed]]
+name = "Per-bit decision"
+group = "Bit greedy"
+note = "e.g. flips to make a OR b equal c"
+
+[[listed]]
+name = "Place the bits for the largest odd binary number"
+group = "Bit greedy"
+note = "Related lesson: Greedy swaps and digit rearrangement"
+
+[[listed]]
+name = "0/1 knapsack and subset sum"
+group = "When greedy fails"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Weighted interval scheduling"
+group = "When greedy fails"
+
+[[listed]]
+name = "Stocks with a cooldown"
+group = "When greedy fails"
+note = "Related lesson: One pass with a running balance"
+
+[[listed]]
+name = "Wildcard matching"
+group = "When greedy fails"
+note = "Related lesson: Range of open counts"
+problems = [
+    { slug = "wildcard-matching", title = "Wildcard Matching", number = 44, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Kadane: best contiguous sum"
+group = "Running-state scans"
+note = "Related lesson: Kadane's algorithm"
+
+[[listed]]
+name = "Kadane variants"
+group = "Running-state scans"
+note = "Related lesson: Kadane's algorithm"
+
+[[listed]]
+name = "Running bracket balance"
+group = "Running-state scans"
+note = "Related lesson: One pass with a running balance"
+
+[[listed]]
+name = "Range of possible open counts"
+group = "Running-state scans"
+note = "Related lesson: Range of open counts"
+
+[[listed]]
+name = "Running cash balance with deposits and withdrawals"
+group = "Running-state scans"
+
+[[listed]]
+name = "Increments as the sum of positive differences"
+group = "Running-state scans"
+
+[[listed]]
+name = "Filter the candidates by constraints, then combine"
+group = "Running-state scans"
+note = "Related lesson: Filter by constraints"
+
+[[listed]]
+name = "Flip a window of k, left to right"
+group = "Window flips and grouping"
+note = "Related lesson: Greedy flips with a difference array"
+
+[[listed]]
+name = "Group the sorted values into runs of k"
+group = "Window flips and grouping"
+note = "Related lesson: Group the smallest first"
+
+[[listed]]
+name = "Pair each value with its double"
+group = "Window flips and grouping"
+
+[[listed]]
+name = "Buy in threes with the cheapest free"
+group = "Window flips and grouping"
+
+[[listed]]
+name = "Assign the largest tasks to the earliest-free processors"
+group = "Window flips and grouping"
+
+[[listed]]
+name = "Zero out an array with window subtractions"
+group = "Window flips and grouping"
+
+[[listed]]
+name = "Simulate a game with the best local move"
+group = "Greedy simulation"
+note = "Related lesson: Greedy simulation of a game"
+
+[[listed]]
+name = "Make two sums equal by replacing wildcards"
+group = "Greedy simulation"
+
+[[listed]]
+name = "Lexicographically best array from counts and a queue"
+group = "Greedy simulation"
+
+[[listed]]
+name = "Remove pieces under a neighbour rule"
+group = "Greedy simulation"
+
+[[listed]]
+name = "Order the events by arrival time"
+group = "Greedy simulation"
+
+[[listed]]
+name = "Sort by a key tuple"
+group = "Core implementation patterns"
+note = "Related lesson: Sort, then take greedily"
+
+[[listed]]
+name = "Heap with a (priority, payload) entry"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Running counters and sentinels"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Prefix and suffix arrays"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Difference array for range updates"
+group = "Core implementation patterns"
+note = "Related lesson: Greedy flips with a difference array"
+
+[[listed]]
+name = "Two-pass scan"
+group = "Core implementation patterns"
+note = "Related lesson: One pass with a running balance"
+
+[[listed]]
+name = "Brute-force checker to test a greedy on small inputs"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Proof sketch: exchange / stay-ahead / invariant"
+group = "Core implementation patterns"

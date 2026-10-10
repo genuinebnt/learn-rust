@@ -588,11 +588,22 @@ export interface PatternExtra {
   examples: DsaProblem[];
 }
 
+/** A LeetCode problem outside the lists, verified against LeetCode's own index. Not tracked in anneal: it links out. */
+export interface ExternalProblem {
+  slug: string;
+  title: string;
+  number: number;
+  difficulty: "easy" | "medium" | "hard";
+  premium: boolean;
+}
+
 /** A technique that belongs on the page's map and has no lesson yet. */
 export interface PatternListed {
   name: string;
   group: string;
   note: string;
+  /** LeetCode problems that practise it (outside the lists). */
+  problems?: ExternalProblem[];
 }
 
 export interface PatternTechnique {
@@ -617,6 +628,10 @@ export interface PatternLessons {
   techniques: PatternTechnique[];
   extras: PatternExtra[];
   listed: PatternListed[] | null;
+  /** LeetCode topic tag slugs per group: the page links to LeetCode's own list. */
+  group_tags: Record<string, string[]> | null;
+  /** More LeetCode problems per group, outside the lists (they carry one of the group's tags). */
+  group_problems: Record<string, ExternalProblem[]> | null;
 }
 
 export interface DsaTechnique {

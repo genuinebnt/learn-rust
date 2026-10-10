@@ -18,15 +18,33 @@ test("a grouped pattern page shows its groups, version tabs, example-only lesson
     await expect(dfs.locator(".d-bdg.ex").first()).toHaveText("EXAMPLE");
 
     // techniques that are known and not written are listed, not hidden
-    await expect(page.locator(".l-listed").first()).toContainText("LESSON NOT WRITTEN YET");
+    const listed = page.locator(".l-listed").filter({ hasText: "listed, no lesson yet" }).first();
+    await expect(listed).toBeVisible();
+    await listed.getByRole("button").first().click();
+    await expect(listed.locator(".l-lchip").first()).toBeVisible();
+    // a group links to LeetCode's own tag page and lists problems that are not in your lists
+    await expect(page.locator('.l-tags a[href^="https://leetcode.com/tag/"]').first()).toBeVisible();
+    await page.getByRole("button", { name: /more LeetCode problems for this section/ }).first().click();
+    await expect(page.locator('.l-prow[href^="https://leetcode.com/problems/"]').first()).toBeVisible();
     // the jump list links to a card
     await page.locator(".l-jumpg a", { hasText: "Bidirectional BFS" }).click();
     await expect(page.locator("#t-bidir-bfs")).toBeInViewport();
 });
 
-test("a pattern without groups keeps the flat page", async ({ page }) => {
+test("every topic's pattern page is grouped, with its sections, tag links and problems that link to LeetCode", async ({ page, request }) => {
+    const overview = await (await request.get("/api/dsa")).json();
+    expect(overview.patterns.length).toBe(18);
+    for (const p of overview.patterns as { code: string; name: string }[]) {
+        const d = await (await request.get(`/api/dsa/patterns/${p.code}`)).json();
+        expect(d.groups?.length, `${p.name} declares groups`).toBeGreaterThan(0);
+        // every technique that has a lesson sits in a group the page declares
+        for (const t of d.techniques as { lesson: { group?: string } | null }[]) {
+            if (t.lesson?.group) expect(d.groups, `${p.name}: ${t.lesson.group}`).toContain(t.lesson.group);
+        }
+    }
     await page.goto("/dsa/patterns/D1");
-    await expect(page.locator(".l-jumpg")).toHaveCount(0);
+    await expect(page.locator(".l-jumpg")).toBeVisible();
+    await expect(page.locator(".l-gsec").first()).toBeVisible();
     await expect(page.locator(".l-pat").first()).toBeVisible();
 });
 

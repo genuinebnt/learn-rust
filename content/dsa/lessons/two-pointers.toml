@@ -1,8 +1,26 @@
 pattern = "Two Pointers"
 intro = "Two indexes move through the data so one pass does the work of a nested loop. They either start at the two ends and move toward each other, or one reads ahead while the other writes behind. The skill is knowing which pointer to move, and why moving it can't skip the answer."
+groups = ["Opposite-end pointers", "Same-direction pointers (reader / writer, fast / slow)", "K-sum on sorted arrays", "Merge-like walks", "Linked-list pointers (cross-reference: the Linked List track)", "String pointers", "Partition pointers", "Pointer + binary search", "Rotation and reversal", "In-place dedupe and compaction", "Center expansion", "Pointers and greedy"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Opposite-end pointers" = ["two-pointers"]
+"Same-direction pointers (reader / writer, fast / slow)" = ["two-pointers"]
+"K-sum on sorted arrays" = ["sorting", "two-pointers"]
+"String pointers" = ["string", "two-pointers"]
+"Partition pointers" = ["two-pointers"]
+"Pointer + binary search" = ["binary-search"]
+"Pointers and greedy" = ["greedy", "two-pointers"]
 
 [[technique]]
 id = "Two Pointers:in-place"
+group = "String pointers"
 signals = [
     "remove or compact items inside the array, using no extra array",
     "keep the first occurrence, drop a value, or move zeros to the end",
@@ -26,6 +44,7 @@ pitfalls = [
 
 [[technique]]
 id = "Two Pointers:opposite"
+group = "String pointers"
 signals = [
     "a palindrome, or a pair that depends on both ends",
     "the array is sorted and you want a pair with some property",
@@ -53,6 +72,7 @@ pitfalls = [
 
 [[technique]]
 id = "Two Pointers:merge-sorted"
+group = "K-sum on sorted arrays"
 signals = [
     "combine two sorted arrays or strings into one",
     "the first array has spare space at its end, so fill it from the back",
@@ -79,6 +99,7 @@ pitfalls = [
 
 [[technique]]
 id = "Two Pointers:simulate"
+group = "Pointer + binary search"
 signals = [
     "build a new string or list by following two sequences together",
     "one pointer walks the input, another walks the list of edits",
@@ -103,6 +124,7 @@ pitfalls = [
 
 [[technique]]
 id = "Two Pointers:ksum"
+group = "Opposite-end pointers"
 signals = [
     "find all unique pairs, triples or quadruples that sum to a target",
     "sort, fix one item, and find the rest with two pointers",
@@ -137,6 +159,7 @@ pitfalls = [
 
 [[technique]]
 id = "Two Pointers:pair-count"
+group = "K-sum on sorted arrays"
 signals = [
     "count subsets or pairs whose smallest and largest satisfy a condition",
     "once sorted, only the minimum and maximum of a group matter",
@@ -167,6 +190,7 @@ pitfalls = [
 
 [[technique]]
 id = "Two Pointers:greedy-pair"
+group = "Pointers and greedy"
 signals = [
     "pair the heaviest with the lightest, or the biggest with the smallest",
     "each group holds at most two items under a limit",
@@ -191,6 +215,7 @@ pitfalls = [
 
 [[technique]]
 id = "Two Pointers:running-max"
+group = "Opposite-end pointers"
 signals = [
     "the amount each position can hold depends on the tallest item on each side",
     "two scans (left maxima, right maxima) would work, and you want one pass",
@@ -216,3 +241,100 @@ pitfalls = [
     "Update the running maximum before adding the water, so the water is never negative.",
     "The version with two arrays (left_max[i], right_max[i]) is easier to explain. Offer it first.",
 ]
+
+[[group_problem]]
+group = "Merge-like walks"
+slug = "intersection-of-two-arrays-ii"
+title = "Intersection of Two Arrays II"
+number = 350
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Merge-like walks"
+slug = "long-pressed-name"
+title = "Long Pressed Name"
+number = 925
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Rotation and reversal"
+slug = "reverse-words-in-a-string"
+title = "Reverse Words in a String"
+number = 151
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Rotation and reversal"
+slug = "reverse-vowels-of-a-string"
+title = "Reverse Vowels of a String"
+number = 345
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Rotation and reversal"
+slug = "reverse-string-ii"
+title = "Reverse String II"
+number = 541
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Rotation and reversal"
+slug = "rotate-string"
+title = "Rotate String"
+number = 796
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "In-place dedupe and compaction"
+slug = "remove-all-adjacent-duplicates-in-string"
+title = "Remove All Adjacent Duplicates In String"
+number = 1047
+difficulty = "easy"
+premium = false
+
+[[listed]]
+name = "Converging pair on a sorted array / palindrome check / palindrome with one deletion / move the shorter side / fill the output from both ends / trapping water with a left and right max / shrink matching ends / farthest pair / swap ends inward"
+group = "Opposite-end pointers"
+note = "e.g. in-place reverse"
+
+[[listed]]
+name = "Reader and writer / fast scans a run, slow marks its start / fast and slow on an array as a functional graph / two cursors on two sequences / backward fill / lagging pointer holding the last seen position / lead and lag as a window"
+group = "Same-direction pointers (reader / writer, fast / slow)"
+
+[[listed]]
+name = "2Sum on sorted / 3Sum with duplicate skipping / 3Sum closest / count pairs or triples under a bound / 4Sum and kSum recursion / fix the largest side (triangle count) / pair difference or complement test / fixed-offset triplets / 4Sum II"
+group = "K-sum on sorted arrays"
+
+[[listed]]
+name = "Merge two sorted sequences / interleave / intersection of sorted arrays / overlap scan over interval lists / merge by key / lockstep over string parts / sparse dot product / greedy match of two sorted lists / k-way merge / count while merging"
+group = "Merge-like walks"
+
+[[listed]]
+name = "Fast / slow midpoint / Floyd cycle detection and entry / gap pointer / two heads that swap lists (intersection) / split, reverse the half, compare / partition with two dummy heads / rotate by k / merge sorted lists"
+group = "Linked-list pointers (cross-reference: the Linked List track)"
+
+[[listed]]
+name = "Subsequence test / lockstep compare with skip rules / compare tokens or runs / relative order of movable pieces / reverse words / rebuild a target from a reusable source / wildcard matching with a star backtrack pointer / insert at planned positions / count swaps with a next-open-slot pointer / next lexicographic arrangement"
+group = "String pointers"
+
+[[listed]]
+name = "Count pairs under a bound / nearest element on the other side / binary search the answer with a two-pointer check / binary search the window edge, then expand / two pointers over two BST in-order streams / bounded search for a sum of squares"
+group = "Pointer + binary search"
+
+[[listed]]
+name = "Three-reversal rotation / matrix rotation by transpose and reversal / reverse a prefix or every 2k block / reverse the whole, then each word / next permutation / reverse a sublist in a linked list / several shifts as one rotation / cyclic replacement"
+group = "Rotation and reversal"
+
+[[listed]]
+name = "Sorted dedupe / keep at most k copies / remove a value / compress runs / sorted linked-list dedupe / unsorted input / shift and fill / remove adjacent duplicates with the writer as a stack top"
+group = "In-place dedupe and compaction"
+
+[[listed]]
+name = "Pair lightest with heaviest / sorted match / spend at one end, gain at the other / move the weaker side / earliest-finish scan / extend the block to its farthest reach / prefix and suffix pointers around the part that must change / merge into the lexicographically largest result"
+group = "Pointers and greedy"

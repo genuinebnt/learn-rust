@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { api, type PatternExtra, type PatternLessons, type PatternListed, type PatternTechnique, type TechniqueLesson } from "../api";
+import { api, type ExternalProblem, type PatternExtra, type PatternLessons, type PatternListed, type PatternTechnique, type TechniqueLesson } from "../api";
 import { Mark, PyCode } from "../components/dsaBits";
 import { PatternShell } from "../components/PatternShell";
 import { DIFF } from "../dsa";
@@ -95,9 +95,18 @@ function Grouped({ d, today }: { d: PatternLessons; today: string }) {
             <div className="l-grp">
               <h2>{g}</h2>
               <small>{n} written{x.listed.length > 0 ? ` · ${x.listed.length} listed` : ""}</small>
+              {(d.group_tags?.[g] ?? []).length > 0 && (
+                <span className="l-tags">
+                  on LeetCode:{" "}
+                  {(d.group_tags?.[g] ?? []).map((t) => (
+                    <a key={t} href={`https://leetcode.com/tag/${t}/`} target="_blank" rel="noreferrer">{tagName(t)} ↗</a>
+                  ))}
+                </span>
+              )}
             </div>
             {x.techniques.map((t) => <Technique key={t.id} t={t} today={today} code={d.code} />)}
             {x.extras.map((e) => <Extra key={e.id} e={e} today={today} />)}
+            {(d.group_problems?.[g]?.length ?? 0) > 0 && <MoreProblems problems={d.group_problems?.[g] ?? []} />}
             {x.listed.length > 0 && <Listed items={x.listed} />}
           </section>
         );
@@ -106,16 +115,79 @@ function Grouped({ d, today }: { d: PatternLessons; today: string }) {
   );
 }
 
-/** Techniques that are known and not written yet, as small labels (there can be many). */
-function Listed({ items }: { items: PatternListed[] }) {
+/** More LeetCode problems for a group: they carry one of the group's LeetCode topic tags and are not in your lists. They link out. */
+function MoreProblems({ problems }: { problems: ExternalProblem[] }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="l-listed">
-      <span className="l-lab">LISTED · LESSON NOT WRITTEN YET</span>
-      <div className="l-chips">
-        {items.map((l) => (
-          <span key={l.name} className="l-lchip" title={l.note || undefined}>{l.name}{l.note ? <sup>partly</sup> : null}</span>
-        ))}
-      </div>
+      <button className="l-ltoggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span aria-hidden="true">{open ? "▾" : "▸"}</span>
+        {problems.length} more LeetCode problems for this section
+        <small> · not in your lists, not tracked here</small>
+      </button>
+      {open && (
+        <div className="l-plist">
+          {problems.map((p) => (
+            <a key={p.slug} className="l-prow" href={`https://leetcode.com/problems/${p.slug}/`} target="_blank" rel="noreferrer">
+              <span className="l-pt">#{p.number} {p.title}</span>
+              {p.premium && <span className="d-bdg prem">PREM</span>}
+              <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>{DIFF[p.difficulty][0]}</span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const tagName = (slug: string) => slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+
+/** Techniques that are known and not written yet. Collapsed: a chip with problems opens them, with a link to LeetCode for each. */
+function Listed({ items }: { items: PatternListed[] }) {
+  const [open, setOpen] = useState(false);
+  const [sel, setSel] = useState<string | null>(null);
+  const withProblems = items.filter((l) => (l.problems?.length ?? 0) > 0).length;
+  const chosen = items.find((l) => l.name === sel);
+  return (
+    <div className="l-listed">
+      <button className="l-ltoggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span aria-hidden="true">{open ? "▾" : "▸"}</span>
+        {items.length} more technique{items.length === 1 ? "" : "s"} listed, no lesson yet
+        {withProblems > 0 && <small> · {withProblems} with LeetCode problems</small>}
+      </button>
+      {open && (
+        <>
+          <div className="l-chips">
+            {items.map((l) => (
+              <button key={l.name} title={l.name} className={`l-lchip${l.problems?.length ? " has" : ""}${sel === l.name ? " on" : ""}`} aria-pressed={sel === l.name} onClick={() => setSel(sel === l.name ? null : l.name)}>
+                {l.name}
+                {l.problems?.length ? <sup>{l.problems.length}</sup> : null}
+              </button>
+            ))}
+          </div>
+          {chosen && (
+            <div className="l-lpanel">
+              {chosen.note && <p>{chosen.note}</p>}
+              {(chosen.problems?.length ?? 0) > 0 ? (
+                <div className="l-plist">
+                  {chosen.problems!.map((p: ExternalProblem) => (
+                    <a key={p.slug} className="l-prow" href={`https://leetcode.com/problems/${p.slug}/`} target="_blank" rel="noreferrer">
+                      <span className="l-pt">#{p.number} {p.title}</span>
+                      {p.premium && <span className="d-bdg prem">PREM</span>}
+                      <span className="d-lv" style={{ color: DIFF[p.difficulty][1] }}>{DIFF[p.difficulty][0]}</span>
+                      <span aria-hidden="true">↗</span>
+                    </a>
+                  ))}
+                  <p className="l-lnote">On LeetCode, outside your lists: not tracked here.</p>
+                </div>
+              ) : (
+                <p className="l-lnote">No LeetCode problem is attached to this one yet.</p>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

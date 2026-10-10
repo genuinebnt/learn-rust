@@ -1,8 +1,29 @@
 pattern = "Binary Search"
 intro = "Binary search works whenever a yes/no question flips exactly once as you move along an ordered range: false, false, false, true, true. The array can be sorted values, a rotated array, or just the numbers 1 to n with a test function. Decide what the question is, then find where it flips."
+groups = ["Classic boundaries", "Rotated arrays", "Peaks and turning points", "2-D matrices", "Search on the answer (minimise the max / maximise the min)", "Real numbers", "Indices of other structures", "Kth element problems", "Counting-based search", "Unknown size / exponential search", "Oracle / interactive", "Binary lifting (cross-reference)", "Parametric search", "Binary search + two pointers", "Ternary search", "Bisect on tails (LIS)", "Weighted random pick", "Length, hashing and halves", "Inside data structures and offline", "Pitfalls"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Classic boundaries" = ["binary-search"]
+"Rotated arrays" = ["binary-search"]
+"Peaks and turning points" = ["binary-search"]
+"2-D matrices" = ["binary-search", "matrix"]
+"Kth element problems" = ["quickselect", "heap-priority-queue"]
+"Counting-based search" = ["binary-search"]
+"Unknown size / exponential search" = ["interactive"]
+"Oracle / interactive" = ["interactive"]
+"Binary search + two pointers" = ["binary-search"]
+"Weighted random pick" = ["randomized"]
 
 [[technique]]
 id = "Binary Search:classic"
+group = "Real numbers"
 signals = [
     "find a value in a sorted array",
     "return its index, or -1 when it isn't there",
@@ -29,6 +50,7 @@ pitfalls = [
 
 [[technique]]
 id = "Binary Search:insert-pos"
+group = "Classic boundaries"
 signals = [
     "where would this value go to keep the array sorted?",
     "the first element that is at least the target (or greater than it)",
@@ -66,6 +88,7 @@ pitfalls = [
 
 [[technique]]
 id = "Binary Search:by-count"
+group = "Binary search + two pointers"
 signals = [
     "the largest k such that some formula in k still fits (staircase rows, a square root)",
     "no array is given, only a number and a monotone test",
@@ -91,6 +114,7 @@ pitfalls = [
 
 [[technique]]
 id = "Binary Search:on-answer"
+group = "Search on the answer (minimise the max / maximise the min)"
 signals = [
     "the smallest value that makes something possible (a speed, a capacity, a time)",
     "you can check a guess quickly, and bigger guesses are never worse",
@@ -119,6 +143,7 @@ pitfalls = [
 
 [[technique]]
 id = "Binary Search:rotated"
+group = "Binary search + two pointers"
 signals = [
     "a sorted array that was rotated at some unknown point",
     "find the minimum, or search for a target",
@@ -162,6 +187,7 @@ pitfalls = [
 
 [[technique]]
 id = "Binary Search:weighted"
+group = "Binary search + two pointers"
 signals = [
     "pick a random index with probability proportional to a weight",
     "turn weights into cumulative sums, then find where a random number lands",
@@ -191,6 +217,7 @@ pitfalls = [
 
 [[technique]]
 id = "Binary Search:partition"
+group = "Binary search + two pointers"
 signals = [
     "the median or k-th item of two sorted arrays in O(log n)",
     "split both arrays so that the left parts together hold the lower half",
@@ -227,6 +254,7 @@ pitfalls = [
 
 [[technique]]
 id = "Binary Search:peak"
+group = "Binary search + two pointers"
 signals = [
     "a peak or a turning point in an array that goes up then down",
     "compare an element with its neighbour to know which side the peak is on",
@@ -249,3 +277,950 @@ pitfalls = [
     "hi = mid, not mid - 1: mid itself may be the peak.",
     "For a mountain array with a target, find the peak first, then binary search each side separately.",
 ]
+
+[[group_problem]]
+group = "Search on the answer (minimise the max / maximise the min)"
+slug = "minimum-number-of-days-to-make-m-bouquets"
+title = "Minimum Number of Days to Make m Bouquets"
+number = 1482
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Search on the answer (minimise the max / maximise the min)"
+slug = "magnetic-force-between-two-balls"
+title = "Magnetic Force Between Two Balls"
+number = 1552
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Search on the answer (minimise the max / maximise the min)"
+slug = "minimum-time-to-complete-trips"
+title = "Minimum Time to Complete Trips"
+number = 2187
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Search on the answer (minimise the max / maximise the min)"
+slug = "find-the-smallest-divisor-given-a-threshold"
+title = "Find the Smallest Divisor Given a Threshold"
+number = 1283
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Indices of other structures"
+slug = "snapshot-array"
+title = "Snapshot Array"
+number = 1146
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Indices of other structures"
+slug = "number-of-matching-subsequences"
+title = "Number of Matching Subsequences"
+number = 792
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Indices of other structures"
+slug = "online-election"
+title = "Online Election"
+number = 911
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Indices of other structures"
+slug = "find-right-interval"
+title = "Find Right Interval"
+number = 436
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Kth element problems"
+slug = "wiggle-sort-ii"
+title = "Wiggle Sort II"
+number = 324
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Kth element problems"
+slug = "find-kth-largest-xor-coordinate-value"
+title = "Find Kth Largest XOR Coordinate Value"
+number = 1738
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Kth element problems"
+slug = "query-kth-smallest-trimmed-number"
+title = "Query Kth Smallest Trimmed Number"
+number = 2343
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Kth element problems"
+slug = "count-elements-with-at-least-k-greater-values"
+title = "Count Elements With at Least K Greater Values"
+number = 3759
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Unknown size / exponential search"
+slug = "guess-the-word"
+title = "Guess the Word"
+number = 843
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Unknown size / exponential search"
+slug = "find-positive-integer-solution-for-a-given-equation"
+title = "Find Positive Integer Solution for a Given Equation"
+number = 1237
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Unknown size / exponential search"
+slug = "read-n-characters-given-read4"
+title = "Read N Characters Given Read4"
+number = 157
+difficulty = "easy"
+premium = true
+
+[[group_problem]]
+group = "Unknown size / exponential search"
+slug = "read-n-characters-given-read4-ii-call-multiple-times"
+title = "Read N Characters Given read4 II - Call Multiple Times"
+number = 158
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "Unknown size / exponential search"
+slug = "search-in-a-sorted-array-of-unknown-size"
+title = "Search in a Sorted Array of Unknown Size"
+number = 702
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Unknown size / exponential search"
+slug = "maximum-font-to-fit-a-sentence-in-a-screen"
+title = "Maximum Font to Fit a Sentence in a Screen"
+number = 1618
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Unknown size / exponential search"
+slug = "shortest-path-in-a-hidden-grid"
+title = "Shortest Path in a Hidden Grid"
+number = 1778
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Unknown size / exponential search"
+slug = "minimum-path-cost-in-a-hidden-grid"
+title = "Minimum Path Cost in a Hidden Grid"
+number = 1810
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Oracle / interactive"
+slug = "count-houses-in-a-circular-street"
+title = "Count Houses in a Circular Street"
+number = 2728
+difficulty = "easy"
+premium = true
+
+[[group_problem]]
+group = "Oracle / interactive"
+slug = "number-of-unique-categories"
+title = "Number of Unique Categories"
+number = 2782
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Oracle / interactive"
+slug = "number-of-equal-numbers-blocks"
+title = "Number of Equal Numbers Blocks"
+number = 2936
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Oracle / interactive"
+slug = "find-pattern-in-infinite-stream-i"
+title = "Find Pattern in Infinite Stream I"
+number = 3023
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Oracle / interactive"
+slug = "find-pattern-in-infinite-stream-ii"
+title = "Find Pattern in Infinite Stream II"
+number = 3037
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "Oracle / interactive"
+slug = "guess-the-number-using-bitwise-questions-i"
+title = "Guess the Number Using Bitwise Questions I"
+number = 3064
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Oracle / interactive"
+slug = "guess-the-number-using-bitwise-questions-ii"
+title = "Guess the Number Using Bitwise Questions II"
+number = 3094
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Binary lifting (cross-reference)"
+slug = "kth-ancestor-of-a-tree-node"
+title = "Kth Ancestor of a Tree Node"
+number = 1483
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Ternary search"
+slug = "peak-index-in-a-mountain-array"
+title = "Peak Index in a Mountain Array"
+number = 852
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Ternary search"
+slug = "minimum-cost-to-make-array-equal"
+title = "Minimum Cost to Make Array Equal"
+number = 2448
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bisect on tails (LIS)"
+slug = "longest-increasing-subsequence-ii"
+title = "Longest Increasing Subsequence II"
+number = 2407
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Weighted random pick"
+slug = "insert-delete-getrandom-o1-duplicates-allowed"
+title = "Insert Delete GetRandom O(1) - Duplicates allowed"
+number = 381
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Weighted random pick"
+slug = "shuffle-an-array"
+title = "Shuffle an Array"
+number = 384
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Weighted random pick"
+slug = "implement-rand10-using-rand7"
+title = "Implement Rand10() Using Rand7()"
+number = 470
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Weighted random pick"
+slug = "generate-random-point-in-a-circle"
+title = "Generate Random Point in a Circle"
+number = 478
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Weighted random pick"
+slug = "random-point-in-non-overlapping-rectangles"
+title = "Random Point in Non-overlapping Rectangles"
+number = 497
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Weighted random pick"
+slug = "random-flip-matrix"
+title = "Random Flip Matrix"
+number = 519
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Weighted random pick"
+slug = "random-pick-with-blacklist"
+title = "Random Pick with Blacklist"
+number = 710
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Weighted random pick"
+slug = "best-position-for-a-service-centre"
+title = "Best Position for a Service Centre"
+number = 1515
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Length, hashing and halves"
+slug = "longest-duplicate-substring"
+title = "Longest Duplicate Substring"
+number = 1044
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Length, hashing and halves"
+slug = "longest-common-subpath"
+title = "Longest Common Subpath"
+number = 1923
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Inside data structures and offline"
+slug = "count-of-smaller-numbers-after-self"
+title = "Count of Smaller Numbers After Self"
+number = 315
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Inside data structures and offline"
+slug = "range-sum-query-mutable"
+title = "Range Sum Query - Mutable"
+number = 307
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Inside data structures and offline"
+slug = "kth-smallest-number-in-multiplication-table"
+title = "Kth Smallest Number in Multiplication Table"
+number = 668
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Inside data structures and offline"
+slug = "maximum-xor-with-an-element-from-array"
+title = "Maximum XOR With an Element From Array"
+number = 1707
+difficulty = "hard"
+premium = false
+
+[[listed]]
+name = "Exact match"
+group = "Classic boundaries"
+note = "e.g. closed range, lo <= hi"
+
+[[listed]]
+name = "Lower bound / upper bound"
+group = "Classic boundaries"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "First / last occurrence of a value"
+group = "Classic boundaries"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Floor / ceiling"
+group = "Classic boundaries"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Count of a value or of a range"
+group = "Classic boundaries"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "First true in a monotone yes/no"
+group = "Classic boundaries"
+note = "Related lesson: Insertion point and boundaries"
+problems = [
+    { slug = "first-bad-version", title = "First Bad Version", number = 278, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "Predicate on index against value"
+group = "Classic boundaries"
+note = "Related lesson: Classic binary search"
+
+[[listed]]
+name = "H-index style"
+group = "Classic boundaries"
+note = "Related lesson: Classic binary search"
+problems = [
+    { slug = "h-index", title = "H-Index", number = 274, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Nearest value / closest element"
+group = "Classic boundaries"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Insert into a sorted list while keeping order"
+group = "Classic boundaries"
+note = "e.g. bisect.insort"
+
+[[listed]]
+name = "Membership in a sorted list instead of a hash set"
+group = "Classic boundaries"
+
+[[listed]]
+name = "Minimum / rotation point"
+group = "Rotated arrays"
+note = "Related lesson: Binary search on a rotated array"
+
+[[listed]]
+name = "Minimum with duplicates"
+group = "Rotated arrays"
+note = "Related lesson: Binary search on a rotated array"
+
+[[listed]]
+name = "Search a target"
+group = "Rotated arrays"
+note = "Related lesson: Classic binary search"
+
+[[listed]]
+name = "Search a target with duplicates"
+group = "Rotated arrays"
+note = "Related lesson: Binary search on a rotated array"
+
+[[listed]]
+name = "Rotation count"
+group = "Rotated arrays"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Search in a mountain array"
+group = "Peaks and turning points"
+note = "Related lesson: Binary search on a changing slope"
+
+[[listed]]
+name = "Valley / local minimum"
+group = "Peaks and turning points"
+
+[[listed]]
+name = "Rows chained into one sorted list"
+group = "2-D matrices"
+note = "Related lesson: Prefix sums with binary search"
+
+[[listed]]
+name = "Rows and columns both sorted"
+group = "2-D matrices"
+note = "e.g. staircase / per-row search"
+
+[[listed]]
+name = "Count negatives / first one per sorted row"
+group = "2-D matrices"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Kth smallest in a sorted matrix"
+group = "2-D matrices"
+note = "Related lesson: Classic binary search"
+problems = [
+    { slug = "kth-smallest-element-in-a-sorted-matrix", title = "Kth Smallest Element in a Sorted Matrix", number = 378, difficulty = "medium", premium = false },
+    { slug = "find-the-kth-smallest-sum-of-a-matrix-with-sorted-rows", title = "Find the Kth Smallest Sum of a Matrix With Sorted Rows", number = 1439, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Smallest common element across sorted rows"
+group = "2-D matrices"
+
+[[listed]]
+name = "Minimise the maximum"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Maximise the minimum"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Smallest speed / rate / capacity that finishes in time"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Smallest time that completes the work"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Largest k that still works"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "Related lesson: Binary search on a count function"
+
+[[listed]]
+name = "Split into k groups"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "Related lesson: Binary search on a partition"
+
+[[listed]]
+name = "Greedy feasibility check"
+group = "Search on the answer (minimise the max / maximise the min)"
+
+[[listed]]
+name = "DP feasibility check"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Graph search per guess"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Sliding window or deque per guess"
+group = "Search on the answer (minimise the max / maximise the min)"
+
+[[listed]]
+name = "Integer-math answer"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "e.g. square root, perfect square, special array"
+
+[[listed]]
+name = "First time or day a condition breaks"
+group = "Search on the answer (minimise the max / maximise the min)"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Real-valued answer with an epsilon / fixed iteration count"
+group = "Real numbers"
+
+[[listed]]
+name = "Geometric split"
+group = "Real numbers"
+note = "Related lesson: Binary search on a partition"
+
+[[listed]]
+name = "Square root by bisection / Newton"
+group = "Real numbers"
+note = "Related lesson: Binary search on a count function"
+
+[[listed]]
+name = "Ratio optimisation"
+group = "Real numbers"
+note = "e.g. Dinkelbach, minimum ratio"
+
+[[listed]]
+name = "Timestamp lookup in a per-key sorted list"
+group = "Indices of other structures"
+note = "Related lesson: Prefix sums with binary search"
+
+[[listed]]
+name = "Version / snapshot history"
+group = "Indices of other structures"
+
+[[listed]]
+name = "Prefix-sum array as the sorted index"
+group = "Indices of other structures"
+note = "Related lesson: Prefix sums with binary search"
+
+[[listed]]
+name = "Interval boundaries / calendar"
+group = "Indices of other structures"
+
+[[listed]]
+name = "Per-character position lists"
+group = "Indices of other structures"
+note = "e.g. next occurrence"
+
+[[listed]]
+name = "Sorted keys + offline queries"
+group = "Indices of other structures"
+
+[[listed]]
+name = "Sorted words / prefixes"
+group = "Indices of other structures"
+note = "e.g. autocomplete"
+
+[[listed]]
+name = "BST as an implicit sorted array"
+group = "Indices of other structures"
+note = "Related lesson: Classic binary search"
+
+[[listed]]
+name = "Monotonic stack as the sorted index"
+group = "Indices of other structures"
+note = "Related lesson: Classic binary search"
+
+[[listed]]
+name = "Kth of two sorted arrays / median"
+group = "Kth element problems"
+note = "Related lesson: Binary search on a partition"
+
+[[listed]]
+name = "Kth smallest in a sorted matrix"
+group = "Kth element problems"
+note = "Related lesson: Classic binary search"
+problems = [
+    { slug = "kth-smallest-element-in-a-sorted-matrix", title = "Kth Smallest Element in a Sorted Matrix", number = 378, difficulty = "medium", premium = false },
+    { slug = "find-the-kth-smallest-sum-of-a-matrix-with-sorted-rows", title = "Find the Kth Smallest Sum of a Matrix With Sorted Rows", number = 1439, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Kth smallest pair distance"
+group = "Kth element problems"
+
+[[listed]]
+name = "Kth smallest product / sum of two sorted arrays"
+group = "Kth element problems"
+note = "Related lesson: Binary search on a partition"
+
+[[listed]]
+name = "Kth smallest subarray sum / range sum"
+group = "Kth element problems"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Kth missing positive / missing element"
+group = "Kth element problems"
+
+[[listed]]
+name = "Kth smallest in a multiplication table / ugly numbers"
+group = "Kth element problems"
+
+[[listed]]
+name = "Kth smallest fraction"
+group = "Kth element problems"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Count of elements <= x decides the side"
+group = "Counting-based search"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Count of missing numbers before index i"
+group = "Counting-based search"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Count pairs under a bound"
+group = "Counting-based search"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Count triples"
+group = "Counting-based search"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Count by blocks"
+group = "Counting-based search"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Count nodes by descending a complete tree"
+group = "Counting-based search"
+problems = [
+    { slug = "count-complete-tree-nodes", title = "Count Complete Tree Nodes", number = 222, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Count inversion-like pairs while merging"
+group = "Counting-based search"
+
+[[listed]]
+name = "Count negatives / positives in sorted data"
+group = "Counting-based search"
+
+[[listed]]
+name = "Sorted array of unknown length"
+group = "Unknown size / exponential search"
+note = "Related lesson: Binary search on a rotated array"
+
+[[listed]]
+name = "Exponential search for the upper bound of the answer"
+group = "Unknown size / exponential search"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Galloping merge of two sorted lists"
+group = "Unknown size / exponential search"
+
+[[listed]]
+name = "Hidden matrix behind an API"
+group = "Oracle / interactive"
+note = "e.g. binary-search each row"
+
+[[listed]]
+name = "Comparison API"
+group = "Oracle / interactive"
+note = "e.g. weighing groups"
+
+[[listed]]
+name = "Mountain array with a call budget"
+group = "Oracle / interactive"
+note = "Related lesson: Binary search on a changing slope"
+
+[[listed]]
+name = "Region queries on a hidden grid"
+group = "Oracle / interactive"
+note = "e.g. split until empty"
+
+[[listed]]
+name = "Majority / candidate through queries"
+group = "Oracle / interactive"
+
+[[listed]]
+name = "Noisy or lying oracle"
+group = "Oracle / interactive"
+
+[[listed]]
+name = "K-th ancestor with jump pointers"
+group = "Binary lifting (cross-reference)"
+
+[[listed]]
+name = "Lowest common ancestor by lifting"
+group = "Binary lifting (cross-reference)"
+
+[[listed]]
+name = "Jump pointers over an array"
+group = "Binary lifting (cross-reference)"
+note = "e.g. doubling next-index tables"
+
+[[listed]]
+name = "First ancestor that satisfies a condition"
+group = "Binary lifting (cross-reference)"
+note = "e.g. lifting + monotone test"
+
+[[listed]]
+name = "Optimisation to decision"
+group = "Parametric search"
+note = "e.g. fix the answer, check feasibility"
+
+[[listed]]
+name = "Fractional programming"
+group = "Parametric search"
+note = "e.g. maximum average, minimum ratio"
+
+[[listed]]
+name = "Bottleneck / minimax path"
+group = "Parametric search"
+note = "e.g. search the weight, check connectivity"
+
+[[listed]]
+name = "Maximin path on a grid with BFS"
+group = "Parametric search"
+
+[[listed]]
+name = "Threshold + union-find connectivity"
+group = "Parametric search"
+
+[[listed]]
+name = "Threshold + DAG shortest-path DP"
+group = "Parametric search"
+
+[[listed]]
+name = "Sorted pair search"
+group = "Binary search + two pointers"
+note = "Related lesson: Classic binary search"
+
+[[listed]]
+name = "Bounded pairs and triples"
+group = "Binary search + two pointers"
+note = "e.g. sort, then bisect or squeeze"
+
+[[listed]]
+name = "Left fixed, bisect the right end"
+group = "Binary search + two pointers"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Window validity on prefix sums or sorted values"
+group = "Binary search + two pointers"
+
+[[listed]]
+name = "Match two sorted lists"
+group = "Binary search + two pointers"
+note = "e.g. nearest, intersection"
+
+[[listed]]
+name = "Pairs with a difference or a bound"
+group = "Binary search + two pointers"
+
+[[listed]]
+name = "Unimodal array"
+group = "Ternary search"
+note = "Related lesson: Classic binary search"
+
+[[listed]]
+name = "Unimodal real function"
+group = "Ternary search"
+note = "e.g. ternary on doubles, golden section"
+
+[[listed]]
+name = "Slope test instead of ternary"
+group = "Ternary search"
+note = "e.g. compare mid and mid + 1"
+
+[[listed]]
+name = "Convex integer cost"
+group = "Ternary search"
+
+[[listed]]
+name = "LIS length, strict"
+group = "Bisect on tails (LIS)"
+note = "e.g. bisect_left on tails"
+
+[[listed]]
+name = "Longest non-decreasing / obstacle course"
+group = "Bisect on tails (LIS)"
+note = "e.g. bisect_right"
+
+[[listed]]
+name = "Sort one dimension, LIS on the other"
+group = "Bisect on tails (LIS)"
+
+[[listed]]
+name = "LIS from both ends"
+group = "Bisect on tails (LIS)"
+note = "Related lesson: Binary search on a changing slope"
+
+[[listed]]
+name = "DP over sorted intervals, bisect on end times"
+group = "Bisect on tails (LIS)"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Number of LIS"
+group = "Bisect on tails (LIS)"
+note = "e.g. needs a Fenwick tree"
+
+[[listed]]
+name = "Prefix sums + bisect on a random integer"
+group = "Weighted random pick"
+note = "Related lesson: Prefix sums with binary search"
+
+[[listed]]
+name = "Weights from areas"
+group = "Weighted random pick"
+note = "Related lesson: Prefix sums with binary search"
+
+[[listed]]
+name = "Uniform pick with exclusions"
+group = "Weighted random pick"
+note = "e.g. blacklist remap"
+
+[[listed]]
+name = "Reservoir sampling versus a prefix search"
+group = "Weighted random pick"
+note = "Related lesson: Prefix sums with binary search"
+problems = [
+    { slug = "linked-list-random-node", title = "Linked List Random Node", number = 382, difficulty = "medium", premium = false },
+    { slug = "random-pick-index", title = "Random Pick Index", number = 398, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Weighted pick with updates"
+group = "Weighted random pick"
+note = "e.g. Fenwick descent"
+
+[[listed]]
+name = "Meet in the middle"
+group = "Length, hashing and halves"
+note = "e.g. sort one half, bisect for the other"
+
+[[listed]]
+name = "Fenwick / segment-tree descent"
+group = "Inside data structures and offline"
+
+[[listed]]
+name = "Ordered set lower bound"
+group = "Inside data structures and offline"
+note = "Related lesson: Insertion point and boundaries"
+
+[[listed]]
+name = "Persistent / versioned structures"
+group = "Inside data structures and offline"
+
+[[listed]]
+name = "Offline queries sorted with a moving pointer"
+group = "Inside data structures and offline"
+
+[[listed]]
+name = "Parallel binary search"
+group = "Inside data structures and offline"
+note = "Related lesson: Classic binary search"
+
+[[listed]]
+name = "Mid rounding: lo = mid stalls unless mid rounds up"
+group = "Pitfalls"
+
+[[listed]]
+name = "Closed versus half-open range"
+group = "Pitfalls"
+note = "Related lesson: Binary search on a count function"
+
+[[listed]]
+name = "Non-monotone check"
+group = "Pitfalls"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Duplicates break the sorted-half test"
+group = "Pitfalls"
+note = "Related lesson: Binary search on a rotated array"
+
+[[listed]]
+name = "Float precision and iteration counts"
+group = "Pitfalls"
+
+[[listed]]
+name = "Answer bounds too tight or too loose"
+group = "Pitfalls"
+note = "Related lesson: Binary search on the answer"
+
+[[listed]]
+name = "Which index to return"
+group = "Pitfalls"
+note = "Related lesson: Classic binary search"
+
+[[listed]]
+name = "Empty input and a single element"
+group = "Pitfalls"
+
+[[listed]]
+name = "Overflow of lo + hi and of the check itself"
+group = "Pitfalls"
+
+[[listed]]
+name = "Integer ceiling division"
+group = "Pitfalls"
+note = "Related lesson: Binary search on the answer"

@@ -1,8 +1,32 @@
 pattern = "Stack"
 intro = "A stack gives you the most recent unfinished thing. Use it when something is waiting for a later item to resolve it: an open bracket waits for its closer, a day waits for a warmer one, an operator waits for its operand. Say what each stack entry is waiting for, and when it can be removed."
+groups = ["Matching and nesting", "Monotonic stack", "Expression evaluation", "Stack and queue design", "Simulation with a stack", "Iterative DFS and tree traversal", "Sorting with stacks", "Monotonic queue (cross-reference: Sliding Window)", "Stack and greedy", "Stack and DP", "Parsing", "Recursion to iteration", "Queues next to stacks (round simulation and streams)", "Core implementation patterns"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Matching and nesting" = ["stack", "string"]
+"Monotonic stack" = ["monotonic-stack"]
+"Expression evaluation" = ["math", "stack"]
+"Stack and queue design" = ["design", "queue"]
+"Simulation with a stack" = ["simulation", "stack"]
+"Iterative DFS and tree traversal" = ["binary-tree", "stack"]
+"Sorting with stacks" = ["sorting", "stack"]
+"Monotonic queue (cross-reference: Sliding Window)" = ["monotonic-queue"]
+"Stack and greedy" = ["greedy", "stack"]
+"Stack and DP" = ["dynamic-programming", "stack"]
+"Parsing" = ["stack", "string"]
+"Recursion to iteration" = ["recursion", "stack"]
+"Queues next to stacks (round simulation and streams)" = ["data-stream", "queue"]
 
 [[technique]]
 id = "Stack:simulate-stack"
+group = "Simulation with a stack"
 signals = [
     "items arrive in order and each can cancel, collide with or undo the previous one",
     "undo, remove adjacent duplicates, asteroids colliding",
@@ -34,6 +58,7 @@ pitfalls = [
 
 [[technique]]
 id = "Stack:matching"
+group = "Matching and nesting"
 signals = [
     "brackets, tags or any open and close pairs",
     "each closer must match the most recent unmatched opener",
@@ -59,6 +84,7 @@ pitfalls = [
 
 [[technique]]
 id = "Stack:design-queue-stack"
+group = "Stack and queue design"
 signals = [
     "build a queue from stacks, or a stack from queues",
     "reverse the order once to get first-in first-out",
@@ -96,6 +122,7 @@ pitfalls = [
 
 [[technique]]
 id = "Stack:aux-stack"
+group = "Stack and queue design"
 signals = [
     "a stack that also answers 'what is the minimum (or maximum) right now?' in O(1)",
     "keep extra information next to each pushed item",
@@ -127,6 +154,7 @@ pitfalls = [
 
 [[technique]]
 id = "Stack:expression"
+group = "Simulation with a stack"
 signals = [
     "evaluate an expression in postfix (reverse Polish) form",
     "operands first, then the operator that applies to the last two",
@@ -158,6 +186,7 @@ pitfalls = [
 
 [[technique]]
 id = "Stack:mono-stack"
+group = "Monotonic stack"
 signals = [
     "for each item, the next greater (or smaller) item to its right or left",
     "how many days until a warmer day, or the nearest taller building",
@@ -182,6 +211,7 @@ pitfalls = [
 
 [[technique]]
 id = "Stack:nested"
+group = "Iterative DFS and tree traversal"
 signals = [
     "an encoded or nested structure like 3[a2[c]]",
     "each opening symbol starts a new level and each closing one ends it",
@@ -212,6 +242,7 @@ pitfalls = [
 
 [[technique]]
 id = "Stack:calculator"
+group = "Matching and nesting"
 signals = [
     "evaluate an expression with + - * / and operator precedence",
     "multiplication and division bind tighter than addition and subtraction",
@@ -244,6 +275,7 @@ pitfalls = [
 
 [[technique]]
 id = "Stack:mono-contrib"
+group = "Monotonic stack"
 signals = [
     "sum over all subarrays of their minimum (or maximum)",
     "count how many subarrays an item is the minimum of",
@@ -271,3 +303,750 @@ pitfalls = [
     "arr[i] is the minimum of left[i] * right[i] subarrays: choose a start on the left and an end on the right.",
     "Items still on the stack at the end have no smaller item to their right: use n - j.",
 ]
+
+[[group_problem]]
+group = "Monotonic stack"
+slug = "remove-duplicate-letters"
+title = "Remove Duplicate Letters"
+number = 316
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Monotonic stack"
+slug = "create-maximum-number"
+title = "Create Maximum Number"
+number = 321
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic stack"
+slug = "next-greater-element-ii"
+title = "Next Greater Element II"
+number = 503
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Monotonic stack"
+slug = "shortest-unsorted-continuous-subarray"
+title = "Shortest Unsorted Continuous Subarray"
+number = 581
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Monotonic stack"
+slug = "maximum-binary-tree"
+title = "Maximum Binary Tree"
+number = 654
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Monotonic stack"
+slug = "max-chunks-to-make-sorted-ii"
+title = "Max Chunks To Make Sorted II"
+number = 768
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic stack"
+slug = "odd-even-jump"
+title = "Odd Even Jump"
+number = 975
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic stack"
+slug = "construct-binary-search-tree-from-preorder-traversal"
+title = "Construct Binary Search Tree from Preorder Traversal"
+number = 1008
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Monotonic queue (cross-reference: Sliding Window)"
+slug = "max-value-of-equation"
+title = "Max Value of Equation"
+number = 1499
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic queue (cross-reference: Sliding Window)"
+slug = "delivering-boxes-from-storage-to-ports"
+title = "Delivering Boxes from Storage to Ports"
+number = 1687
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic queue (cross-reference: Sliding Window)"
+slug = "jump-game-vi"
+title = "Jump Game VI"
+number = 1696
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Monotonic queue (cross-reference: Sliding Window)"
+slug = "maximum-number-of-tasks-you-can-assign"
+title = "Maximum Number of Tasks You Can Assign"
+number = 2071
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic queue (cross-reference: Sliding Window)"
+slug = "maximum-number-of-robots-within-budget"
+title = "Maximum Number of Robots Within Budget"
+number = 2398
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic queue (cross-reference: Sliding Window)"
+slug = "longest-increasing-subsequence-ii"
+title = "Longest Increasing Subsequence II"
+number = 2407
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic queue (cross-reference: Sliding Window)"
+slug = "count-subarrays-with-fixed-bounds"
+title = "Count Subarrays With Fixed Bounds"
+number = 2444
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic queue (cross-reference: Sliding Window)"
+slug = "continuous-subarrays"
+title = "Continuous Subarrays"
+number = 2762
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Queues next to stacks (round simulation and streams)"
+slug = "number-of-recent-calls"
+title = "Number of Recent Calls"
+number = 933
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Queues next to stacks (round simulation and streams)"
+slug = "stream-of-characters"
+title = "Stream of Characters"
+number = 1032
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Queues next to stacks (round simulation and streams)"
+slug = "product-of-the-last-k-numbers"
+title = "Product of the Last K Numbers"
+number = 1352
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Queues next to stacks (round simulation and streams)"
+slug = "design-an-ordered-stream"
+title = "Design an Ordered Stream"
+number = 1656
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Queues next to stacks (round simulation and streams)"
+slug = "design-front-middle-back-queue"
+title = "Design Front Middle Back Queue"
+number = 1670
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Queues next to stacks (round simulation and streams)"
+slug = "finding-mk-average"
+title = "Finding MK Average"
+number = 1825
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Queues next to stacks (round simulation and streams)"
+slug = "stock-price-fluctuation"
+title = "Stock Price Fluctuation "
+number = 2034
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Queues next to stacks (round simulation and streams)"
+slug = "sequentially-ordinal-rank-tracker"
+title = "Sequentially Ordinal Rank Tracker"
+number = 2102
+difficulty = "hard"
+premium = false
+
+[[listed]]
+name = "Balanced brackets, one kind / several kinds"
+group = "Matching and nesting"
+
+[[listed]]
+name = "Minimum insertions to balance"
+group = "Matching and nesting"
+note = "e.g. counter or stack"
+problems = [
+    { slug = "minimum-insertions-to-balance-a-parentheses-string", title = "Minimum Insertions to Balance a Parentheses String", number = 1541, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Minimum removals to make valid"
+group = "Matching and nesting"
+note = "e.g. stack of indices to delete"
+
+[[listed]]
+name = "Wildcard parentheses"
+group = "Matching and nesting"
+note = "e.g. range of open counts / two index stacks"
+
+[[listed]]
+name = "Nesting depth and depth assignment"
+group = "Matching and nesting"
+
+[[listed]]
+name = "Score by depth"
+group = "Matching and nesting"
+note = "e.g. stack of partial scores"
+
+[[listed]]
+name = "Strip the outer layer"
+group = "Matching and nesting"
+
+[[listed]]
+name = "Reverse inside each pair of brackets"
+group = "Matching and nesting"
+note = "Related lesson: Nested structures with a stack"
+
+[[listed]]
+name = "Tag and markup validation"
+group = "Matching and nesting"
+
+[[listed]]
+name = "Per-key stack"
+group = "Matching and nesting"
+note = "Related lesson: Stack simulation (undo, collide, cancel)"
+
+[[listed]]
+name = "Enumerate or repair invalid strings"
+group = "Matching and nesting"
+note = "e.g. backtracking, BFS; cross-reference"
+
+[[listed]]
+name = "Circular array"
+group = "Monotonic stack"
+note = "e.g. scan 2n, index mod n"
+
+[[listed]]
+name = "Maximal rectangle / submatrices of ones"
+group = "Monotonic stack"
+note = "e.g. histogram per row"
+problems = [
+    { slug = "maximal-rectangle", title = "Maximal Rectangle", number = 85, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Line of sight"
+group = "Monotonic stack"
+note = "e.g. buildings with a view"
+
+[[listed]]
+name = "Two stacks"
+group = "Monotonic stack"
+note = "Related lesson: Queue and stack from each other"
+
+[[listed]]
+name = "Preorder validity with a lower-bound stack"
+group = "Monotonic stack"
+note = "e.g. BST from preorder"
+
+[[listed]]
+name = "Binary searchable elements"
+group = "Monotonic stack"
+note = "e.g. prefix maximum / suffix minimum"
+
+[[listed]]
+name = "Postfix"
+group = "Expression evaluation"
+note = "Related lesson: Evaluating expressions with a stack"
+
+[[listed]]
+name = "Infix with + - * /"
+group = "Expression evaluation"
+note = "e.g. stack of terms"
+
+[[listed]]
+name = "Infix with parentheses and unary minus"
+group = "Expression evaluation"
+note = "e.g. sign stack"
+
+[[listed]]
+name = "Infix with every operator and parentheses"
+group = "Expression evaluation"
+
+[[listed]]
+name = "Prefix evaluation"
+group = "Expression evaluation"
+note = "e.g. scan right to left"
+
+[[listed]]
+name = "Shunting-yard"
+group = "Expression evaluation"
+note = "e.g. infix to postfix with an operator stack"
+
+[[listed]]
+name = "Operators that cycle"
+group = "Expression evaluation"
+note = "Related lesson: Evaluating expressions with a stack"
+problems = [
+    { slug = "clumsy-factorial", title = "Clumsy Factorial", number = 1006, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Right-associative operators"
+group = "Expression evaluation"
+note = "Related lesson: Evaluating expressions with a stack"
+
+[[listed]]
+name = "Boolean expressions with nested calls"
+group = "Expression evaluation"
+
+[[listed]]
+name = "Expressions with scopes and variables"
+group = "Expression evaluation"
+note = "e.g. Lisp"
+
+[[listed]]
+name = "Symbolic algebra"
+group = "Expression evaluation"
+note = "e.g. polynomial arithmetic"
+
+[[listed]]
+name = "Splitting at each operator"
+group = "Expression evaluation"
+note = "Related lesson: Evaluating expressions with a stack"
+
+[[listed]]
+name = "Inserting operators between digits"
+group = "Expression evaluation"
+note = "e.g. backtracking with the last operand; cross-reference"
+
+[[listed]]
+name = "Frequency stack"
+group = "Stack and queue design"
+note = "Related lesson: Stack that tracks running state"
+
+[[listed]]
+name = "Queue from two stacks / stack from queues"
+group = "Stack and queue design"
+note = "Related lesson: Queue and stack from each other"
+
+[[listed]]
+name = "Stack with lazy increments"
+group = "Stack and queue design"
+
+[[listed]]
+name = "Undo / redo"
+group = "Stack and queue design"
+note = "Related lesson: Stack simulation (undo, collide, cancel)"
+
+[[listed]]
+name = "Iterators over a stack"
+group = "Stack and queue design"
+note = "Related lesson: Stack simulation (undo, collide, cancel)"
+
+[[listed]]
+name = "Circular queue / circular deque"
+group = "Stack and queue design"
+
+[[listed]]
+name = "Front, middle and back operations"
+group = "Stack and queue design"
+note = "e.g. two deques"
+
+[[listed]]
+name = "Online monotonic design"
+group = "Stack and queue design"
+note = "e.g. stock span"
+
+[[listed]]
+name = "Queue over a data stream"
+group = "Stack and queue design"
+note = "e.g. moving average, hit counter, first unique"
+
+[[listed]]
+name = "Set of stacks with capacity"
+group = "Stack and queue design"
+note = "Related lesson: Queue and stack from each other"
+
+[[listed]]
+name = "Cancel adjacent equal items"
+group = "Simulation with a stack"
+note = "Related lesson: Stack simulation (undo, collide, cancel)"
+
+[[listed]]
+name = "Remove a pattern repeatedly"
+group = "Simulation with a stack"
+note = "e.g. substring at the top of the stack"
+
+[[listed]]
+name = "Collisions"
+group = "Simulation with a stack"
+note = "e.g. asteroids, robots, cars"
+
+[[listed]]
+name = "Path normalisation"
+group = "Simulation with a stack"
+note = "e.g. cd, .., ."
+
+[[listed]]
+name = "Call-stack timing"
+group = "Simulation with a stack"
+note = "e.g. exclusive time of functions"
+problems = [
+    { slug = "exclusive-time-of-functions", title = "Exclusive Time of Functions", number = 636, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Push/pop sequence validity"
+group = "Simulation with a stack"
+note = "e.g. can this output come from a stack?"
+
+[[listed]]
+name = "Inorder"
+group = "Iterative DFS and tree traversal"
+note = "e.g. go left, pop, go right"
+
+[[listed]]
+name = "Preorder"
+group = "Iterative DFS and tree traversal"
+note = "e.g. push right, then left"
+
+[[listed]]
+name = "Postorder"
+group = "Iterative DFS and tree traversal"
+note = "e.g. two stacks / last-visited pointer / reversed modified preorder"
+
+[[listed]]
+name = "Lazy iterator"
+group = "Iterative DFS and tree traversal"
+note = "e.g. BST iterator, successor"
+
+[[listed]]
+name = "Flatten in place using a stack"
+group = "Iterative DFS and tree traversal"
+
+[[listed]]
+name = "Graph and grid DFS with an explicit stack"
+group = "Iterative DFS and tree traversal"
+note = "e.g. cross-reference"
+
+[[listed]]
+name = "Enter / exit markers on the stack"
+group = "Iterative DFS and tree traversal"
+note = "Related lesson: Nested structures with a stack"
+
+[[listed]]
+name = "Build a tree from a traversal with a stack"
+group = "Iterative DFS and tree traversal"
+note = "Related lesson: Queue and stack from each other"
+
+[[listed]]
+name = "Stack-sortable and stack-realisable sequences"
+group = "Sorting with stacks"
+
+[[listed]]
+name = "Sort a stack with one extra stack or with recursion"
+group = "Sorting with stacks"
+note = "Related lesson: Stack that tracks running state"
+
+[[listed]]
+name = "Stack as a holding buffer for the lexicographically smallest output"
+group = "Sorting with stacks"
+
+[[listed]]
+name = "Chunks that sort independently"
+group = "Sorting with stacks"
+note = "e.g. monotonic stack of maximums"
+
+[[listed]]
+name = "Minimal unsorted window"
+group = "Sorting with stacks"
+note = "e.g. stack or two scans"
+
+[[listed]]
+name = "Permutation from an increase/decrease string"
+group = "Sorting with stacks"
+note = "e.g. reverse runs with a stack"
+
+[[listed]]
+name = "Stack-based iterative quick sort / merge sort"
+group = "Sorting with stacks"
+note = "e.g. cross-reference"
+
+[[listed]]
+name = "Window maximum / minimum"
+group = "Monotonic queue (cross-reference: Sliding Window)"
+note = "Related lesson: Stack that tracks running state"
+
+[[listed]]
+name = "Two deques: max and min inside the window"
+group = "Monotonic queue (cross-reference: Sliding Window)"
+
+[[listed]]
+name = "DP optimisation"
+group = "Monotonic queue (cross-reference: Sliding Window)"
+note = "e.g. best of the last k states"
+
+[[listed]]
+name = "Circular subarray with a window of fixed span"
+group = "Monotonic queue (cross-reference: Sliding Window)"
+
+[[listed]]
+name = "Binary search on the answer with a deque check"
+group = "Monotonic queue (cross-reference: Sliding Window)"
+
+[[listed]]
+name = "Sliding window median"
+group = "Monotonic queue (cross-reference: Sliding Window)"
+note = "e.g. heaps or sorted multiset; contrast"
+problems = [
+    { slug = "sliding-window-median", title = "Sliding Window Median", number = 480, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Lexicographically smallest after deleting k"
+group = "Stack and greedy"
+note = "e.g. pop while worse"
+
+[[listed]]
+name = "Smallest subsequence of distinct letters"
+group = "Stack and greedy"
+note = "e.g. last occurrence plus in-stack set"
+
+[[listed]]
+name = "Merge two best subsequences into the maximum number"
+group = "Stack and greedy"
+
+[[listed]]
+name = "Greedy removal order"
+group = "Stack and greedy"
+note = "e.g. higher-scoring pair first"
+
+[[listed]]
+name = "Minimum operations by popping larger values"
+group = "Stack and greedy"
+note = "e.g. zero out an array"
+
+[[listed]]
+name = "Removing stars with the smallest letter first"
+group = "Stack and greedy"
+
+[[listed]]
+name = "Counters instead of a stack"
+group = "Stack and greedy"
+note = "e.g. balance, open count"
+
+[[listed]]
+name = "DP over the nearest smaller"
+group = "Stack and DP"
+note = "Related lesson: Monotonic stack"
+
+[[listed]]
+name = "Minimum deletions to balance"
+group = "Stack and DP"
+note = "e.g. stack versus DP"
+
+[[listed]]
+name = "Minimum additions to complete a pattern"
+group = "Stack and DP"
+note = "e.g. state per letter"
+
+[[listed]]
+name = "Monotonic queue DP"
+group = "Stack and DP"
+note = "Related lesson: Queue and stack from each other"
+
+[[listed]]
+name = "Interval DP that removes elements"
+group = "Stack and DP"
+note = "e.g. stack of segments"
+
+[[listed]]
+name = "Nested repeat encoding"
+group = "Parsing"
+note = "Related lesson: Nested structures with a stack"
+
+[[listed]]
+name = "Formula with counts"
+group = "Parsing"
+note = "e.g. stack of maps"
+
+[[listed]]
+name = "Nested data structures"
+group = "Parsing"
+note = "Related lesson: Nested structures with a stack"
+
+[[listed]]
+name = "Expression grammars"
+group = "Parsing"
+note = "Related lesson: Evaluating expressions with a stack"
+
+[[listed]]
+name = "Paths and file systems with depth"
+group = "Parsing"
+
+[[listed]]
+name = "Tag validators"
+group = "Parsing"
+
+[[listed]]
+name = "Indexing into an encoded string without expanding it"
+group = "Parsing"
+note = "Related lesson: Nested structures with a stack"
+
+[[listed]]
+name = "Recursive descent versus an explicit stack"
+group = "Parsing"
+
+[[listed]]
+name = "Tokeniser"
+group = "Parsing"
+note = "e.g. numbers, signs, identifiers"
+
+[[listed]]
+name = "Tree traversals with an explicit stack"
+group = "Recursion to iteration"
+
+[[listed]]
+name = "Process a list from the end"
+group = "Recursion to iteration"
+note = "e.g. print in reverse, digits from the least significant"
+
+[[listed]]
+name = "Palindrome checks with a stack of values"
+group = "Recursion to iteration"
+
+[[listed]]
+name = "Parser: recursive to stack of contexts"
+group = "Recursion to iteration"
+
+[[listed]]
+name = "Deep recursion that overflows the call stack"
+group = "Recursion to iteration"
+note = "e.g. DFS on large inputs"
+
+[[listed]]
+name = "Divide and conquer as a stack of subproblems"
+group = "Recursion to iteration"
+
+[[listed]]
+name = "Backtracking with an explicit stack of choices"
+group = "Recursion to iteration"
+
+[[listed]]
+name = "Tail recursion to a loop"
+group = "Recursion to iteration"
+
+[[listed]]
+name = "Memoised recursion to bottom-up"
+group = "Recursion to iteration"
+note = "e.g. cross-reference: DP"
+
+[[listed]]
+name = "Round-by-round simulation with a queue"
+group = "Queues next to stacks (round simulation and streams)"
+
+[[listed]]
+name = "Circular elimination"
+group = "Queues next to stacks (round simulation and streams)"
+note = "e.g. Josephus"
+
+[[listed]]
+name = "Two queues competing"
+group = "Queues next to stacks (round simulation and streams)"
+note = "Related lesson: Queue and stack from each other"
+
+[[listed]]
+name = "Interleaving iterators"
+group = "Queues next to stacks (round simulation and streams)"
+
+[[listed]]
+name = "Stack from queues, queue from stacks"
+group = "Queues next to stacks (round simulation and streams)"
+note = "Related lesson: Queue and stack from each other"
+
+[[listed]]
+name = "Level-order BFS"
+group = "Queues next to stacks (round simulation and streams)"
+note = "Related lesson: Stack simulation (undo, collide, cancel)"
+
+[[listed]]
+name = "List used as a stack"
+group = "Core implementation patterns"
+note = "e.g. append / pop, top is index -1"
+
+[[listed]]
+name = "Store indices or store values"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Entries that carry an aggregate"
+group = "Core implementation patterns"
+note = "e.g. value, running minimum"
+
+[[listed]]
+name = "Sentinel to flush the stack at the end"
+group = "Core implementation patterns"
+note = "Related lesson: Calculator with operator precedence"
+
+[[listed]]
+name = "Strict versus non-strict comparison and tie-breaking"
+group = "Core implementation patterns"
+note = "Related lesson: Monotonic stack"
+
+[[listed]]
+name = "Two passes for circular input"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Run-length entries"
+group = "Core implementation patterns"
+note = "Related lesson: Evaluating expressions with a stack"
+
+[[listed]]
+name = "Lazy propagation and lazy deletion"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Amortised analysis"
+group = "Core implementation patterns"
+note = "Related lesson: Queue and stack from each other"
+
+[[listed]]
+name = "Stack of contexts"
+group = "Core implementation patterns"
+note = "Related lesson: Stack simulation (undo, collide, cancel)"
+
+[[listed]]
+name = "Deque used as a stack at one end and a queue at the other"
+group = "Core implementation patterns"
+note = "Related lesson: Queue and stack from each other"

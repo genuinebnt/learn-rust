@@ -158,3 +158,32 @@ fn a_pattern_page_can_have_groups_variants_extras_and_listed_techniques() {
     write(&extra(&format!("examples = [\"two-sum\"]\ntemplate_name = \"Iterative\"\n{variant}")).replace("template_name = \"Iterative\"\n[[extra.variant]]", "template_name = \"Iterative\"\n\n[[extra.variant]]"));
     assert!(issues().iter().any(|m| m.contains("two tabs have the same name")), "{:?}", issues());
 }
+
+#[test]
+fn listed_techniques_carry_verified_problems_and_groups_carry_tags_and_more_problems() {
+    let dir = root_with(&std::fs::read_to_string(fixture().join("dsa/problems.json")).unwrap());
+    std::fs::create_dir_all(dir.path().join("dsa/lessons")).unwrap();
+    let write = |text: &str| std::fs::write(dir.path().join("dsa/lessons/two-pointers.toml"), text).unwrap();
+    let issues = || -> Vec<String> { Catalog::load(dir.path()).unwrap().issues.into_iter().map(|i| i.message).collect() };
+    let head = "pattern = \"Two Pointers\"\nintro = \"x\"\ngroups = [\"Walks\"]\n";
+    let tail = "\n[[technique]]\nid = \"Two Pointers:opposite\"\nsignals = [\"a\"]\ntemplate = \"pass\"\npitfalls = [\"b\"]\n";
+    let problem = "{ slug = \"critical-connections-in-a-network\", title = \"Critical Connections in a Network\", number = 1192, difficulty = \"hard\" }";
+
+    write(&format!(
+        "{head}\n[group_tags]\n\"Walks\" = [\"two-pointers\"]\n{tail}\n[[listed]]\nname = \"Bridges\"\ngroup = \"Walks\"\nproblems = [{problem}]\n\n[[group_problem]]\ngroup = \"Walks\"\nslug = \"two-sum\"\ntitle = \"Two Sum\"\nnumber = 1\ndifficulty = \"easy\"\n"
+    ));
+    let loaded = Catalog::load(dir.path()).unwrap();
+    assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
+    let d = &loaded.catalog.dsa;
+    assert_eq!(d.listed["Two Pointers"][0].problems[0].number, 1192);
+    assert_eq!(d.group_tags["Two Pointers"]["Walks"], ["two-pointers"]);
+    assert_eq!(d.group_problems["Two Pointers"]["Walks"][0].slug, "two-sum");
+
+    // a problem without a usable difficulty, a tag that is not a slug, and a group that was not declared
+    write(&format!("{head}{tail}\n[[listed]]\nname = \"Bridges\"\ngroup = \"Walks\"\nproblems = [{}]\n", problem.replace("\"hard\"", "\"brutal\"")));
+    assert!(issues().iter().any(|m| m.contains("needs a slug, a title, a number and easy, medium or hard")), "{:?}", issues());
+    write(&format!("{head}\n[group_tags]\n\"Walks\" = [\"Not A Slug\"]\n{tail}"));
+    assert!(issues().iter().any(|m| m.contains("is not a LeetCode tag slug")), "{:?}", issues());
+    write(&format!("{head}\n[group_tags]\n\"Elsewhere\" = [\"trie\"]\n{tail}"));
+    assert!(issues().iter().any(|m| m.contains("the group \"Elsewhere\" is not declared in `groups`")), "{:?}", issues());
+}

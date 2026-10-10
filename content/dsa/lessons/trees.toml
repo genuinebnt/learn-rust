@@ -1,8 +1,33 @@
 pattern = "Trees"
 intro = "A tree problem is almost always a recursion over its two children. Ask what each call needs to be told (carried down) and what it should report back (returned up). If the answer depends on levels, use a queue. If the tree is a search tree, use its order."
+groups = ["Traversals", "Level-order family", "Subtree aggregation", "Path problems", "Construction", "BST operations", "Lowest common ancestor", "Tree comparison", "Transformations", "Tree DP", "Parent pointers and tree-to-graph", "Views", "Count and enumerate trees", "N-ary trees", "Iterator design"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Traversals" = ["binary-tree", "depth-first-search"]
+"Level-order family" = ["binary-tree", "breadth-first-search"]
+"Subtree aggregation" = ["binary-tree"]
+"Path problems" = ["binary-tree"]
+"Construction" = ["divide-and-conquer", "binary-tree"]
+"BST operations" = ["binary-search-tree"]
+"Lowest common ancestor" = ["binary-tree"]
+"Tree comparison" = ["binary-tree"]
+"Transformations" = ["binary-tree"]
+"Tree DP" = ["binary-tree"]
+"Views" = ["binary-tree"]
+"Count and enumerate trees" = ["binary-tree", "dynamic-programming"]
+"N-ary trees" = ["tree"]
+"Iterator design" = ["iterator", "design"]
 
 [[technique]]
 id = "Trees:dfs"
+group = "Tree comparison"
 signals = [
     "do the same thing at every node (invert, compare, count, find the depth)",
     "the answer for a node comes from the answers for its two children",
@@ -29,6 +54,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:dfs-return"
+group = "N-ary trees"
 signals = [
     "the best path, longest chain or biggest difference passing through a node",
     "what a node reports upward is different from what it records as a candidate answer",
@@ -57,6 +83,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:bst-walk"
+group = "Level-order family"
 signals = [
     "a binary SEARCH tree: left is smaller, right is larger",
     "find a value, a closest value or an ancestor without visiting everything",
@@ -81,6 +108,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:bst-edit"
+group = "Traversals"
 signals = [
     "insert, delete or trim values in a binary search tree",
     "the tree must stay a valid search tree afterwards",
@@ -124,6 +152,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:bfs-levels"
+group = "Level-order family"
 signals = [
     "level by level, or by depth",
     "the right-side view, the average of each level, a zigzag order",
@@ -156,6 +185,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:tree-as-graph"
+group = "Parent pointers and tree-to-graph"
 signals = [
     "the tree is given as a list of edges, not as nodes",
     "a cost or time depends on which branches matter (those that hold apples, targets)",
@@ -189,6 +219,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:dfs-carry"
+group = "Subtree aggregation"
 signals = [
     "the answer for a node depends on the path from the root to it",
     "count nodes that are bigger than everything above them, or whose path sums to a target",
@@ -213,6 +244,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:inorder"
+group = "BST operations"
 signals = [
     "the k-th smallest value, or a check that a tree is a valid search tree",
     "an in-order walk of a search tree visits values in sorted order",
@@ -239,6 +271,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:from-traversals"
+group = "Construction"
 signals = [
     "rebuild a tree from two traversals (preorder and inorder, or inorder and postorder)",
     "the first preorder value is the root, and inorder splits the left from the right",
@@ -270,6 +303,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:catalan"
+group = "Count and enumerate trees"
 signals = [
     "count or build all binary search trees with n distinct keys",
     "choose a root, and the left and right subtrees are independent smaller problems",
@@ -303,6 +337,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:dfs-edit"
+group = "Transformations"
 signals = [
     "remove nodes, and removing one can make its parent removable too",
     "prune subtrees that are empty or don't satisfy a rule",
@@ -326,6 +361,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:serialize"
+group = "Construction"
 signals = [
     "turn a tree into a string and back",
     "the string must carry the shape, including where children are missing",
@@ -366,3 +402,749 @@ pitfalls = [
     "Separate tokens with a delimiter, since values can be several digits long or negative.",
     "One iterator shared by every call keeps the position in the token stream.",
 ]
+
+[[group_problem]]
+group = "Construction"
+slug = "convert-sorted-list-to-binary-search-tree"
+title = "Convert Sorted List to Binary Search Tree"
+number = 109
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Construction"
+slug = "the-skyline-problem"
+title = "The Skyline Problem"
+number = 218
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Construction"
+slug = "search-a-2d-matrix-ii"
+title = "Search a 2D Matrix II"
+number = 240
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Construction"
+slug = "range-sum-query-mutable"
+title = "Range Sum Query - Mutable"
+number = 307
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Construction"
+slug = "count-of-smaller-numbers-after-self"
+title = "Count of Smaller Numbers After Self"
+number = 315
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Construction"
+slug = "wiggle-sort-ii"
+title = "Wiggle Sort II"
+number = 324
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Construction"
+slug = "count-of-range-sum"
+title = "Count of Range Sum"
+number = 327
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Construction"
+slug = "super-pow"
+title = "Super Pow"
+number = 372
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Parent pointers and tree-to-graph"
+slug = "all-nodes-distance-k-in-binary-tree"
+title = "All Nodes Distance K in Binary Tree"
+number = 863
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Parent pointers and tree-to-graph"
+slug = "amount-of-time-for-binary-tree-to-be-infected"
+title = "Amount of Time for Binary Tree to Be Infected"
+number = 2385
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Parent pointers and tree-to-graph"
+slug = "binary-tree-cameras"
+title = "Binary Tree Cameras"
+number = 968
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Parent pointers and tree-to-graph"
+slug = "closest-leaf-in-a-binary-tree"
+title = "Closest Leaf in a Binary Tree"
+number = 742
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Parent pointers and tree-to-graph"
+slug = "sum-of-distances-in-tree"
+title = "Sum of Distances in Tree"
+number = 834
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Iterator design"
+slug = "peeking-iterator"
+title = "Peeking Iterator"
+number = 284
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Iterator design"
+slug = "rle-iterator"
+title = "RLE Iterator"
+number = 900
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Iterator design"
+slug = "iterator-for-combination"
+title = "Iterator for Combination"
+number = 1286
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Iterator design"
+slug = "flatten-2d-vector"
+title = "Flatten 2D Vector"
+number = 251
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Iterator design"
+slug = "binary-search-tree-iterator-ii"
+title = "Binary Search Tree Iterator II"
+number = 1586
+difficulty = "medium"
+premium = true
+
+[[listed]]
+name = "DFS recursive: preorder / inorder / postorder"
+group = "Traversals"
+note = "Related lesson: Building a tree from traversals"
+
+[[listed]]
+name = "DFS iterative with an explicit stack"
+group = "Traversals"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Iterative postorder: two stacks / last-visited pointer"
+group = "Traversals"
+
+[[listed]]
+name = "Inorder of a BST is sorted order"
+group = "Traversals"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Reverse inorder"
+group = "Traversals"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Preorder with null markers"
+group = "Traversals"
+note = "e.g. root first, shape kept"
+
+[[listed]]
+name = "Postorder"
+group = "Traversals"
+note = "Related lesson: Building a tree from traversals"
+
+[[listed]]
+name = "Boundary traversal"
+group = "Traversals"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Vertical-column traversal"
+group = "Traversals"
+
+[[listed]]
+name = "Diagonal traversal"
+group = "Traversals"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Leaf sequence left to right"
+group = "Traversals"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "Basic level-order / bottom-up level-order"
+group = "Level-order family"
+note = "Related lesson: BFS level by level"
+
+[[listed]]
+name = "Zigzag level-order"
+group = "Level-order family"
+note = "Related lesson: BFS level by level"
+
+[[listed]]
+name = "Per-level aggregates: sum, max, average"
+group = "Level-order family"
+note = "Related lesson: BFS level by level"
+
+[[listed]]
+name = "Side views by BFS: right / left"
+group = "Level-order family"
+note = "Related lesson: BFS level by level"
+
+[[listed]]
+name = "Next-right pointers: queue / O(1) space using the pointers already built"
+group = "Level-order family"
+
+[[listed]]
+name = "Maximum width with position indices"
+group = "Level-order family"
+
+[[listed]]
+name = "Completeness check by BFS with null markers"
+group = "Level-order family"
+
+[[listed]]
+name = "Level-parity rules and per-level rewrites"
+group = "Level-order family"
+
+[[listed]]
+name = "Minimum depth by BFS"
+group = "Level-order family"
+note = "Related lesson: Recursive DFS on a tree"
+
+[[listed]]
+name = "Cousins"
+group = "Level-order family"
+note = "e.g. same depth, different parent"
+
+[[listed]]
+name = "BFS spread from a start node"
+group = "Level-order family"
+note = "e.g. time to infect"
+
+[[listed]]
+name = "Depth: maximum / minimum"
+group = "Subtree aggregation"
+
+[[listed]]
+name = "Balanced check by returning height or a sentinel"
+group = "Subtree aggregation"
+
+[[listed]]
+name = "Maximum path sum"
+group = "Subtree aggregation"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Subtree sum / count / average"
+group = "Subtree aggregation"
+note = "Related lesson: Treating a tree as a graph"
+problems = [
+    { slug = "count-nodes-equal-to-average-of-subtree", title = "Count Nodes Equal to Average of Subtree", number = 2265, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Subtree property checks: univalue, perfect, same size"
+group = "Subtree aggregation"
+
+[[listed]]
+name = "Longest consecutive or equal-value chain"
+group = "Subtree aggregation"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Sum of tilts and similar per-node differences"
+group = "Subtree aggregation"
+
+[[listed]]
+name = "Subtree height with one node removed"
+group = "Subtree aggregation"
+note = "Related lesson: Navigating a BST by its order"
+
+[[listed]]
+name = "Leaf-pair distances"
+group = "Subtree aggregation"
+note = "e.g. count pairs within distance k"
+
+[[listed]]
+name = "Root-to-leaf path: exists / all paths"
+group = "Path problems"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "Root-to-leaf number or string built along the path"
+group = "Path problems"
+
+[[listed]]
+name = "Any-to-any path with a prefix-sum map"
+group = "Path problems"
+
+[[listed]]
+name = "Best path bending at a node"
+group = "Path problems"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Longest path with a rule"
+group = "Path problems"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Path property carried down: max so far, bitmask parity"
+group = "Path problems"
+
+[[listed]]
+name = "Best difference between a node and its ancestors"
+group = "Path problems"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Path between two nodes as a string of directions"
+group = "Path problems"
+
+[[listed]]
+name = "Position and path in a perfect or labelled tree"
+group = "Path problems"
+note = "Related lesson: Building a tree from traversals"
+
+[[listed]]
+name = "From preorder and inorder / inorder and postorder"
+group = "Construction"
+note = "Related lesson: Building a tree from traversals"
+
+[[listed]]
+name = "From preorder and postorder"
+group = "Construction"
+note = "Related lesson: Building a tree from traversals"
+
+[[listed]]
+name = "From a sorted array / sorted list"
+group = "Construction"
+note = "e.g. balanced BST"
+
+[[listed]]
+name = "BST from its preorder: bounds / monotonic stack"
+group = "Construction"
+note = "Related lesson: Building a tree from traversals"
+
+[[listed]]
+name = "From parent-child descriptions"
+group = "Construction"
+note = "Related lesson: Treating a tree as a graph"
+
+[[listed]]
+name = "From a depth-marked preorder string"
+group = "Construction"
+
+[[listed]]
+name = "String from a tree, and canonical subtree signatures"
+group = "Construction"
+
+[[listed]]
+name = "Rebuild or validate from constraints"
+group = "Construction"
+note = "e.g. pair sets, child arrays"
+
+[[listed]]
+name = "Quad tree from a grid"
+group = "Construction"
+
+[[listed]]
+name = "Complete tree with an inserter or recovered values"
+group = "Construction"
+
+[[listed]]
+name = "Rebalance a BST via the sorted inorder list"
+group = "Construction"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Merge trees or BSTs into one"
+group = "Construction"
+
+[[listed]]
+name = "Search / insert iteratively"
+group = "BST operations"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "Delete"
+group = "BST operations"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "Trim to a range"
+group = "BST operations"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "Validate with bounds / with an inorder walk"
+group = "BST operations"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Kth smallest and order statistics"
+group = "BST operations"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Successor and predecessor, with or without parent pointers"
+group = "BST operations"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "Range queries: sum in range"
+group = "BST operations"
+note = "Related lesson: BFS level by level"
+
+[[listed]]
+name = "Closest value and nearest keys"
+group = "BST operations"
+note = "Related lesson: Navigating a BST by its order"
+
+[[listed]]
+name = "Greater-sum tree"
+group = "BST operations"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Recover a BST with two swapped nodes"
+group = "BST operations"
+
+[[listed]]
+name = "Minimum difference between nodes, mode"
+group = "BST operations"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Largest BST inside a binary tree"
+group = "BST operations"
+note = "Related lesson: Navigating a BST by its order"
+
+[[listed]]
+name = "BST to a sorted doubly linked list"
+group = "BST operations"
+
+[[listed]]
+name = "Self-balancing trees"
+group = "BST operations"
+note = "e.g. AVL rotations, red-black, treaps"
+
+[[listed]]
+name = "Augmented BST with subtree sizes"
+group = "BST operations"
+note = "e.g. rank, order-statistic tree"
+
+[[listed]]
+name = "LCA in a BST by splitting values"
+group = "Lowest common ancestor"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "LCA in a binary tree: recursive return of found nodes"
+group = "Lowest common ancestor"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "LCA with parent pointers"
+group = "Lowest common ancestor"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Distance between two nodes through the LCA"
+group = "Lowest common ancestor"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "LCA of several nodes"
+group = "Lowest common ancestor"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "LCA of the deepest leaves"
+group = "Lowest common ancestor"
+note = "Related lesson: Recursive DFS on a tree"
+
+[[listed]]
+name = "Binary lifting for repeated queries"
+group = "Lowest common ancestor"
+
+[[listed]]
+name = "Euler tour + range-minimum, offline Tarjan"
+group = "Lowest common ancestor"
+
+[[listed]]
+name = "Flip equivalence"
+group = "Tree comparison"
+
+[[listed]]
+name = "Duplicate subtrees by canonical signature or hashing"
+group = "Tree comparison"
+
+[[listed]]
+name = "Pattern match: a linked list in a tree"
+group = "Tree comparison"
+
+[[listed]]
+name = "Merge two trees node by node"
+group = "Tree comparison"
+
+[[listed]]
+name = "Invert / mirror"
+group = "Transformations"
+note = "Related lesson: Recursive DFS on a tree"
+
+[[listed]]
+name = "Prune subtrees that fail a rule"
+group = "Transformations"
+note = "Related lesson: Postorder editing of a tree"
+
+[[listed]]
+name = "BST to greater tree / sorted doubly linked list"
+group = "Transformations"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Reverse values on odd levels, replace values by sibling sums"
+group = "Transformations"
+
+[[listed]]
+name = "Binary encoding of an N-ary tree"
+group = "Transformations"
+note = "Related lesson: Navigating a BST by its order"
+
+[[listed]]
+name = "Trim or merge"
+group = "Transformations"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "Two-state DP: take / skip a node"
+group = "Tree DP"
+note = "Related lesson: Recursive DFS on a tree"
+
+[[listed]]
+name = "Three-state DP: camera placement"
+group = "Tree DP"
+note = "e.g. covered / has camera / needs cover"
+
+[[listed]]
+name = "Balance and flow across edges"
+group = "Tree DP"
+note = "e.g. moves as the sum of excess"
+
+[[listed]]
+name = "DP returning a tuple: validity, min, max, sum"
+group = "Tree DP"
+
+[[listed]]
+name = "Counting by removing a node"
+group = "Tree DP"
+note = "Related lesson: Postorder editing of a tree"
+
+[[listed]]
+name = "Time or cost to collect along a tree"
+group = "Tree DP"
+note = "Related lesson: Treating a tree as a graph"
+
+[[listed]]
+name = "Prune or peel leaves then count components"
+group = "Tree DP"
+
+[[listed]]
+name = "Parity argument on a tree"
+group = "Tree DP"
+note = "e.g. flip pairs along paths"
+
+[[listed]]
+name = "Knapsack on a tree"
+group = "Tree DP"
+note = "Related lesson: Recursive DFS on a tree"
+
+[[listed]]
+name = "Rerooting DP"
+group = "Tree DP"
+note = "e.g. answers for every root"
+
+[[listed]]
+name = "Parent map, then BFS outward from a node"
+group = "Parent pointers and tree-to-graph"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Tree given as an edge list: build adjacency, pass the parent down"
+group = "Parent pointers and tree-to-graph"
+note = "Related lesson: Treating a tree as a graph"
+
+[[listed]]
+name = "Manager / employee hierarchies"
+group = "Parent pointers and tree-to-graph"
+
+[[listed]]
+name = "Leaf peeling / center of a tree"
+group = "Parent pointers and tree-to-graph"
+note = "Related lesson: Insert, delete and trim in a BST"
+
+[[listed]]
+name = "Check that a graph or child arrays form a tree"
+group = "Parent pointers and tree-to-graph"
+note = "Related lesson: Treating a tree as a graph"
+
+[[listed]]
+name = "Walk upward with parent pointers"
+group = "Parent pointers and tree-to-graph"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Tree game on subtree sizes"
+group = "Parent pointers and tree-to-graph"
+note = "Related lesson: Navigating a BST by its order"
+
+[[listed]]
+name = "Dynamic tree structures: inheritance order, lock operations on a tree"
+group = "Parent pointers and tree-to-graph"
+
+[[listed]]
+name = "Euler tour timestamps (entry / exit) and subtree ranges"
+group = "Parent pointers and tree-to-graph"
+
+[[listed]]
+name = "Left view / bottom-left value"
+group = "Views"
+note = "Related lesson: DFS that returns a value and updates an answer"
+
+[[listed]]
+name = "Vertical order"
+group = "Views"
+note = "Related lesson: Navigating a BST by its order"
+
+[[listed]]
+name = "Boundary view"
+group = "Views"
+note = "Related lesson: BFS level by level"
+
+[[listed]]
+name = "Top view / bottom view"
+group = "Views"
+note = "Related lesson: BFS level by level"
+
+[[listed]]
+name = "Diagonal view"
+group = "Views"
+note = "Related lesson: BFS level by level"
+
+[[listed]]
+name = "Count BSTs with n keys"
+group = "Count and enumerate trees"
+note = "Related lesson: Counting and building trees by root choice"
+
+[[listed]]
+name = "Generate all BSTs with n keys"
+group = "Count and enumerate trees"
+note = "Related lesson: Counting and building trees by root choice"
+
+[[listed]]
+name = "All full binary trees with n nodes"
+group = "Count and enumerate trees"
+note = "Related lesson: Counting and building trees by root choice"
+
+[[listed]]
+name = "Count nodes of a complete tree faster than O"
+group = "Count and enumerate trees"
+note = "Related lesson: Treating a tree as a graph"
+problems = [
+    { slug = "count-complete-tree-nodes", title = "Count Complete Tree Nodes", number = 222, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Count good nodes / paths with a property"
+group = "Count and enumerate trees"
+note = "Related lesson: DFS carrying state down"
+
+[[listed]]
+name = "Count tree shapes consistent with constraints"
+group = "Count and enumerate trees"
+note = "Related lesson: Counting and building trees by root choice"
+
+[[listed]]
+name = "Count BST insertion orders giving the same tree"
+group = "Count and enumerate trees"
+
+[[listed]]
+name = "Preorder / postorder of an N-ary tree"
+group = "N-ary trees"
+note = "Related lesson: Building a tree from traversals"
+
+[[listed]]
+name = "Depth of an N-ary tree"
+group = "N-ary trees"
+note = "Related lesson: Recursive DFS on a tree"
+
+[[listed]]
+name = "Clone an N-ary tree"
+group = "N-ary trees"
+note = "Related lesson: Recursive DFS on a tree"
+
+[[listed]]
+name = "Find the root without a parent pointer"
+group = "N-ary trees"
+note = "Related lesson: Recursive DFS on a tree"
+
+[[listed]]
+name = "Child-sibling (left-child right-sibling) representation"
+group = "N-ary trees"
+note = "Related lesson: Recursive DFS on a tree"
+
+[[listed]]
+name = "BST iterator with an explicit stack"
+group = "Iterator design"
+note = "Related lesson: Inorder traversal of a BST"
+
+[[listed]]
+name = "Two iterators merged: two-sum on BSTs"
+group = "Iterator design"
+
+[[listed]]
+name = "Forward and backward iterators: closest values"
+group = "Iterator design"
+
+[[listed]]
+name = "Flatten a nested structure lazily"
+group = "Iterator design"
+
+[[listed]]
+name = "Design with a tree behind it: inserter, stream, locks"
+group = "Iterator design"
+
+[[listed]]
+name = "Peek / has-next with a precomputed list vs lazy stack"
+group = "Iterator design"

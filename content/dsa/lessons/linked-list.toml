@@ -1,8 +1,27 @@
 pattern = "Linked List"
 intro = "Linked list problems are pointer bookkeeping. A few habits remove most of the bugs: draw the nodes, save next before you overwrite it, and put a dummy node in front so the head is never special. Then it is one of a handful of moves: reverse, merge, two speeds, a gap, or a copy map."
+groups = ["Reversal", "Fast and slow pointers", "Merging and sorting", "Partition and reorder", "Dummy head and in-place surgery", "Arithmetic on lists", "Intersection and comparison", "Copy with a random pointer", "Flattening and linking structure", "Design with linked lists", "List and structure conversion", "Splitting", "Cycles in functional graphs", "Random node", "O(1)-space variants", "Pitfalls and edge cases"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Reversal" = ["linked-list"]
+"Fast and slow pointers" = ["linked-list", "two-pointers"]
+"Merging and sorting" = ["merge-sort", "sorting"]
+"Dummy head and in-place surgery" = ["linked-list"]
+"Intersection and comparison" = ["linked-list", "two-pointers"]
+"Copy with a random pointer" = ["hash-table", "linked-list"]
+"Design with linked lists" = ["doubly-linked-list", "design"]
+"Random node" = ["randomized", "reservoir-sampling"]
 
 [[technique]]
 id = "Linked List:reverse"
+group = "Reversal"
 signals = [
     "reverse a list, or a part of it",
     "every node's next must point at the node before it",
@@ -38,6 +57,7 @@ pitfalls = [
 
 [[technique]]
 id = "Linked List:dummy-merge"
+group = "Arithmetic on lists"
 signals = [
     "build a new list from existing nodes, in order",
     "merge two sorted lists, or add two numbers digit by digit",
@@ -63,6 +83,7 @@ pitfalls = [
 
 [[technique]]
 id = "Linked List:fast-slow"
+group = "Cycles in functional graphs"
 signals = [
     "does the list have a cycle, and where does it start?",
     "find the middle of the list in one pass",
@@ -104,6 +125,7 @@ pitfalls = [
 
 [[technique]]
 id = "Linked List:splice"
+group = "Merging and sorting"
 signals = [
     "remove, insert or reorder nodes in place",
     "delete every node with a given value, or remove duplicates",
@@ -128,6 +150,7 @@ pitfalls = [
 
 [[technique]]
 id = "Linked List:gap"
+group = "Intersection and comparison"
 signals = [
     "the n-th node from the END, in one pass",
     "two pointers that keep a fixed distance apart",
@@ -152,6 +175,7 @@ pitfalls = [
 
 [[technique]]
 id = "Linked List:clone-map"
+group = "Copy with a random pointer"
 signals = [
     "copy a list whose nodes have an extra pointer (random, parent)",
     "the extra pointer may point forwards, to a node that has no copy yet",
@@ -179,6 +203,7 @@ pitfalls = [
 
 [[technique]]
 id = "Linked List:design-list"
+group = "Design with linked lists"
 signals = [
     "implement a queue, deque or stack on a fixed amount of space",
     "enqueue and dequeue in O(1)",
@@ -219,6 +244,7 @@ pitfalls = [
 
 [[technique]]
 id = "Linked List:lru"
+group = "Design with linked lists"
 signals = [
     "a cache that evicts the least recently used entry",
     "get and put must both be O(1), and a get counts as a use",
@@ -275,6 +301,7 @@ pitfalls = [
 
 [[technique]]
 id = "Linked List:kway-merge"
+group = "Merging and sorting"
 signals = [
     "merge k sorted lists (or k sorted streams) into one",
     "the next item overall is the smallest of the k current fronts",
@@ -301,3 +328,834 @@ pitfalls = [
     "Push only non-empty lists, and push a node's successor right after popping it.",
     "Merging in pairs (like merge sort) is the alternative, with the same O(n log k) cost.",
 ]
+
+[[group_problem]]
+group = "Merging and sorting"
+slug = "count-of-smaller-numbers-after-self"
+title = "Count of Smaller Numbers After Self"
+number = 315
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Merging and sorting"
+slug = "count-of-range-sum"
+title = "Count of Range Sum"
+number = 327
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Merging and sorting"
+slug = "reverse-pairs"
+title = "Reverse Pairs"
+number = 493
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Merging and sorting"
+slug = "create-sorted-array-through-instructions"
+title = "Create Sorted Array through Instructions"
+number = 1649
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Merging and sorting"
+slug = "count-good-triplets-in-an-array"
+title = "Count Good Triplets in an Array"
+number = 2179
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Merging and sorting"
+slug = "number-of-pairs-satisfying-inequality"
+title = "Number of Pairs Satisfying Inequality"
+number = 2426
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Merging and sorting"
+slug = "count-subarrays-with-majority-element-i"
+title = "Count Subarrays With Majority Element I"
+number = 3737
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Merging and sorting"
+slug = "count-subarrays-with-majority-element-ii"
+title = "Count Subarrays With Majority Element II"
+number = 3739
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Partition and reorder"
+slug = "odd-even-linked-list"
+title = "Odd Even Linked List"
+number = 328
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Arithmetic on lists"
+slug = "double-a-number-represented-as-a-linked-list"
+title = "Double a Number Represented as a Linked List"
+number = 2816
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Flattening and linking structure"
+slug = "populating-next-right-pointers-in-each-node-ii"
+title = "Populating Next Right Pointers in Each Node II"
+number = 117
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Design with linked lists"
+slug = "all-oone-data-structure"
+title = "All O`one Data Structure"
+number = 432
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Design with linked lists"
+slug = "design-authentication-manager"
+title = "Design Authentication Manager"
+number = 1797
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Design with linked lists"
+slug = "design-a-text-editor"
+title = "Design a Text Editor"
+number = 2296
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Design with linked lists"
+slug = "minimum-pair-removal-to-sort-array-i"
+title = "Minimum Pair Removal to Sort Array I"
+number = 3507
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Design with linked lists"
+slug = "minimum-pair-removal-to-sort-array-ii"
+title = "Minimum Pair Removal to Sort Array II"
+number = 3510
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Design with linked lists"
+slug = "design-most-recently-used-queue"
+title = "Design Most Recently Used Queue"
+number = 1756
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Design with linked lists"
+slug = "convert-doubly-linked-list-to-array-i"
+title = "Convert Doubly Linked List to Array I"
+number = 3263
+difficulty = "easy"
+premium = true
+
+[[group_problem]]
+group = "Design with linked lists"
+slug = "convert-doubly-linked-list-to-array-ii"
+title = "Convert Doubly Linked List to Array II"
+number = 3294
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "List and structure conversion"
+slug = "convert-sorted-list-to-binary-search-tree"
+title = "Convert Sorted List to Binary Search Tree"
+number = 109
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "List and structure conversion"
+slug = "next-greater-node-in-linked-list"
+title = "Next Greater Node In Linked List"
+number = 1019
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Cycles in functional graphs"
+slug = "linked-list-cycle-ii"
+title = "Linked List Cycle II"
+number = 142
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Cycles in functional graphs"
+slug = "longest-cycle-in-a-graph"
+title = "Longest Cycle in a Graph"
+number = 2360
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Random node"
+slug = "random-point-in-non-overlapping-rectangles"
+title = "Random Point in Non-overlapping Rectangles"
+number = 497
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Random node"
+slug = "random-flip-matrix"
+title = "Random Flip Matrix"
+number = 519
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Random node"
+slug = "insert-delete-getrandom-o1-duplicates-allowed"
+title = "Insert Delete GetRandom O(1) - Duplicates allowed"
+number = 381
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Random node"
+slug = "shuffle-an-array"
+title = "Shuffle an Array"
+number = 384
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Random node"
+slug = "implement-rand10-using-rand7"
+title = "Implement Rand10() Using Rand7()"
+number = 470
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Random node"
+slug = "generate-random-point-in-a-circle"
+title = "Generate Random Point in a Circle"
+number = 478
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Random node"
+slug = "random-pick-with-blacklist"
+title = "Random Pick with Blacklist"
+number = 710
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Random node"
+slug = "best-position-for-a-service-centre"
+title = "Best Position for a Service Centre"
+number = 1515
+difficulty = "hard"
+premium = false
+
+[[listed]]
+name = "Whole list reversal (iterative with prev/cur/next) / recursive reversal"
+group = "Reversal"
+
+[[listed]]
+name = "Swap adjacent pairs"
+group = "Reversal"
+
+[[listed]]
+name = "Head insertion as reversal"
+group = "Reversal"
+
+[[listed]]
+name = "Reversing to read digits least-significant first"
+group = "Reversal"
+
+[[listed]]
+name = "Middle node"
+group = "Fast and slow pointers"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "N-th node from the end"
+group = "Fast and slow pointers"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "Delete the middle node"
+group = "Fast and slow pointers"
+note = "Related lesson: Editing and splicing nodes in place"
+problems = [
+    { slug = "delete-the-middle-node-of-a-linked-list", title = "Delete the Middle Node of a Linked List", number = 2095, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "K-th node from the end"
+group = "Fast and slow pointers"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "Split at the middle"
+group = "Fast and slow pointers"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "Palindrome check"
+group = "Fast and slow pointers"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "Why the restart-from-head works"
+group = "Fast and slow pointers"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "The gap pointer as a variant of the two-speed idea"
+group = "Fast and slow pointers"
+
+[[listed]]
+name = "Merge sort on a list"
+group = "Merging and sorting"
+note = "Related lesson: K-way merge with a heap"
+
+[[listed]]
+name = "Stable merge"
+group = "Merging and sorting"
+note = "Related lesson: Dummy head and merge"
+
+[[listed]]
+name = "Merge by a key other than value"
+group = "Merging and sorting"
+note = "Related lesson: Dummy head and merge"
+
+[[listed]]
+name = "Merge with duplicate removal"
+group = "Merging and sorting"
+
+[[listed]]
+name = "Selection and counting-based sorts on lists"
+group = "Merging and sorting"
+note = "e.g. three-value lists by counting"
+
+[[listed]]
+name = "Partition around a pivot value (two dummy lists, stitch) / stable partition"
+group = "Partition and reorder"
+
+[[listed]]
+name = "Odd-even position regrouping"
+group = "Partition and reorder"
+note = "Related lesson: Designing list-backed structures"
+
+[[listed]]
+name = "Rotate by k"
+group = "Partition and reorder"
+note = "e.g. find length, make circular, cut"
+
+[[listed]]
+name = "Move all nodes with a value to the end"
+group = "Partition and reorder"
+note = "Related lesson: Editing and splicing nodes in place"
+
+[[listed]]
+name = "Move a node to the front"
+group = "Partition and reorder"
+note = "Related lesson: Two pointers a fixed gap apart"
+
+[[listed]]
+name = "Swap the k-th from the start and the k-th from the end"
+group = "Partition and reorder"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "Reverse alternate segments"
+group = "Partition and reorder"
+
+[[listed]]
+name = "Remove all nodes with a value"
+group = "Dummy head and in-place surgery"
+note = "Related lesson: Editing and splicing nodes in place"
+
+[[listed]]
+name = "Delete nodes present in a set"
+group = "Dummy head and in-place surgery"
+note = "Related lesson: Editing and splicing nodes in place"
+
+[[listed]]
+name = "Delete a node given only that node"
+group = "Dummy head and in-place surgery"
+note = "Related lesson: Editing and splicing nodes in place"
+
+[[listed]]
+name = "Remove nodes with a greater node to the right"
+group = "Dummy head and in-place surgery"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "Remove zero-sum consecutive runs"
+group = "Dummy head and in-place surgery"
+note = "e.g. prefix-sum map"
+
+[[listed]]
+name = "Insert between nodes"
+group = "Dummy head and in-place surgery"
+note = "Related lesson: Editing and splicing nodes in place"
+
+[[listed]]
+name = "Delete N nodes after M nodes"
+group = "Dummy head and in-place surgery"
+note = "Related lesson: Editing and splicing nodes in place"
+
+[[listed]]
+name = "Replace a range of nodes with another list"
+group = "Dummy head and in-place surgery"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "Collapse runs between sentinel values"
+group = "Dummy head and in-place surgery"
+
+[[listed]]
+name = "Unlinking with a trailing pointer / a pointer-to-pointer"
+group = "Dummy head and in-place surgery"
+
+[[listed]]
+name = "Double a number"
+group = "Arithmetic on lists"
+note = "e.g. carry from the next node"
+
+[[listed]]
+name = "Multiply or subtract numbers stored as lists"
+group = "Arithmetic on lists"
+note = "e.g. same carry or borrow loop"
+
+[[listed]]
+name = "Compare two numbers stored as lists"
+group = "Arithmetic on lists"
+note = "Related lesson: K-way merge with a heap"
+
+[[listed]]
+name = "Convert a binary list to an integer"
+group = "Arithmetic on lists"
+note = "e.g. shift and add"
+problems = [
+    { slug = "convert-binary-number-in-a-linked-list-to-integer", title = "Convert Binary Number in a Linked List to Integer", number = 1290, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "Lists of different lengths"
+group = "Arithmetic on lists"
+
+[[listed]]
+name = "Intersection of two lists"
+group = "Intersection and comparison"
+note = "Related lesson: Dummy head and merge"
+
+[[listed]]
+name = "Compare two lists for equality"
+group = "Intersection and comparison"
+note = "Related lesson: K-way merge with a heap"
+
+[[listed]]
+name = "Palindrome"
+group = "Intersection and comparison"
+note = "e.g. compare front with reversed back"
+
+[[listed]]
+name = "Twin sums"
+group = "Intersection and comparison"
+note = "e.g. pair node i with node n-1-i"
+
+[[listed]]
+name = "Check whether one list is a path in a tree or another structure"
+group = "Intersection and comparison"
+
+[[listed]]
+name = "Count components in a list given a subset of values"
+group = "Intersection and comparison"
+
+[[listed]]
+name = "Intersection of lists that may contain cycles"
+group = "Intersection and comparison"
+
+[[listed]]
+name = "Equality by value vs by identity"
+group = "Intersection and comparison"
+note = "e.g. is vs =="
+
+[[listed]]
+name = "Deep copy with an old-to-new hash map (two passes) / one pass with a lazily-created map"
+group = "Copy with a random pointer"
+
+[[listed]]
+name = "O(1)-space interleaving"
+group = "Copy with a random pointer"
+note = "Related lesson: Designing list-backed structures"
+
+[[listed]]
+name = "Recursive copy with memoization"
+group = "Copy with a random pointer"
+
+[[listed]]
+name = "Clone a list with a child pointer"
+group = "Copy with a random pointer"
+note = "Related lesson: Copy with an old-to-new map"
+
+[[listed]]
+name = "Clone a doubly linked list"
+group = "Copy with a random pointer"
+note = "Related lesson: Hash map plus doubly linked list"
+
+[[listed]]
+name = "Clone a graph as a generalization of the same map idea"
+group = "Copy with a random pointer"
+
+[[listed]]
+name = "Flatten a multilevel doubly linked list"
+group = "Flattening and linking structure"
+note = "Related lesson: Hash map plus doubly linked list"
+problems = [
+    { slug = "flatten-a-multilevel-doubly-linked-list", title = "Flatten a Multilevel Doubly Linked List", number = 430, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Flatten a binary tree to a list"
+group = "Flattening and linking structure"
+note = "e.g. pre-order, Morris-style rewiring"
+problems = [
+    { slug = "flatten-binary-tree-to-linked-list", title = "Flatten Binary Tree to Linked List", number = 114, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Link nodes at each tree level with a next pointer"
+group = "Flattening and linking structure"
+note = "Related lesson: Dummy head and merge"
+
+[[listed]]
+name = "Flatten a list of lists by merging"
+group = "Flattening and linking structure"
+note = "Related lesson: K-way merge with a heap"
+
+[[listed]]
+name = "Thread a structure through its own next pointers"
+group = "Flattening and linking structure"
+note = "Related lesson: Copy with an old-to-new map"
+
+[[listed]]
+name = "All-O(1) key counters"
+group = "Design with linked lists"
+note = "e.g. buckets in order"
+
+[[listed]]
+name = "Expiring tokens by recency"
+group = "Design with linked lists"
+
+[[listed]]
+name = "Browser history"
+group = "Design with linked lists"
+
+[[listed]]
+name = "Circular queue / deque with a list or an array"
+group = "Design with linked lists"
+note = "Related lesson: Designing list-backed structures"
+
+[[listed]]
+name = "Front-middle-back queue"
+group = "Design with linked lists"
+note = "e.g. two deques or a list"
+problems = [
+    { slug = "design-front-middle-back-queue", title = "Design Front Middle Back Queue", number = 1670, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Text editor with a cursor"
+group = "Design with linked lists"
+
+[[listed]]
+name = "List-based hash set / hash map"
+group = "Design with linked lists"
+note = "Related lesson: Hash map plus doubly linked list"
+
+[[listed]]
+name = "Skip list"
+group = "Design with linked lists"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "Design a plain singly / doubly linked list"
+group = "Design with linked lists"
+note = "Related lesson: Hash map plus doubly linked list"
+
+[[listed]]
+name = "Sentinel head and tail nodes so no operation has a null case"
+group = "Design with linked lists"
+note = "Related lesson: Hash map plus doubly linked list"
+
+[[listed]]
+name = "Sorted list to height-balanced BST"
+group = "List and structure conversion"
+note = "Related lesson: Dummy head and merge"
+
+[[listed]]
+name = "BST to sorted doubly linked list"
+group = "List and structure conversion"
+note = "Related lesson: Hash map plus doubly linked list"
+
+[[listed]]
+name = "Array to list"
+group = "List and structure conversion"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "List to number and number to list"
+group = "List and structure conversion"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "List to a stack for next-greater queries"
+group = "List and structure conversion"
+
+[[listed]]
+name = "List in a matrix"
+group = "List and structure conversion"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "A linked list as a path to match in a tree"
+group = "List and structure conversion"
+note = "Related lesson: Designing list-backed structures"
+
+[[listed]]
+name = "Split into k parts of nearly equal size"
+group = "Splitting"
+note = "e.g. length, then size and remainder"
+
+[[listed]]
+name = "Split into odd and even position lists"
+group = "Splitting"
+
+[[listed]]
+name = "Split a circular list into two halves"
+group = "Splitting"
+
+[[listed]]
+name = "Split at a value"
+group = "Splitting"
+note = "Related lesson: Editing and splicing nodes in place"
+
+[[listed]]
+name = "Keep M, delete N repeatedly"
+group = "Splitting"
+note = "Related lesson: Two pointers a fixed gap apart"
+
+[[listed]]
+name = "Segment between two sentinel values"
+group = "Splitting"
+
+[[listed]]
+name = "Cut a range out and splice another in"
+group = "Splitting"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "Split in the middle for sorting or palindrome checks"
+group = "Splitting"
+
+[[listed]]
+name = "Break at the cycle entrance"
+group = "Splitting"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "A linked list is a functional graph (each node has one next), so the cycle ideas are the same as in other functional graphs: detect a cycle"
+group = "Cycles in functional graphs"
+note = "e.g. Floyd / visited set"
+
+[[listed]]
+name = "Find the entrance"
+group = "Cycles in functional graphs"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "Find the cycle length"
+group = "Cycles in functional graphs"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "Find the tail length"
+group = "Cycles in functional graphs"
+note = "Related lesson: Hash map plus doubly linked list"
+
+[[listed]]
+name = "Array values as next pointers"
+group = "Cycles in functional graphs"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "Circular array loop detection"
+group = "Cycles in functional graphs"
+problems = [
+    { slug = "circular-array-loop", title = "Circular Array Loop", number = 457, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Brent's algorithm. Cross-reference: [DSA_GRAPH_PATTERNS.md](DSA_GRAPH_PATTERNS.md) group 2"
+group = "Cycles in functional graphs"
+note = "e.g. functional graph cycle detection, Floyd's tortoise and hare"
+
+[[listed]]
+name = "Reservoir sampling of size 1 over a list of unknown length"
+group = "Random node"
+note = "e.g. keep the i-th node with probability 1/i"
+problems = [
+    { slug = "linked-list-random-node", title = "Linked List Random Node", number = 382, difficulty = "medium", premium = false },
+    { slug = "random-pick-index", title = "Random Pick Index", number = 398, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Reservoir sampling of size k"
+group = "Random node"
+problems = [
+    { slug = "linked-list-random-node", title = "Linked List Random Node", number = 382, difficulty = "medium", premium = false },
+    { slug = "random-pick-index", title = "Random Pick Index", number = 398, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Random pick when the length is known"
+group = "Random node"
+note = "e.g. count first, then walk"
+
+[[listed]]
+name = "Random pick with weights"
+group = "Random node"
+
+[[listed]]
+name = "Random pick from a stream"
+group = "Random node"
+
+[[listed]]
+name = "Reverse the second half in place instead of using a stack"
+group = "O(1)-space variants"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "Fast-slow instead of a visited set"
+group = "O(1)-space variants"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "Two-pointer switch instead of a hash set"
+group = "O(1)-space variants"
+note = "e.g. intersection"
+
+[[listed]]
+name = "Interleaved copy instead of a map"
+group = "O(1)-space variants"
+note = "e.g. random pointer"
+
+[[listed]]
+name = "Bottom-up merge sort instead of recursion"
+group = "O(1)-space variants"
+
+[[listed]]
+name = "Morris-style traversal for tree-to-list"
+group = "O(1)-space variants"
+
+[[listed]]
+name = "Iterative instead of recursive to avoid stack depth on long lists"
+group = "O(1)-space variants"
+
+[[listed]]
+name = "Undoing the temporary reversal so the input list is restored"
+group = "O(1)-space variants"
+
+[[listed]]
+name = "Empty list, single node, two nodes"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Dummy head and merge"
+
+[[listed]]
+name = "Head changes"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "Losing next before overwriting it"
+group = "Pitfalls and edge cases"
+
+[[listed]]
+name = "Advancing after an unlink"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Editing and splicing nodes in place"
+
+[[listed]]
+name = "Fast.next null checks"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Fast and slow pointers"
+
+[[listed]]
+name = "Comparing nodes by identity, not value"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Editing and splicing nodes in place"
+
+[[listed]]
+name = "A stale next on the old tail"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "Off-by-one on 1-based vs 0-based positions"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Reversing pointers in place"
+
+[[listed]]
+name = "K greater than the length"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Two pointers a fixed gap apart"
+
+[[listed]]
+name = "Odd vs even length"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Two pointers a fixed gap apart"
+
+[[listed]]
+name = "Deleting a node you only have a reference to"
+group = "Pitfalls and edge cases"
+note = "Related lesson: Copy with an old-to-new map"
+
+[[listed]]
+name = "Mutating an input you were told to keep"
+group = "Pitfalls and edge cases"
+
+[[listed]]
+name = "Scans that need three nodes at once"
+group = "Pitfalls and edge cases"
+
+[[listed]]
+name = "Recursion depth on long lists"
+group = "Pitfalls and edge cases"
+
+[[listed]]
+name = "Doubly linked lists need four pointer updates per insert or delete"
+group = "Pitfalls and edge cases"

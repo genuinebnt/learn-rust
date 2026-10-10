@@ -1,8 +1,26 @@
 pattern = "Backtracking"
 intro = "Backtracking builds an answer one choice at a time and undoes the choice to try the next. Picture a tree of decisions: at each node you choose, recurse, and un-choose. What changes between problems is what a choice is, when a branch is dead (prune early), and when the path so far is a complete answer."
+groups = ["Subsets, combinations and permutations", "Constraint satisfaction", "Partitioning", "String generation", "Grid and word search with visited state", "Path enumeration in graphs and trees", "Pruning techniques", "Bitmask state", "Meet in the middle", "Iterative generation", "Branch and bound and search order", "Game-tree search", "Backtracking versus DP boundary", "Core implementation patterns"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Subsets, combinations and permutations" = ["backtracking"]
+"Grid and word search with visited state" = ["backtracking", "matrix"]
+"Bitmask state" = ["bitmask"]
+"Meet in the middle" = ["meet-in-the-middle"]
+"Iterative generation" = ["enumeration"]
+"Game-tree search" = ["game-theory", "minimax-algorithm"]
+"Backtracking versus DP boundary" = ["memoization"]
 
 [[technique]]
 id = "Backtracking:include-exclude"
+group = "Subsets, combinations and permutations"
 signals = [
     "all subsets, or all selections from a list",
     "for each item the choice is: take it, or skip it",
@@ -32,6 +50,7 @@ pitfalls = [
 
 [[technique]]
 id = "Backtracking:reuse"
+group = "Subsets, combinations and permutations"
 signals = [
     "combinations that add up to a target, where an item may be used many times",
     "pass a start index so each combination is built in one order",
@@ -63,6 +82,7 @@ pitfalls = [
 
 [[technique]]
 id = "Backtracking:skip-dups"
+group = "Subsets, combinations and permutations"
 signals = [
     "the input has repeated values, but the answer must not repeat a combination",
     "each item can be used once",
@@ -97,6 +117,7 @@ pitfalls = [
 
 [[technique]]
 id = "Backtracking:permute"
+group = "Subsets, combinations and permutations"
 signals = [
     "all orderings of the items",
     "every position gets one of the items not yet used",
@@ -130,6 +151,7 @@ pitfalls = [
 
 [[technique]]
 id = "Backtracking:construct"
+group = "String generation"
 signals = [
     "build every valid string or sequence under a rule (balanced brackets, a phone-number mapping)",
     "at each step there are a few legal next characters",
@@ -159,6 +181,7 @@ pitfalls = [
 
 [[technique]]
 id = "Backtracking:grid"
+group = "Grid and word search with visited state"
 signals = [
     "find a path of cells in a grid that spells a word or satisfies a rule",
     "a cell can't be used twice in the same path",
@@ -189,6 +212,7 @@ pitfalls = [
 
 [[technique]]
 id = "Backtracking:partition-k"
+group = "Bitmask state"
 signals = [
     "split items into k groups with equal sums",
     "put each item into one of k buckets, without any bucket overflowing",
@@ -229,6 +253,7 @@ pitfalls = [
 
 [[technique]]
 id = "Backtracking:n-queens"
+group = "Constraint satisfaction"
 signals = [
     "place pieces on a board so none attack each other",
     "one piece per row, so the only choice is the column",
@@ -265,6 +290,7 @@ pitfalls = [
 
 [[technique]]
 id = "Backtracking:split-memo"
+group = "Backtracking versus DP boundary"
 signals = [
     "split a string into words from a dictionary, and list every way",
     "from each position, try every word that matches there",
@@ -295,3 +321,828 @@ pitfalls = [
     "The base case returns [''] (one way: nothing left), so the join step can leave out the extra space.",
     "Looping over the distinct word lengths is cheaper than testing every word at each position.",
 ]
+
+[[group_problem]]
+group = "Constraint satisfaction"
+slug = "sudoku-solver"
+title = "Sudoku Solver"
+number = 37
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Constraint satisfaction"
+slug = "maximum-number-of-achievable-transfer-requests"
+title = "Maximum Number of Achievable Transfer Requests"
+number = 1601
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Constraint satisfaction"
+slug = "tiling-a-rectangle-with-the-fewest-squares"
+title = "Tiling a Rectangle with the Fewest Squares"
+number = 1240
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Constraint satisfaction"
+slug = "verbal-arithmetic-puzzle"
+title = "Verbal Arithmetic Puzzle"
+number = 1307
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Constraint satisfaction"
+slug = "word-squares"
+title = "Word Squares"
+number = 425
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "Partitioning"
+slug = "split-array-into-fibonacci-sequence"
+title = "Split Array into Fibonacci Sequence"
+number = 842
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Partitioning"
+slug = "additive-number"
+title = "Additive Number"
+number = 306
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "String generation"
+slug = "letter-case-permutation"
+title = "Letter Case Permutation"
+number = 784
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "String generation"
+slug = "expression-add-operators"
+title = "Expression Add Operators"
+number = 282
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "String generation"
+slug = "numbers-with-same-consecutive-differences"
+title = "Numbers With Same Consecutive Differences"
+number = 967
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "String generation"
+slug = "brace-expansion-ii"
+title = "Brace Expansion II"
+number = 1096
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "String generation"
+slug = "cracking-the-safe"
+title = "Cracking the Safe"
+number = 753
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Path enumeration in graphs and trees"
+slug = "binary-tree-paths"
+title = "Binary Tree Paths"
+number = 257
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Path enumeration in graphs and trees"
+slug = "path-sum-ii"
+title = "Path Sum II"
+number = 113
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Path enumeration in graphs and trees"
+slug = "all-paths-from-source-to-target"
+title = "All Paths From Source to Target"
+number = 797
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Path enumeration in graphs and trees"
+slug = "unique-paths-iii"
+title = "Unique Paths III"
+number = 980
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Path enumeration in graphs and trees"
+slug = "path-sum-iii"
+title = "Path Sum III"
+number = 437
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Pruning techniques"
+slug = "beautiful-arrangement"
+title = "Beautiful Arrangement"
+number = 526
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Pruning techniques"
+slug = "number-of-squareful-arrays"
+title = "Number of Squareful Arrays"
+number = 996
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Pruning techniques"
+slug = "fair-distribution-of-cookies"
+title = "Fair Distribution of Cookies"
+number = 2305
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Pruning techniques"
+slug = "find-minimum-time-to-finish-all-jobs"
+title = "Find Minimum Time to Finish All Jobs"
+number = 1723
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Pruning techniques"
+slug = "minimum-number-of-work-sessions-to-finish-the-tasks"
+title = "Minimum Number of Work Sessions to Finish the Tasks"
+number = 1986
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bitmask state"
+slug = "can-i-win"
+title = "Can I Win"
+number = 464
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bitmask state"
+slug = "shopping-offers"
+title = "Shopping Offers"
+number = 638
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bitmask state"
+slug = "shortest-path-visiting-all-nodes"
+title = "Shortest Path Visiting All Nodes"
+number = 847
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bitmask state"
+slug = "find-the-shortest-superstring"
+title = "Find the Shortest Superstring"
+number = 943
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bitmask state"
+slug = "smallest-sufficient-team"
+title = "Smallest Sufficient Team"
+number = 1125
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bitmask state"
+slug = "maximum-students-taking-exam"
+title = "Maximum Students Taking Exam"
+number = 1349
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bitmask state"
+slug = "number-of-ways-to-wear-different-hats-to-each-other"
+title = "Number of Ways to Wear Different Hats to Each Other"
+number = 1434
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bitmask state"
+slug = "parallel-courses-ii"
+title = "Parallel Courses II"
+number = 1494
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Meet in the middle"
+slug = "tallest-billboard"
+title = "Tallest Billboard"
+number = 956
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Meet in the middle"
+slug = "closest-subsequence-sum"
+title = "Closest Subsequence Sum"
+number = 1755
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Meet in the middle"
+slug = "partition-array-into-two-arrays-to-minimize-sum-difference"
+title = "Partition Array Into Two Arrays to Minimize Sum Difference"
+number = 2035
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Branch and bound and search order"
+slug = "24-game"
+title = "24 Game"
+number = 679
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Branch and bound and search order"
+slug = "word-ladder-ii"
+title = "Word Ladder II"
+number = 126
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Branch and bound and search order"
+slug = "minimum-moves-to-spread-stones-over-grid"
+title = "Minimum Moves to Spread Stones Over Grid"
+number = 2850
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Game-tree search"
+slug = "nim-game"
+title = "Nim Game"
+number = 292
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Game-tree search"
+slug = "guess-number-higher-or-lower-ii"
+title = "Guess Number Higher or Lower II"
+number = 375
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Game-tree search"
+slug = "predict-the-winner"
+title = "Predict the Winner"
+number = 486
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Game-tree search"
+slug = "guess-the-word"
+title = "Guess the Word"
+number = 843
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Game-tree search"
+slug = "cat-and-mouse"
+title = "Cat and Mouse"
+number = 913
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Game-tree search"
+slug = "stone-game-iv"
+title = "Stone Game IV"
+number = 1510
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Game-tree search"
+slug = "stone-game-vi"
+title = "Stone Game VI"
+number = 1686
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Game-tree search"
+slug = "stone-game-vii"
+title = "Stone Game VII"
+number = 1690
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Backtracking versus DP boundary"
+slug = "integer-replacement"
+title = "Integer Replacement"
+number = 397
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Backtracking versus DP boundary"
+slug = "zuma-game"
+title = "Zuma Game"
+number = 488
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Backtracking versus DP boundary"
+slug = "fibonacci-number"
+title = "Fibonacci Number"
+number = 509
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Backtracking versus DP boundary"
+slug = "remove-boxes"
+title = "Remove Boxes"
+number = 546
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Backtracking versus DP boundary"
+slug = "least-operators-to-express-number"
+title = "Least Operators to Express Number"
+number = 964
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Backtracking versus DP boundary"
+slug = "sort-integers-by-the-power-value"
+title = "Sort Integers by The Power Value"
+number = 1387
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Backtracking versus DP boundary"
+slug = "number-of-ways-of-cutting-a-pizza"
+title = "Number of Ways of Cutting a Pizza"
+number = 1444
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Backtracking versus DP boundary"
+slug = "number-of-ways-to-reorder-array-to-get-same-bst"
+title = "Number of Ways to Reorder Array to Get Same BST"
+number = 1569
+difficulty = "hard"
+premium = false
+
+[[listed]]
+name = "Subsets: include-or-skip recursion / start-index loop"
+group = "Subsets, combinations and permutations"
+
+[[listed]]
+name = "Subsets and subsequences with duplicates: sort and skip / per-level seen set"
+group = "Subsets, combinations and permutations"
+note = "Related lesson: Skipping duplicates at the same level"
+
+[[listed]]
+name = "Arrangements of a multiset of any length / partial permutations of k items"
+group = "Subsets, combinations and permutations"
+
+[[listed]]
+name = "Best-subset search: take / skip with a running feasibility state"
+group = "Subsets, combinations and permutations"
+
+[[listed]]
+name = "Sudoku: row, column and box sets, most-constrained cell first"
+group = "Constraint satisfaction"
+
+[[listed]]
+name = "Position-value assignment: divisibility and adjacency rules"
+group = "Constraint satisfaction"
+
+[[listed]]
+name = "Truth and consistency assignment: each item in or out, checked against claims"
+group = "Constraint satisfaction"
+
+[[listed]]
+name = "Board placement and tiling"
+group = "Constraint satisfaction"
+note = "Related lesson: Constraint sets for placement"
+
+[[listed]]
+name = "Layered construction from a local rule table: build level by level"
+group = "Constraint satisfaction"
+note = "e.g. pyramids, row tilings"
+
+[[listed]]
+name = "Colouring and group assignment under conflicts"
+group = "Constraint satisfaction"
+
+[[listed]]
+name = "Constraint propagation: forward checking / most-constrained variable / arc consistency"
+group = "Constraint satisfaction"
+
+[[listed]]
+name = "Exact cover: Algorithm X / dancing links"
+group = "Constraint satisfaction"
+
+[[listed]]
+name = "Verbal arithmetic and digit puzzles"
+group = "Constraint satisfaction"
+
+[[listed]]
+name = "Split a string into numbers under a rule: additive / Fibonacci / descending, no leading zeros"
+group = "Partitioning"
+
+[[listed]]
+name = "Split into distinct pieces, maximise the count"
+group = "Partitioning"
+
+[[listed]]
+name = "Equal-sum groups: item to bucket / bucket takes items"
+group = "Partitioning"
+note = "Related lesson: Partitioning into K equal groups"
+
+[[listed]]
+name = "Dictionary splits: every sentence, with memo"
+group = "Partitioning"
+note = "Related lesson: Splitting with a memoized DFS"
+
+[[listed]]
+name = "Split at an operator: every parenthesisation, split-and-combine with memo"
+group = "Partitioning"
+note = "Related lesson: Splitting with a memoized DFS"
+
+[[listed]]
+name = "Split into parts whose sum matches a target"
+group = "Partitioning"
+note = "Related lesson: Partitioning into K equal groups"
+
+[[listed]]
+name = "Split into two halves with a balance goal"
+group = "Partitioning"
+
+[[listed]]
+name = "Fewest pieces: backtracking with memo, then DP"
+group = "Partitioning"
+
+[[listed]]
+name = "Balanced parentheses: open / close counters"
+group = "String generation"
+note = "Related lesson: Building a valid sequence under a rule"
+
+[[listed]]
+name = "Remove invalid parentheses: minimum removals, level BFS / DFS with dedupe"
+group = "String generation"
+problems = [
+    { slug = "remove-invalid-parentheses", title = "Remove Invalid Parentheses", number = 301, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "One choice per position: phone letters / letter case / brace expansion"
+group = "String generation"
+
+[[listed]]
+name = "Segmented numeric strings: IP addresses / coordinates"
+group = "String generation"
+
+[[listed]]
+name = "Expression building: insert operators with the carried operand / combine pairs"
+group = "String generation"
+
+[[listed]]
+name = "Digit-by-digit numbers: digit constraints / strobogrammatic / consecutive differences"
+group = "String generation"
+
+[[listed]]
+name = "The k-th string in order: count branches and skip / stop at the k-th"
+group = "String generation"
+note = "Related lesson: Choices that can repeat, with a start index"
+
+[[listed]]
+name = "Sequences under structural rules: DI patterns / no adjacent zeros / nested placement"
+group = "String generation"
+
+[[listed]]
+name = "Mappings and substitutions: bijective pattern / synonym expansion"
+group = "String generation"
+
+[[listed]]
+name = "Covering sequences: De Bruijn / cracking the safe"
+group = "String generation"
+
+[[listed]]
+name = "Best path from any start: maximum gold / longest self-avoiding path"
+group = "Grid and word search with visited state"
+
+[[listed]]
+name = "Cover every cell: Hamiltonian grid paths"
+group = "Grid and word search with visited state"
+
+[[listed]]
+name = "Exploring an unknown map with physical undo: robot, interactive"
+group = "Grid and word search with visited state"
+
+[[listed]]
+name = "Knight tours, self-avoiding walks, maze path counting"
+group = "Grid and word search with visited state"
+
+[[listed]]
+name = "Root-to-leaf paths: path list with pop / string passed by value"
+group = "Path enumeration in graphs and trees"
+
+[[listed]]
+name = "All paths in a DAG: no visited set needed"
+group = "Path enumeration in graphs and trees"
+note = "Related lesson: Building a valid sequence under a rule"
+
+[[listed]]
+name = "All simple paths in a general graph: per-path visited, length and target limits"
+group = "Path enumeration in graphs and trees"
+
+[[listed]]
+name = "All shortest paths: BFS layers, then DFS reconstruction"
+group = "Path enumeration in graphs and trees"
+
+[[listed]]
+name = "Eulerian trail by backtracking / Hierholzer"
+group = "Path enumeration in graphs and trees"
+
+[[listed]]
+name = "Generating all trees: all BSTs / all full binary trees"
+group = "Path enumeration in graphs and trees"
+
+[[listed]]
+name = "Path counting with carried sums: prefix-sum map with undo"
+group = "Path enumeration in graphs and trees"
+note = "Related lesson: Building a valid sequence under a rule"
+
+[[listed]]
+name = "Cycle, clique and connected-subgraph enumeration"
+group = "Path enumeration in graphs and trees"
+
+[[listed]]
+name = "Sort and skip an equal value at the same depth"
+group = "Pruning techniques"
+note = "Related lesson: Skipping duplicates at the same level"
+
+[[listed]]
+name = "Sorted break: stop the loop at the first candidate that is too big"
+group = "Pruning techniques"
+note = "Related lesson: Choices that can repeat, with a start index"
+
+[[listed]]
+name = "Feasibility bounds: not enough items left, suffix sums, remaining target"
+group = "Pruning techniques"
+
+[[listed]]
+name = "Symmetry breaking: interchangeable buckets, mirrored halves"
+group = "Pruning techniques"
+
+[[listed]]
+name = "Fail-first ordering: largest first / most-constrained variable"
+group = "Pruning techniques"
+
+[[listed]]
+name = "Memoised backtracking: state key (index, remaining) /"
+group = "Pruning techniques"
+note = "e.g. mask"
+
+[[listed]]
+name = "Search goal: first solution / count only / enumerate all / best so far"
+group = "Pruning techniques"
+
+[[listed]]
+name = "Pre-checks before searching: divisibility, largest item, parity"
+group = "Pruning techniques"
+
+[[listed]]
+name = "Used set as an integer mask, memo over the mask"
+group = "Bitmask state"
+
+[[listed]]
+name = "Enumerate every mask and test it"
+group = "Bitmask state"
+
+[[listed]]
+name = "Column and diagonal masks: N-Queens bit tricks"
+group = "Bitmask state"
+note = "Related lesson: Constraint sets for placement"
+
+[[listed]]
+name = "Assignment by mask and position"
+group = "Bitmask state"
+
+[[listed]]
+name = "Game state as a mask"
+group = "Bitmask state"
+
+[[listed]]
+name = "Submask enumeration: groups drawn from a subset of a subset"
+group = "Bitmask state"
+
+[[listed]]
+name = "Multiset counts as the state key"
+group = "Bitmask state"
+
+[[listed]]
+name = "Two halves: enumerate each half, sort, two pointers"
+group = "Meet in the middle"
+note = "e.g. balanced split"
+
+[[listed]]
+name = "Closest to a target / count subsets with a given sum"
+group = "Meet in the middle"
+note = "Related lesson: Skipping duplicates at the same level"
+
+[[listed]]
+name = "K-sum by pairs: hash the pair sums"
+group = "Meet in the middle"
+
+[[listed]]
+name = "Bidirectional search on a state space"
+group = "Meet in the middle"
+
+[[listed]]
+name = "K-th permutation: factorial number system"
+group = "Iterative generation"
+
+[[listed]]
+name = "Gray code: reflection / i xor"
+group = "Iterative generation"
+note = "e.g. i >> 1"
+problems = [
+    { slug = "gray-code", title = "Gray Code", number = 89, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Next combination / subsets by counting masks"
+group = "Iterative generation"
+note = "Related lesson: Skipping duplicates at the same level"
+
+[[listed]]
+name = "Lexicographic order walks: iterative number-trie DFS with branch counting"
+group = "Iterative generation"
+
+[[listed]]
+name = "Minimal-change permutations: Heap's algorithm / Steinhaus-Johnson-Trotter"
+group = "Iterative generation"
+
+[[listed]]
+name = "Lazy generation: iterators and generators over combinations"
+group = "Iterative generation"
+
+[[listed]]
+name = "Branch and bound: cut on best-so-far with an optimistic bound"
+group = "Branch and bound and search order"
+
+[[listed]]
+name = "Iterative deepening / depth-limited search"
+group = "Branch and bound and search order"
+
+[[listed]]
+name = "A* / IDA* with an admissible heuristic"
+group = "Branch and bound and search order"
+
+[[listed]]
+name = "Value ordering and incumbent seeding: greedy first, then improve"
+group = "Branch and bound and search order"
+
+[[listed]]
+name = "Relaxation bounds for TSP-style problems: MST / assignment bound"
+group = "Branch and bound and search order"
+
+[[listed]]
+name = "Minimax with memo: (mask, remaining) /"
+group = "Game-tree search"
+note = "e.g. left, right"
+
+[[listed]]
+name = "Alpha-beta pruning and move ordering"
+group = "Game-tree search"
+
+[[listed]]
+name = "When the search collapses: parity and counting arguments"
+group = "Game-tree search"
+
+[[listed]]
+name = "Count / exists / optimise with a repeating state: memoise, then tabulate"
+group = "Backtracking versus DP boundary"
+
+[[listed]]
+name = "Enumerate every answer: output-bound, so backtracking stays"
+group = "Backtracking versus DP boundary"
+
+[[listed]]
+name = "Same recursion, enumerate versus count"
+group = "Backtracking versus DP boundary"
+
+[[listed]]
+name = "Search over values instead of choices: bitset subset sum / knapsack"
+group = "Backtracking versus DP boundary"
+
+[[listed]]
+name = "Closed form instead of search: combinatorics and digit counting"
+group = "Backtracking versus DP boundary"
+
+[[listed]]
+name = "Choose / explore / un-choose, with every change paired with its undo"
+group = "Core implementation patterns"
+note = "Related lesson: Include or exclude choices"
+
+[[listed]]
+name = "Record a copy of the path"
+group = "Core implementation patterns"
+note = "Related lesson: Include or exclude choices"
+
+[[listed]]
+name = "State passed by value (a string, a tuple) versus mutated state with an undo"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Used array / set / mask: which one, and when each is cheap"
+group = "Core implementation patterns"
+note = "Related lesson: Permutations with a used set"
+
+[[listed]]
+name = "In-place mark and restore for grid cells"
+group = "Core implementation patterns"
+note = "Related lesson: Backtracking on a grid"
+
+[[listed]]
+name = "Start index: what turns permutations into combinations"
+group = "Core implementation patterns"
+note = "Related lesson: Choices that can repeat, with a start index"
+
+[[listed]]
+name = "A per-level seen set (not a global one) for duplicates"
+group = "Core implementation patterns"
+note = "Related lesson: Skipping duplicates at the same level"
+
+[[listed]]
+name = "Early exit: returning a bool and propagating it up the call chain"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "A global counter or best-so-far (nonlocal) for count-only and optimisation search"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Sort once at the start, and keep the order stable for the skip rules"
+group = "Core implementation patterns"
+note = "Related lesson: Skipping duplicates at the same level"
+
+[[listed]]
+name = "Generators (yield) for lazy enumeration"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "An explicit stack for iterative backtracking, and the recursion-depth limit"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Output-size reasoning: the answer count is the lower bound on the work"
+group = "Core implementation patterns"

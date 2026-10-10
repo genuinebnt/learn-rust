@@ -1,8 +1,31 @@
 pattern = "Tries"
 intro = "A trie stores words letter by letter, so words with a shared start share a path. Use it for prefix questions (does any word start with this?) and when many words are searched against the same text. Each node is a dictionary from a letter to the next node, plus a flag that a word ends here."
+groups = ["Basic trie", "Wildcards and approximate matching (DFS through the trie)", "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)", "Word search on a grid with a trie (pruning)", "Longest word, shortest root and common prefixes", "XOR with a binary trie", "Deleting from a trie and trie updates", "Compressed trie, radix tree and relatives", "Suffix structures (cross-reference to string algorithms)", "Aho-Corasick multi-pattern matching", "Trie with DP (word break and its cousins)", "Palindrome pairs and pairs of words", "Design problems", "Trie versus hash set, sorting and hashing (trade-offs)", "Core implementation patterns"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Basic trie" = ["trie"]
+"Wildcards and approximate matching (DFS through the trie)" = ["trie"]
+"Word search on a grid with a trie (pruning)" = ["trie", "backtracking"]
+"XOR with a binary trie" = ["trie", "bit-manipulation"]
+"Deleting from a trie and trie updates" = ["trie"]
+"Compressed trie, radix tree and relatives" = ["trie"]
+"Suffix structures (cross-reference to string algorithms)" = ["string-matching", "suffix-array"]
+"Aho-Corasick multi-pattern matching" = ["string-matching", "trie"]
+"Trie with DP (word break and its cousins)" = ["trie", "dynamic-programming"]
+"Palindrome pairs and pairs of words" = ["trie"]
+"Design problems" = ["design", "heap-priority-queue"]
+"Trie versus hash set, sorting and hashing (trade-offs)" = ["trie", "hash-table"]
 
 [[technique]]
 id = "Tries:trie"
+group = "Aho-Corasick multi-pattern matching"
 signals = [
     "does this word, or any word with this prefix, exist?",
     "insert words and check prefixes over and over",
@@ -42,6 +65,7 @@ pitfalls = [
 
 [[technique]]
 id = "Tries:trie-dfs"
+group = "Basic trie"
 signals = [
     "search with wildcards: a '.' that matches any one letter",
     "at a wildcard, every child could match",
@@ -78,6 +102,7 @@ pitfalls = [
 
 [[technique]]
 id = "Tries:trie-grid"
+group = "Word search on a grid with a trie (pruning)"
 signals = [
     "find many words in a grid of letters",
     "searching for each word separately repeats the same walks",
@@ -121,3 +146,715 @@ pitfalls = [
     "Only step to a neighbour if the trie has a child for its letter. That is what prunes the search.",
     "Delete exhausted branches of the trie. Later searches then skip them.",
 ]
+
+[[group_problem]]
+group = "Basic trie"
+slug = "palindrome-pairs"
+title = "Palindrome Pairs"
+number = 336
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Basic trie"
+slug = "replace-words"
+title = "Replace Words"
+number = 648
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Basic trie"
+slug = "implement-magic-dictionary"
+title = "Implement Magic Dictionary"
+number = 676
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Basic trie"
+slug = "map-sum-pairs"
+title = "Map Sum Pairs"
+number = 677
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Basic trie"
+slug = "top-k-frequent-words"
+title = "Top K Frequent Words"
+number = 692
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Basic trie"
+slug = "longest-word-in-dictionary"
+title = "Longest Word in Dictionary"
+number = 720
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Basic trie"
+slug = "prefix-and-suffix-search"
+title = "Prefix and Suffix Search"
+number = 745
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Basic trie"
+slug = "number-of-matching-subsequences"
+title = "Number of Matching Subsequences"
+number = 792
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Wildcards and approximate matching (DFS through the trie)"
+slug = "short-encoding-of-words"
+title = "Short Encoding of Words"
+number = 820
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Wildcards and approximate matching (DFS through the trie)"
+slug = "camelcase-matching"
+title = "Camelcase Matching"
+number = 1023
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Wildcards and approximate matching (DFS through the trie)"
+slug = "number-of-valid-words-for-each-puzzle"
+title = "Number of Valid Words for Each Puzzle"
+number = 1178
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Wildcards and approximate matching (DFS through the trie)"
+slug = "distinct-echo-substrings"
+title = "Distinct Echo Substrings"
+number = 1316
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Wildcards and approximate matching (DFS through the trie)"
+slug = "count-pairs-with-xor-in-a-range"
+title = "Count Pairs With XOR in a Range"
+number = 1803
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Wildcards and approximate matching (DFS through the trie)"
+slug = "maximum-genetic-difference-query"
+title = "Maximum Genetic Difference Query"
+number = 1938
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Wildcards and approximate matching (DFS through the trie)"
+slug = "delete-duplicate-folders-in-system"
+title = "Delete Duplicate Folders in System"
+number = 1948
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Wildcards and approximate matching (DFS through the trie)"
+slug = "encrypt-and-decrypt-strings"
+title = "Encrypt and Decrypt Strings"
+number = 2227
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Word search on a grid with a trie (pruning)"
+slug = "k-divisible-elements-subarrays"
+title = "K Divisible Elements Subarrays"
+number = 2261
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Word search on a grid with a trie (pruning)"
+slug = "words-within-two-edits-of-dictionary"
+title = "Words Within Two Edits of Dictionary"
+number = 2452
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Word search on a grid with a trie (pruning)"
+slug = "maximum-strong-pair-xor-i"
+title = "Maximum Strong Pair XOR I"
+number = 2932
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Word search on a grid with a trie (pruning)"
+slug = "maximum-strong-pair-xor-ii"
+title = "Maximum Strong Pair XOR II"
+number = 2935
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Word search on a grid with a trie (pruning)"
+slug = "minimum-cost-to-convert-string-ii"
+title = "Minimum Cost to Convert String II"
+number = 2977
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Word search on a grid with a trie (pruning)"
+slug = "shortest-uncommon-substring-in-an-array"
+title = "Shortest Uncommon Substring in an Array"
+number = 3076
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Word search on a grid with a trie (pruning)"
+slug = "longest-common-suffix-queries"
+title = "Longest Common Suffix Queries"
+number = 3093
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Word search on a grid with a trie (pruning)"
+slug = "minimum-number-of-valid-strings-to-form-target-i"
+title = "Minimum Number of Valid Strings to Form Target I"
+number = 3291
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Longest word, shortest root and common prefixes"
+slug = "longest-word-in-dictionary-through-deleting"
+title = "Longest Word in Dictionary through Deleting"
+number = 524
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "XOR with a binary trie"
+slug = "longest-common-prefix-of-k-strings-after-removal"
+title = "Longest Common Prefix of K Strings After Removal"
+number = 3485
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "XOR with a binary trie"
+slug = "partition-string"
+title = "Partition String "
+number = 3597
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "XOR with a binary trie"
+slug = "maximum-subarray-xor-with-bounded-range"
+title = "Maximum Subarray XOR with Bounded Range"
+number = 3845
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "XOR with a binary trie"
+slug = "word-squares"
+title = "Word Squares"
+number = 425
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "XOR with a binary trie"
+slug = "word-abbreviation"
+title = "Word Abbreviation"
+number = 527
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "XOR with a binary trie"
+slug = "bold-words-in-string"
+title = "Bold Words in String"
+number = 758
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "XOR with a binary trie"
+slug = "index-pairs-of-a-string"
+title = "Index Pairs of a String"
+number = 1065
+difficulty = "easy"
+premium = true
+
+[[group_problem]]
+group = "XOR with a binary trie"
+slug = "number-of-distinct-substrings-in-a-string"
+title = "Number of Distinct Substrings in a String"
+number = 1698
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Deleting from a trie and trie updates"
+slug = "implement-trie-ii-prefix-tree"
+title = "Implement Trie II (Prefix Tree)"
+number = 1804
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Deleting from a trie and trie updates"
+slug = "longest-word-with-all-prefixes"
+title = "Longest Word With All Prefixes"
+number = 1858
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Deleting from a trie and trie updates"
+slug = "maximum-xor-of-two-non-overlapping-subtrees"
+title = "Maximum XOR of Two Non-Overlapping Subtrees"
+number = 2479
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "Deleting from a trie and trie updates"
+slug = "phone-number-prefix"
+title = "Phone Number Prefix"
+number = 3491
+difficulty = "easy"
+premium = true
+
+[[group_problem]]
+group = "Deleting from a trie and trie updates"
+slug = "subarrays-with-xor-at-least-k"
+title = "Subarrays with XOR at Least K"
+number = 3632
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "Deleting from a trie and trie updates"
+slug = "convert-number-words-to-digits"
+title = "Convert Number Words to Digits"
+number = 3758
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Suffix structures (cross-reference to string algorithms)"
+slug = "sum-of-scores-of-built-strings"
+title = "Sum of Scores of Built Strings"
+number = 2223
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Suffix structures (cross-reference to string algorithms)"
+slug = "repeated-substring-pattern"
+title = "Repeated Substring Pattern"
+number = 459
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Suffix structures (cross-reference to string algorithms)"
+slug = "repeated-string-match"
+title = "Repeated String Match"
+number = 686
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Suffix structures (cross-reference to string algorithms)"
+slug = "rotate-string"
+title = "Rotate String"
+number = 796
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Suffix structures (cross-reference to string algorithms)"
+slug = "longest-duplicate-substring"
+title = "Longest Duplicate Substring"
+number = 1044
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Suffix structures (cross-reference to string algorithms)"
+slug = "longest-happy-prefix"
+title = "Longest Happy Prefix"
+number = 1392
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Suffix structures (cross-reference to string algorithms)"
+slug = "find-all-good-strings"
+title = "Find All Good Strings"
+number = 1397
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Suffix structures (cross-reference to string algorithms)"
+slug = "check-if-a-word-occurs-as-a-prefix-of-any-word-in-a-sentence"
+title = "Check If a Word Occurs As a Prefix of Any Word in a Sentence"
+number = 1455
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Aho-Corasick multi-pattern matching"
+slug = "maximum-repeating-substring"
+title = "Maximum Repeating Substring"
+number = 1668
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Aho-Corasick multi-pattern matching"
+slug = "form-array-by-concatenating-subarrays-of-another-array"
+title = "Form Array by Concatenating Subarrays of Another Array"
+number = 1764
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Aho-Corasick multi-pattern matching"
+slug = "match-substring-after-replacement"
+title = "Match Substring After Replacement"
+number = 2301
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Aho-Corasick multi-pattern matching"
+slug = "maximum-deletions-on-a-string"
+title = "Maximum Deletions on a String"
+number = 2430
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Aho-Corasick multi-pattern matching"
+slug = "string-transformation"
+title = "String Transformation"
+number = 2851
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Aho-Corasick multi-pattern matching"
+slug = "find-beautiful-indices-in-the-given-array-i"
+title = "Find Beautiful Indices in the Given Array I"
+number = 3006
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Aho-Corasick multi-pattern matching"
+slug = "find-beautiful-indices-in-the-given-array-ii"
+title = "Find Beautiful Indices in the Given Array II"
+number = 3008
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Aho-Corasick multi-pattern matching"
+slug = "minimum-time-to-revert-word-to-initial-state-i"
+title = "Minimum Time to Revert Word to Initial State I"
+number = 3029
+difficulty = "medium"
+premium = false
+
+[[listed]]
+name = "(a) Insert / search / startsWith with one node per letter, and one walk helper that search and startsWith share"
+group = "Basic trie"
+note = "Related lesson: Trie insert and search"
+
+[[listed]]
+name = "(b) Array children (26 slots, fixed alphabet) / hash-map children"
+group = "Basic trie"
+note = "e.g. any alphabet, sparse"
+
+[[listed]]
+name = "(c) End-of-word flag / the whole word stored at its end node / a count of words ending here"
+group = "Basic trie"
+note = "Related lesson: Trie insert and search"
+
+[[listed]]
+name = "(a) '.' wildcard: branch over every child at a wildcard, walk plainly elsewhere"
+group = "Wildcards and approximate matching (DFS through the trie)"
+note = "Related lesson: Trie with a wildcard DFS"
+
+[[listed]]
+name = "(b) One wrong letter / at most k edits: carry an edit budget down the walk"
+group = "Wildcards and approximate matching (DFS through the trie)"
+
+[[listed]]
+name = "(c) Glob patterns ('*' for any run, '?' for one letter): a skip-or-consume branch at each star"
+group = "Wildcards and approximate matching (DFS through the trie)"
+
+[[listed]]
+name = "(e) Spell correction: an edit-distance row carried per node while walking"
+group = "Wildcards and approximate matching (DFS through the trie)"
+note = "e.g. trie with a Levenshtein DP"
+
+[[listed]]
+name = "(a) Words passing through a node / words ending at a node, kept as counts"
+group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
+
+[[listed]]
+name = "(b) Sum of the counts along each word's path"
+group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
+note = "e.g. prefix scores of every word"
+
+[[listed]]
+name = "(c) Key-value sums by prefix: the value sits on the end node, an overwrite applies the difference along the path"
+group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
+
+[[listed]]
+name = "(d) Autocomplete: collect every word under the prefix node (DFS) / keep the best k at each node / sorted array with binary search"
+group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
+note = "e.g. search suggestions"
+
+[[listed]]
+name = "(e) Lexicographic order: DFS in letter order / k-th word by subtree counts / an implicit trie over numbers"
+group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
+
+[[listed]]
+name = "(d) Dictionary-driven backtracking: word squares, crosswords, boggle, where each next row must match a prefix"
+group = "Word search on a grid with a trie (pruning)"
+
+[[listed]]
+name = "(a) Shortest root replacement: stop at the first end marker on the walk"
+group = "Longest word, shortest root and common prefixes"
+
+[[listed]]
+name = "(b) Longest word built one letter at a time: DFS only through end nodes / sort and keep a set of built words"
+group = "Longest word, shortest root and common prefixes"
+
+[[listed]]
+name = "(c) Suffix questions with a reversed trie: short encoding of words / longest common suffix with a best answer stored per node"
+group = "Longest word, shortest root and common prefixes"
+
+[[listed]]
+name = "(d) Sub-folders and sub-paths: keep only paths with no marked ancestor"
+group = "Longest word, shortest root and common prefixes"
+note = "e.g. trie / sort and compare neighbours"
+
+[[listed]]
+name = "(e) Longest common prefix of a whole set: walk while a node has one child and no word ends"
+group = "Longest word, shortest root and common prefixes"
+note = "Related lesson: Trie insert and search"
+
+[[listed]]
+name = "(f) Shortest unique prefix / abbreviation per word: walk until the pass count is one"
+group = "Longest word, shortest root and common prefixes"
+
+[[listed]]
+name = "(g) Shortest substring found in no other word: insert the substrings of the others and probe"
+group = "Longest word, shortest root and common prefixes"
+
+[[listed]]
+name = "(h) Greedy segmentation by a trie of segments seen so far"
+group = "Longest word, shortest root and common prefixes"
+note = "e.g. cut when the segment is new"
+
+[[listed]]
+name = "(a) Maximum XOR of a pair: for each number take the opposite bit at every level when it exists"
+group = "XOR with a binary trie"
+problems = [
+    { slug = "maximum-xor-of-two-numbers-in-an-array", title = "Maximum XOR of Two Numbers in an Array", number = 421, difficulty = "medium", premium = false },
+    { slug = "maximum-xor-with-an-element-from-array", title = "Maximum XOR With an Element From Array", number = 1707, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "(b) Maximum XOR with an element not above a bound: queries sorted by bound, insert while sweeping / keep the smallest value at each node"
+group = "XOR with a binary trie"
+problems = [
+    { slug = "maximum-xor-of-two-numbers-in-an-array", title = "Maximum XOR of Two Numbers in an Array", number = 421, difficulty = "medium", premium = false },
+    { slug = "maximum-xor-with-an-element-from-array", title = "Maximum XOR With an Element From Array", number = 1707, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "(c) Count pairs with XOR below a limit: pass counts on nodes and a walk against the limit's bits"
+group = "XOR with a binary trie"
+
+[[listed]]
+name = "(d) Maximum XOR subarray: insert the prefix XORs as you go"
+group = "XOR with a binary trie"
+problems = [
+    { slug = "maximum-xor-of-two-numbers-in-an-array", title = "Maximum XOR of Two Numbers in an Array", number = 421, difficulty = "medium", premium = false },
+    { slug = "maximum-xor-with-an-element-from-array", title = "Maximum XOR With an Element From Array", number = 1707, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "(a) Delete a word: unmark it, then prune childless nodes on the way back"
+group = "Deleting from a trie and trie updates"
+note = "e.g. recursive / iterative with a path stack"
+
+[[listed]]
+name = "(b) Reference counts: decrement along the path, drop a node when its count reaches zero"
+group = "Deleting from a trie and trie updates"
+note = "e.g. erase in a multiset trie"
+
+[[listed]]
+name = "(d) Prune exhausted nodes during a search so that later searches skip them"
+group = "Deleting from a trie and trie updates"
+note = "Related lesson: Trie to prune a grid search"
+
+[[listed]]
+name = "(e) Overwrite a key's value: apply the difference along the path"
+group = "Deleting from a trie and trie updates"
+
+[[listed]]
+name = "(a) Radix tree: edges labelled with strings, split an edge on insert, merge on delete"
+group = "Compressed trie, radix tree and relatives"
+
+[[listed]]
+name = "(c) Ternary search tree: a small binary search tree per level, less memory than child arrays"
+group = "Compressed trie, radix tree and relatives"
+
+[[listed]]
+name = "(a) Suffix trie / suffix tree (Ukkonen): every substring of a text in one structure"
+group = "Suffix structures (cross-reference to string algorithms)"
+
+[[listed]]
+name = "(b) Suffix automaton: distinct substrings, occurrence counts, longest common substring"
+group = "Suffix structures (cross-reference to string algorithms)"
+
+[[listed]]
+name = "(c) Suffix array with an LCP array (Kasai): repeated substrings, k-th substring, binary search on a pattern"
+group = "Suffix structures (cross-reference to string algorithms)"
+
+[[listed]]
+name = "(e) Longest common substring of two or more strings: generalized suffix structure / DP / binary search with hashing"
+group = "Suffix structures (cross-reference to string algorithms)"
+
+[[listed]]
+name = "(g) Palindromic tree (eertree): one node per distinct palindrome of a string"
+group = "Suffix structures (cross-reference to string algorithms)"
+
+[[listed]]
+name = "(b) Output (dictionary) links: report every pattern that ends at the current state"
+group = "Aho-Corasick multi-pattern matching"
+
+[[listed]]
+name = "(c) Precomputed transitions (a full goto function) so each text character costs O"
+group = "Aho-Corasick multi-pattern matching"
+note = "e.g. 1"
+
+[[listed]]
+name = "(d) Match positions to intervals: mark every matched span (bold tags), count occurrences per pattern"
+group = "Aho-Corasick multi-pattern matching"
+
+[[listed]]
+name = "(e) Aho-Corasick with DP: count strings of length n that avoid every forbidden pattern"
+group = "Aho-Corasick multi-pattern matching"
+problems = [
+    { slug = "stream-of-characters", title = "Stream of Characters", number = 1032, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "(b) Fewest leftover characters: dp[i] is the best of skipping a letter or taking a word"
+group = "Trie with DP (word break and its cousins)"
+
+[[listed]]
+name = "(e) Ways to form a target from a dictionary: counts per column / per position over the words"
+group = "Trie with DP (word break and its cousins)"
+
+[[listed]]
+name = "(b) Palindrome pairs: split every word at each position and look the halves up in a hash map"
+group = "Palindrome pairs and pairs of words"
+
+[[listed]]
+name = "(d) Palindromic prefix of a word (shortest palindrome): KMP failure table / rolling hash"
+group = "Palindrome pairs and pairs of words"
+
+[[listed]]
+name = "(e) Key-value map with prefix sums"
+group = "Design problems"
+note = "Related lesson: Trie insert and search"
+
+[[listed]]
+name = "(f) Word filter by prefix and suffix, with a weight per word"
+group = "Design problems"
+
+[[listed]]
+name = "(g) Dictionary classes: add a word, then query"
+group = "Design problems"
+note = "e.g. wildcard or one-edit"
+
+[[listed]]
+name = "(b) Exact membership only: a hash set (with a maximum word length) is simpler and faster"
+group = "Trie versus hash set, sorting and hashing (trade-offs)"
+
+[[listed]]
+name = "(a) Node as a dict / a small class / parallel arrays indexed by node id"
+group = "Core implementation patterns"
+note = "e.g. flat arrays for large inputs, an arena `Vec` with indices in Rust"
+
+[[listed]]
+name = "(b) End marker: a reserved key such as '$' / a boolean / the stored word"
+group = "Core implementation patterns"
+note = "Related lesson: Trie insert and search"
+
+[[listed]]
+name = "Keep reserved symbols out of the alphabet"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "(c) Recursive / iterative traversal"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Recursion depth on long words and deep tries"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "(d) Per-node aggregates: pass count, end count, best result, smallest index"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Updated on insert"
+group = "Core implementation patterns"
+note = "Related lesson: Trie insert and search"
+
+[[listed]]
+name = "(e) Child order for lexicographic output: sorted children / a fixed letter order"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "(f) Build order and cost: O"
+group = "Core implementation patterns"
+note = "e.g. total characters"
+
+[[listed]]
+name = "Insertion order matters when a word is tested before it is added"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "(g) Reversed-key tries: insert words reversed for suffix questions"
+group = "Core implementation patterns"
+note = "Related lesson: Trie insert and search"

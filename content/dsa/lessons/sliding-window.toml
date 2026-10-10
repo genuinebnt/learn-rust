@@ -1,5 +1,26 @@
 pattern = "Sliding Window"
 intro = "A window is a stretch of the array between two indexes. Slide it by moving the right end forward, and move the left end only to repair the window when it breaks a rule. Each index enters and leaves once, so the whole scan is O(n). Decide what the window must satisfy and what you keep as its summary (a sum, a count map, a set)."
+groups = ["Fixed-size window", "Variable window, longest valid", "Variable window, shortest valid", "Counting windows (atMost(k) - atMost(k-1))", "Frequency (need / have) windows", "Windows over two sequences", "Circular arrays", "Monotonic-queue windows", "Ordered-set / heap windows", "Negative numbers (when windows fail: prefix sums)", "Binary search on window size", "Character-budget windows", "2-D windows", "Sorted-input windows (sort first, then slide)", "Window as a helper for DP and greedy", "Core implementation patterns"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Fixed-size window" = ["sliding-window"]
+"Variable window, longest valid" = ["sliding-window"]
+"Variable window, shortest valid" = ["sliding-window"]
+"Counting windows (atMost(k) - atMost(k-1))" = ["counting", "sliding-window"]
+"Frequency (need / have) windows" = ["hash-table", "sliding-window"]
+"Circular arrays" = ["sliding-window"]
+"Monotonic-queue windows" = ["monotonic-queue", "sliding-window"]
+"Ordered-set / heap windows" = ["ordered-set", "heap-priority-queue"]
+"Negative numbers (when windows fail: prefix sums)" = ["prefix-sum"]
+"Binary search on window size" = ["binary-search", "sliding-window"]
+"2-D windows" = ["prefix-sum", "matrix"]
 
 [[technique]]
 id = "Sliding Window:running-best"
@@ -24,6 +45,7 @@ pitfalls = [
 
 [[technique]]
 id = "Sliding Window:fixed-sum"
+group = "Fixed-size window"
 signals = [
     "every window of exactly k items",
     "a sum or average over each block of k",
@@ -47,6 +69,7 @@ pitfalls = [
 
 [[technique]]
 id = "Sliding Window:window-max"
+group = "Variable window, longest valid"
 signals = [
     "the LONGEST stretch with some property (no repeats, at most k replacements)",
     "grow the window to the right, shrink from the left only when it becomes invalid",
@@ -71,6 +94,7 @@ pitfalls = [
 
 [[technique]]
 id = "Sliding Window:fixed-window"
+group = "Fixed-size window"
 signals = [
     "find a window of a fixed length that has the same letters as a pattern",
     "compare character counts of each window with a target",
@@ -103,6 +127,7 @@ pitfalls = [
 
 [[technique]]
 id = "Sliding Window:at-most-k"
+group = "Fixed-size window"
 signals = [
     "the longest window with at most k distinct values (or kinds)",
     "keep a count map for the window, and shrink while it has too many kinds",
@@ -130,6 +155,7 @@ pitfalls = [
 
 [[technique]]
 id = "Sliding Window:window-sort"
+group = "Binary search on window size"
 signals = [
     "choose k elements of a SORTED array nearest to a value",
     "the answer is one contiguous block, so only its start is unknown",
@@ -154,6 +180,7 @@ pitfalls = [
 
 [[technique]]
 id = "Sliding Window:count-windows"
+group = "Negative numbers (when windows fail: prefix sums)"
 signals = [
     "count the subarrays with EXACTLY k of something",
     "counting 'at most k' with a window is easy, 'exactly k' is not",
@@ -183,6 +210,7 @@ pitfalls = [
 
 [[technique]]
 id = "Sliding Window:window-min"
+group = "Variable window, shortest valid"
 signals = [
     "the SHORTEST window that contains everything required",
     "grow right until the window is valid, then shrink left while it stays valid",
@@ -219,6 +247,7 @@ pitfalls = [
 
 [[technique]]
 id = "Sliding Window:mono-deque"
+group = "Monotonic-queue windows"
 signals = [
     "the maximum (or minimum) of every window of size k",
     "a heap works but is O(n log n); a deque does it in O(n)",
@@ -246,3 +275,704 @@ pitfalls = [
     "The front of the deque is the maximum of the current window.",
     "Each index is pushed and popped at most once, so the total is O(n).",
 ]
+
+[[group_problem]]
+group = "Windows over two sequences"
+slug = "minimum-window-subsequence"
+title = "Minimum Window Subsequence"
+number = 727
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "Windows over two sequences"
+slug = "longest-common-subpath"
+title = "Longest Common Subpath"
+number = 1923
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Windows over two sequences"
+slug = "substring-with-concatenation-of-all-words"
+title = "Substring with Concatenation of All Words"
+number = 30
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic-queue windows"
+slug = "max-value-of-equation"
+title = "Max Value of Equation"
+number = 1499
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic-queue windows"
+slug = "delivering-boxes-from-storage-to-ports"
+title = "Delivering Boxes from Storage to Ports"
+number = 1687
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic-queue windows"
+slug = "jump-game-vi"
+title = "Jump Game VI"
+number = 1696
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Monotonic-queue windows"
+slug = "maximum-number-of-tasks-you-can-assign"
+title = "Maximum Number of Tasks You Can Assign"
+number = 2071
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic-queue windows"
+slug = "maximum-number-of-robots-within-budget"
+title = "Maximum Number of Robots Within Budget"
+number = 2398
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic-queue windows"
+slug = "longest-increasing-subsequence-ii"
+title = "Longest Increasing Subsequence II"
+number = 2407
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic-queue windows"
+slug = "count-subarrays-with-fixed-bounds"
+title = "Count Subarrays With Fixed Bounds"
+number = 2444
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Monotonic-queue windows"
+slug = "continuous-subarrays"
+title = "Continuous Subarrays"
+number = 2762
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Ordered-set / heap windows"
+slug = "contains-duplicate-iii"
+title = "Contains Duplicate III"
+number = 220
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Ordered-set / heap windows"
+slug = "count-of-smaller-numbers-after-self"
+title = "Count of Smaller Numbers After Self"
+number = 315
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Ordered-set / heap windows"
+slug = "count-of-range-sum"
+title = "Count of Range Sum"
+number = 327
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Ordered-set / heap windows"
+slug = "max-sum-of-rectangle-no-larger-than-k"
+title = "Max Sum of Rectangle No Larger Than K"
+number = 363
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Ordered-set / heap windows"
+slug = "reverse-pairs"
+title = "Reverse Pairs"
+number = 493
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Ordered-set / heap windows"
+slug = "random-point-in-non-overlapping-rectangles"
+title = "Random Point in Non-overlapping Rectangles"
+number = 497
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Ordered-set / heap windows"
+slug = "falling-squares"
+title = "Falling Squares"
+number = 699
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Ordered-set / heap windows"
+slug = "range-module"
+title = "Range Module"
+number = 715
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Negative numbers (when windows fail: prefix sums)"
+slug = "my-calendar-iii"
+title = "My Calendar III"
+number = 732
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Negative numbers (when windows fail: prefix sums)"
+slug = "smallest-rotation-with-highest-score"
+title = "Smallest Rotation with Highest Score"
+number = 798
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Negative numbers (when windows fail: prefix sums)"
+slug = "largest-sum-of-averages"
+title = "Largest Sum of Averages"
+number = 813
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Negative numbers (when windows fail: prefix sums)"
+slug = "shifting-letters"
+title = "Shifting Letters"
+number = 848
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Negative numbers (when windows fail: prefix sums)"
+slug = "valid-permutations-for-di-sequence"
+title = "Valid Permutations for DI Sequence"
+number = 903
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Negative numbers (when windows fail: prefix sums)"
+slug = "minimum-cost-to-merge-stones"
+title = "Minimum Cost to Merge Stones"
+number = 1000
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Negative numbers (when windows fail: prefix sums)"
+slug = "corporate-flight-bookings"
+title = "Corporate Flight Bookings"
+number = 1109
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Negative numbers (when windows fail: prefix sums)"
+slug = "longest-well-performing-interval"
+title = "Longest Well-Performing Interval"
+number = 1124
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Character-budget windows"
+slug = "maximize-the-confusion-of-an-exam"
+title = "Maximize the Confusion of an Exam"
+number = 2024
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "2-D windows"
+slug = "can-make-palindrome-from-substring"
+title = "Can Make Palindrome from Substring"
+number = 1177
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "2-D windows"
+slug = "maximum-side-length-of-a-square-with-sum-less-than-or-equal-to-threshold"
+title = "Maximum Side Length of a Square with Sum Less than or Equal to Threshold"
+number = 1292
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "2-D windows"
+slug = "matrix-block-sum"
+title = "Matrix Block Sum"
+number = 1314
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "2-D windows"
+slug = "product-of-the-last-k-numbers"
+title = "Product of the Last K Numbers"
+number = 1352
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "2-D windows"
+slug = "minimum-value-to-get-positive-step-by-step-sum"
+title = "Minimum Value to Get Positive Step by Step Sum"
+number = 1413
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "2-D windows"
+slug = "build-array-where-you-can-find-the-maximum-exactly-k-comparisons"
+title = "Build Array Where You Can Find The Maximum Exactly K Comparisons"
+number = 1420
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "2-D windows"
+slug = "number-of-ways-of-cutting-a-pizza"
+title = "Number of Ways of Cutting a Pizza"
+number = 1444
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "2-D windows"
+slug = "running-sum-of-1d-array"
+title = "Running Sum of 1d Array"
+number = 1480
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Window as a helper for DP and greedy"
+slug = "minimum-swaps-to-group-all-1s-together"
+title = "Minimum Swaps to Group All 1's Together"
+number = 1151
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Window as a helper for DP and greedy"
+slug = "minimum-adjacent-swaps-for-k-consecutive-ones"
+title = "Minimum Adjacent Swaps for K Consecutive Ones"
+number = 1703
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Window as a helper for DP and greedy"
+slug = "maximum-white-tiles-covered-by-a-carpet"
+title = "Maximum White Tiles Covered by a Carpet"
+number = 2271
+difficulty = "medium"
+premium = false
+
+[[listed]]
+name = "Fixed-size sum / average"
+group = "Fixed-size window"
+note = "Related lesson: Fixed window with a running sum"
+
+[[listed]]
+name = "Fixed-size count of a property"
+group = "Fixed-size window"
+note = "Related lesson: Variable window: longest valid"
+
+[[listed]]
+name = "Fixed-size minimise changes"
+group = "Fixed-size window"
+note = "Related lesson: Fixed-size window with counts"
+
+[[listed]]
+name = "Fixed-size with a set / count map of distinct values"
+group = "Fixed-size window"
+note = "Related lesson: Window with at most K of something"
+
+[[listed]]
+name = "Fixed-size rule between neighbours"
+group = "Fixed-size window"
+note = "Related lesson: Fixed-size window with counts"
+
+[[listed]]
+name = "Running best so far"
+group = "Fixed-size window"
+note = "Related lesson: One pass tracking the best so far"
+
+[[listed]]
+name = "Shrink while invalid"
+group = "Variable window, longest valid"
+note = "Related lesson: Variable window: longest valid"
+
+[[listed]]
+name = "Non-shrinking window"
+group = "Variable window, longest valid"
+note = "Related lesson: Window over a sorted array"
+
+[[listed]]
+name = "Longest with one deletion / one flip allowed"
+group = "Variable window, longest valid"
+
+[[listed]]
+name = "Longest with a per-character count condition"
+group = "Variable window, longest valid"
+note = "Related lesson: Variable window: longest valid"
+
+[[listed]]
+name = "Longest run: reset the window when a neighbour rule breaks"
+group = "Variable window, longest valid"
+
+[[listed]]
+name = "Window over a bitwise rule"
+group = "Variable window, longest valid"
+note = "e.g. bit counts"
+
+[[listed]]
+name = "Shrink while still valid"
+group = "Variable window, shortest valid"
+note = "Related lesson: Variable window: longest valid"
+
+[[listed]]
+name = "Shortest window containing everything required"
+group = "Variable window, shortest valid"
+note = "Related lesson: Variable window: shortest valid"
+
+[[listed]]
+name = "Take from both ends = keep a middle window of the complement"
+group = "Variable window, shortest valid"
+
+[[listed]]
+name = "Shortest with a tie-break"
+group = "Variable window, shortest valid"
+note = "Related lesson: Variable window: shortest valid"
+
+[[listed]]
+name = "Subarrays ending at right"
+group = "Counting windows (atMost(k) - atMost(k-1))"
+note = "Related lesson: Counting windows (at most K minus at most K-1)"
+
+[[listed]]
+name = "Exactly K as atMost(K) - atMost"
+group = "Counting windows (atMost(k) - atMost(k-1))"
+note = "Related lesson: Fixed window with a running sum"
+
+[[listed]]
+name = "At least K: once valid, every longer window is valid"
+group = "Counting windows (atMost(k) - atMost(k-1))"
+note = "Related lesson: Monotonic deque for the window maximum"
+
+[[listed]]
+name = "Counting with last-seen positions"
+group = "Counting windows (atMost(k) - atMost(k-1))"
+note = "Related lesson: Variable window: longest valid"
+
+[[listed]]
+name = "Counting good pairs inside the window"
+group = "Counting windows (atMost(k) - atMost(k-1))"
+
+[[listed]]
+name = "Need / have counts with a satisfied counter"
+group = "Frequency (need / have) windows"
+note = "Related lesson: Fixed-size window with counts"
+
+[[listed]]
+name = "Fixed-size anagram / permutation match"
+group = "Frequency (need / have) windows"
+
+[[listed]]
+name = "Word-level window"
+group = "Frequency (need / have) windows"
+note = "e.g. slide by word length, several offsets"
+
+[[listed]]
+name = "Cover every distinct kind"
+group = "Frequency (need / have) windows"
+note = "Related lesson: Window with at most K of something"
+
+[[listed]]
+name = "Per-value count cap inside the window"
+group = "Frequency (need / have) windows"
+note = "Related lesson: Variable window: longest valid"
+
+[[listed]]
+name = "Cover elements from K sorted lists"
+group = "Windows over two sequences"
+note = "Related lesson: Window over a sorted array"
+
+[[listed]]
+name = "Common subarray of two arrays"
+group = "Windows over two sequences"
+note = "e.g. slide one against the other"
+
+[[listed]]
+name = "Rolling hash of fixed windows"
+group = "Windows over two sequences"
+note = "Related lesson: Fixed window with a running sum"
+
+[[listed]]
+name = "Window over a text against a target pattern"
+group = "Windows over two sequences"
+note = "Related lesson: Fixed-size window with counts"
+
+[[listed]]
+name = "Two-pointer windows across two sorted sequences"
+group = "Windows over two sequences"
+note = "e.g. interval lists"
+
+[[listed]]
+name = "Double the array"
+group = "Circular arrays"
+note = "Related lesson: Fixed window with a running sum"
+
+[[listed]]
+name = "Circular maximum subarray"
+group = "Circular arrays"
+note = "e.g. total minus minimum, or prefix sums plus deque"
+
+[[listed]]
+name = "Infinite repeated array"
+group = "Circular arrays"
+note = "e.g. whole copies plus a window"
+
+[[listed]]
+name = "Circular groups with wrap-around windows"
+group = "Circular arrays"
+
+[[listed]]
+name = "Window maximum / minimum"
+group = "Monotonic-queue windows"
+note = "Related lesson: Monotonic deque for the window maximum"
+
+[[listed]]
+name = "Two deques (max and min) for a range limit"
+group = "Monotonic-queue windows"
+
+[[listed]]
+name = "Deque-optimised DP"
+group = "Monotonic-queue windows"
+note = "Related lesson: Monotonic deque for the window maximum"
+
+[[listed]]
+name = "Deque inside a budget window"
+group = "Monotonic-queue windows"
+note = "Related lesson: Monotonic deque for the window maximum"
+
+[[listed]]
+name = "Ordered set / multiset"
+group = "Ordered-set / heap windows"
+note = "e.g. nearest value in the window"
+
+[[listed]]
+name = "Heap with lazy deletion"
+group = "Ordered-set / heap windows"
+note = "e.g. window maximum"
+problems = [
+    { slug = "the-skyline-problem", title = "The Skyline Problem", number = 218, difficulty = "hard", premium = false },
+    { slug = "sliding-window-median", title = "Sliding Window Median", number = 480, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Counting array over a small value range"
+group = "Ordered-set / heap windows"
+note = "e.g. K-th smallest in the window"
+
+[[listed]]
+name = "Bucket by value range"
+group = "Ordered-set / heap windows"
+note = "e.g. near-duplicate detection"
+
+[[listed]]
+name = "Sorted window with a binary-searched edge"
+group = "Ordered-set / heap windows"
+note = "Related lesson: Window over a sorted array"
+
+[[listed]]
+name = "Why shrinking fails: the sum is not monotone"
+group = "Negative numbers (when windows fail: prefix sums)"
+
+[[listed]]
+name = "Prefix sums + hash map"
+group = "Negative numbers (when windows fail: prefix sums)"
+note = "e.g. count subarrays with sum K"
+
+[[listed]]
+name = "Prefix sums + monotonic deque"
+group = "Negative numbers (when windows fail: prefix sums)"
+note = "Related lesson: Monotonic deque for the window maximum"
+
+[[listed]]
+name = "Kadane / best window ending here"
+group = "Negative numbers (when windows fail: prefix sums)"
+
+[[listed]]
+name = "Prefix sums + binary search"
+group = "Negative numbers (when windows fail: prefix sums)"
+note = "Related lesson: Window over a sorted array"
+
+[[listed]]
+name = "Replacement budget"
+group = "Character-budget windows"
+note = "e.g. window size - max frequency <= K"
+
+[[listed]]
+name = "Flip budget"
+group = "Character-budget windows"
+note = "e.g. at most K zeros"
+
+[[listed]]
+name = "Cost budget"
+group = "Character-budget windows"
+note = "e.g. sum of per-position costs <= budget"
+
+[[listed]]
+name = "Operation budget on sorted values"
+group = "Character-budget windows"
+note = "Related lesson: Window over a sorted array"
+
+[[listed]]
+name = "Swap budget around a median"
+group = "Character-budget windows"
+
+[[listed]]
+name = "Fixed-size submatrix sums"
+group = "2-D windows"
+note = "Related lesson: Fixed-size window with counts"
+
+[[listed]]
+name = "Collapse row pairs to 1-D, then window or hash"
+group = "2-D windows"
+
+[[listed]]
+name = "Largest square / rectangle"
+group = "2-D windows"
+note = "e.g. grow the window in two directions"
+
+[[listed]]
+name = "Maximum-sum rectangle no larger than K"
+group = "2-D windows"
+
+[[listed]]
+name = "K x K maximum by two passes of 1-D deques"
+group = "2-D windows"
+
+[[listed]]
+name = "Sort, then a window of K"
+group = "Sorted-input windows (sort first, then slide)"
+note = "Related lesson: One pass tracking the best so far"
+
+[[listed]]
+name = "Sort, then a range"
+group = "Sorted-input windows (sort first, then slide)"
+note = "Related lesson: Fixed window with a running sum"
+
+[[listed]]
+name = "Consecutive-values window"
+group = "Sorted-input windows (sort first, then slide)"
+note = "Related lesson: Window with at most K of something"
+
+[[listed]]
+name = "Gap windows"
+group = "Sorted-input windows (sort first, then slide)"
+note = "Related lesson: Fixed window with a running sum"
+
+[[listed]]
+name = "Several non-overlapping windows"
+group = "Window as a helper for DP and greedy"
+note = "e.g. best left + best right"
+
+[[listed]]
+name = "Greedy flips with a queue or difference array"
+group = "Window as a helper for DP and greedy"
+
+[[listed]]
+name = "DP with a running window sum"
+group = "Window as a helper for DP and greedy"
+note = "Related lesson: Fixed window with a running sum"
+
+[[listed]]
+name = "Windows over derived sequences"
+group = "Window as a helper for DP and greedy"
+note = "e.g. positions, intervals, gaps"
+
+[[listed]]
+name = "Left / right pointers with a window that is inclusive on both ends"
+group = "Core implementation patterns"
+note = "Related lesson: Variable window: longest valid"
+
+[[listed]]
+name = "Count map with delete-at-zero"
+group = "Core implementation patterns"
+note = "Related lesson: Fixed-size window with counts"
+
+[[listed]]
+name = "Need / have with a satisfied counter"
+group = "Core implementation patterns"
+note = "Related lesson: Fixed-size window with counts"
+
+[[listed]]
+name = "Running window sum"
+group = "Core implementation patterns"
+note = "Related lesson: Fixed window with a running sum"
+
+[[listed]]
+name = "Last-seen index map"
+group = "Core implementation patterns"
+note = "Related lesson: Variable window: longest valid"
+
+[[listed]]
+name = "Decreasing deque of indices"
+group = "Core implementation patterns"
+note = "Related lesson: Monotonic deque for the window maximum"
+
+[[listed]]
+name = "Init the first window, then slide"
+group = "Core implementation patterns"
+note = "Related lesson: Fixed window with a running sum"
+
+[[listed]]
+name = "An atMost(k) helper called twice"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Doubling the array or index modulo n"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Prefix-sum array and prefix-sum hash map"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Lazy deletion in a heap"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Guard k > n and k = 0"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Do not shrink on invalid"
+group = "Core implementation patterns"
+note = "Related lesson: Variable window: longest valid"
+
+[[listed]]
+name = "Choose the loop shape (for right in range, while left) and the order: add right, shrink left, then record"
+group = "Core implementation patterns"

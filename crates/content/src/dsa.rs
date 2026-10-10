@@ -116,6 +116,10 @@ pub struct DsaCatalog {
     pub extras: BTreeMap<String, Vec<Extra>>,
     /// Techniques that are known and not written yet, by pattern name, in file order.
     pub listed: BTreeMap<String, Vec<Listed>>,
+    /// LeetCode topic tags (slugs) that belong to a group, by pattern name then group: the page links to LeetCode's own list.
+    pub group_tags: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    /// More LeetCode problems per group (outside the lists), by pattern name then group.
+    pub group_problems: BTreeMap<String, BTreeMap<String, Vec<External>>>,
 }
 
 /// One more tab of a template: the same idea written another way (recursive and iterative DFS).
@@ -149,6 +153,34 @@ pub struct Extra {
     pub examples: Vec<String>,
 }
 
+/// A LeetCode problem that is not in the NeetCode lists, found in LeetCode's own index (`tools/neetcode/pattern_pages.py`), so it is
+/// shown with a link and is not tracked in anneal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct External {
+    pub slug: String,
+    pub title: String,
+    pub number: u32,
+    /// `easy`, `medium` or `hard`.
+    pub difficulty: String,
+    #[serde(default)]
+    pub premium: bool,
+}
+
+/// A LeetCode problem for a whole group of a pattern page: it carries one of the group's LeetCode topic tags and is not in the lists.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GroupProblem {
+    pub group: String,
+    pub slug: String,
+    pub title: String,
+    pub number: u32,
+    /// `easy`, `medium` or `hard`.
+    pub difficulty: String,
+    #[serde(default)]
+    pub premium: bool,
+}
+
 /// A technique that belongs on the page's map and has no lesson yet.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -158,6 +190,9 @@ pub struct Listed {
     /// What is missing or how it relates to a written lesson.
     #[serde(default)]
     pub note: String,
+    /// LeetCode problems that practise it (outside the lists), verified against LeetCode's index.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub problems: Vec<External>,
 }
 
 /// What a pattern lesson says about one technique: when to reach for it, a Python template to adapt, and the usual traps.
@@ -191,6 +226,11 @@ struct LessonFile {
     /// The groups of the page, in order. Every `group` below is one of them.
     #[serde(default)]
     groups: Vec<String>,
+    /// LeetCode topic tags that belong to a group (`group_tags."Shortest paths" = ["shortest-path"]`).
+    #[serde(default)]
+    group_tags: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    group_problem: Vec<GroupProblem>,
     technique: Vec<Lesson>,
     #[serde(default)]
     extra: Vec<Extra>,
@@ -347,6 +387,8 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
             lesson_groups: loaded.groups,
             extras: loaded.extras,
             listed: loaded.listed,
+            group_tags: loaded.group_tags,
+            group_problems: loaded.group_problems,
         },
     }
 }
@@ -463,6 +505,8 @@ struct LoadedLessons {
     groups: BTreeMap<String, Vec<String>>,
     extras: BTreeMap<String, Vec<Extra>>,
     listed: BTreeMap<String, Vec<Listed>>,
+    group_tags: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    group_problems: BTreeMap<String, BTreeMap<String, Vec<External>>>,
 }
 
 /// `<root>/dsa/lessons/*.toml`: the pattern lessons. A lesson for an unknown technique, one filed under the wrong pattern,
@@ -557,12 +601,34 @@ fn load_lessons(root: &Path, techniques: &[Technique], by_id: &BTreeMap<&str, &R
             }
         }
         for item in file.listed {
+            let bad_problem = item.problems.iter().find(|p| p.slug.trim().is_empty() || p.title.trim().is_empty() || p.number == 0 || !matches!(p.difficulty.as_str(), "easy" | "medium" | "hard"));
             if item.name.trim().is_empty() {
                 issues.push(issue("listed", "a name is empty".into()));
             } else if !group_ok(&item.group) {
                 issues.push(issue(&item.name, format!("the group {:?} is not declared in `groups`", item.group)));
+            } else if let Some(p) = bad_problem {
+                issues.push(issue(&item.name, format!("the problem {:?} needs a slug, a title, a number and easy, medium or hard", p.slug)));
             } else {
                 out.listed.entry(file.pattern.clone()).or_default().push(item);
+            }
+        }
+        for gp in file.group_problem {
+            if !group_ok(&gp.group) || file.groups.is_empty() {
+                issues.push(issue("group_problem", format!("the group {:?} is not declared in `groups`", gp.group)));
+            } else if gp.slug.trim().is_empty() || gp.title.trim().is_empty() || gp.number == 0 || !matches!(gp.difficulty.as_str(), "easy" | "medium" | "hard") {
+                issues.push(issue("group_problem", format!("{:?} needs a slug, a title, a number and easy, medium or hard", gp.slug)));
+            } else {
+                let ext = External { slug: gp.slug, title: gp.title, number: gp.number, difficulty: gp.difficulty, premium: gp.premium };
+                out.group_problems.entry(file.pattern.clone()).or_default().entry(gp.group).or_default().push(ext);
+            }
+        }
+        for (group, tags) in file.group_tags {
+            if !group_ok(&group) || (file.groups.is_empty()) {
+                issues.push(issue("group_tags", format!("the group {group:?} is not declared in `groups`")));
+            } else if let Some(t) = tags.iter().find(|t| t.is_empty() || !t.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')) {
+                issues.push(issue("group_tags", format!("{t:?} is not a LeetCode tag slug")));
+            } else {
+                out.group_tags.entry(file.pattern.clone()).or_default().insert(group, tags);
             }
         }
     }

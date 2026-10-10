@@ -1,8 +1,30 @@
 pattern = "Arrays & Hashing"
 intro = "Most array and string problems become short once you know what to remember while scanning: a set of what you have seen, a count of each value, a map from a value to where it was, or a running total. A dictionary lookup is O(1), so each of these turns a nested loop into a single pass."
+groups = ["Frequency counting", "Two-sum family", "Grouping by canonical key", "Prefix sums with a map", "Difference arrays", "In-place manipulation (cyclic sort, index as hash)", "Partition and rearrangement", "Matrix traversal and transform", "Simulation", "Majority element", "Prefix / suffix products and aggregates", "Counting and bucket tricks", "Coordinate compression", "Duplicate detection", "Missing and extra number", "Design with hash maps", "Hashing structures", "Sorting-based approaches"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Frequency counting" = ["counting"]
+"Prefix sums with a map" = ["prefix-sum"]
+"Difference arrays" = ["prefix-sum"]
+"Matrix traversal and transform" = ["matrix"]
+"Simulation" = ["simulation"]
+"Majority element" = ["counting"]
+"Prefix / suffix products and aggregates" = ["prefix-sum"]
+"Counting and bucket tricks" = ["bucket-sort", "counting-sort"]
+"Design with hash maps" = ["design"]
+"Hashing structures" = ["hash-function"]
+"Sorting-based approaches" = ["sorting"]
 
 [[technique]]
 id = "Arrays & Hashing:simulation"
+group = "Simulation"
 signals = [
     "the problem tells you exactly what to build, step by step",
     "no clever idea is needed: follow the rules and build the result",
@@ -24,6 +46,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:seen-set"
+group = "In-place manipulation (cyclic sort, index as hash)"
 signals = [
     "have I seen this value before?",
     "find a duplicate, or check that all values are distinct",
@@ -46,6 +69,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:counting"
+group = "Frequency counting"
 signals = [
     "compare the contents of two strings or lists regardless of order (anagrams)",
     "how many times does each value occur?",
@@ -74,6 +98,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:complement"
+group = "Two-sum family"
 signals = [
     "find two items that add up to a target",
     "for each item you know exactly which partner would complete it",
@@ -96,6 +121,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:string-match"
+group = "Hashing structures"
 signals = [
     "find a pattern inside a longer text, possibly many times",
     "compare many substrings of the same length",
@@ -129,6 +155,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:signature"
+group = "Grouping by canonical key"
 signals = [
     "group items that are equivalent in some sense (anagrams, same shape)",
     "two items are equal when a canonical form of each matches",
@@ -153,6 +180,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:majority-vote"
+group = "Majority element"
 signals = [
     "an element that appears more than half the time (or more than n / 3)",
     "constant extra memory is required",
@@ -175,6 +203,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:design-hash"
+group = "Design with hash maps"
 signals = [
     "implement a data structure (a set, a map, a cache, a counter) with fast operations",
     "built-in dictionaries are not allowed, or you must combine two structures",
@@ -207,6 +236,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:sorting"
+group = "Sorting-based approaches"
 signals = [
     "sort without the built-in, or sort by a custom rule",
     "need O(n log n) in the worst case, or a stable sort",
@@ -236,6 +266,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:top-k"
+group = "Counting and bucket tricks"
 signals = [
     "the k most frequent values",
     "counts are bounded by the length of the array",
@@ -265,6 +296,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:encoding"
+group = "Prefix sums with a map"
 signals = [
     "turn a list of strings into one string and back",
     "the strings can contain any character, including your separator",
@@ -292,6 +324,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:prefix"
+group = "Prefix / suffix products and aggregates"
 signals = [
     "for each position, combine everything to its left and everything to its right",
     "the product or sum of all the others",
@@ -344,6 +377,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:prefix-map"
+group = "Prefix sums with a map"
 signals = [
     "count the subarrays whose sum equals k, with negative numbers allowed",
     "a sliding window fails because the sum isn't monotonic",
@@ -371,6 +405,7 @@ pitfalls = [
 
 [[technique]]
 id = "Arrays & Hashing:index-marks"
+group = "Sorting-based approaches"
 signals = [
     "the answer is a number between 1 and n, and the array has n slots",
     "constant extra memory, and the array may be changed",
@@ -394,3 +429,904 @@ pitfalls = [
     "The answer is always in 1..n + 1, so values outside 1..n can be ignored.",
     "Each swap puts one value in its final place, so the whole thing is O(n).",
 ]
+
+[[group_problem]]
+group = "Two-sum family"
+slug = "two-sum-iii-data-structure-design"
+title = "Two Sum III - Data structure design"
+number = 170
+difficulty = "easy"
+premium = true
+
+[[group_problem]]
+group = "Two-sum family"
+slug = "two-sum-iv-input-is-a-bst"
+title = "Two Sum IV - Input is a BST"
+number = 653
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Two-sum family"
+slug = "count-number-of-pairs-with-absolute-difference-k"
+title = "Count Number of Pairs With Absolute Difference K"
+number = 2006
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Two-sum family"
+slug = "4sum-ii"
+title = "4Sum II"
+number = 454
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Two-sum family"
+slug = "max-number-of-k-sum-pairs"
+title = "Max Number of K-Sum Pairs"
+number = 1679
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Two-sum family"
+slug = "k-diff-pairs-in-an-array"
+title = "K-diff Pairs in an Array"
+number = 532
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Grouping by canonical key"
+slug = "find-duplicate-file-in-system"
+title = "Find Duplicate File in System"
+number = 609
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Grouping by canonical key"
+slug = "find-and-replace-pattern"
+title = "Find and Replace Pattern"
+number = 890
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Grouping by canonical key"
+slug = "number-of-equivalent-domino-pairs"
+title = "Number of Equivalent Domino Pairs"
+number = 1128
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Prefix sums with a map"
+slug = "max-sum-of-rectangle-no-larger-than-k"
+title = "Max Sum of Rectangle No Larger Than K"
+number = 363
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Prefix sums with a map"
+slug = "random-point-in-non-overlapping-rectangles"
+title = "Random Point in Non-overlapping Rectangles"
+number = 497
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Prefix sums with a map"
+slug = "my-calendar-iii"
+title = "My Calendar III"
+number = 732
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Prefix sums with a map"
+slug = "smallest-rotation-with-highest-score"
+title = "Smallest Rotation with Highest Score"
+number = 798
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Prefix sums with a map"
+slug = "largest-sum-of-averages"
+title = "Largest Sum of Averages"
+number = 813
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Prefix sums with a map"
+slug = "shifting-letters"
+title = "Shifting Letters"
+number = 848
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Prefix sums with a map"
+slug = "valid-permutations-for-di-sequence"
+title = "Valid Permutations for DI Sequence"
+number = 903
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Prefix sums with a map"
+slug = "minimum-cost-to-merge-stones"
+title = "Minimum Cost to Merge Stones"
+number = 1000
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Difference arrays"
+slug = "corporate-flight-bookings"
+title = "Corporate Flight Bookings"
+number = 1109
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Difference arrays"
+slug = "longest-well-performing-interval"
+title = "Longest Well-Performing Interval"
+number = 1124
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Difference arrays"
+slug = "can-make-palindrome-from-substring"
+title = "Can Make Palindrome from Substring"
+number = 1177
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Difference arrays"
+slug = "maximum-side-length-of-a-square-with-sum-less-than-or-equal-to-threshold"
+title = "Maximum Side Length of a Square with Sum Less than or Equal to Threshold"
+number = 1292
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Difference arrays"
+slug = "matrix-block-sum"
+title = "Matrix Block Sum"
+number = 1314
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Difference arrays"
+slug = "product-of-the-last-k-numbers"
+title = "Product of the Last K Numbers"
+number = 1352
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Difference arrays"
+slug = "minimum-value-to-get-positive-step-by-step-sum"
+title = "Minimum Value to Get Positive Step by Step Sum"
+number = 1413
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Difference arrays"
+slug = "build-array-where-you-can-find-the-maximum-exactly-k-comparisons"
+title = "Build Array Where You Can Find The Maximum Exactly K Comparisons"
+number = 1420
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "In-place manipulation (cyclic sort, index as hash)"
+slug = "game-of-life"
+title = "Game of Life"
+number = 289
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Partition and rearrangement"
+slug = "wiggle-sort-ii"
+title = "Wiggle Sort II"
+number = 324
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Partition and rearrangement"
+slug = "sort-array-by-parity-ii"
+title = "Sort Array By Parity II"
+number = 922
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Prefix / suffix products and aggregates"
+slug = "number-of-ways-of-cutting-a-pizza"
+title = "Number of Ways of Cutting a Pizza"
+number = 1444
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Prefix / suffix products and aggregates"
+slug = "running-sum-of-1d-array"
+title = "Running Sum of 1d Array"
+number = 1480
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Prefix / suffix products and aggregates"
+slug = "number-of-good-ways-to-split-a-string"
+title = "Number of Good Ways to Split a String"
+number = 1525
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Prefix / suffix products and aggregates"
+slug = "maximum-number-of-non-overlapping-subarrays-with-sum-equals-target"
+title = "Maximum Number of Non-Overlapping Subarrays With Sum Equals Target"
+number = 1546
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Prefix / suffix products and aggregates"
+slug = "sum-of-all-odd-length-subarrays"
+title = "Sum of All Odd Length Subarrays"
+number = 1588
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Prefix / suffix products and aggregates"
+slug = "maximum-sum-obtained-of-any-permutation"
+title = "Maximum Sum Obtained of Any Permutation"
+number = 1589
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Prefix / suffix products and aggregates"
+slug = "number-of-sets-of-k-non-overlapping-line-segments"
+title = "Number of Sets of K Non-Overlapping Line Segments"
+number = 1621
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Prefix / suffix products and aggregates"
+slug = "ways-to-make-a-fair-array"
+title = "Ways to Make a Fair Array"
+number = 1664
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Counting and bucket tricks"
+slug = "maximum-gap"
+title = "Maximum Gap"
+number = 164
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Counting and bucket tricks"
+slug = "contains-duplicate-iii"
+title = "Contains Duplicate III"
+number = 220
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Counting and bucket tricks"
+slug = "h-index"
+title = "H-Index"
+number = 274
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Counting and bucket tricks"
+slug = "array-partition"
+title = "Array Partition"
+number = 561
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Counting and bucket tricks"
+slug = "top-k-frequent-words"
+title = "Top K Frequent Words"
+number = 692
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Counting and bucket tricks"
+slug = "how-many-numbers-are-smaller-than-the-current-number"
+title = "How Many Numbers Are Smaller Than the Current Number"
+number = 1365
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Counting and bucket tricks"
+slug = "maximum-ice-cream-bars"
+title = "Maximum Ice Cream Bars"
+number = 1833
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Counting and bucket tricks"
+slug = "smallest-palindromic-rearrangement-i"
+title = "Smallest Palindromic Rearrangement I"
+number = 3517
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Coordinate compression"
+slug = "rank-transform-of-an-array"
+title = "Rank Transform of an Array"
+number = 1331
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Coordinate compression"
+slug = "rank-transform-of-a-matrix"
+title = "Rank Transform of a Matrix"
+number = 1632
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Coordinate compression"
+slug = "count-of-smaller-numbers-after-self"
+title = "Count of Smaller Numbers After Self"
+number = 315
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Coordinate compression"
+slug = "reverse-pairs"
+title = "Reverse Pairs"
+number = 493
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Coordinate compression"
+slug = "count-of-range-sum"
+title = "Count of Range Sum"
+number = 327
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Coordinate compression"
+slug = "create-sorted-array-through-instructions"
+title = "Create Sorted Array through Instructions"
+number = 1649
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Missing and extra number"
+slug = "kth-missing-positive-number"
+title = "Kth Missing Positive Number"
+number = 1539
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Hashing structures"
+slug = "maximum-length-of-repeated-subarray"
+title = "Maximum Length of Repeated Subarray"
+number = 718
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Hashing structures"
+slug = "longest-duplicate-substring"
+title = "Longest Duplicate Substring"
+number = 1044
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Hashing structures"
+slug = "longest-chunked-palindrome-decomposition"
+title = "Longest Chunked Palindrome Decomposition"
+number = 1147
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Hashing structures"
+slug = "distinct-echo-substrings"
+title = "Distinct Echo Substrings"
+number = 1316
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Hashing structures"
+slug = "longest-happy-prefix"
+title = "Longest Happy Prefix"
+number = 1392
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Hashing structures"
+slug = "longest-common-subpath"
+title = "Longest Common Subpath"
+number = 1923
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Hashing structures"
+slug = "delete-duplicate-folders-in-system"
+title = "Delete Duplicate Folders in System"
+number = 1948
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Hashing structures"
+slug = "maximum-product-of-the-length-of-two-palindromic-substrings"
+title = "Maximum Product of the Length of Two Palindromic Substrings"
+number = 1960
+difficulty = "hard"
+premium = false
+
+[[listed]]
+name = "Hash-map counting"
+group = "Frequency counting"
+note = "Related lesson: Counting with a hash map or array"
+
+[[listed]]
+name = "Fixed-alphabet count array"
+group = "Frequency counting"
+note = "Related lesson: Counting with a hash map or array"
+
+[[listed]]
+name = "Frequency of frequencies / parity of counts"
+group = "Frequency counting"
+note = "Related lesson: Top K by frequency (bucket sort)"
+
+[[listed]]
+name = "Multiset comparison / containment"
+group = "Frequency counting"
+
+[[listed]]
+name = "Sliding-window frequency match"
+group = "Frequency counting"
+note = "Related lesson: String matching and rolling hash"
+
+[[listed]]
+name = "Complement lookup in a map"
+group = "Two-sum family"
+note = "Related lesson: Complement lookup in a hash map"
+
+[[listed]]
+name = "Pair counting with a transformed key"
+group = "Two-sum family"
+note = "e.g. nums[i] - i, digit reversal"
+
+[[listed]]
+name = "Sorted two pointers / k-sum"
+group = "Two-sum family"
+note = "Related lesson: Complement lookup in a hash map"
+
+[[listed]]
+name = "Pair existence by relation"
+group = "Two-sum family"
+note = "e.g. double, difference"
+
+[[listed]]
+name = "Sorted-string / count-tuple key"
+group = "Grouping by canonical key"
+note = "Related lesson: Group by a canonical key"
+
+[[listed]]
+name = "Normalized shape key"
+group = "Grouping by canonical key"
+note = "Related lesson: Group by a canonical key"
+
+[[listed]]
+name = "Bitmask key for letter sets"
+group = "Grouping by canonical key"
+
+[[listed]]
+name = "Group records by an owner or first-use key"
+group = "Grouping by canonical key"
+
+[[listed]]
+name = "Reverse / complement keys"
+group = "Grouping by canonical key"
+note = "e.g. palindrome pairs"
+problems = [
+    { slug = "palindrome-pairs", title = "Palindrome Pairs", number = 336, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Count subarrays with sum k"
+group = "Prefix sums with a map"
+note = "Related lesson: Prefix sums with a hash map"
+
+[[listed]]
+name = "Longest subarray by first-seen index"
+group = "Prefix sums with a map"
+note = "Related lesson: Complement lookup in a hash map"
+
+[[listed]]
+name = "Remainder classes"
+group = "Prefix sums with a map"
+note = "Related lesson: Prefix sums with a hash map"
+
+[[listed]]
+name = "Prefix XOR with a map"
+group = "Prefix sums with a map"
+note = "Related lesson: Length-prefix encoding"
+
+[[listed]]
+name = "Prefix parity counts"
+group = "Prefix sums with a map"
+note = "Related lesson: Prefix sums with a hash map"
+
+[[listed]]
+name = "2-D prefix sums collapsed to 1-D"
+group = "Prefix sums with a map"
+note = "Related lesson: Length-prefix encoding"
+
+[[listed]]
+name = "1-D range add, read once at the end"
+group = "Difference arrays"
+
+[[listed]]
+name = "Event counting / sweep over start and end points"
+group = "Difference arrays"
+
+[[listed]]
+name = "Range add on a grid"
+group = "Difference arrays"
+note = "Related lesson: String matching and rolling hash"
+
+[[listed]]
+name = "Bookings and flight-style range updates"
+group = "Difference arrays"
+
+[[listed]]
+name = "Cyclic sort"
+group = "In-place manipulation (cyclic sort, index as hash)"
+note = "Related lesson: Sorting with a custom order"
+
+[[listed]]
+name = "Sign-flip marking as a visited set"
+group = "In-place manipulation (cyclic sort, index as hash)"
+
+[[listed]]
+name = "In-place state encoding"
+group = "In-place manipulation (cyclic sort, index as hash)"
+note = "e.g. extra bits per cell"
+
+[[listed]]
+name = "Read / write pointer compaction"
+group = "In-place manipulation (cyclic sort, index as hash)"
+
+[[listed]]
+name = "In-place reverse / rotate"
+group = "In-place manipulation (cyclic sort, index as hash)"
+
+[[listed]]
+name = "Array as a functional graph"
+group = "In-place manipulation (cyclic sort, index as hash)"
+note = "e.g. index to value"
+
+[[listed]]
+name = "Three-way partition"
+group = "Partition and rearrangement"
+note = "e.g. Dutch national flag"
+
+[[listed]]
+name = "Partition by parity or predicate"
+group = "Partition and rearrangement"
+
+[[listed]]
+name = "Wiggle / alternating order"
+group = "Partition and rearrangement"
+
+[[listed]]
+name = "Interleave and shuffle"
+group = "Partition and rearrangement"
+
+[[listed]]
+name = "Order by a custom key or given order"
+group = "Partition and rearrangement"
+note = "Related lesson: Sorting with a custom order"
+
+[[listed]]
+name = "Quickselect partition"
+group = "Partition and rearrangement"
+
+[[listed]]
+name = "Diagonal and anti-diagonal walks"
+group = "Matrix traversal and transform"
+
+[[listed]]
+name = "Transpose / rotate / reshape"
+group = "Matrix traversal and transform"
+
+[[listed]]
+name = "Rows / columns / boxes as hash sets"
+group = "Matrix traversal and transform"
+note = "e.g. grid validity"
+
+[[listed]]
+name = "Marker row and column"
+group = "Matrix traversal and transform"
+note = "e.g. set zeroes"
+
+[[listed]]
+name = "Direction vectors and boundary checks"
+group = "Matrix traversal and transform"
+
+[[listed]]
+name = "Follow the rules, build the result"
+group = "Simulation"
+note = "Related lesson: Direct simulation"
+
+[[listed]]
+name = "Queue simulation"
+group = "Simulation"
+note = "Related lesson: Direct simulation"
+
+[[listed]]
+name = "Cellular update"
+group = "Simulation"
+note = "e.g. grid or array steps"
+
+[[listed]]
+name = "Run scanning"
+group = "Simulation"
+note = "e.g. longest or counted runs"
+
+[[listed]]
+name = "String formatting / layout"
+group = "Simulation"
+
+[[listed]]
+name = "Digit and number construction"
+group = "Simulation"
+
+[[listed]]
+name = "Count with a map / sort and take the middle"
+group = "Majority element"
+
+[[listed]]
+name = "Majority on a prefix and a suffix"
+group = "Majority element"
+note = "Related lesson: Prefix and suffix products or sums"
+
+[[listed]]
+name = "Randomized majority"
+group = "Majority element"
+note = "Related lesson: Boyer-Moore majority vote"
+
+[[listed]]
+name = "Prefix and suffix maxima / minima"
+group = "Prefix / suffix products and aggregates"
+note = "Related lesson: Prefix and suffix products or sums"
+
+[[listed]]
+name = "Prefix-sum balance"
+group = "Prefix / suffix products and aggregates"
+note = "Related lesson: Length-prefix encoding"
+
+[[listed]]
+name = "Left versus right cost"
+group = "Prefix / suffix products and aggregates"
+note = "Related lesson: Sorting with a custom order"
+
+[[listed]]
+name = "Static range queries"
+group = "Prefix / suffix products and aggregates"
+note = "e.g. 1-D, 2-D"
+
+[[listed]]
+name = "Mutable range queries"
+group = "Prefix / suffix products and aggregates"
+note = "e.g. Fenwick / segment tree"
+
+[[listed]]
+name = "Counting sort over a small value range"
+group = "Counting and bucket tricks"
+note = "Related lesson: Sorting with a custom order"
+
+[[listed]]
+name = "Bucket by frequency"
+group = "Counting and bucket tricks"
+note = "Related lesson: Top K by frequency (bucket sort)"
+
+[[listed]]
+name = "Bucket by value range / pigeonhole"
+group = "Counting and bucket tricks"
+note = "Related lesson: Top K by frequency (bucket sort)"
+
+[[listed]]
+name = "Count array indexed by value"
+group = "Counting and bucket tricks"
+note = "Related lesson: Counting with a hash map or array"
+
+[[listed]]
+name = "Rank by sorted order"
+group = "Coordinate compression"
+note = "Related lesson: Sorting with a custom order"
+
+[[listed]]
+name = "Compress before a Fenwick / segment tree"
+group = "Coordinate compression"
+
+[[listed]]
+name = "Compress sparse coordinates to grid indices"
+group = "Coordinate compression"
+
+[[listed]]
+name = "Seen set"
+group = "Duplicate detection"
+note = "Related lesson: Hash set for membership"
+
+[[listed]]
+name = "Duplicate within a window"
+group = "Duplicate detection"
+note = "e.g. distance or value"
+
+[[listed]]
+name = "Sort and compare neighbours"
+group = "Duplicate detection"
+
+[[listed]]
+name = "Index marking / Floyd for one duplicate in 1..n"
+group = "Duplicate detection"
+
+[[listed]]
+name = "Fixed-size sets for rule checks"
+group = "Duplicate detection"
+
+[[listed]]
+name = "Sum / XOR identities"
+group = "Missing and extra number"
+
+[[listed]]
+name = "Cyclic sort or sign marking"
+group = "Missing and extra number"
+
+[[listed]]
+name = "Set difference"
+group = "Missing and extra number"
+note = "Related lesson: Prefix sums with a hash map"
+
+[[listed]]
+name = "Smallest missing value"
+group = "Missing and extra number"
+note = "Related lesson: Using the array's indices as markers"
+problems = [
+    { slug = "smallest-missing-genetic-value-in-each-subtree", title = "Smallest Missing Genetic Value in Each Subtree", number = 2003, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Missing and repeated pair in a grid"
+group = "Missing and extra number"
+
+[[listed]]
+name = "Array plus map for O(1) random access and delete"
+group = "Design with hash maps"
+
+[[listed]]
+name = "Time-bucketed counters and rate limiting"
+group = "Design with hash maps"
+
+[[listed]]
+name = "Id to record maps"
+group = "Design with hash maps"
+note = "Related lesson: Designing with hash maps and queues"
+
+[[listed]]
+name = "Map plus heap with lazy deletion"
+group = "Design with hash maps"
+
+[[listed]]
+name = "Cache design"
+group = "Design with hash maps"
+note = "Related lesson: Designing with hash maps and queues"
+
+[[listed]]
+name = "Counters for game or board state"
+group = "Design with hash maps"
+
+[[listed]]
+name = "Sparse data and iterators"
+group = "Design with hash maps"
+
+[[listed]]
+name = "Chaining / open addressing"
+group = "Hashing structures"
+note = "e.g. build a HashSet / HashMap"
+
+[[listed]]
+name = "Rolling (polynomial) hash"
+group = "Hashing structures"
+note = "Related lesson: String matching and rolling hash"
+
+[[listed]]
+name = "Prefix function / Z-function matching"
+group = "Hashing structures"
+
+[[listed]]
+name = "Hashing composite values"
+group = "Hashing structures"
+note = "e.g. tuples, paths, trees"
+
+[[listed]]
+name = "Encode / serialize to a hashable key"
+group = "Hashing structures"
+
+[[listed]]
+name = "Skip list and probabilistic structures"
+group = "Hashing structures"
+note = "Related lesson: Designing with hash maps and queues"
+
+[[listed]]
+name = "Bloom filter, cuckoo hashing, consistent hashing"
+group = "Hashing structures"
+
+[[listed]]
+name = "Custom comparator"
+group = "Sorting-based approaches"
+note = "Related lesson: Sorting with a custom order"
+
+[[listed]]
+name = "Sort, then scan neighbours"
+group = "Sorting-based approaches"
+
+[[listed]]
+name = "Sort plus two pointers"
+group = "Sorting-based approaches"
+
+[[listed]]
+name = "Sort plus sweep"
+group = "Sorting-based approaches"
+note = "e.g. intervals, events"
+
+[[listed]]
+name = "Stable multi-key sort"
+group = "Sorting-based approaches"
+note = "Related lesson: Sorting with a custom order"
+
+[[listed]]
+name = "Implement a sort"
+group = "Sorting-based approaches"
+note = "Related lesson: Designing with hash maps and queues"

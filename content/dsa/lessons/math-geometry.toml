@@ -1,8 +1,30 @@
 pattern = "Math & Geometry"
 intro = "These problems are less about a data structure and more about careful arithmetic and indexing: converting number systems, counting with a formula, moving things around a matrix. The edge cases (zero, negatives, overflow, one row or column) are where they are won or lost. Work a tiny example by hand before coding."
+groups = ["Digit manipulation", "Counting and number properties", "Exponentiation and roots", "GCD, LCM and divisibility", "Base conversion and representation", "Simulation and sequences", "Matrix on grids", "Geometry", "Probability and random", "Combinatorics", "Math plus greedy", "Number ranges", "Bit tricks (cross-reference)", "Overflow and precision pitfalls", "Observation problems"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Digit manipulation" = ["math"]
+"Counting and number properties" = ["number-theory", "counting"]
+"Exponentiation and roots" = ["math"]
+"GCD, LCM and divisibility" = ["number-theory"]
+"Simulation and sequences" = ["simulation"]
+"Matrix on grids" = ["matrix"]
+"Geometry" = ["geometry"]
+"Probability and random" = ["probability-and-statistics", "randomized"]
+"Combinatorics" = ["combinatorics"]
+"Math plus greedy" = ["greedy"]
+"Bit tricks (cross-reference)" = ["bit-manipulation"]
 
 [[technique]]
 id = "Math & Geometry:number-format"
+group = "Digit manipulation"
 signals = [
     "convert between a number and a string in some base or format (Excel columns, Roman numerals)",
     "digits are built from the right using a remainder, then reversed",
@@ -32,6 +54,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:number-theory"
+group = "GCD, LCM and divisibility"
 signals = [
     "greatest common divisor, least common multiple, divisibility",
     "primes up to n, or whether a number is prime",
@@ -68,6 +91,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:formula"
+group = "Digit manipulation"
 signals = [
     "count how many numbers in a range have some property, with a huge range",
     "looping would be too slow, but the count follows a pattern",
@@ -86,6 +110,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:matrix-sim"
+group = "Simulation and sequences"
 signals = [
     "build a new matrix from the old one by following a rule (transpose, flip, diagonals)",
     "the answer is a function of (row, column) indexes",
@@ -108,6 +133,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:matrix-inplace"
+group = "Matrix on grids"
 signals = [
     "rotate or flip a square matrix without a second matrix",
     "swap values in groups of four, or compose two simple flips",
@@ -131,6 +157,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:spiral"
+group = "Simulation and sequences"
 signals = [
     "visit a matrix in spiral order, or fill one",
     "four sides, and the rectangle shrinks after each pass",
@@ -162,6 +189,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:markers"
+group = "Matrix on grids"
 signals = [
     "mark rows or columns in place, without extra memory",
     "an action on a cell would confuse later checks if done immediately",
@@ -194,6 +222,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:number-cycle"
+group = "Digit manipulation"
 signals = [
     "repeat a step on a number until it reaches a goal or loops forever",
     "the sequence is deterministic, so a repeat means a cycle",
@@ -221,6 +250,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:digits"
+group = "Digit manipulation"
 signals = [
     "add one to, or add two, numbers stored as digit lists or strings",
     "carry from the least significant digit",
@@ -259,6 +289,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:fast-pow"
+group = "Exponentiation and roots"
 signals = [
     "x to the power n for a huge n",
     "multiplying n times is too slow",
@@ -284,6 +315,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:point-counts"
+group = "Counting and number properties"
 signals = [
     "count shapes (squares, rectangles) formed by stored points",
     "the other corners are fixed once you pick two of them",
@@ -317,6 +349,7 @@ pitfalls = [
 
 [[technique]]
 id = "Math & Geometry:median"
+group = "Geometry"
 signals = [
     "make all numbers equal by adding or subtracting a fixed step, with the fewest moves",
     "the best target minimises the total distance to every value",
@@ -361,3 +394,1418 @@ pitfalls = [
     "sorted(range(1, n + 1), key=str) is the one-liner, but it uses O(n log n) time and O(n) strings.",
     "This is a pre-order walk of a tree whose children of k are 10k to 10k + 9.",
 ]
+
+[[group_problem]]
+group = "Counting and number properties"
+slug = "add-digits"
+title = "Add Digits"
+number = 258
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Counting and number properties"
+slug = "mirror-reflection"
+title = "Mirror Reflection"
+number = 858
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Counting and number properties"
+slug = "prime-palindrome"
+title = "Prime Palindrome"
+number = 866
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Counting and number properties"
+slug = "x-of-a-kind-in-a-deck-of-cards"
+title = "X of a Kind in a Deck of Cards"
+number = 914
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Counting and number properties"
+slug = "largest-component-size-by-common-factor"
+title = "Largest Component Size by Common Factor"
+number = 952
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Counting and number properties"
+slug = "ugly-number-iii"
+title = "Ugly Number III"
+number = 1201
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Counting and number properties"
+slug = "check-if-it-is-a-good-array"
+title = "Check If It Is a Good Array"
+number = 1250
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Counting and number properties"
+slug = "simplified-fractions"
+title = "Simplified Fractions"
+number = 1447
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "GCD, LCM and divisibility"
+slug = "the-kth-factor-of-n"
+title = "The kth Factor of n"
+number = 1492
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "GCD, LCM and divisibility"
+slug = "fancy-sequence"
+title = "Fancy Sequence"
+number = 1622
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "GCD, LCM and divisibility"
+slug = "graph-connectivity-with-threshold"
+title = "Graph Connectivity With Threshold"
+number = 1627
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "GCD, LCM and divisibility"
+slug = "count-ways-to-make-array-with-product"
+title = "Count Ways to Make Array With Product"
+number = 1735
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "GCD, LCM and divisibility"
+slug = "tree-of-coprimes"
+title = "Tree of Coprimes"
+number = 1766
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "GCD, LCM and divisibility"
+slug = "maximize-number-of-nice-divisors"
+title = "Maximize Number of Nice Divisors"
+number = 1808
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "GCD, LCM and divisibility"
+slug = "number-of-different-subsequences-gcds"
+title = "Number of Different Subsequences GCDs"
+number = 1819
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "GCD, LCM and divisibility"
+slug = "three-divisors"
+title = "Three Divisors"
+number = 1952
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Base conversion and representation"
+slug = "convert-a-number-to-hexadecimal"
+title = "Convert a Number to Hexadecimal"
+number = 405
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Base conversion and representation"
+slug = "excel-sheet-column-number"
+title = "Excel Sheet Column Number"
+number = 171
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Base conversion and representation"
+slug = "base-7"
+title = "Base 7"
+number = 504
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Base conversion and representation"
+slug = "encode-number"
+title = "Encode Number"
+number = 1256
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Base conversion and representation"
+slug = "fraction-to-recurring-decimal"
+title = "Fraction to Recurring Decimal"
+number = 166
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Geometry"
+slug = "rectangle-area"
+title = "Rectangle Area"
+number = 223
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Geometry"
+slug = "self-crossing"
+title = "Self Crossing"
+number = 335
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Geometry"
+slug = "perfect-rectangle"
+title = "Perfect Rectangle"
+number = 391
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Geometry"
+slug = "generate-random-point-in-a-circle"
+title = "Generate Random Point in a Circle"
+number = 478
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Geometry"
+slug = "valid-square"
+title = "Valid Square"
+number = 593
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Geometry"
+slug = "largest-triangle-area"
+title = "Largest Triangle Area"
+number = 812
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Geometry"
+slug = "rectangle-overlap"
+title = "Rectangle Overlap"
+number = 836
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Geometry"
+slug = "projection-area-of-3d-shapes"
+title = "Projection Area of 3D Shapes"
+number = 883
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Probability and random"
+slug = "implement-rand10-using-rand7"
+title = "Implement Rand10() Using Rand7()"
+number = 470
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Probability and random"
+slug = "insert-delete-getrandom-o1-duplicates-allowed"
+title = "Insert Delete GetRandom O(1) - Duplicates allowed"
+number = 381
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Probability and random"
+slug = "shuffle-an-array"
+title = "Shuffle an Array"
+number = 384
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Probability and random"
+slug = "random-point-in-non-overlapping-rectangles"
+title = "Random Point in Non-overlapping Rectangles"
+number = 497
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Probability and random"
+slug = "random-flip-matrix"
+title = "Random Flip Matrix"
+number = 519
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Probability and random"
+slug = "soup-servings"
+title = "Soup Servings"
+number = 808
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Probability and random"
+slug = "statistics-from-a-large-sample"
+title = "Statistics from a Large Sample"
+number = 1093
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Probability and random"
+slug = "airplane-seat-assignment-probability"
+title = "Airplane Seat Assignment Probability"
+number = 1227
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Combinatorics"
+slug = "poor-pigs"
+title = "Poor Pigs"
+number = 458
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Combinatorics"
+slug = "probability-of-a-two-boxes-having-the-same-number-of-distinct-balls"
+title = "Probability of a Two Boxes Having The Same Number of Distinct Balls"
+number = 1467
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Combinatorics"
+slug = "number-of-ways-to-reorder-array-to-get-same-bst"
+title = "Number of Ways to Reorder Array to Get Same BST"
+number = 1569
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Combinatorics"
+slug = "number-of-sets-of-k-non-overlapping-line-segments"
+title = "Number of Sets of K Non-Overlapping Line Segments"
+number = 1621
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Combinatorics"
+slug = "count-sorted-vowel-strings"
+title = "Count Sorted Vowel Strings"
+number = 1641
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Combinatorics"
+slug = "kth-smallest-instructions"
+title = "Kth Smallest Instructions"
+number = 1643
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Combinatorics"
+slug = "minimum-number-of-operations-to-make-string-sorted"
+title = "Minimum Number of Operations to Make String Sorted"
+number = 1830
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Combinatorics"
+slug = "count-ways-to-build-rooms-in-an-ant-colony"
+title = "Count Ways to Build Rooms in an Ant Colony"
+number = 1916
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Number ranges"
+slug = "summary-ranges"
+title = "Summary Ranges"
+number = 228
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Number ranges"
+slug = "count-numbers-with-unique-digits"
+title = "Count Numbers with Unique Digits"
+number = 357
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Number ranges"
+slug = "count-integers-with-even-digit-sum"
+title = "Count Integers With Even Digit Sum"
+number = 2180
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Number ranges"
+slug = "count-the-digits-that-divide-a-number"
+title = "Count the Digits That Divide a Number"
+number = 2520
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Number ranges"
+slug = "find-the-closest-palindrome"
+title = "Find the Closest Palindrome"
+number = 564
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Number ranges"
+slug = "rotated-digits"
+title = "Rotated Digits"
+number = 788
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Overflow and precision pitfalls"
+slug = "string-to-integer-atoi"
+title = "String to Integer (atoi)"
+number = 8
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Overflow and precision pitfalls"
+slug = "divide-two-integers"
+title = "Divide Two Integers"
+number = 29
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Observation problems"
+slug = "nim-game"
+title = "Nim Game"
+number = 292
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Observation problems"
+slug = "water-and-jug-problem"
+title = "Water and Jug Problem"
+number = 365
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Observation problems"
+slug = "egg-drop-with-2-eggs-and-n-floors"
+title = "Egg Drop With 2 Eggs and N Floors"
+number = 1884
+difficulty = "medium"
+premium = false
+
+[[listed]]
+name = "Extract digits with % 10 and // 10 (right to left) / convert to a string and index"
+group = "Digit manipulation"
+note = "Related lesson: Number and string conversion"
+
+[[listed]]
+name = "Digit sum and digital root"
+group = "Digit manipulation"
+note = "e.g. loop / the formula 1 + (n - 1) % 9"
+
+[[listed]]
+name = "Reverse an integer, checking for overflow before each digit"
+group = "Digit manipulation"
+
+[[listed]]
+name = "Digit powers and per-digit functions"
+group = "Digit manipulation"
+note = "e.g. Armstrong numbers, digit squares"
+
+[[listed]]
+name = "Schoolbook addition of two digit strings / arrays / binary strings"
+group = "Digit manipulation"
+
+[[listed]]
+name = "Schoolbook multiplication of digit strings"
+group = "Digit manipulation"
+note = "Related lesson: Digit arithmetic with a carry"
+
+[[listed]]
+name = "Digit-by-digit construction of a target number"
+group = "Digit manipulation"
+note = "e.g. next greater permutation of digits / closest palindrome / round up to the next beautiful number"
+
+[[listed]]
+name = "Count numbers with distinct digits or a digit property"
+group = "Digit manipulation"
+note = "e.g. position counting / digit DP"
+
+[[listed]]
+name = "Place value and the nth digit of a concatenated sequence"
+group = "Digit manipulation"
+note = "Related lesson: Cycle detection on number sequences"
+
+[[listed]]
+name = "Digit groups of three (numbers to words, thousands separators). Number theory: [DSA_ALGORITHMS_NUMBER_THEORY.md](DSA_ALGORITHMS_NUMBER_THEORY.md) groups 6 (digit counting), 7 (big numbers, string arithmetic) and 8"
+group = "Digit manipulation"
+note = "e.g. representations"
+
+[[listed]]
+name = "Parity: even / odd counts, parity of a sum or product"
+group = "Counting and number properties"
+
+[[listed]]
+name = "Perfect square and perfect cube tests"
+group = "Counting and number properties"
+note = "e.g. integer square root, then square it back"
+
+[[listed]]
+name = "Power of two / three / four"
+group = "Counting and number properties"
+note = "e.g. loop / largest power divides / logarithm with an epsilon / bit test"
+
+[[listed]]
+name = "Ugly numbers: divide out 2, 3, 5 / generate with three pointers or a heap"
+group = "Counting and number properties"
+
+[[listed]]
+name = "Count divisors by looping to the square root"
+group = "Counting and number properties"
+note = "e.g. pairs d and n / d"
+
+[[listed]]
+name = "Primality test and prime counting"
+group = "Counting and number properties"
+note = "Related lesson: GCD, primes and divisibility"
+
+[[listed]]
+name = "Trailing zeros of a factorial"
+group = "Counting and number properties"
+note = "e.g. count the factor 5, Legendre's formula"
+
+[[listed]]
+name = "Count multiples with floor division"
+group = "Counting and number properties"
+note = "Related lesson: Closed-form counting"
+
+[[listed]]
+name = "Nth number divisible by a or b"
+group = "Counting and number properties"
+note = "e.g. binary search on a counting function with lcm"
+
+[[listed]]
+name = "Digit-divisibility properties"
+group = "Counting and number properties"
+note = "e.g. self-dividing numbers, digits that divide the number"
+problems = [
+    { slug = "self-dividing-numbers", title = "Self Dividing Numbers", number = 728, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "Figurate and triangular numbers"
+group = "Counting and number properties"
+note = "e.g. staircase rows, closed-form cell counts"
+
+[[listed]]
+name = "Counting by runs"
+group = "Counting and number properties"
+note = "Related lesson: Closed-form counting"
+
+[[listed]]
+name = "Count pairs and tuples by a hash map of a derived key"
+group = "Counting and number properties"
+note = "e.g. product / ratio / difference of positions and values"
+
+[[listed]]
+name = "Pigeonhole principle and remainders"
+group = "Counting and number properties"
+note = "e.g. a repeat is forced"
+
+[[listed]]
+name = "Which values can exist after repeated operations"
+group = "Counting and number properties"
+note = "Related lesson: The median minimizes distance"
+
+[[listed]]
+name = "Perfect, abundant and amicable numbers (sum of proper divisors). Number theory: [DSA_ALGORITHMS_NUMBER_THEORY.md](DSA_ALGORITHMS_NUMBER_THEORY.md) groups 1 to 4 and 6 hold the full list"
+group = "Counting and number properties"
+
+[[listed]]
+name = "Only the shapes that show up as everyday math problems are named here"
+group = "Counting and number properties"
+
+[[listed]]
+name = "Fast power: recursive halving / iterative squaring on the bits of the exponent"
+group = "Exponentiation and roots"
+
+[[listed]]
+name = "Negative exponents, x = 0, 1 or -1, and the exponent INT_MIN"
+group = "Exponentiation and roots"
+note = "Related lesson: Fast exponentiation"
+
+[[listed]]
+name = "Power with a modulus"
+group = "Exponentiation and roots"
+note = "Related lesson: Fast exponentiation"
+
+[[listed]]
+name = "Huge exponent given as a digit array"
+group = "Exponentiation and roots"
+note = "Related lesson: Fast exponentiation"
+
+[[listed]]
+name = "Closed forms with 2^n"
+group = "Exponentiation and roots"
+note = "Related lesson: Closed-form counting"
+
+[[listed]]
+name = "Integer square root: binary search / Newton's method / bit by bit"
+group = "Exponentiation and roots"
+
+[[listed]]
+name = "Sum of two squares"
+group = "Exponentiation and roots"
+note = "Related lesson: Counting points in a hash map"
+
+[[listed]]
+name = "Nth root and cube root by binary search or Newton's method"
+group = "Exponentiation and roots"
+
+[[listed]]
+name = "Logarithms to test or compare powers"
+group = "Exponentiation and roots"
+note = "e.g. log vs repeated division, and why floats lie"
+
+[[listed]]
+name = "Fibonacci and linear recurrences by fast doubling or matrix power"
+group = "Exponentiation and roots"
+
+[[listed]]
+name = "Geometric series in closed form"
+group = "Exponentiation and roots"
+note = "Related lesson: Closed-form counting"
+
+[[listed]]
+name = "Exponent tower and exponent reduction by Euler's theorem. Number theory: [DSA_ALGORITHMS_NUMBER_THEORY.md](DSA_ALGORITHMS_NUMBER_THEORY.md) groups 3 (modular exponentiation) and 9 (matrix methods). Real-number square roots are in [DSA_ALGORITHMS_SORTING_SEARCHING.md](DSA_ALGORITHMS_SORTING_SEARCHING.md) group 18"
+group = "Exponentiation and roots"
+
+[[listed]]
+name = "Euclid's algorithm (iterative / recursive) and the gcd of an array"
+group = "GCD, LCM and divisibility"
+problems = [
+    { slug = "gcd-sort-of-an-array", title = "GCD Sort of an Array", number = 1998, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Gcd of strings"
+group = "GCD, LCM and divisibility"
+note = "Related lesson: Digit arithmetic with a carry"
+problems = [
+    { slug = "gcd-sort-of-an-array", title = "GCD Sort of an Array", number = 1998, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Gcd of adjacent elements"
+group = "GCD, LCM and divisibility"
+note = "e.g. insert gcd between list nodes / array fold"
+problems = [
+    { slug = "gcd-sort-of-an-array", title = "GCD Sort of an Array", number = 1998, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Lcm from gcd, dividing before multiplying"
+group = "GCD, LCM and divisibility"
+note = "Related lesson: Number and string conversion"
+problems = [
+    { slug = "gcd-sort-of-an-array", title = "GCD Sort of an Array", number = 1998, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Reduced fractions as keys"
+group = "GCD, LCM and divisibility"
+note = "e.g. ratios, slopes, directions"
+
+[[listed]]
+name = "Count common divisors through the gcd"
+group = "GCD, LCM and divisibility"
+problems = [
+    { slug = "gcd-sort-of-an-array", title = "GCD Sort of an Array", number = 1998, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Connectivity by shared prime factors"
+group = "GCD, LCM and divisibility"
+note = "e.g. union-find over primes"
+
+[[listed]]
+name = "Divisibility by digits and remainders"
+group = "GCD, LCM and divisibility"
+
+[[listed]]
+name = "Smallest prime factor and factorisation by repeated division"
+group = "GCD, LCM and divisibility"
+
+[[listed]]
+name = "Bezout's identity and extended Euclid"
+group = "GCD, LCM and divisibility"
+note = "e.g. jugs, reachable amounts, linear Diophantine equations"
+
+[[listed]]
+name = "Periodic events and lcm"
+group = "GCD, LCM and divisibility"
+note = "e.g. when do cycles line up"
+
+[[listed]]
+name = "Divisibility invariants (what stays a multiple of g under the allowed operations). Number theory: [DSA_ALGORITHMS_NUMBER_THEORY.md](DSA_ALGORITHMS_NUMBER_THEORY.md) groups 1 (divisibility and gcd) and 2"
+group = "GCD, LCM and divisibility"
+note = "e.g. primes and factorisation"
+problems = [
+    { slug = "gcd-sort-of-an-array", title = "GCD Sort of an Array", number = 1998, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Convert to and from base k"
+group = "Base conversion and representation"
+note = "Related lesson: Number and string conversion"
+
+[[listed]]
+name = "Bijective numeration with no zero digit"
+group = "Base conversion and representation"
+note = "Related lesson: Number and string conversion"
+
+[[listed]]
+name = "Roman numerals both ways"
+group = "Base conversion and representation"
+note = "Related lesson: Number and string conversion"
+
+[[listed]]
+name = "Number to English words"
+group = "Base conversion and representation"
+note = "e.g. chunks of three digits"
+
+[[listed]]
+name = "Hexadecimal and two's complement of negative numbers"
+group = "Base conversion and representation"
+note = "e.g. mask to a fixed width"
+
+[[listed]]
+name = "Binary strings: add, convert, step counting by the lowest bit"
+group = "Base conversion and representation"
+
+[[listed]]
+name = "Fractions as decimals: the remainder map finds the repeating part"
+group = "Base conversion and representation"
+
+[[listed]]
+name = "Negative bases and balanced ternary"
+group = "Base conversion and representation"
+
+[[listed]]
+name = "Palindromes by generating the first half and mirroring it"
+group = "Base conversion and representation"
+
+[[listed]]
+name = "Lexicographic order of numbers as strings"
+group = "Base conversion and representation"
+note = "Related lesson: Walking numbers in lexicographic order"
+
+[[listed]]
+name = "Sum of digits in another base. Number theory: [DSA_ALGORITHMS_NUMBER_THEORY.md](DSA_ALGORITHMS_NUMBER_THEORY.md) group 8"
+group = "Base conversion and representation"
+note = "e.g. number representations"
+
+[[listed]]
+name = "Direct simulation with a formula shortcut"
+group = "Simulation and sequences"
+note = "e.g. loop until done / closed form"
+
+[[listed]]
+name = "Josephus problem: queue / recurrence f(n, k) = (f(n - 1, k) + k) % n"
+group = "Simulation and sequences"
+
+[[listed]]
+name = "Generate a sequence from a rule"
+group = "Simulation and sequences"
+note = "e.g. look-and-say / Pascal rows / Fibonacci-like"
+
+[[listed]]
+name = "Rule-based labelling"
+group = "Simulation and sequences"
+note = "Related lesson: Matrix and grid simulation"
+problems = [
+    { slug = "fizz-buzz", title = "Fizz Buzz", number = 412, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "Clock and angle arithmetic"
+group = "Simulation and sequences"
+
+[[listed]]
+name = "Calendar arithmetic"
+group = "Simulation and sequences"
+note = "Related lesson: Digit arithmetic with a carry"
+problems = [
+    { slug = "day-of-the-year", title = "Day of the Year", number = 1154, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "Times of day on a circle"
+group = "Simulation and sequences"
+note = "Related lesson: Fast exponentiation"
+
+[[listed]]
+name = "Arithmetic progressions"
+group = "Simulation and sequences"
+note = "Related lesson: Digit arithmetic with a carry"
+
+[[listed]]
+name = "Cycle in a generated sequence"
+group = "Simulation and sequences"
+note = "Related lesson: Cycle detection on number sequences"
+
+[[listed]]
+name = "A robot on a plane"
+group = "Simulation and sequences"
+note = "e.g. direction index, turn by +1 / -1 mod 4, obstacles in a set"
+
+[[listed]]
+name = "Simulate a few periods, then stop"
+group = "Simulation and sequences"
+note = "e.g. a bounded state must repeat"
+
+[[listed]]
+name = "Halving and subtracting steps to reach zero"
+group = "Simulation and sequences"
+note = "e.g. count by the bits"
+
+[[listed]]
+name = "Row-bounce index patterns (zigzag conversion). Number theory: [DSA_ALGORITHMS_NUMBER_THEORY.md](DSA_ALGORITHMS_NUMBER_THEORY.md) group 11"
+group = "Simulation and sequences"
+note = "e.g. simple identities, Josephus"
+
+[[listed]]
+name = "Rotate a matrix 90 degrees in place (transpose + reverse the rows / a four-cell cycle) and rotation checks"
+group = "Matrix on grids"
+note = "Related lesson: In-place matrix transforms"
+
+[[listed]]
+name = "Transpose and reshape"
+group = "Matrix on grids"
+note = "Related lesson: Matrix and grid simulation"
+
+[[listed]]
+name = "Diagonal traversal and diagonal keys"
+group = "Matrix on grids"
+note = "e.g. r - c for diagonals, r + c for anti-diagonals"
+
+[[listed]]
+name = "In-place state encoding: store old and new state in one cell"
+group = "Matrix on grids"
+note = "e.g. Game of Life"
+problems = [
+    { slug = "game-of-life", title = "Game of Life", number = 289, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Neighbour kernels with direction arrays"
+group = "Matrix on grids"
+note = "e.g. 8-neighbour smoothing, local maxima"
+
+[[listed]]
+name = "Shift a grid by k"
+group = "Matrix on grids"
+note = "Related lesson: Matrix and grid simulation"
+
+[[listed]]
+name = "Row and column scans for extremes"
+group = "Matrix on grids"
+note = "e.g. lucky numbers, row with most ones, X-matrix"
+
+[[listed]]
+name = "Row / column / box uniqueness and magic-square checks"
+group = "Matrix on grids"
+
+[[listed]]
+name = "Gravity and compaction inside a row"
+group = "Matrix on grids"
+note = "e.g. rotate the box"
+
+[[listed]]
+name = "Bounding box of the marked cells"
+group = "Matrix on grids"
+
+[[listed]]
+name = "Position map plus row and column counters"
+group = "Matrix on grids"
+note = "e.g. first completely painted row or column"
+problems = [
+    { slug = "first-completely-painted-row-or-column", title = "First Completely Painted Row or Column", number = 2661, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Sorting columns of heights per row"
+group = "Matrix on grids"
+note = "e.g. rearranged submatrix"
+
+[[listed]]
+name = "Layer-by-layer ring processing (ring index, four sides). Cross-reference: prefix sums on a matrix and searching a sorted matrix belong to the Arrays and Binary Search lessons"
+group = "Matrix on grids"
+
+[[listed]]
+name = "Grid search to [DSA_GRAPH_PATTERNS.md](DSA_GRAPH_PATTERNS.md) group 1"
+group = "Matrix on grids"
+
+[[listed]]
+name = "Points on a line: slope as a reduced fraction (gcd, sign normalised, vertical line) / collinearity by the cross product"
+group = "Geometry"
+
+[[listed]]
+name = "Points on a line: count the lines needed to cover a chart or a set of points"
+group = "Geometry"
+
+[[listed]]
+name = "Points on a line: reflection across a vertical line"
+group = "Geometry"
+note = "e.g. min x + max x, set of mirrored points"
+
+[[listed]]
+name = "Points on a line: equal distances from a pivot"
+group = "Geometry"
+note = "Related lesson: Counting points in a hash map"
+
+[[listed]]
+name = "Points on a line: widest gap after sorting by one coordinate"
+group = "Geometry"
+
+[[listed]]
+name = "Distances: compare squared distances, never take the square root"
+group = "Geometry"
+
+[[listed]]
+name = "Circles: containment and reachability between circles"
+group = "Geometry"
+note = "e.g. centre distance against radius"
+
+[[listed]]
+name = "Rectangles: overlap and union area of two rectangles"
+group = "Geometry"
+note = "e.g. clamp min / max"
+
+[[listed]]
+name = "Rectangles: minimum area rectangle from axis-parallel points"
+group = "Geometry"
+note = "e.g. hash set + diagonal pairs"
+
+[[listed]]
+name = "Rectangles: bounding box of a set of points or cells"
+group = "Geometry"
+note = "Related lesson: Counting points in a hash map"
+
+[[listed]]
+name = "Rectangles: equal ratios by reduced fraction"
+group = "Geometry"
+note = "e.g. interchangeable rectangles"
+
+[[listed]]
+name = "Rectangles: perfect rectangle cover (corner parity) / containment / union area by sweep"
+group = "Geometry"
+
+[[listed]]
+name = "Squares: detect squares by the diagonal corner and a point count map"
+group = "Geometry"
+note = "Related lesson: Counting points in a hash map"
+
+[[listed]]
+name = "Squares: is a set of four points a square"
+group = "Geometry"
+note = "Related lesson: Counting points in a hash map"
+
+[[listed]]
+name = "Squares: largest square from a point set or from fences"
+group = "Geometry"
+note = "Related lesson: Counting points in a hash map"
+
+[[listed]]
+name = "Convex hull: monotone chain (Andrew) / Graham scan / gift wrapping"
+group = "Geometry"
+note = "e.g. Jarvis"
+problems = [
+    { slug = "erect-the-fence", title = "Erect the Fence", number = 587, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Orientation test: sign of the cross product"
+group = "Geometry"
+note = "e.g. left turn / right turn / collinear"
+
+[[listed]]
+name = "Polygon: area by the shoelace formula, convexity check, point in polygon"
+group = "Geometry"
+note = "e.g. ray casting / winding number"
+
+[[listed]]
+name = "Triangles: validity from sides, largest area from points, largest perimeter"
+group = "Geometry"
+
+[[listed]]
+name = "Rotating calipers: diameter and minimum bounding box of a convex hull"
+group = "Geometry"
+problems = [
+    { slug = "erect-the-fence", title = "Erect the Fence", number = 587, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Angle sort around a point"
+group = "Geometry"
+note = "e.g. visible points / widest angular gap"
+
+[[listed]]
+name = "Closest pair of points"
+group = "Geometry"
+note = "e.g. divide and conquer / grid hashing"
+
+[[listed]]
+name = "Segment intersection and sweep line over segments"
+group = "Geometry"
+
+[[listed]]
+name = "Minimum enclosing circle (names only). Cross-reference: lattice points, Pick's theorem, shoelace in integers and cross-product collinearity are group 12 of [DSA_ALGORITHMS_NUMBER_THEORY.md]"
+group = "Geometry"
+note = "e.g. DSA_ALGORITHMS_NUMBER_THEORY.md"
+
+[[listed]]
+name = "K-d trees, quadtrees and range trees are group 9 of [DSA_ALGORITHMS_DATA_STRUCTURES.md]"
+group = "Geometry"
+note = "e.g. DSA_ALGORITHMS_DATA_STRUCTURES.md"
+
+[[listed]]
+name = "Shuffle: Fisher-Yates, and why the naive swap-with-any-index shuffle is biased"
+group = "Probability and random"
+
+[[listed]]
+name = "Weighted random pick: prefix sums + binary search"
+group = "Probability and random"
+
+[[listed]]
+name = "Reservoir sampling"
+group = "Probability and random"
+note = "e.g. one item / k items from a stream"
+problems = [
+    { slug = "linked-list-random-node", title = "Linked List Random Node", number = 382, difficulty = "medium", premium = false },
+    { slug = "random-pick-index", title = "Random Pick Index", number = 398, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Random with O(1) delete: array + hash map, swap with the last"
+group = "Probability and random"
+
+[[listed]]
+name = "Random pick that skips a blacklist"
+group = "Probability and random"
+note = "e.g. remap into the tail"
+problems = [
+    { slug = "random-pick-with-blacklist", title = "Random Pick with Blacklist", number = 710, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Random point in rectangles or in a circle"
+group = "Probability and random"
+note = "Related lesson: Counting points in a hash map"
+
+[[listed]]
+name = "Rejection sampling: build rand(n) from rand"
+group = "Probability and random"
+note = "e.g. m"
+
+[[listed]]
+name = "Probability by DP: expected value or reach probability over states"
+group = "Probability and random"
+
+[[listed]]
+name = "Linearity of expectation with indicator variables"
+group = "Probability and random"
+
+[[listed]]
+name = "Coupon collector and geometric waiting times"
+group = "Probability and random"
+
+[[listed]]
+name = "Fair coin from a biased coin, and Monte Carlo estimation"
+group = "Probability and random"
+
+[[listed]]
+name = "Probability as favourable over total by counting (cards, dice, draws). Number theory: [DSA_ALGORITHMS_NUMBER_THEORY.md](DSA_ALGORITHMS_NUMBER_THEORY.md) group 10"
+group = "Probability and random"
+note = "e.g. probability basics"
+
+[[listed]]
+name = "The random-pick design problems are also taught in the Binary Search, Linked List and Arrays and Hashing lessons"
+group = "Probability and random"
+
+[[listed]]
+name = "NCr by Pascal's triangle"
+group = "Combinatorics"
+note = "e.g. whole rows / one row"
+
+[[listed]]
+name = "NCr by factorials and inverse factorials mod p / by the multiplicative formula without overflow"
+group = "Combinatorics"
+
+[[listed]]
+name = "Lattice paths as a binomial coefficient"
+group = "Combinatorics"
+note = "e.g. with and without obstacles"
+
+[[listed]]
+name = "K-th permutation by the factorial number system"
+group = "Combinatorics"
+
+[[listed]]
+name = "Generate all permutations"
+group = "Combinatorics"
+note = "Related lesson: Walking numbers in lexicographic order"
+
+[[listed]]
+name = "Multiset permutations and anagram counts"
+group = "Combinatorics"
+note = "e.g. n! over the product of counts!"
+
+[[listed]]
+name = "Stars and bars with upper limits"
+group = "Combinatorics"
+note = "e.g. inclusion-exclusion over the capped variables"
+
+[[listed]]
+name = "Catalan numbers"
+group = "Combinatorics"
+note = "e.g. balanced brackets, binary search trees"
+
+[[listed]]
+name = "Stirling numbers and arrangements by visible count"
+group = "Combinatorics"
+
+[[listed]]
+name = "Product rule over independent positions"
+group = "Combinatorics"
+note = "e.g. good numbers, choices per slot"
+
+[[listed]]
+name = "Counting orders with constraints"
+group = "Combinatorics"
+note = "e.g. pickup before delivery"
+
+[[listed]]
+name = "Number of ways to reach a point in exactly k steps"
+group = "Combinatorics"
+note = "e.g. binomial of the right moves"
+
+[[listed]]
+name = "Every element appears in 2^(n - 1) subsets"
+group = "Combinatorics"
+note = "e.g. sum over all subsets in closed form"
+
+[[listed]]
+name = "Derangements and Burnside's lemma. Number theory: [DSA_ALGORITHMS_NUMBER_THEORY.md](DSA_ALGORITHMS_NUMBER_THEORY.md) groups 5 (combinatorics) and 6 (counting techniques) hold the full list"
+group = "Combinatorics"
+
+[[listed]]
+name = "The median minimises the sum of absolute differences"
+group = "Math plus greedy"
+note = "Related lesson: The median minimizes distance"
+
+[[listed]]
+name = "The mean minimises the sum of squares"
+group = "Math plus greedy"
+note = "Related lesson: The median minimizes distance"
+
+[[listed]]
+name = "Extremes after sorting"
+group = "Math plus greedy"
+note = "Related lesson: Walking numbers in lexicographic order"
+problems = [
+    { slug = "maximum-product-of-three-elements-after-one-replacement", title = "Maximum Product of Three Elements After One Replacement", number = 3732, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Greedy construction of the largest or smallest number from digits or divisors"
+group = "Math plus greedy"
+
+[[listed]]
+name = "Case analysis with caps"
+group = "Math plus greedy"
+note = "e.g. distribute money / candies / children"
+
+[[listed]]
+name = "Cell equivalence classes"
+group = "Math plus greedy"
+note = "e.g. positions that repeat with the window period"
+
+[[listed]]
+name = "Constraint propagation from both sides"
+group = "Math plus greedy"
+note = "e.g. height limits left to right and right to left"
+
+[[listed]]
+name = "Exchange loops (empty bottles for full ones) in closed form"
+group = "Math plus greedy"
+
+[[listed]]
+name = "Greedy on the digits of a base"
+group = "Math plus greedy"
+note = "Related lesson: Number and string conversion"
+
+[[listed]]
+name = "Spread a remaining sum as evenly as possible"
+group = "Math plus greedy"
+note = "e.g. missing observations"
+
+[[listed]]
+name = "Winner decided by counting moves of each kind"
+group = "Math plus greedy"
+note = "e.g. coloured pieces"
+
+[[listed]]
+name = "Canonical coin systems: when greedy change is optimal. Cross-reference: the Greedy lessons own exchange arguments and interval-style greedy"
+group = "Math plus greedy"
+
+[[listed]]
+name = "Count in [L, R] as f(R) - f"
+group = "Number ranges"
+note = "Related lesson: Closed-form counting"
+
+[[listed]]
+name = "Primes in a range"
+group = "Number ranges"
+note = "Related lesson: GCD, primes and divisibility"
+
+[[listed]]
+name = "Lexicographic order of 1..n: next-number walk / k-th by subtree sizes"
+group = "Number ranges"
+note = "Related lesson: Walking numbers in lexicographic order"
+
+[[listed]]
+name = "Numbers up to N with a digit property"
+group = "Number ranges"
+note = "Related lesson: Number and string conversion"
+
+[[listed]]
+name = "Nth digit of the infinite sequence 123456789101112"
+group = "Number ranges"
+note = "Related lesson: Cycle detection on number sequences"
+problems = [
+    { slug = "nth-digit", title = "Nth Digit", number = 400, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Missing term or missing range inside a sorted progression"
+group = "Number ranges"
+
+[[listed]]
+name = "Enumerate up to n with a check that partitions the digits"
+group = "Number ranges"
+note = "Related lesson: Number and string conversion"
+
+[[listed]]
+name = "Closed-form sums over a range"
+group = "Number ranges"
+note = "Related lesson: Closed-form counting"
+
+[[listed]]
+name = "Inclusive / exclusive endpoints and the 32-bit range. Cross-reference: missing ranges and summary ranges are [DSA_INTERVALS_PATTERNS.md](DSA_INTERVALS_PATTERNS.md) groups 10 and 18"
+group = "Number ranges"
+
+[[listed]]
+name = "Divide and multiply with shifts"
+group = "Bit tricks (cross-reference)"
+note = "e.g. no division operator"
+
+[[listed]]
+name = "Add without plus"
+group = "Bit tricks (cross-reference)"
+note = "Related lesson: Digit arithmetic with a carry"
+
+[[listed]]
+name = "Parity and odd / even by n & 1"
+group = "Bit tricks (cross-reference)"
+
+[[listed]]
+name = "Minimum flips to make a OR b equal c"
+group = "Bit tricks (cross-reference)"
+problems = [
+    { slug = "minimum-flips-to-make-a-or-b-equal-to-c", title = "Minimum Flips to Make a OR b Equal to c", number = 1318, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Binary gap"
+group = "Bit tricks (cross-reference)"
+note = "e.g. distance between set bits"
+problems = [
+    { slug = "binary-gap", title = "Binary Gap", number = 868, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "XOR of all pairings"
+group = "Bit tricks (cross-reference)"
+note = "e.g. parity of lengths"
+
+[[listed]]
+name = "Recursive bit operations to reach zero (Gray code inverse). These live in [DSA_BIT_MANIPULATION_PATTERNS.md](DSA_BIT_MANIPULATION_PATTERNS.md) (the Bit Manipulation topic). They are listed here only because the owner's Math & Geometry data contains problems of this shape"
+group = "Bit tricks (cross-reference)"
+problems = [
+    { slug = "gray-code", title = "Gray Code", number = 89, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Do not write the lessons twice"
+group = "Bit tricks (cross-reference)"
+
+[[listed]]
+name = "INT_MIN: negation, abs and division by -1 overflow"
+group = "Overflow and precision pitfalls"
+
+[[listed]]
+name = "Products modulo m need a wider type (u64 / u128) before the reduction"
+group = "Overflow and precision pitfalls"
+
+[[listed]]
+name = "Lcm overflow: divide before you multiply"
+group = "Overflow and precision pitfalls"
+
+[[listed]]
+name = "Floating-point slopes and ratios lose precision: use reduced fractions or cross products"
+group = "Overflow and precision pitfalls"
+
+[[listed]]
+name = "Cross products and areas of large coordinates overflow i32"
+group = "Overflow and precision pitfalls"
+note = "e.g. use i64"
+
+[[listed]]
+name = "Square roots and logarithms on floats near exact powers"
+group = "Overflow and precision pitfalls"
+note = "e.g. correct with an integer check"
+
+[[listed]]
+name = "Floor and ceiling division of negative numbers differ between languages"
+group = "Overflow and precision pitfalls"
+note = "Related lesson: Closed-form counting"
+
+[[listed]]
+name = "Doubles hold integers exactly only up to 2^53"
+group = "Overflow and precision pitfalls"
+
+[[listed]]
+name = "Huge values as strings: do not parse them"
+group = "Overflow and precision pitfalls"
+
+[[listed]]
+name = "Midpoint without overflow: lo + (hi - lo) / 2"
+group = "Overflow and precision pitfalls"
+
+[[listed]]
+name = "Angles and decimals: compare with an epsilon or stay in integers"
+group = "Overflow and precision pitfalls"
+
+[[listed]]
+name = "Exact decimals through remainders instead of floating division"
+group = "Overflow and precision pitfalls"
+
+[[listed]]
+name = "Rust: checked_ / wrapping_ / saturating_ / overflowing_ arithmetic, `as` casts truncate, debug builds panic on overflow. Number theory: [DSA_ALGORITHMS_NUMBER_THEORY.md](DSA_ALGORITHMS_NUMBER_THEORY.md) group 13"
+group = "Overflow and precision pitfalls"
+note = "e.g. core implementation patterns"
+
+[[listed]]
+name = "Closed form from small cases"
+group = "Observation problems"
+note = "Related lesson: Closed-form counting"
+
+[[listed]]
+name = "Count everything and subtract the exceptions"
+group = "Observation problems"
+note = "Related lesson: Closed-form counting"
+
+[[listed]]
+name = "Invariants and parity"
+group = "Observation problems"
+note = "e.g. what never changes under the operation"
+
+[[listed]]
+name = "Digital root and mod 9"
+group = "Observation problems"
+note = "Related lesson: GCD, primes and divisibility"
+
+[[listed]]
+name = "The first player wins by a symmetry or parity argument"
+group = "Observation problems"
+
+[[listed]]
+name = "Periodicity: simulate a few rounds and stop"
+group = "Observation problems"
+
+[[listed]]
+name = "The answer is decided by an extreme"
+group = "Observation problems"
+note = "e.g. largest, smallest, first, last"
+
+[[listed]]
+name = "A sum constraint pins the missing part"
+group = "Observation problems"
+
+[[listed]]
+name = "Interactive and query-limited problems"
+group = "Observation problems"
+note = "e.g. what does one answer reveal"
+
+[[listed]]
+name = "Bulb-switcher style toggles"
+group = "Observation problems"
+note = "e.g. count divisors, so only squares end on"
+problems = [
+    { slug = "bulb-switcher", title = "Bulb Switcher", number = 319, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Brainteasers: reduce to a smaller instance of the same problem"
+group = "Observation problems"

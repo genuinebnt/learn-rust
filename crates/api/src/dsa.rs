@@ -491,6 +491,8 @@ pub async fn pattern(State(s): State<AppState>, Path(code): Path<String>) -> Api
         "techniques": techniques,
         "extras": extra_lessons,
         "listed": s.catalog.dsa.listed.get(&track.name),
+        "group_tags": s.catalog.dsa.group_tags.get(&track.name),
+        "group_problems": s.catalog.dsa.group_problems.get(&track.name),
     });
     Ok(Json(value))
 }

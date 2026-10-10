@@ -2,6 +2,17 @@ pattern = "2-D Dynamic Programming"
 intro = "A 2-D DP has two things that change at once: a row and a column, two positions in two strings, or the two ends of an interval. Draw the table, say what each cell means, and see which neighbouring cells it needs. That also tells you the order to fill it and which rows you can throw away."
 groups = ["LCS and edit distance", "Interval DP", "Grid and path DP", "Tree DP", "DAG and graph DP", "State machine DP", "Constrained subsequences", "Broken profile and tiling DP"]
 
+
+
+
+
+
+
+
+[group_tags]
+"Grid and path DP" = ["matrix"]
+"Tree DP" = ["binary-tree"]
+
 [[technique]]
 id = "2-D Dynamic Programming:grid-dp"
 group = "Grid and path DP"
@@ -197,6 +208,126 @@ pitfalls = [
 ]
 examples = ["house-robber-iii", "binary-tree-maximum-path-sum", "diameter-of-binary-tree", "maximum-average-subtree"]
 
+[[group_problem]]
+group = "LCS and edit distance"
+slug = "delete-operation-for-two-strings"
+title = "Delete Operation for Two Strings"
+number = 583
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "LCS and edit distance"
+slug = "minimum-ascii-delete-sum-for-two-strings"
+title = "Minimum ASCII Delete Sum for Two Strings"
+number = 712
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "LCS and edit distance"
+slug = "maximum-length-of-repeated-subarray"
+title = "Maximum Length of Repeated Subarray"
+number = 718
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "DAG and graph DP"
+slug = "minimum-cost-to-reach-destination-in-time"
+title = "Minimum Cost to Reach Destination in Time"
+number = 1928
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "DAG and graph DP"
+slug = "count-all-possible-routes"
+title = "Count All Possible Routes"
+number = 1575
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "DAG and graph DP"
+slug = "number-of-restricted-paths-from-first-to-last-node"
+title = "Number of Restricted Paths From First to Last Node"
+number = 1786
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "DAG and graph DP"
+slug = "longest-cycle-in-a-graph"
+title = "Longest Cycle in a Graph"
+number = 2360
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "State machine DP"
+slug = "best-time-to-buy-and-sell-stock-iii"
+title = "Best Time to Buy and Sell Stock III"
+number = 123
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "State machine DP"
+slug = "best-time-to-buy-and-sell-stock-iv"
+title = "Best Time to Buy and Sell Stock IV"
+number = 188
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "State machine DP"
+slug = "wiggle-subsequence"
+title = "Wiggle Subsequence"
+number = 376
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Constrained subsequences"
+slug = "number-of-matching-subsequences"
+title = "Number of Matching Subsequences"
+number = 792
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Constrained subsequences"
+slug = "jump-game-vi"
+title = "Jump Game VI"
+number = 1696
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Broken profile and tiling DP"
+slug = "number-of-ways-to-paint-n-3-grid"
+title = "Number of Ways to Paint N × 3 Grid"
+number = 1411
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Broken profile and tiling DP"
+slug = "tiling-a-rectangle-with-the-fewest-squares"
+title = "Tiling a Rectangle with the Fewest Squares"
+number = 1240
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Broken profile and tiling DP"
+slug = "painting-a-grid-with-three-different-colors"
+title = "Painting a Grid With Three Different Colors"
+number = 1931
+difficulty = "hard"
+premium = false
+
 [[listed]]
 name = "Reconstruct the LCS"
 group = "LCS and edit distance"
@@ -204,30 +335,30 @@ group = "LCS and edit distance"
 [[listed]]
 name = "Delete-only distance and minimum ASCII delete sum"
 group = "LCS and edit distance"
-
-[[listed]]
-name = "Shortest common supersequence"
-group = "LCS and edit distance"
+note = "Related lesson: Two-string DP table"
 
 [[listed]]
 name = "Longest common substring"
 group = "LCS and edit distance"
-note = "e.g. contiguous, resets to 0"
+note = "Related lesson: Expand around a center"
+
+[[listed]]
+name = "Interleaving strings"
+group = "LCS and edit distance"
+note = "Related lesson: Two-string DP table"
 
 [[listed]]
 name = "Wildcard matching"
 group = "LCS and edit distance"
 note = "e.g. '?' and '*'"
-
-[[listed]]
-name = "Uncrossed lines"
-group = "LCS and edit distance"
-note = "e.g. LCS on arrays"
+problems = [
+    { slug = "wildcard-matching", title = "Wildcard Matching", number = 44, difficulty = "hard", premium = false },
+]
 
 [[listed]]
 name = "LCS of three strings"
 group = "LCS and edit distance"
-note = "e.g. 3-D table"
+note = "Related lesson: Two-string DP table"
 
 [[listed]]
 name = "Linear-space Hirschberg"
@@ -236,16 +367,17 @@ group = "LCS and edit distance"
 [[listed]]
 name = "Banded edit distance O"
 group = "LCS and edit distance"
-note = "e.g. nd"
+note = "Related lesson: Rolling array: keep only the previous row"
 
 [[listed]]
 name = "Transposition edit distance"
 group = "LCS and edit distance"
-note = "e.g. Damerau"
+note = "Related lesson: Rolling array: keep only the previous row"
 
 [[listed]]
 name = "Minimal edit script"
 group = "LCS and edit distance"
+note = "Related lesson: Rolling array: keep only the previous row"
 
 [[listed]]
 name = "Sequence alignment with gap penalties"
@@ -254,23 +386,25 @@ group = "LCS and edit distance"
 [[listed]]
 name = "LCS with a bitset"
 group = "LCS and edit distance"
+note = "Related lesson: 0/1 subset knapsack"
 
 [[listed]]
 name = "LCS of permutations reduced to LIS"
 group = "LCS and edit distance"
 
 [[listed]]
-name = "Matrix chain multiplication"
+name = "Dp[l][r] filled by increasing length"
 group = "Interval DP"
+note = "Related lesson: Longest increasing subsequence"
 
 [[listed]]
-name = "Minimum cost to cut a stick"
+name = "Matrix chain multiplication"
 group = "Interval DP"
 
 [[listed]]
 name = "Merge stones"
 group = "Interval DP"
-note = "e.g. k-way merge with prefix sums"
+note = "Related lesson: Minimax game DP"
 
 [[listed]]
 name = "Optimal binary search tree and Catalan splits"
@@ -279,23 +413,25 @@ group = "Interval DP"
 [[listed]]
 name = "Strange printer"
 group = "Interval DP"
+problems = [
+    { slug = "strange-printer", title = "Strange Printer", number = 664, difficulty = "hard", premium = false },
+]
 
 [[listed]]
 name = "Remove boxes"
 group = "Interval DP"
-note = "e.g. an extra dimension for equal neighbours"
+note = "Related lesson: Interval DP"
+problems = [
+    { slug = "remove-boxes", title = "Remove Boxes", number = 546, difficulty = "hard", premium = false },
+]
 
 [[listed]]
 name = "Both-ends games"
 group = "Interval DP"
-note = "e.g. interval game"
+note = "Related lesson: Interval DP"
 
 [[listed]]
 name = "Minimum insertions / removals to make a palindrome"
-group = "Interval DP"
-
-[[listed]]
-name = "String compression and encoding by repeats"
 group = "Interval DP"
 
 [[listed]]
@@ -303,14 +439,9 @@ name = "Polygon triangulation"
 group = "Interval DP"
 
 [[listed]]
-name = "Parenthesisation"
-group = "Interval DP"
-note = "e.g. different ways to add parentheses, boolean evaluation"
-
-[[listed]]
 name = "Circular interval DP"
 group = "Interval DP"
-note = "e.g. double the array"
+note = "Related lesson: Interval DP"
 
 [[listed]]
 name = "Interval DP with an extra count dimension"
@@ -326,33 +457,58 @@ name = "Expression and bracket DP"
 group = "Interval DP"
 
 [[listed]]
+name = "Falling path"
+group = "Grid and path DP"
+note = "e.g. three neighbours, or any other column"
+
+[[listed]]
 name = "Dungeon game"
 group = "Grid and path DP"
-note = "e.g. fill backward from the goal"
+note = "Related lesson: Minimax game DP"
+problems = [
+    { slug = "dungeon-game", title = "Dungeon Game", number = 174, difficulty = "hard", premium = false },
+]
 
 [[listed]]
 name = "Maximal rectangle"
 group = "Grid and path DP"
 note = "e.g. histogram per row"
+problems = [
+    { slug = "maximal-rectangle", title = "Maximal Rectangle", number = 85, difficulty = "hard", premium = false },
+]
 
 [[listed]]
 name = "Largest plus sign"
 group = "Grid and path DP"
 note = "e.g. four directional passes"
+problems = [
+    { slug = "largest-plus-sign", title = "Largest Plus Sign", number = 764, difficulty = "medium", premium = false },
+]
 
 [[listed]]
 name = "K walkers on a grid"
 group = "Grid and path DP"
+note = "Related lesson: Rolling array: keep only the previous row"
+
+[[listed]]
+name = "Memoised DFS on a grid that forms a DAG"
+group = "Grid and path DP"
+note = "e.g. increasing paths"
+
+[[listed]]
+name = "Moves in four directions"
+group = "Grid and path DP"
+note = "Related lesson: DFS with memoization on a grid"
 
 [[listed]]
 name = "Maximum / minimum product path"
 group = "Grid and path DP"
-note = "e.g. track both extremes"
+note = "Related lesson: Track both a max and a min"
 
 [[listed]]
 name = "Row-to-row transition cost"
 group = "Grid and path DP"
-note = "e.g. min over previous row, prefix-max trick"
+note = "Related lesson: Partitioning a sequence into groups"
 
 [[listed]]
 name = "Grid with remaining-budget dimension"
@@ -368,33 +524,41 @@ name = "Combinatorial shortcut (binomials) versus DP"
 group = "Grid and path DP"
 
 [[listed]]
+name = "One-row space optimisation"
+group = "Grid and path DP"
+note = "Related lesson: Memoisation and tabulation"
+
+[[listed]]
+name = "Subtree aggregation"
+group = "Tree DP"
+note = "e.g. return a tuple per node"
+
+[[listed]]
+name = "Maximum path sum"
+group = "Tree DP"
+note = "Related lesson: Track both a max and a min"
+
+[[listed]]
 name = "Three-state camera cover / dominating set"
 group = "Tree DP"
 
 [[listed]]
-name = "Largest BST subtree"
-group = "Tree DP"
-note = "e.g. return min, max, size, validity"
-
-[[listed]]
-name = "Counting tree shapes"
-group = "Tree DP"
-note = "e.g. unique BSTs, full binary trees, Catalan"
-
-[[listed]]
 name = "Tree knapsack"
 group = "Tree DP"
-note = "e.g. distribute a budget among children, O(n squared) merge"
+note = "Related lesson: Unbounded knapsack"
 
 [[listed]]
 name = "Rerooting"
 group = "Tree DP"
 note = "e.g. sum of distances, edge reversals"
+problems = [
+    { slug = "sum-of-distances", title = "Sum of Distances", number = 2615, difficulty = "medium", premium = false },
+]
 
 [[listed]]
 name = "Parent-state DP"
 group = "Tree DP"
-note = "e.g. colouring a tree"
+note = "Related lesson: Tree DP: a tuple per node"
 
 [[listed]]
 name = "Longest univalue / consecutive path"
@@ -409,14 +573,9 @@ name = "Collect-apples style edge cost DP"
 group = "Tree DP"
 
 [[listed]]
-name = "Good leaf pairs"
-group = "Tree DP"
-note = "e.g. depth array merge"
-
-[[listed]]
 name = "Counting paths with a property"
 group = "Tree DP"
-note = "e.g. parity masks"
+note = "Related lesson: Counting paths over states"
 
 [[listed]]
 name = "Small-to-large merging of subtree maps"
@@ -429,25 +588,20 @@ group = "Tree DP"
 [[listed]]
 name = "Longest path in a DAG"
 group = "DAG and graph DP"
+note = "Related lesson: Expand around a center"
 
 [[listed]]
 name = "Number of paths in a DAG"
 group = "DAG and graph DP"
 
 [[listed]]
-name = "DP in topological order"
+name = "Memoised DFS on an implicit DAG"
 group = "DAG and graph DP"
-note = "e.g. Kahn: parallel courses, largest colour value"
-
-[[listed]]
-name = "Shortest path with an edge-count dimension"
-group = "DAG and graph DP"
-note = "e.g. Bellman-Ford layers, cheapest flights within k stops"
 
 [[listed]]
 name = "Counting shortest paths"
 group = "DAG and graph DP"
-note = "e.g. Dijkstra with a ways array"
+note = "Related lesson: Counting paths over states"
 
 [[listed]]
 name = "Floyd-Warshall as DP over intermediate vertices"
@@ -478,21 +632,28 @@ group = "DAG and graph DP"
 [[listed]]
 name = "Hamiltonian path and TSP"
 group = "DAG and graph DP"
-note = "see bitmask"
 
 [[listed]]
-name = "DP on a graph of subproblems"
-group = "DAG and graph DP"
-note = "e.g. word ladder as BFS versus DP"
+name = "Stocks: one transaction, unlimited, at most k"
+group = "State machine DP"
+note = "e.g. hold / sold states"
+
+[[listed]]
+name = "Cooldown"
+group = "State machine DP"
+note = "Related lesson: State machine DP"
+
+[[listed]]
+name = "Transaction fee"
+group = "State machine DP"
+
+[[listed]]
+name = "Two transactions"
+group = "State machine DP"
 
 [[listed]]
 name = "Alternating-sign subsequence sum"
 group = "State machine DP"
-
-[[listed]]
-name = "Flip string to monotone"
-group = "State machine DP"
-note = "e.g. 0s then 1s"
 
 [[listed]]
 name = "Paint with no equal neighbours"
@@ -507,6 +668,7 @@ note = "e.g. KMP automaton as DP states"
 [[listed]]
 name = "DFA-driven counting"
 group = "State machine DP"
+note = "Related lesson: Counting paths over states"
 
 [[listed]]
 name = "Per-parity or per-remainder states"
@@ -521,6 +683,7 @@ note = "e.g. increasing then decreasing"
 [[listed]]
 name = "Last-chosen-value state"
 group = "State machine DP"
+note = "Related lesson: DP over pairs of positions"
 
 [[listed]]
 name = "Best of a few modes carried along the scan"
@@ -534,27 +697,28 @@ note = "e.g. flip / not flipped"
 [[listed]]
 name = "States that become a matrix"
 group = "State machine DP"
-note = "see matrix exponentiation"
-
-[[listed]]
-name = "Gap constraint between chosen indices"
-group = "Constrained subsequences"
-note = "e.g. jump, constrained subsequence sum"
 
 [[listed]]
 name = "Difference constraint between neighbours"
 group = "Constrained subsequences"
 note = "e.g. longest subsequence with difference d"
+problems = [
+    { slug = "longest-arithmetic-subsequence-of-given-difference", title = "Longest Arithmetic Subsequence of Given Difference", number = 1218, difficulty = "medium", premium = false },
+    { slug = "longest-subsequence-with-decreasing-adjacent-difference", title = "Longest Subsequence With Decreasing Adjacent Difference", number = 3409, difficulty = "medium", premium = false },
+]
 
 [[listed]]
 name = "At most k changes between adjacent chosen elements"
 group = "Constrained subsequences"
-note = "e.g. good subsequence"
+note = "Related lesson: DP over pairs of positions"
 
 [[listed]]
-name = "Alphabet-indexed best"
+name = "Arithmetic subsequence with a map of differences"
 group = "Constrained subsequences"
-note = "e.g. longest ideal subsequence"
+
+[[listed]]
+name = "Fibonacci-like subsequences"
+group = "Constrained subsequences"
 
 [[listed]]
 name = "Subsequence selected by parity or remainder of adjacent sums"
@@ -564,21 +728,12 @@ note = "e.g. valid subsequence"
 [[listed]]
 name = "Choosing one of two arrays per position"
 group = "Constrained subsequences"
-note = "e.g. non-decreasing from two arrays"
-
-[[listed]]
-name = "Matching a target as a subsequence"
-group = "Constrained subsequences"
-note = "e.g. distinct subsequences, number of matching subsequences with next-occurrence tables"
-
-[[listed]]
-name = "Is-subsequence and next-pointer automaton"
-group = "Constrained subsequences"
+note = "Related lesson: Two-string DP table"
 
 [[listed]]
 name = "Subsequence with a sum constraint"
 group = "Constrained subsequences"
-note = "e.g. knapsack"
+note = "Related lesson: Longest increasing subsequence"
 
 [[listed]]
 name = "At-most-k removals"
@@ -601,6 +756,9 @@ group = "Broken profile and tiling DP"
 name = "Row-mask DP with precomputed compatibility"
 group = "Broken profile and tiling DP"
 note = "e.g. maximum students taking an exam, paint an n x 3 grid"
+problems = [
+    { slug = "maximum-students-taking-exam", title = "Maximum Students Taking Exam", number = 1349, difficulty = "hard", premium = false },
+]
 
 [[listed]]
 name = "Counting tilings of 2 x n and 3 x n with dominoes and trominoes"
@@ -619,7 +777,7 @@ note = "e.g. connectivity states for Hamiltonian cycles on grids"
 [[listed]]
 name = "Steiner tree"
 group = "Broken profile and tiling DP"
-note = "e.g. mask of terminals"
+note = "Related lesson: Tree DP: a tuple per node"
 
 [[listed]]
 name = "Profile DP plus matrix power for huge n"
@@ -632,6 +790,9 @@ group = "Broken profile and tiling DP"
 [[listed]]
 name = "Gray-code ordering of masks"
 group = "Broken profile and tiling DP"
+problems = [
+    { slug = "gray-code", title = "Gray Code", number = 89, difficulty = "medium", premium = false },
+]
 
 [[listed]]
 name = "Tiling with squares: backtracking versus DP"

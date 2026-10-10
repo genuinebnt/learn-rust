@@ -2,6 +2,22 @@ pattern = "Advanced Graphs"
 intro = "These are the graph algorithms you name rather than invent: shortest paths with costs, minimum spanning trees, paths that use every edge, and cuts. Each is a template you adapt. Know which question it answers and what it needs from the input (no negative edges, at most k edges, an undirected graph)."
 groups = ["Shortest paths", "Minimum spanning trees", "Connectivity and graph decomposition", "Matching and bipartite graphs", "Network flow", "Graph dynamic programming", "Eulerian and Hamiltonian", "Backtracking and enumeration", "Advanced connectivity and offline algorithms", "Specialized graph algorithms", "Cycle detection and graph properties"]
 
+
+
+
+
+
+
+
+[group_tags]
+"Shortest paths" = ["shortest-path"]
+"Minimum spanning trees" = ["minimum-spanning-tree"]
+"Connectivity and graph decomposition" = ["biconnected-component", "strongly-connected-component"]
+"Eulerian and Hamiltonian" = ["eulerian-circuit"]
+"Backtracking and enumeration" = ["backtracking"]
+"Advanced connectivity and offline algorithms" = ["biconnected-component", "union-find"]
+"Cycle detection and graph properties" = ["graph"]
+
 [[technique]]
 id = "Advanced Graphs:dijkstra"
 group = "Shortest paths"
@@ -275,19 +291,252 @@ pitfalls = [
 ]
 examples = ["minimum-obstacle-removal-to-reach-corner", "minimum-cost-to-make-at-least-one-valid-path-in-a-grid"]
 
-[[listed]]
-name = "Dijkstra (stale-entry skipping, path reconstruction)"
+[[group_problem]]
 group = "Shortest paths"
-note = "Partly covered: stale-entry skipping yes, path reconstruction no"
+slug = "reachable-nodes-in-subdivided-graph"
+title = "Reachable Nodes In Subdivided Graph"
+number = 882
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Shortest paths"
+slug = "minimum-weighted-subgraph-with-the-required-paths"
+title = "Minimum Weighted Subgraph With the Required Paths"
+number = 2203
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Shortest paths"
+slug = "design-graph-with-shortest-path-calculator"
+title = "Design Graph With Shortest Path Calculator"
+number = 2642
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Shortest paths"
+slug = "minimum-cost-of-a-path-with-special-roads"
+title = "Minimum Cost of a Path With Special Roads"
+number = 2662
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Shortest paths"
+slug = "modify-graph-edge-weights"
+title = "Modify Graph Edge Weights"
+number = 2699
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Shortest paths"
+slug = "number-of-possible-sets-of-closing-branches"
+title = "Number of Possible Sets of Closing Branches"
+number = 2959
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Shortest paths"
+slug = "minimum-cost-to-convert-string-ii"
+title = "Minimum Cost to Convert String II"
+number = 2977
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Shortest paths"
+slug = "minimum-time-to-visit-disappearing-nodes"
+title = "Minimum Time to Visit Disappearing Nodes"
+number = 3112
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Minimum spanning trees"
+slug = "maximize-spanning-tree-stability-with-upgrades"
+title = "Maximize Spanning Tree Stability with Upgrades"
+number = 3600
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Minimum spanning trees"
+slug = "connecting-cities-with-minimum-cost"
+title = "Connecting Cities With Minimum Cost"
+number = 1135
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Minimum spanning trees"
+slug = "optimize-water-distribution-in-a-village"
+title = "Optimize Water Distribution in a Village"
+number = 1168
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "Minimum spanning trees"
+slug = "checking-existence-of-edge-length-limited-paths-ii"
+title = "Checking Existence of Edge Length Limited Paths II"
+number = 1724
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "Connectivity and graph decomposition"
+slug = "critical-connections-in-a-network"
+title = "Critical Connections in a Network"
+number = 1192
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Matching and bipartite graphs"
+slug = "maximum-number-of-accepted-invitations"
+title = "Maximum Number of Accepted Invitations"
+number = 1820
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Matching and bipartite graphs"
+slug = "maximum-students-taking-exam"
+title = "Maximum Students Taking Exam"
+number = 1349
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Network flow"
+slug = "minimum-cost-to-connect-two-groups-of-points"
+title = "Minimum Cost to Connect Two Groups of Points"
+number = 1595
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Graph dynamic programming"
+slug = "count-all-possible-routes"
+title = "Count All Possible Routes"
+number = 1575
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Eulerian and Hamiltonian"
+slug = "valid-arrangement-of-pairs"
+title = "Valid Arrangement of Pairs"
+number = 2097
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Advanced connectivity and offline algorithms"
+slug = "largest-component-size-by-common-factor"
+title = "Largest Component Size by Common Factor"
+number = 952
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Advanced connectivity and offline algorithms"
+slug = "satisfiability-of-equality-equations"
+title = "Satisfiability of Equality Equations"
+number = 990
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Advanced connectivity and offline algorithms"
+slug = "lexicographically-smallest-equivalent-string"
+title = "Lexicographically Smallest Equivalent String"
+number = 1061
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Advanced connectivity and offline algorithms"
+slug = "smallest-string-with-swaps"
+title = "Smallest String With Swaps"
+number = 1202
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Advanced connectivity and offline algorithms"
+slug = "number-of-operations-to-make-network-connected"
+title = "Number of Operations to Make Network Connected"
+number = 1319
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Advanced connectivity and offline algorithms"
+slug = "check-if-there-is-a-valid-path-in-a-grid"
+title = "Check if There is a Valid Path in a Grid"
+number = 1391
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Advanced connectivity and offline algorithms"
+slug = "detect-cycles-in-2d-grid"
+title = "Detect Cycles in 2D Grid"
+number = 1559
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Advanced connectivity and offline algorithms"
+slug = "number-of-ways-to-reorder-array-to-get-same-bst"
+title = "Number of Ways to Reorder Array to Get Same BST"
+number = 1569
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Specialized graph algorithms"
+slug = "all-ancestors-of-a-node-in-a-directed-acyclic-graph"
+title = "All Ancestors of a Node in a Directed Acyclic Graph"
+number = 2192
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Specialized graph algorithms"
+slug = "find-center-of-star-graph"
+title = "Find Center of Star Graph"
+number = 1791
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Specialized graph algorithms"
+slug = "maximal-network-rank"
+title = "Maximal Network Rank"
+number = 1615
+difficulty = "medium"
+premium = false
 
 [[listed]]
-name = "Minimax path"
+name = "Unweighted"
 group = "Shortest paths"
-note = "Partly covered: one pitfall line on a different combine step; no template"
+note = "e.g. BFS"
+
+[[listed]]
+name = "Multi-source"
+group = "Shortest paths"
+note = "Related lesson: Multi-source BFS"
 
 [[listed]]
 name = "Negative-cycle detection"
 group = "Shortest paths"
+note = "Related lesson: Cycle detection and topological sort"
 
 [[listed]]
 name = "Johnson's"
@@ -296,49 +545,46 @@ group = "Shortest paths"
 [[listed]]
 name = "DAG shortest path"
 group = "Shortest paths"
+note = "Related lesson: Dijkstra"
 
 [[listed]]
 name = "Bidirectional"
 group = "Shortest paths"
+note = "Related lesson: Bidirectional BFS"
 
 [[listed]]
-name = "A*"
+name = "With constraints / at most k stops"
 group = "Shortest paths"
+note = "Related lesson: Depth-first search"
 
 [[listed]]
 name = "Product-graph"
 group = "Shortest paths"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
 name = "Shortest-path counting"
 group = "Shortest paths"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "K-shortest paths"
+group = "Shortest paths"
+note = "Related lesson: Dijkstra"
+
+[[listed]]
+name = "Minimax path"
 group = "Shortest paths"
 
 [[listed]]
 name = "Maximum-bottleneck path"
 group = "Shortest paths"
-
-[[listed]]
-name = "Prim"
-group = "Minimum spanning trees"
-note = "Partly covered: named in a pitfall, no template"
-
-[[listed]]
-name = "Minimum spanning forest"
-group = "Minimum spanning trees"
-note = "Partly covered: the template returns -1 when disconnected, but there is no forest variant"
-
-[[listed]]
-name = "Euclidean MST"
-group = "Minimum spanning trees"
-note = "Partly covered: one pitfall line (Prim with an array is O(n squared))"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "Maximum spanning tree"
 group = "Minimum spanning trees"
+note = "Related lesson: Minimum spanning tree"
 
 [[listed]]
 name = "MST with preconnected vertices"
@@ -347,18 +593,26 @@ group = "Minimum spanning trees"
 [[listed]]
 name = "Bottleneck spanning tree"
 group = "Minimum spanning trees"
+note = "Related lesson: Minimum spanning tree"
 
 [[listed]]
 name = "Second-best MST"
 group = "Minimum spanning trees"
+note = "Related lesson: Cycles in a functional graph"
 
 [[listed]]
 name = "MST edge classification"
 group = "Minimum spanning trees"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
-name = "SCC (Kosaraju / Tarjan)"
+name = "Euclidean MST"
+group = "Minimum spanning trees"
+
+[[listed]]
+name = "SCC"
 group = "Connectivity and graph decomposition"
+note = "e.g. Kosaraju / Tarjan"
 
 [[listed]]
 name = "Condensation DAG"
@@ -375,18 +629,12 @@ group = "Connectivity and graph decomposition"
 [[listed]]
 name = "Bridge tree"
 group = "Connectivity and graph decomposition"
+note = "Related lesson: Walking a tree as a graph from a root"
 
 [[listed]]
 name = "Block-cut tree"
 group = "Connectivity and graph decomposition"
-
-[[listed]]
-name = "Strong bridges"
-group = "Connectivity and graph decomposition"
-
-[[listed]]
-name = "Strong articulation points"
-group = "Connectivity and graph decomposition"
+note = "Related lesson: Walking a tree as a graph from a root"
 
 [[listed]]
 name = "Vertex connectivity"
@@ -395,6 +643,7 @@ group = "Connectivity and graph decomposition"
 [[listed]]
 name = "Edge connectivity"
 group = "Connectivity and graph decomposition"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Offline bridge queries"
@@ -403,6 +652,11 @@ group = "Connectivity and graph decomposition"
 [[listed]]
 name = "Dominators"
 group = "Connectivity and graph decomposition"
+
+[[listed]]
+name = "Bipartite recognition"
+group = "Matching and bipartite graphs"
+note = "Related lesson: Bipartite check (two-coloring)"
 
 [[listed]]
 name = "Kuhn's"
@@ -427,10 +681,12 @@ group = "Matching and bipartite graphs"
 [[listed]]
 name = "Hungarian algorithm"
 group = "Matching and bipartite graphs"
+note = "Related lesson: Eulerian path"
 
 [[listed]]
-name = "Blossom (general matching)"
+name = "Blossom"
 group = "Matching and bipartite graphs"
+note = "e.g. general matching"
 
 [[listed]]
 name = "Minimum path cover in DAGs"
@@ -443,6 +699,7 @@ group = "Matching and bipartite graphs"
 [[listed]]
 name = "Ford-Fulkerson"
 group = "Network flow"
+note = "Related lesson: Dijkstra"
 
 [[listed]]
 name = "Edmonds-Karp"
@@ -455,18 +712,22 @@ group = "Network flow"
 [[listed]]
 name = "Push-relabel"
 group = "Network flow"
+note = "Related lesson: Flood fill on grids"
 
 [[listed]]
 name = "Maximum flow"
 group = "Network flow"
+note = "Related lesson: Search inward from the border"
 
 [[listed]]
 name = "Minimum cut"
 group = "Network flow"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "Edge-disjoint paths"
 group = "Network flow"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Vertex-disjoint paths"
@@ -487,10 +748,12 @@ group = "Network flow"
 [[listed]]
 name = "Min-cost max-flow"
 group = "Network flow"
+note = "Related lesson: Search inward from the border"
 
 [[listed]]
 name = "Maximum closure"
 group = "Network flow"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "Residual graph reasoning"
@@ -499,6 +762,7 @@ group = "Network flow"
 [[listed]]
 name = "Super-source / super-sink"
 group = "Network flow"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "DAG DP"
@@ -507,14 +771,17 @@ group = "Graph dynamic programming"
 [[listed]]
 name = "Longest path in DAG"
 group = "Graph dynamic programming"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "Path counting"
 group = "Graph dynamic programming"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Shortest-path counting"
 group = "Graph dynamic programming"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Bitmask DP over subsets"
@@ -535,6 +802,7 @@ group = "Graph dynamic programming"
 [[listed]]
 name = "Graph coloring DP"
 group = "Graph dynamic programming"
+note = "Related lesson: Bipartite check (two-coloring)"
 
 [[listed]]
 name = "Independent-set DP"
@@ -557,12 +825,21 @@ name = "Treewidth / tree-decomposition DP"
 group = "Graph dynamic programming"
 
 [[listed]]
+name = "Itinerary reconstruction"
+group = "Eulerian and Hamiltonian"
+note = "Related lesson: Eulerian path"
+
+[[listed]]
 name = "De Bruijn sequence"
 group = "Eulerian and Hamiltonian"
+problems = [
+    { slug = "cracking-the-safe", title = "Cracking the Safe", number = 753, difficulty = "hard", premium = false },
+]
 
 [[listed]]
 name = "Hamiltonian path / cycle"
 group = "Eulerian and Hamiltonian"
+note = "Related lesson: Graph traversal with a copy map"
 
 [[listed]]
 name = "TSP"
@@ -571,6 +848,7 @@ group = "Eulerian and Hamiltonian"
 [[listed]]
 name = "Longest simple path"
 group = "Eulerian and Hamiltonian"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "Simple path enumeration"
@@ -583,10 +861,12 @@ group = "Backtracking and enumeration"
 [[listed]]
 name = "Constrained path search"
 group = "Backtracking and enumeration"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
 name = "Cycle enumeration"
 group = "Backtracking and enumeration"
+note = "Related lesson: Graph traversal with a copy map"
 
 [[listed]]
 name = "Connected-subgraph enumeration"
@@ -595,18 +875,22 @@ group = "Backtracking and enumeration"
 [[listed]]
 name = "Graph coloring by backtracking"
 group = "Backtracking and enumeration"
+note = "Related lesson: Bipartite check (two-coloring)"
 
 [[listed]]
 name = "Clique search"
 group = "Backtracking and enumeration"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
 name = "Maximum clique"
 group = "Backtracking and enumeration"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "Maximum independent set"
 group = "Backtracking and enumeration"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "Subgraph isomorphism"
@@ -619,6 +903,7 @@ group = "Backtracking and enumeration"
 [[listed]]
 name = "Branch-and-bound"
 group = "Backtracking and enumeration"
+note = "Related lesson: Depth-first search"
 
 [[listed]]
 name = "Meet-in-the-middle enumeration"
@@ -635,10 +920,12 @@ group = "Advanced connectivity and offline algorithms"
 [[listed]]
 name = "Segment tree over time + rollback DSU"
 group = "Advanced connectivity and offline algorithms"
+note = "Related lesson: Depth-first search"
 
 [[listed]]
-name = "Offline LCA (Tarjan)"
+name = "Offline LCA"
 group = "Advanced connectivity and offline algorithms"
+note = "e.g. Tarjan"
 
 [[listed]]
 name = "Dynamic connectivity"
@@ -671,18 +958,22 @@ group = "Specialized graph algorithms"
 [[listed]]
 name = "Complement graph BFS"
 group = "Specialized graph algorithms"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
 name = "Greedy graph coloring"
 group = "Specialized graph algorithms"
+note = "Related lesson: Bipartite check (two-coloring)"
 
 [[listed]]
 name = "Minimum dominating set"
 group = "Specialized graph algorithms"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "Graph centrality"
 group = "Specialized graph algorithms"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
 name = "PageRank / random walks"
@@ -695,34 +986,41 @@ group = "Specialized graph algorithms"
 [[listed]]
 name = "Bipartite projection"
 group = "Specialized graph algorithms"
+note = "Related lesson: Bipartite check (two-coloring)"
 
 [[listed]]
 name = "Graph sparsification"
 group = "Specialized graph algorithms"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
 name = "Graph isomorphism"
 group = "Specialized graph algorithms"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
 name = "LCA in DAGs"
 group = "Specialized graph algorithms"
 
 [[listed]]
-name = "Minimum mean cycle (Karp)"
+name = "Minimum mean cycle"
 group = "Specialized graph algorithms"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "Difference constraints"
 group = "Specialized graph algorithms"
+note = "Related lesson: Cycles in a functional graph"
 
 [[listed]]
 name = "2-SAT implication graph"
 group = "Specialized graph algorithms"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
 name = "Min-cost circulation"
 group = "Specialized graph algorithms"
+note = "Related lesson: Walking a tree as a graph from a root"
 
 [[listed]]
 name = "Algebraic path algorithms"
@@ -739,6 +1037,7 @@ group = "Specialized graph algorithms"
 [[listed]]
 name = "Parallel graph traversal"
 group = "Specialized graph algorithms"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Approximation algorithms for hard graph problems"

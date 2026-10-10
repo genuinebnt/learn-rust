@@ -2,6 +2,21 @@ pattern = "Graphs"
 intro = "First decide what the graph is (grid cells, courses, words, people), then which question it asks: reach everything, fewest steps, an order, which group, or how far. The lessons are grouped by that question. Each has a short template; the work is in recognising the shape. A violet dot marks a technique that has no must-learn problem in the lists, so it comes with example problems; dashed chips are techniques that are known and not written yet."
 groups = ["Traversal", "Cycle detection and graph properties", "Topological sort and dependencies", "Union-find (DSU)", "Tree algorithms", "Graph modeling and state-space search", "Core implementation patterns"]
 
+
+
+
+
+
+
+
+[group_tags]
+"Traversal" = ["breadth-first-search", "depth-first-search"]
+"Cycle detection and graph properties" = ["graph"]
+"Topological sort and dependencies" = ["topological-sort"]
+"Union-find (DSU)" = ["union-find"]
+"Tree algorithms" = ["binary-tree"]
+"Graph modeling and state-space search" = ["graph"]
+
 [[technique]]
 id = "Graphs:simulation"
 group = "Graph modeling and state-space search"
@@ -570,45 +585,214 @@ pitfalls = [
 ]
 examples = ["parallel-courses", "parallel-courses-iii"]
 
+[[group_problem]]
+group = "Topological sort and dependencies"
+slug = "loud-and-rich"
+title = "Loud and Rich"
+number = 851
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Topological sort and dependencies"
+slug = "cat-and-mouse"
+title = "Cat and Mouse"
+number = 913
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Topological sort and dependencies"
+slug = "sort-items-by-groups-respecting-dependencies"
+title = "Sort Items by Groups Respecting Dependencies"
+number = 1203
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Topological sort and dependencies"
+slug = "strange-printer-ii"
+title = "Strange Printer II"
+number = 1591
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Topological sort and dependencies"
+slug = "rank-transform-of-a-matrix"
+title = "Rank Transform of a Matrix"
+number = 1632
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Topological sort and dependencies"
+slug = "cat-and-mouse-ii"
+title = "Cat and Mouse II"
+number = 1728
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Topological sort and dependencies"
+slug = "number-of-restricted-paths-from-first-to-last-node"
+title = "Number of Restricted Paths From First to Last Node"
+number = 1786
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Topological sort and dependencies"
+slug = "count-ways-to-build-rooms-in-an-ant-colony"
+title = "Count Ways to Build Rooms in an Ant Colony"
+number = 1916
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Union-find (DSU)"
+slug = "redundant-connection-ii"
+title = "Redundant Connection II"
+number = 685
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Union-find (DSU)"
+slug = "couples-holding-hands"
+title = "Couples Holding Hands"
+number = 765
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Union-find (DSU)"
+slug = "bricks-falling-when-hit"
+title = "Bricks Falling When Hit"
+number = 803
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Union-find (DSU)"
+slug = "similar-string-groups"
+title = "Similar String Groups"
+number = 839
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Union-find (DSU)"
+slug = "possible-bipartition"
+title = "Possible Bipartition"
+number = 886
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Union-find (DSU)"
+slug = "minimize-malware-spread"
+title = "Minimize Malware Spread"
+number = 924
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Union-find (DSU)"
+slug = "minimize-malware-spread-ii"
+title = "Minimize Malware Spread II"
+number = 928
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Union-find (DSU)"
+slug = "most-stones-removed-with-same-row-or-column"
+title = "Most Stones Removed with Same Row or Column"
+number = 947
+difficulty = "medium"
+premium = false
+
+[[listed]]
+name = "DFS (recursive) / DFS (iterative, explicit stack) as tabs of one lesson"
+group = "Traversal"
+note = "Related lesson: Flood fill on grids"
+
+[[listed]]
+name = "BFS"
+group = "Traversal"
+note = "e.g. level-order"
+
+[[listed]]
+name = "Multi-source BFS"
+group = "Traversal"
+note = "Related lesson: Multi-source BFS"
+
+[[listed]]
+name = "Connected components"
+group = "Traversal"
+note = "Related lesson: Flood fill on grids"
+
+[[listed]]
+name = "Boundary-based traversal"
+group = "Traversal"
+note = "Related lesson: Counting in-degrees and out-degrees"
+
 [[listed]]
 name = "Reverse graph traversal"
 group = "Traversal"
-note = "Partly covered: border walks uphill from the edge on a grid; no reverse adjacency list"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Stateful traversal"
 group = "Traversal"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Path reconstruction"
 group = "Traversal"
 
 [[listed]]
-name = "Undirected cycle: DFS / BFS / union-find"
-group = "Cycle detection and graph properties"
-note = "Partly covered: union-find (dsu) only; no DFS or BFS cycle tabs"
+name = "Implicit graph traversal"
+group = "Traversal"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Directed cycle: 3-color DFS / Kahn's algorithm"
 group = "Cycle detection and graph properties"
-note = "Partly covered: Kahn's count in topo only; no 3-color DFS"
 
 [[listed]]
-name = "Bipartite checking (BFS / DFS)"
+name = "Odd-cycle detection"
 group = "Cycle detection and graph properties"
-note = "Partly covered: BFS two-colouring only; no DFS tab"
+note = "Related lesson: Cycle detection and topological sort"
 
 [[listed]]
-name = "Floyd's tortoise and hare"
+name = "Tree validation"
+group = "Cycle detection and graph properties"
+note = "Related lesson: Walking a tree as a graph from a root"
+
+[[listed]]
+name = "Functional graph cycle detection"
+group = "Cycle detection and graph properties"
+note = "Related lesson: Cycle detection and topological sort"
+
+[[listed]]
+name = "Degree-based graph properties"
 group = "Cycle detection and graph properties"
 
 [[listed]]
-name = "DFS topological sort"
+name = "Kahn's"
 group = "Topological sort and dependencies"
 
 [[listed]]
-name = "Unique topological ordering"
+name = "Dependency feasibility"
 group = "Topological sort and dependencies"
+note = "Related lesson: Depth-first search"
+
+[[listed]]
+name = "Dependency ordering"
+group = "Topological sort and dependencies"
+note = "Related lesson: Depth-first search"
 
 [[listed]]
 name = "Ancestor propagation in DAGs"
@@ -617,27 +801,50 @@ group = "Topological sort and dependencies"
 [[listed]]
 name = "Critical path in DAGs"
 group = "Topological sort and dependencies"
+note = "Related lesson: Topological layers"
 
 [[listed]]
 name = "DAG path counting"
 group = "Topological sort and dependencies"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Incremental dependency constraints"
 group = "Topological sort and dependencies"
 
 [[listed]]
-name = "DSU with component metadata"
+name = "Basic"
 group = "Union-find (DSU)"
-note = "Partly covered: the size array only; no merged min/max/xor payload"
 
 [[listed]]
-name = "Grid union-find"
+name = "Path compression"
 group = "Union-find (DSU)"
+note = "Related lesson: Union-Find"
+
+[[listed]]
+name = "Union by rank / size"
+group = "Union-find (DSU)"
+note = "Related lesson: Union-Find"
+
+[[listed]]
+name = "Component counting"
+group = "Union-find (DSU)"
+note = "Related lesson: Counting in-degrees and out-degrees"
+
+[[listed]]
+name = "Redundant edge detection"
+group = "Union-find (DSU)"
+note = "Related lesson: Graph traversal with a copy map"
+
+[[listed]]
+name = "DSU with component metadata"
+group = "Union-find (DSU)"
+note = "Related lesson: Bipartite check (two-coloring)"
 
 [[listed]]
 name = "Weighted / potential DSU"
 group = "Union-find (DSU)"
+note = "Related lesson: Weighted queries on a graph"
 
 [[listed]]
 name = "Reverse-time connectivity"
@@ -658,15 +865,12 @@ group = "Union-find (DSU)"
 [[listed]]
 name = "Tree DFS / subtree aggregation"
 group = "Tree algorithms"
-note = "Partly covered: tree-walk walks an edge-list tree from a root; no subtree aggregation"
+note = "Related lesson: Depth-first search"
 
 [[listed]]
 name = "Tree BFS"
 group = "Tree algorithms"
-
-[[listed]]
-name = "Diameter"
-group = "Tree algorithms"
+note = "Related lesson: Walking a tree as a graph from a root"
 
 [[listed]]
 name = "Center"
@@ -699,6 +903,7 @@ group = "Tree algorithms"
 [[listed]]
 name = "Tree DP"
 group = "Tree algorithms"
+note = "Related lesson: Walking a tree as a graph from a root"
 
 [[listed]]
 name = "Tree independent set / vertex cover"
@@ -707,10 +912,12 @@ group = "Tree algorithms"
 [[listed]]
 name = "Tree path queries"
 group = "Tree algorithms"
+note = "Related lesson: Walking a tree as a graph from a root"
 
 [[listed]]
 name = "Virtual tree"
 group = "Tree algorithms"
+note = "Related lesson: Walking a tree as a graph from a root"
 
 [[listed]]
 name = "Tree isomorphism / canonical encoding"
@@ -727,24 +934,42 @@ group = "Tree algorithms"
 [[listed]]
 name = "DSU on tree"
 group = "Tree algorithms"
+note = "Related lesson: Walking a tree as a graph from a root"
 
 [[listed]]
-name = "Constraint graph"
+name = "Grid-to-graph"
 group = "Graph modeling and state-space search"
-note = "Partly covered: weighted covers the ratio graph only"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
-name = "Super-source / super-sink"
+name = "Implicit graph"
 group = "Graph modeling and state-space search"
-note = "Partly covered: multi-bfs seeds one queue with all sources, which is a super-source without naming it"
+note = "Related lesson: BFS on an implicit graph"
 
 [[listed]]
 name = "Product / state-expanded graph"
 group = "Graph modeling and state-space search"
+note = "Related lesson: Graph traversal with a copy map"
+
+[[listed]]
+name = "Word transformation"
+group = "Graph modeling and state-space search"
+note = "Related lesson: Direct simulation on a graph"
+
+[[listed]]
+name = "Constraint graph"
+group = "Graph modeling and state-space search"
+note = "Related lesson: Direct simulation on a graph"
+
+[[listed]]
+name = "Dependency graph"
+group = "Graph modeling and state-space search"
+note = "Related lesson: Depth-first search"
 
 [[listed]]
 name = "Keys-and-locks state graph"
 group = "Graph modeling and state-space search"
+note = "Related lesson: BFS on an implicit graph"
 
 [[listed]]
 name = "Alternating-color / alternating-edge paths"
@@ -753,6 +978,7 @@ group = "Graph modeling and state-space search"
 [[listed]]
 name = "Parity-expanded graph"
 group = "Graph modeling and state-space search"
+note = "Related lesson: Graph traversal with a copy map"
 
 [[listed]]
 name = "Automaton x graph product"
@@ -765,10 +991,16 @@ group = "Graph modeling and state-space search"
 [[listed]]
 name = "Time-expanded graph"
 group = "Graph modeling and state-space search"
+note = "Related lesson: Graph traversal with a copy map"
 
 [[listed]]
 name = "Reverse-time modeling"
 group = "Graph modeling and state-space search"
+
+[[listed]]
+name = "Super-source / super-sink"
+group = "Graph modeling and state-space search"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Virtual vertices"
@@ -781,6 +1013,7 @@ group = "Graph modeling and state-space search"
 [[listed]]
 name = "Graph compression"
 group = "Graph modeling and state-space search"
+note = "Related lesson: Direct simulation on a graph"
 
 [[listed]]
 name = "Terminal / boundary compression"
@@ -791,51 +1024,83 @@ name = "Dominance pruning"
 group = "Graph modeling and state-space search"
 
 [[listed]]
-name = "Parent / predecessor arrays"
+name = "Adjacency list / matrix / edge list"
 group = "Core implementation patterns"
-note = "Partly covered: only articulation passes a parent"
-
-[[listed]]
-name = "Coordinate-to-node mapping"
-group = "Core implementation patterns"
-note = "Partly covered: grid cells are (r, c) tuples; no id mapping"
-
-[[listed]]
-name = "State-to-node encoding"
-group = "Core implementation patterns"
-note = "Partly covered: bfs-implicit keeps states as strings or tuples; no encoding lesson"
-
-[[listed]]
-name = "Compact integer node ids"
-group = "Core implementation patterns"
-note = "Partly covered: one dsu pitfall line on mapping names to integer ids"
+note = "Related lesson: Walking a tree as a graph from a root"
 
 [[listed]]
 name = "Reverse adjacency list"
 group = "Core implementation patterns"
+note = "Related lesson: Search inward from the border"
 
 [[listed]]
-name = "Visitation states (white / gray / black)"
+name = "Visitation states"
+group = "Core implementation patterns"
+note = "Related lesson: BFS on an implicit graph"
+
+[[listed]]
+name = "Parent / predecessor arrays"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Discovery time + low-link arrays"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Indegree tracking"
+group = "Core implementation patterns"
+note = "Related lesson: Cycle detection and topological sort"
+
+[[listed]]
+name = "Min-heap / priority queue"
 group = "Core implementation patterns"
 
 [[listed]]
 name = "Deque-based 0-1 BFS"
 group = "Core implementation patterns"
+note = "Related lesson: Multi-source BFS"
 
 [[listed]]
 name = "Residual edges"
 group = "Core implementation patterns"
+note = "Related lesson: Counting in-degrees and out-degrees"
 
 [[listed]]
 name = "Bitmask representation"
 group = "Core implementation patterns"
 
 [[listed]]
-name = "Memoization over graph states"
+name = "Coordinate-to-node mapping"
 group = "Core implementation patterns"
 
 [[listed]]
-name = "Compressed sparse row (CSR)"
+name = "State-to-node encoding"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Lazy neighbor generation"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Memoization over graph states"
+group = "Core implementation patterns"
+note = "Related lesson: BFS on an implicit graph"
+
+[[listed]]
+name = "Compact integer node ids"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Compressed sparse row"
+group = "Core implementation patterns"
+note = "e.g. CSR"
+
+[[listed]]
+name = "Iterative traversal for deep graphs"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Stale priority-queue entry filtering"
 group = "Core implementation patterns"
 
 [[listed]]

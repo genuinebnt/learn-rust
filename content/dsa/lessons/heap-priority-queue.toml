@@ -1,8 +1,32 @@
 pattern = "Heap / Priority Queue"
 intro = "A heap always gives you the smallest (or, negated, the largest) item in O(log n). Reach for it when you repeatedly need the best remaining thing: the k largest, the next task to run, the middle value. Python's heapq is a min-heap, so negate the numbers when you want a maximum."
+groups = ["Top-k selection", "Two heaps and the median", "K-way merge", "Scheduling with heaps", "Greedy with a heap", "Heaps in graph algorithms", "Lazy deletion and indexed heaps", "Comparators and tie-breaking", "Heapify and heap sort", "Design problems with heaps", "Heap plus hash map", "Heaps on grids", "Huffman coding and merge costs", "Order-statistic alternatives", "Core implementation patterns"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Top-k selection" = ["quickselect", "heap-priority-queue"]
+"Two heaps and the median" = ["data-stream", "heap-priority-queue"]
+"K-way merge" = ["merge-sort", "heap-priority-queue"]
+"Scheduling with heaps" = ["heap-priority-queue"]
+"Greedy with a heap" = ["heap-priority-queue"]
+"Heaps in graph algorithms" = ["shortest-path", "heap-priority-queue"]
+"Lazy deletion and indexed heaps" = ["heap-priority-queue"]
+"Heapify and heap sort" = ["heap-priority-queue", "sorting"]
+"Design problems with heaps" = ["design", "heap-priority-queue"]
+"Heap plus hash map" = ["hash-table", "heap-priority-queue"]
+"Heaps on grids" = ["heap-priority-queue", "matrix"]
+"Huffman coding and merge costs" = ["heap-priority-queue"]
+"Order-statistic alternatives" = ["ordered-set", "quickselect"]
 
 [[technique]]
 id = "Heap / Priority Queue:size-k"
+group = "Heapify and heap sort"
 signals = [
     "the k-th largest (or smallest) value in a stream",
     "keep only the k best items seen so far",
@@ -34,6 +58,7 @@ pitfalls = [
 
 [[technique]]
 id = "Heap / Priority Queue:pool"
+group = "Heapify and heap sort"
 signals = [
     "repeatedly take the biggest (or smallest) item, process it, and maybe put something back",
     "smash the two heaviest stones, pick the closest point, merge the cheapest ropes",
@@ -61,6 +86,7 @@ pitfalls = [
 
 [[technique]]
 id = "Heap / Priority Queue:quickselect"
+group = "Top-k selection"
 signals = [
     "the k-th largest of an unsorted array, in O(n) on average",
     "you don't need the whole array sorted",
@@ -92,6 +118,7 @@ pitfalls = [
 
 [[technique]]
 id = "Heap / Priority Queue:cooldown"
+group = "Greedy with a heap"
 signals = [
     "run the most frequent task first, but the same task can't repeat for n units",
     "a task goes into a waiting area and comes back after a delay",
@@ -125,6 +152,7 @@ pitfalls = [
 
 [[technique]]
 id = "Heap / Priority Queue:schedule-sim"
+group = "Two heaps and the median"
 signals = [
     "events happen at given times and a single worker takes the best available job",
     "jobs arrive over time; when the worker is free it picks by a rule (shortest first)",
@@ -158,6 +186,7 @@ pitfalls = [
 
 [[technique]]
 id = "Heap / Priority Queue:two-heaps"
+group = "Two heaps and the median"
 signals = [
     "the running median of a stream",
     "you need both the largest of the lower half and the smallest of the upper half",
@@ -191,6 +220,7 @@ pitfalls = [
 
 [[technique]]
 id = "Heap / Priority Queue:greedy-heap"
+group = "Heapify and heap sort"
 signals = [
     "pick at most k items; each one unlocks more choices, and you want the best each time",
     "affordable items go into a pool, and you take the most profitable from it",
@@ -217,3 +247,800 @@ pitfalls = [
     "Stop early when the pool is empty: nothing more can be started.",
     "The profit is added to your capital, and the start cost is not deducted. It is only a threshold.",
 ]
+
+[[group_problem]]
+group = "Top-k selection"
+slug = "wiggle-sort-ii"
+title = "Wiggle Sort II"
+number = 324
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Top-k selection"
+slug = "find-kth-largest-xor-coordinate-value"
+title = "Find Kth Largest XOR Coordinate Value"
+number = 1738
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Top-k selection"
+slug = "query-kth-smallest-trimmed-number"
+title = "Query Kth Smallest Trimmed Number"
+number = 2343
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Top-k selection"
+slug = "count-elements-with-at-least-k-greater-values"
+title = "Count Elements With at Least K Greater Values"
+number = 3759
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Two heaps and the median"
+slug = "number-of-recent-calls"
+title = "Number of Recent Calls"
+number = 933
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Two heaps and the median"
+slug = "stream-of-characters"
+title = "Stream of Characters"
+number = 1032
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Two heaps and the median"
+slug = "product-of-the-last-k-numbers"
+title = "Product of the Last K Numbers"
+number = 1352
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Two heaps and the median"
+slug = "design-an-ordered-stream"
+title = "Design an Ordered Stream"
+number = 1656
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Two heaps and the median"
+slug = "design-front-middle-back-queue"
+title = "Design Front Middle Back Queue"
+number = 1670
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Two heaps and the median"
+slug = "finding-mk-average"
+title = "Finding MK Average"
+number = 1825
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Two heaps and the median"
+slug = "stock-price-fluctuation"
+title = "Stock Price Fluctuation "
+number = 2034
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Two heaps and the median"
+slug = "sequentially-ordinal-rank-tracker"
+title = "Sequentially Ordinal Rank Tracker"
+number = 2102
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "K-way merge"
+slug = "reverse-pairs"
+title = "Reverse Pairs"
+number = 493
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "K-way merge"
+slug = "create-sorted-array-through-instructions"
+title = "Create Sorted Array through Instructions"
+number = 1649
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "K-way merge"
+slug = "count-good-triplets-in-an-array"
+title = "Count Good Triplets in an Array"
+number = 2179
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "K-way merge"
+slug = "number-of-pairs-satisfying-inequality"
+title = "Number of Pairs Satisfying Inequality"
+number = 2426
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "K-way merge"
+slug = "count-subarrays-with-majority-element-i"
+title = "Count Subarrays With Majority Element I"
+number = 3737
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "K-way merge"
+slug = "count-subarrays-with-majority-element-ii"
+title = "Count Subarrays With Majority Element II"
+number = 3739
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "K-way merge"
+slug = "count-subarrays-with-even-odd-ratio-i"
+title = "Count Subarrays With Even Odd Ratio I"
+number = 4011
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "K-way merge"
+slug = "count-subarrays-with-even-odd-ratio-ii"
+title = "Count Subarrays With Even Odd Ratio II"
+number = 4013
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Heaps in graph algorithms"
+slug = "reachable-nodes-in-subdivided-graph"
+title = "Reachable Nodes In Subdivided Graph"
+number = 882
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Heaps in graph algorithms"
+slug = "number-of-restricted-paths-from-first-to-last-node"
+title = "Number of Restricted Paths From First to Last Node"
+number = 1786
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Heaps in graph algorithms"
+slug = "minimum-weighted-subgraph-with-the-required-paths"
+title = "Minimum Weighted Subgraph With the Required Paths"
+number = 2203
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Heaps in graph algorithms"
+slug = "design-graph-with-shortest-path-calculator"
+title = "Design Graph With Shortest Path Calculator"
+number = 2642
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Heaps in graph algorithms"
+slug = "minimum-cost-of-a-path-with-special-roads"
+title = "Minimum Cost of a Path With Special Roads"
+number = 2662
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Heaps in graph algorithms"
+slug = "modify-graph-edge-weights"
+title = "Modify Graph Edge Weights"
+number = 2699
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Heaps in graph algorithms"
+slug = "number-of-possible-sets-of-closing-branches"
+title = "Number of Possible Sets of Closing Branches"
+number = 2959
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Heaps in graph algorithms"
+slug = "minimum-cost-to-convert-string-ii"
+title = "Minimum Cost to Convert String II"
+number = 2977
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Comparators and tie-breaking"
+slug = "top-k-frequent-words"
+title = "Top K Frequent Words"
+number = 692
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Comparators and tie-breaking"
+slug = "the-k-weakest-rows-in-a-matrix"
+title = "The K Weakest Rows in a Matrix"
+number = 1337
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Order-statistic alternatives"
+slug = "contains-duplicate-iii"
+title = "Contains Duplicate III"
+number = 220
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Order-statistic alternatives"
+slug = "max-sum-of-rectangle-no-larger-than-k"
+title = "Max Sum of Rectangle No Larger Than K"
+number = 363
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Order-statistic alternatives"
+slug = "random-point-in-non-overlapping-rectangles"
+title = "Random Point in Non-overlapping Rectangles"
+number = 497
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Order-statistic alternatives"
+slug = "range-module"
+title = "Range Module"
+number = 715
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Order-statistic alternatives"
+slug = "my-calendar-iii"
+title = "My Calendar III"
+number = 732
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Order-statistic alternatives"
+slug = "rectangle-area-ii"
+title = "Rectangle Area II"
+number = 850
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Order-statistic alternatives"
+slug = "exam-room"
+title = "Exam Room"
+number = 855
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Order-statistic alternatives"
+slug = "odd-even-jump"
+title = "Odd Even Jump"
+number = 975
+difficulty = "hard"
+premium = false
+
+[[listed]]
+name = "K largest or smallest items: size-k heap / sort and slice / heapq.nlargest"
+group = "Top-k selection"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "The k-th largest of a stream: min-heap of size k"
+group = "Top-k selection"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "K closest to a point or value: max-heap of size k on the distance"
+group = "Top-k selection"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "Tiny k: a few variables or heappushpop instead of a full heap"
+group = "Top-k selection"
+
+[[listed]]
+name = "Quickselect: three-way partition / random pivot / Hoare partition"
+group = "Top-k selection"
+note = "Related lesson: Quickselect"
+
+[[listed]]
+name = "Running median: max-heap for the lower half, min-heap for the upper half"
+group = "Two heaps and the median"
+note = "Related lesson: Two heaps for the median"
+
+[[listed]]
+name = "Pending pool and ready pool: sort by the unlock key, move items into the heap as they unlock"
+group = "Two heaps and the median"
+
+[[listed]]
+name = "Opposing books: a buy heap against a sell heap"
+group = "Two heaps and the median"
+
+[[listed]]
+name = "Merge k sorted arrays or streams lazily: generator, heapq.merge"
+group = "K-way merge"
+
+[[listed]]
+name = "K smallest pairs from two sorted arrays: expand a frontier from"
+group = "K-way merge"
+note = "e.g. 0, 0"
+
+[[listed]]
+name = "K-th smallest in a sorted matrix: heap of row heads / binary search on the value"
+group = "K-way merge"
+
+[[listed]]
+name = "Smallest range covering one element of each list: heap with a running maximum"
+group = "K-way merge"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "Latest items from many sorted feeds: merge per-user lists by time"
+group = "K-way merge"
+
+[[listed]]
+name = "Numbers generated by merging multiples: ugly numbers, super ugly numbers"
+group = "K-way merge"
+
+[[listed]]
+name = "Merge sorted interval lists: free time across employees"
+group = "K-way merge"
+
+[[listed]]
+name = "Sort a k-sorted array: a heap window of k + 1"
+group = "K-way merge"
+note = "Related lesson: Quickselect"
+
+[[listed]]
+name = "External merge: sorted runs too large for memory"
+group = "K-way merge"
+
+[[listed]]
+name = "Shortest available job first on one worker: ready heap plus a clock"
+group = "Scheduling with heaps"
+note = "Related lesson: Event simulation with heaps"
+
+[[listed]]
+name = "Several workers or servers: a free heap and a busy heap"
+group = "Scheduling with heaps"
+
+[[listed]]
+name = "Rooms and resources: min-heap of end times"
+group = "Scheduling with heaps"
+note = "Related lesson: Event simulation with heaps"
+
+[[listed]]
+name = "Cooldown: max-heap of counts plus a waiting queue"
+group = "Scheduling with heaps"
+note = "Related lesson: Greedy with a heap and a cooldown queue"
+
+[[listed]]
+name = "Rearranging with a gap: no two equal neighbours / at least k apart"
+group = "Scheduling with heaps"
+
+[[listed]]
+name = "Deadlines: take everything, drop the longest job when over the limit"
+group = "Scheduling with heaps"
+
+[[listed]]
+name = "Attend the most events: earliest deadline first"
+group = "Scheduling with heaps"
+
+[[listed]]
+name = "Sweep line with an active set in a heap: skyline, interval queries"
+group = "Scheduling with heaps"
+problems = [
+    { slug = "the-skyline-problem", title = "The Skyline Problem", number = 218, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Capacity along a route: heap of drop-off points"
+group = "Scheduling with heaps"
+
+[[listed]]
+name = "Smallest free slot: heap of released ids"
+group = "Scheduling with heaps"
+
+[[listed]]
+name = "Take the extreme, transform it, put it back: smash, merge, take gifts"
+group = "Greedy with a heap"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "Shrink the biggest each step: halve, remove stones, increment the smallest"
+group = "Greedy with a heap"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "Regret greedy: act now, undo the worst choice later"
+group = "Greedy with a heap"
+note = "e.g. bricks, refuelling, courses"
+
+[[listed]]
+name = "Best marginal gain: the next step with the biggest improvement"
+group = "Greedy with a heap"
+
+[[listed]]
+name = "Sort by one key, keep the best k of the other in a heap: hire, team, elegance"
+group = "Greedy with a heap"
+
+[[listed]]
+name = "Pairing by differences: the k items with the largest gain"
+group = "Greedy with a heap"
+
+[[listed]]
+name = "Build a string by counts under a limit: take the biggest letter that is allowed"
+group = "Greedy with a heap"
+
+[[listed]]
+name = "Greedy by rank: biggest value to the biggest weight"
+group = "Greedy with a heap"
+
+[[listed]]
+name = "Sorting is often enough"
+group = "Greedy with a heap"
+
+[[listed]]
+name = "Minimax and maximin paths: minimum effort, rising water, safest path"
+group = "Heaps in graph algorithms"
+
+[[listed]]
+name = "Prim's minimum spanning tree: heap of crossing edges"
+group = "Heaps in graph algorithms"
+problems = [
+    { slug = "connecting-cities-with-minimum-cost", title = "Connecting Cities With Minimum Cost", number = 1135, difficulty = "medium", premium = true },
+    { slug = "optimize-water-distribution-in-a-village", title = "Optimize Water Distribution in a Village", number = 1168, difficulty = "hard", premium = true },
+]
+
+[[listed]]
+name = "Best-first search and A*: priority is cost plus a heuristic"
+group = "Heaps in graph algorithms"
+
+[[listed]]
+name = "Topological order with a priority queue: lexicographically smallest order"
+group = "Heaps in graph algorithms"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "Offline queries: sort the thresholds, grow the reachable region with a heap"
+group = "Heaps in graph algorithms"
+
+[[listed]]
+name = "Time-gated edges and cells: wait at a node until it opens"
+group = "Heaps in graph algorithms"
+
+[[listed]]
+name = "K shortest paths: let each node pop up to k times"
+group = "Heaps in graph algorithms"
+note = "Related lesson: Event simulation with heaps"
+
+[[listed]]
+name = "Lazy deletion: skip stale entries when they surface"
+group = "Lazy deletion and indexed heaps"
+note = "e.g. map value / version stamp / removed set"
+problems = [
+    { slug = "the-skyline-problem", title = "The Skyline Problem", number = 218, difficulty = "hard", premium = false },
+    { slug = "sliding-window-median", title = "Sliding Window Median", number = 480, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "DP transitions that need a window maximum: heap with an index check"
+group = "Lazy deletion and indexed heaps"
+
+[[listed]]
+name = "Re-push instead of decrease-key"
+group = "Lazy deletion and indexed heaps"
+note = "e.g. Dijkstra, best-first"
+
+[[listed]]
+name = "Indexed heap with decrease-key: a position map beside the array"
+group = "Lazy deletion and indexed heaps"
+
+[[listed]]
+name = "Remove an arbitrary item: swap with the last, sift both ways"
+group = "Lazy deletion and indexed heaps"
+
+[[listed]]
+name = "Pop and skip invalid entries: marked elements, merged neighbours"
+group = "Lazy deletion and indexed heaps"
+
+[[listed]]
+name = "Max-heap by negating numbers"
+group = "Comparators and tie-breaking"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "Tuple priorities: (priority, tie-breaker, item) so items are never compared"
+group = "Comparators and tie-breaking"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "Orders that cannot be negated: strings, descending words, numbers stored as strings"
+group = "Comparators and tie-breaking"
+
+[[listed]]
+name = "A wrapper class or comparator: __lt__ in Python, Ord with Reverse in Rust"
+group = "Comparators and tie-breaking"
+
+[[listed]]
+name = "Ratios and fractions as priorities: compare by cross-multiplication, not floats"
+group = "Comparators and tie-breaking"
+
+[[listed]]
+name = "Ties by arrival: a counter makes equal priorities first-in first-out"
+group = "Comparators and tie-breaking"
+note = "Related lesson: Event simulation with heaps"
+
+[[listed]]
+name = "Lexicographic goals: the smallest letter first, ties by index"
+group = "Comparators and tie-breaking"
+
+[[listed]]
+name = "Build a heap in O(n): sift down from the middle versus n pushes"
+group = "Heapify and heap sort"
+
+[[listed]]
+name = "Heap sort in place: build, then swap the root to the end and sift"
+group = "Heapify and heap sort"
+
+[[listed]]
+name = "Write the heap yourself: array layout, parent at (i - 1) // 2, sift-up and sift-down"
+group = "Heapify and heap sort"
+
+[[listed]]
+name = "The library API: heappushpop, heapreplace, nsmallest, nlargest, merge"
+group = "Heapify and heap sort"
+
+[[listed]]
+name = "Partial sort: heapify then k pops, O"
+group = "Heapify and heap sort"
+note = "e.g. n + k log n"
+
+[[listed]]
+name = "Other heaps: d-ary, pairing, Fibonacci, binomial"
+group = "Heapify and heap sort"
+
+[[listed]]
+name = "Kth Largest in a stream: a class around a size-k heap"
+group = "Design problems with heaps"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "Median finder: add a number, read the median"
+group = "Design problems with heaps"
+note = "Related lesson: Two heaps for the median"
+
+[[listed]]
+name = "Release the smallest free id: seat reservation, chairs"
+group = "Design problems with heaps"
+
+[[listed]]
+name = "News feed: per-user lists merged on read"
+group = "Design problems with heaps"
+
+[[listed]]
+name = "Ratings, containers and task systems: the top entry by key, with updates"
+group = "Design problems with heaps"
+
+[[listed]]
+name = "Stock price with latest, maximum and minimum"
+group = "Design problems with heaps"
+
+[[listed]]
+name = "Windows and counters over a stream: a queue or a hash map, no heap needed"
+group = "Design problems with heaps"
+
+[[listed]]
+name = "Online queries over a stream: monotonic stack, prefix products, counting hash"
+group = "Design problems with heaps"
+
+[[listed]]
+name = "Designs on a list or deque, no heap"
+group = "Design problems with heaps"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "Count first, then heap by count"
+group = "Heap plus hash map"
+note = "Related lesson: Greedy with a heap and a cooldown queue"
+
+[[listed]]
+name = "The map holds the truth"
+group = "Heap plus hash map"
+note = "Related lesson: Quickselect"
+
+[[listed]]
+name = "Heap entries are checked against it when they surface"
+group = "Heap plus hash map"
+
+[[listed]]
+name = "Group by key, one heap (or the best two) per key"
+group = "Heap plus hash map"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "Greedy over counts: pop the biggest, re-push what remains"
+group = "Heap plus hash map"
+
+[[listed]]
+name = "Counts that change over time: id to count updates, then read the maximum"
+group = "Heap plus hash map"
+
+[[listed]]
+name = "Rising boundary: water level or flood from the outside in"
+group = "Heaps on grids"
+
+[[listed]]
+name = "Safest path: multi-source BFS distances, then a max-heap path"
+group = "Heaps on grids"
+
+[[listed]]
+name = "Queries sorted by threshold, expanding the region with a heap"
+group = "Heaps on grids"
+note = "Related lesson: Greedy with a heap of the best choices"
+
+[[listed]]
+name = "K-th smallest in a sorted matrix"
+group = "Heaps on grids"
+problems = [
+    { slug = "kth-smallest-element-in-a-sorted-matrix", title = "Kth Smallest Element in a Sorted Matrix", number = 378, difficulty = "medium", premium = false },
+    { slug = "find-the-kth-smallest-sum-of-a-matrix-with-sorted-rows", title = "Find the Kth Smallest Sum of a Matrix With Sorted Rows", number = 1439, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Cells ordered by a key, popped in order"
+group = "Heaps on grids"
+note = "e.g. diagonals, ranks"
+
+[[listed]]
+name = "Pair points by distance: all pairs in a heap, take the nearest valid one"
+group = "Heaps on grids"
+
+[[listed]]
+name = "Time-gated cells: arrive no earlier than the cell opens"
+group = "Heaps on grids"
+
+[[listed]]
+name = "Merge the two cheapest until one is left"
+group = "Huffman coding and merge costs"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "Merges with a non-additive cost: greedy fails, use interval DP"
+group = "Huffman coding and merge costs"
+
+[[listed]]
+name = "Take two, put one back, or process the smallest two as a pair: smash, number game"
+group = "Huffman coding and merge costs"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "Sort once and slice, when all the data is in memory"
+group = "Order-statistic alternatives"
+
+[[listed]]
+name = "Bucket or counting sort when keys are small integers"
+group = "Order-statistic alternatives"
+
+[[listed]]
+name = "Ordered set (balanced tree, sorted list): neighbours and rank with removal"
+group = "Order-statistic alternatives"
+
+[[listed]]
+name = "Binary search on the value: how many items are at most x?"
+group = "Order-statistic alternatives"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "Fenwick or segment tree for ranks and prefix counts"
+group = "Order-statistic alternatives"
+problems = [
+    { slug = "count-of-smaller-numbers-after-self", title = "Count of Smaller Numbers After Self", number = 315, difficulty = "hard", premium = false },
+    { slug = "count-of-range-sum", title = "Count of Range Sum", number = 327, difficulty = "hard", premium = false },
+    { slug = "falling-squares", title = "Falling Squares", number = 699, difficulty = "hard", premium = false },
+]
+
+[[listed]]
+name = "Monotonic deque for sliding extremes"
+group = "Order-statistic alternatives"
+
+[[listed]]
+name = "Median of medians: worst-case linear selection"
+group = "Order-statistic alternatives"
+
+[[listed]]
+name = "Treap, order-statistic tree, skip list"
+group = "Order-statistic alternatives"
+
+[[listed]]
+name = "Binary search on sorted events instead of a heap sweep"
+group = "Order-statistic alternatives"
+
+[[listed]]
+name = "Union-find instead of a heap for bottleneck paths"
+group = "Order-statistic alternatives"
+
+[[listed]]
+name = "Counting array for a streaming median over bounded values"
+group = "Order-statistic alternatives"
+
+[[listed]]
+name = "The heapq functions"
+group = "Core implementation patterns"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "A min-heap only, so negate for a maximum"
+group = "Core implementation patterns"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "Tuples"
+group = "Core implementation patterns"
+note = "Related lesson: Heap as a priority pool"
+
+[[listed]]
+name = "The size-k invariant: the root is the item to throw out"
+group = "Core implementation patterns"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "The heap is not sorted, only its root is ordered"
+group = "Core implementation patterns"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "Heapify is O(n), n pushes is O"
+group = "Core implementation patterns"
+note = "Related lesson: Min-heap of size K"
+
+[[listed]]
+name = "Stale-entry check on pop"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "Pop only when the heap is non-empty"
+group = "Core implementation patterns"
+note = "Related lesson: Greedy with a heap and a cooldown queue"
+
+[[listed]]
+name = "Rust: BinaryHeap is a max-heap, wrap in Reverse for a min-heap"
+group = "Core implementation patterns"
+
+[[listed]]
+name = "The number of pops needed versus sorting everything"
+group = "Core implementation patterns"
+note = "Related lesson: Min-heap of size K"

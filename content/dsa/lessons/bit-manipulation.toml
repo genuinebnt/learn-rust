@@ -1,8 +1,28 @@
 pattern = "Bit Manipulation"
 intro = "Bit tricks treat a number as a row of switches. A few identities do most of the work: x ^ x is 0, x & (x - 1) clears the lowest set bit, and shifting left or right multiplies or divides by 2. In Python integers are unbounded, so negative numbers and overflow need a mask when a problem assumes 32 bits."
+groups = ["Single-number tricks", "XOR tricks", "Masks, shifts and fields", "Bitmask subsets and bitmask DP", "Counting bits across numbers", "Arithmetic with bits", "Range AND / OR", "Gray code", "Bit-level greedy and tries", "Bit manipulation for sets", "Hamming distance and total Hamming", "Bit tricks for strings", "Sieve and bitset algorithms", "Binary representation problems", "Flip operations on binary arrays", "Algebraic properties and invariants", "Advanced bit techniques", "Core implementation idioms"]
+
+
+
+
+
+
+
+
+[group_tags]
+"Single-number tricks" = ["bit-manipulation"]
+"XOR tricks" = ["bit-manipulation"]
+"Masks, shifts and fields" = ["bit-manipulation"]
+"Bitmask subsets and bitmask DP" = ["bitmask"]
+"Range AND / OR" = ["bit-manipulation"]
+"Gray code" = ["bit-manipulation"]
+"Bit-level greedy and tries" = ["trie", "bit-manipulation"]
+"Bit manipulation for sets" = ["bitmask"]
+"Sieve and bitset algorithms" = ["number-theory"]
 
 [[technique]]
 id = "Bit Manipulation:xor"
+group = "XOR tricks"
 signals = [
     "every value appears twice except one (or one is missing)",
     "constant memory, one pass",
@@ -31,6 +51,7 @@ pitfalls = [
 
 [[technique]]
 id = "Bit Manipulation:bit-count"
+group = "Single-number tricks"
 signals = [
     "count the 1 bits in a number, or in every number up to n",
     "reuse the count of a smaller number",
@@ -59,6 +80,7 @@ pitfalls = [
 
 [[technique]]
 id = "Bit Manipulation:shift"
+group = "Single-number tricks"
 signals = [
     "reverse or rotate the bits of a number",
     "build the result one bit at a time from the end",
@@ -80,6 +102,7 @@ pitfalls = [
 
 [[technique]]
 id = "Bit Manipulation:add-bits"
+group = "Arithmetic with bits"
 signals = [
     "add two integers without using + or -",
     "XOR adds without carrying, AND then shift left finds the carries",
@@ -126,6 +149,7 @@ pitfalls = [
 
 [[technique]]
 id = "Bit Manipulation:prefix-xor"
+group = "Single-number tricks"
 signals = [
     "XOR of a range (a subarray) answered many times",
     "XOR undoes itself, so a range is the difference of two prefixes",
@@ -144,3 +168,832 @@ pitfalls = [
     "Prefix XOR works like prefix sums, but with XOR as its own inverse.",
     "Combine with a dictionary of prefix values to count subarrays whose XOR equals k.",
 ]
+
+[[group_problem]]
+group = "Bitmask subsets and bitmask DP"
+slug = "can-i-win"
+title = "Can I Win"
+number = 464
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bitmask subsets and bitmask DP"
+slug = "beautiful-arrangement"
+title = "Beautiful Arrangement"
+number = 526
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bitmask subsets and bitmask DP"
+slug = "shopping-offers"
+title = "Shopping Offers"
+number = 638
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bitmask subsets and bitmask DP"
+slug = "shortest-path-visiting-all-nodes"
+title = "Shortest Path Visiting All Nodes"
+number = 847
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bitmask subsets and bitmask DP"
+slug = "find-the-shortest-superstring"
+title = "Find the Shortest Superstring"
+number = 943
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bitmask subsets and bitmask DP"
+slug = "number-of-squareful-arrays"
+title = "Number of Squareful Arrays"
+number = 996
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bitmask subsets and bitmask DP"
+slug = "smallest-sufficient-team"
+title = "Smallest Sufficient Team"
+number = 1125
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bitmask subsets and bitmask DP"
+slug = "maximum-students-taking-exam"
+title = "Maximum Students Taking Exam"
+number = 1349
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Counting bits across numbers"
+slug = "count-numbers-with-unique-digits"
+title = "Count Numbers with Unique Digits"
+number = 357
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Arithmetic with bits"
+slug = "divide-two-integers"
+title = "Divide Two Integers"
+number = 29
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit-level greedy and tries"
+slug = "palindrome-pairs"
+title = "Palindrome Pairs"
+number = 336
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bit-level greedy and tries"
+slug = "maximum-xor-of-two-numbers-in-an-array"
+title = "Maximum XOR of Two Numbers in an Array"
+number = 421
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit-level greedy and tries"
+slug = "replace-words"
+title = "Replace Words"
+number = 648
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit-level greedy and tries"
+slug = "implement-magic-dictionary"
+title = "Implement Magic Dictionary"
+number = 676
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit-level greedy and tries"
+slug = "map-sum-pairs"
+title = "Map Sum Pairs"
+number = 677
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit-level greedy and tries"
+slug = "top-k-frequent-words"
+title = "Top K Frequent Words"
+number = 692
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit-level greedy and tries"
+slug = "longest-word-in-dictionary"
+title = "Longest Word in Dictionary"
+number = 720
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit-level greedy and tries"
+slug = "prefix-and-suffix-search"
+title = "Prefix and Suffix Search"
+number = 745
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bit manipulation for sets"
+slug = "number-of-ways-to-wear-different-hats-to-each-other"
+title = "Number of Ways to Wear Different Hats to Each Other"
+number = 1434
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bit manipulation for sets"
+slug = "parallel-courses-ii"
+title = "Parallel Courses II"
+number = 1494
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bit manipulation for sets"
+slug = "minimum-cost-to-connect-two-groups-of-points"
+title = "Minimum Cost to Connect Two Groups of Points"
+number = 1595
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bit manipulation for sets"
+slug = "count-subtrees-with-max-distance-between-cities"
+title = "Count Subtrees With Max Distance Between Cities"
+number = 1617
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bit manipulation for sets"
+slug = "distribute-repeating-integers"
+title = "Distribute Repeating Integers"
+number = 1655
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bit manipulation for sets"
+slug = "maximize-grid-happiness"
+title = "Maximize Grid Happiness"
+number = 1659
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bit manipulation for sets"
+slug = "minimum-incompatibility"
+title = "Minimum Incompatibility"
+number = 1681
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Bit manipulation for sets"
+slug = "find-minimum-time-to-finish-all-jobs"
+title = "Find Minimum Time to Finish All Jobs"
+number = 1723
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Hamming distance and total Hamming"
+slug = "minimum-flips-to-make-a-or-b-equal-to-c"
+title = "Minimum Flips to Make a OR b Equal to c"
+number = 1318
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit tricks for strings"
+slug = "maximum-product-of-word-lengths"
+title = "Maximum Product of Word Lengths"
+number = 318
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit tricks for strings"
+slug = "number-of-wonderful-substrings"
+title = "Number of Wonderful Substrings"
+number = 1915
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit tricks for strings"
+slug = "substring-xor-queries"
+title = "Substring XOR Queries"
+number = 2564
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Sieve and bitset algorithms"
+slug = "add-digits"
+title = "Add Digits"
+number = 258
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Sieve and bitset algorithms"
+slug = "mirror-reflection"
+title = "Mirror Reflection"
+number = 858
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Sieve and bitset algorithms"
+slug = "prime-palindrome"
+title = "Prime Palindrome"
+number = 866
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Sieve and bitset algorithms"
+slug = "x-of-a-kind-in-a-deck-of-cards"
+title = "X of a Kind in a Deck of Cards"
+number = 914
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Sieve and bitset algorithms"
+slug = "largest-component-size-by-common-factor"
+title = "Largest Component Size by Common Factor"
+number = 952
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Sieve and bitset algorithms"
+slug = "ugly-number-iii"
+title = "Ugly Number III"
+number = 1201
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Sieve and bitset algorithms"
+slug = "check-if-it-is-a-good-array"
+title = "Check If It Is a Good Array"
+number = 1250
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Sieve and bitset algorithms"
+slug = "simplified-fractions"
+title = "Simplified Fractions"
+number = 1447
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Binary representation problems"
+slug = "complement-of-base-10-integer"
+title = "Complement of Base 10 Integer"
+number = 1009
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Binary representation problems"
+slug = "binary-number-with-alternating-bits"
+title = "Binary Number with Alternating Bits"
+number = 693
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Binary representation problems"
+slug = "concatenation-of-consecutive-binary-numbers"
+title = "Concatenation of Consecutive Binary Numbers"
+number = 1680
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Binary representation problems"
+slug = "number-of-steps-to-reduce-a-number-in-binary-representation-to-one"
+title = "Number of Steps to Reduce a Number in Binary Representation to One"
+number = 1404
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Flip operations on binary arrays"
+slug = "bulb-switcher"
+title = "Bulb Switcher"
+number = 319
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Flip operations on binary arrays"
+slug = "bulb-switcher-ii"
+title = "Bulb Switcher II"
+number = 672
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Algebraic properties and invariants"
+slug = "minimum-xor-sum-of-two-arrays"
+title = "Minimum XOR Sum of Two Arrays"
+number = 1879
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Algebraic properties and invariants"
+slug = "find-xor-sum-of-all-pairs-bitwise-and"
+title = "Find XOR Sum of All Pairs Bitwise AND"
+number = 1835
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Algebraic properties and invariants"
+slug = "maximum-xor-after-operations"
+title = "Maximum XOR After Operations "
+number = 2317
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Algebraic properties and invariants"
+slug = "count-pairs-with-xor-in-a-range"
+title = "Count Pairs With XOR in a Range"
+number = 1803
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Advanced bit techniques"
+slug = "maximum-xor-with-an-element-from-array"
+title = "Maximum XOR With an Element From Array"
+number = 1707
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Advanced bit techniques"
+slug = "maximum-genetic-difference-query"
+title = "Maximum Genetic Difference Query"
+number = 1938
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Advanced bit techniques"
+slug = "partition-array-into-two-arrays-to-minimize-sum-difference"
+title = "Partition Array Into Two Arrays to Minimize Sum Difference"
+number = 2035
+difficulty = "hard"
+premium = false
+
+[[listed]]
+name = "Lowest set bit (x & -x) / clear the lowest set bit"
+group = "Single-number tricks"
+note = "Related lesson: Counting bits"
+
+[[listed]]
+name = "Highest set bit and bit length / round up to a power of two"
+group = "Single-number tricks"
+
+[[listed]]
+name = "Count set bits: Kernighan / shift and test / lookup table / popcount"
+group = "Single-number tricks"
+note = "Related lesson: Shifting bit by bit"
+
+[[listed]]
+name = "Parity of the set bits"
+group = "Single-number tricks"
+note = "Related lesson: Counting bits"
+
+[[listed]]
+name = "Swap two values without a temporary (XOR swap) / swap two bit positions"
+group = "Single-number tricks"
+
+[[listed]]
+name = "XOR of the range 0..n (period-4 formula) / XOR of a range of consecutive numbers"
+group = "XOR tricks"
+
+[[listed]]
+name = "XOR prefix and range XOR queries"
+group = "XOR tricks"
+note = "Related lesson: Prefix XOR"
+
+[[listed]]
+name = "Subarray with a target XOR: prefix XOR with a hash map of counts"
+group = "XOR tricks"
+
+[[listed]]
+name = "XOR contribution by count parity"
+group = "XOR tricks"
+note = "e.g. all pairings, all subarrays"
+
+[[listed]]
+name = "All counts even: toggle one flag per value"
+group = "XOR tricks"
+
+[[listed]]
+name = "Decode with XOR: restore the array from prefix or neighbour XORs"
+group = "XOR tricks"
+
+[[listed]]
+name = "Set / clear / toggle / test a bit, and the low-k-bits mask"
+group = "Masks, shifts and fields"
+
+[[listed]]
+name = "Extract and pack fields with shift and mask: IP and CIDR, UTF-8 headers, hexadecimal digits"
+group = "Masks, shifts and fields"
+
+[[listed]]
+name = "Rotate: circular shift within a fixed width"
+group = "Masks, shifts and fields"
+
+[[listed]]
+name = "Pack several small values into one integer"
+group = "Masks, shifts and fields"
+note = "e.g. in-place state encoding"
+
+[[listed]]
+name = "Isolate or deposit bits under a mask"
+group = "Masks, shifts and fields"
+note = "e.g. bit extract / bit deposit"
+
+[[listed]]
+name = "Toggle ASCII letter case with XOR 32 / enumerate case flips by mask"
+group = "Masks, shifts and fields"
+
+[[listed]]
+name = "Enumerate all subsets"
+group = "Bitmask subsets and bitmask DP"
+note = "Related lesson: XOR cancellation"
+
+[[listed]]
+name = "Subsets with duplicates: sort and skip / dedupe the masks"
+group = "Bitmask subsets and bitmask DP"
+
+[[listed]]
+name = "Enumerate masks with exactly k set bits: popcount filter / Gosper's hack"
+group = "Bitmask subsets and bitmask DP"
+
+[[listed]]
+name = "Submask enumeration (sub = (sub - 1) & mask) / partition into k groups"
+group = "Bitmask subsets and bitmask DP"
+
+[[listed]]
+name = "Visited-set state in path search"
+group = "Bitmask subsets and bitmask DP"
+note = "e.g. BFS / DFS with a keys or visited mask"
+
+[[listed]]
+name = "Brute force over every mask with a validity check"
+group = "Bitmask subsets and bitmask DP"
+
+[[listed]]
+name = "Per-bit column counting: for each bit, count the numbers that have it"
+group = "Counting bits across numbers"
+note = "Related lesson: Counting bits"
+
+[[listed]]
+name = "DP on bits: bits[i] = bits[i >> 1] + (i & 1) / bits[i & (i - 1)] + 1"
+group = "Counting bits across numbers"
+note = "Related lesson: Counting bits"
+
+[[listed]]
+name = "Bit contribution: each bit is set in 2^(n-1) of the subsets"
+group = "Counting bits across numbers"
+
+[[listed]]
+name = "Counting numbers up to n by bit pattern: digit DP on binary digits"
+group = "Counting bits across numbers"
+
+[[listed]]
+name = "Add without +: XOR for the sum, AND shifted for the carry / add binary strings or digit arrays"
+group = "Arithmetic with bits"
+
+[[listed]]
+name = "Subtract and negate with two's complement"
+group = "Arithmetic with bits"
+note = "e.g. -x = ~x + 1"
+
+[[listed]]
+name = "Multiply by shift-and-add / fast exponentiation"
+group = "Arithmetic with bits"
+note = "e.g. square and multiply on the exponent's bits"
+
+[[listed]]
+name = "Divide by shift-and-subtract"
+group = "Arithmetic with bits"
+note = "e.g. doubling the divisor"
+
+[[listed]]
+name = "Sign handling and overflow: 32-bit masks in Python, INT_MIN edge cases"
+group = "Arithmetic with bits"
+
+[[listed]]
+name = "Digit-wise arithmetic: reverse digits / change of base"
+group = "Arithmetic with bits"
+
+[[listed]]
+name = "AND of a range: the common binary prefix of the endpoints"
+group = "Range AND / OR"
+
+[[listed]]
+name = "OR / XOR of a range of consecutive numbers, bit by bit"
+group = "Range AND / OR"
+note = "Related lesson: Counting bits"
+
+[[listed]]
+name = "AND / OR over all subarrays: at most 32 distinct values per right end"
+group = "Range AND / OR"
+note = "Related lesson: Prefix XOR"
+
+[[listed]]
+name = "AND over a connected component: union-find with an AND aggregate"
+group = "Range AND / OR"
+
+[[listed]]
+name = "Sliding window with per-bit counters"
+group = "Range AND / OR"
+note = "e.g. AND and OR cannot be undone"
+
+[[listed]]
+name = "AND never grows, OR never shrinks: longest run of the maximum, largest group with AND above zero"
+group = "Range AND / OR"
+
+[[listed]]
+name = "Subsets with the maximum OR: count them / spend k doublings"
+group = "Range AND / OR"
+
+[[listed]]
+name = "Generate the Gray code sequence: i ^ (i >> 1) / reflect and prefix / backtrack one flip at a time"
+group = "Gray code"
+problems = [
+    { slug = "gray-code", title = "Gray Code", number = 89, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Gray code back to binary (prefix XOR of the bits) / minimum one-bit operations"
+group = "Gray code"
+problems = [
+    { slug = "gray-code", title = "Gray Code", number = 89, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Circular Gray permutation from a given start"
+group = "Gray code"
+note = "e.g. rotate the sequence"
+
+[[listed]]
+name = "Enumerate subsets changing one element per step"
+group = "Gray code"
+
+[[listed]]
+name = "Best value against a fixed mask: flip toward all ones inside a bit width"
+group = "Bit-level greedy and tries"
+
+[[listed]]
+name = "Choose bits from the top: set the highest free bit first, keep or clear"
+group = "Bit-level greedy and tries"
+
+[[listed]]
+name = "Visited and used masks: a set of items as one integer"
+group = "Bit manipulation for sets"
+
+[[listed]]
+name = "Letters as 26-bit masks: a word or substring as a set of letters"
+group = "Bit manipulation for sets"
+
+[[listed]]
+name = "Parity state as a mask: prefix or path state, one bit per symbol"
+group = "Bit manipulation for sets"
+
+[[listed]]
+name = "Set operations (|, &, & ~, subset test (a & b) == a) and masks as dictionary keys"
+group = "Bit manipulation for sets"
+
+[[listed]]
+name = "Bitset data structure: flip all, count, find the k-th"
+group = "Bit manipulation for sets"
+
+[[listed]]
+name = "Allowed-option sets as masks: one mask per key in a lookup table"
+group = "Bit manipulation for sets"
+
+[[listed]]
+name = "Hamming distance: popcount of the XOR"
+group = "Hamming distance and total Hamming"
+problems = [
+    { slug = "hamming-distance", title = "Hamming Distance", number = 461, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "Total Hamming distance over all pairs: ones times zeros per bit"
+group = "Hamming distance and total Hamming"
+problems = [
+    { slug = "total-hamming-distance", title = "Total Hamming Distance", number = 477, difficulty = "medium", premium = false },
+]
+
+[[listed]]
+name = "Flips needed to reach a target: per-bit case analysis of a | b == c"
+group = "Hamming distance and total Hamming"
+
+[[listed]]
+name = "Pairs by number of differing bits, or by XOR range"
+group = "Hamming distance and total Hamming"
+note = "Related lesson: Counting bits"
+
+[[listed]]
+name = "Word product: disjoint letter masks"
+group = "Bit tricks for strings"
+note = "e.g. a & b == 0"
+
+[[listed]]
+name = "Unique characters: test and set one bit per letter"
+group = "Bit tricks for strings"
+
+[[listed]]
+name = "Same letter set: equal masks as signatures"
+group = "Bit tricks for strings"
+
+[[listed]]
+name = "A window of k symbols as an integer: rolling shift, 2 bits per DNA letter"
+group = "Bit tricks for strings"
+
+[[listed]]
+name = "Binary substrings as numbers: value of a substring, XOR queries"
+group = "Bit tricks for strings"
+
+[[listed]]
+name = "Set of letters between two positions: one mask per letter"
+group = "Bit tricks for strings"
+
+[[listed]]
+name = "Groups of words by suffix, each group a mask of first letters"
+group = "Bit tricks for strings"
+
+[[listed]]
+name = "Bitset DP with a big integer: dp |= dp << x"
+group = "Sieve and bitset algorithms"
+note = "Related lesson: Digit extraction with overflow"
+
+[[listed]]
+name = "Bit-parallel reachability and transitive closure"
+group = "Sieve and bitset algorithms"
+
+[[listed]]
+name = "Number complement: XOR with an all-ones mask of the same length"
+group = "Binary representation problems"
+problems = [
+    { slug = "number-complement", title = "Number Complement", number = 476, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "Binary gap / adjacent and alternating bits"
+group = "Binary representation problems"
+note = "e.g. x & (x >> 1), x ^ (x >> 1)"
+problems = [
+    { slug = "binary-gap", title = "Binary Gap", number = 868, difficulty = "easy", premium = false },
+]
+
+[[listed]]
+name = "Change of base: hexadecimal, base -2, negative bases"
+group = "Binary representation problems"
+
+[[listed]]
+name = "Read a binary sequence as a number (value = 2 * value + bit): list, tree path, string"
+group = "Binary representation problems"
+
+[[listed]]
+name = "Steps to reduce a number: halve when even, step when odd"
+group = "Binary representation problems"
+
+[[listed]]
+name = "Recursive structure of the index bits: k-th symbol, k-th bit of a built string"
+group = "Binary representation problems"
+
+[[listed]]
+name = "Concatenate binary numbers: shift by the bit length"
+group = "Binary representation problems"
+
+[[listed]]
+name = "Heap-style indexing: the bits of a node index spell its path from the root"
+group = "Binary representation problems"
+
+[[listed]]
+name = "Enumerate n-bit strings under an adjacent-bit constraint"
+group = "Binary representation problems"
+note = "e.g. mask & (mask >> 1) == 0"
+
+[[listed]]
+name = "Flip a window greedily: queue of expiring flips / difference array of flips"
+group = "Flip operations on binary arrays"
+
+[[listed]]
+name = "Flip rows and columns of a binary matrix"
+group = "Flip operations on binary arrays"
+
+[[listed]]
+name = "Flips with a global effect: XOR k on both ends of an edge, parity of the changed nodes"
+group = "Flip operations on binary arrays"
+
+[[listed]]
+name = "Sum identities: a + b = (a ^ b) + 2 * (a & b), a | b = (a ^ b) +"
+group = "Algebraic properties and invariants"
+note = "e.g. a & b"
+
+[[listed]]
+name = "Invariants of the operation: what AND / OR / XOR cannot change"
+group = "Algebraic properties and invariants"
+
+[[listed]]
+name = "Operations that keep the popcount: only equal-popcount values may swap"
+group = "Algebraic properties and invariants"
+
+[[listed]]
+name = "Set of reachable XOR values: a full range 0..2^k - 1"
+group = "Algebraic properties and invariants"
+note = "Related lesson: Prefix XOR"
+
+[[listed]]
+name = "Bit 0 decides parity: even and odd numbers, partition by the lowest bit"
+group = "Algebraic properties and invariants"
+
+[[listed]]
+name = "XOR linear basis: maximum subset XOR, reachable XORs"
+group = "Advanced bit techniques"
+
+[[listed]]
+name = "Sum over subsets (SOS DP): subset and superset zeta transform"
+group = "Advanced bit techniques"
+
+[[listed]]
+name = "Walsh-Hadamard transform: XOR convolution"
+group = "Advanced bit techniques"
+
+[[listed]]
+name = "Nim and Sprague-Grundy: XOR of pile values decides the game"
+group = "Advanced bit techniques"
+
+[[listed]]
+name = "Persistent binary trie: XOR queries over a range of versions"
+group = "Advanced bit techniques"
+
+[[listed]]
+name = "Bit-parallel DP: bit-vector LCS and edit distance, bitap matching"
+group = "Advanced bit techniques"
+
+[[listed]]
+name = "Lowbit-driven structures: Fenwick tree (i & -i), sparse table by bit length"
+group = "Advanced bit techniques"
+
+[[listed]]
+name = "Broken-profile DP: row masks for tilings and grid placements"
+group = "Advanced bit techniques"
+
+[[listed]]
+name = "Fixed-width integers in Python: mask with 0xFFFFFFFF, convert back when the sign bit is set"
+group = "Core implementation idioms"
+
+[[listed]]
+name = "Built-ins: int.bit_count(), int.bit_length(), bin(), int(s, 2), format"
+group = "Core implementation idioms"
+note = "e.g. x, '032b'"
+
+[[listed]]
+name = "Iterating bits: range(32) and (x >> i) & 1 / while x: x >>= 1"
+group = "Core implementation idioms"
+note = "Related lesson: Counting bits"
+
+[[listed]]
+name = "Python traps: == binds tighter than &, ~x is -x - 1, >> floors negatives, no overflow"
+group = "Core implementation idioms"

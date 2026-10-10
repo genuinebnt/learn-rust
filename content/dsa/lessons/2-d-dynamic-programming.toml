@@ -206,6 +206,631 @@ pitfalls = [
 ]
 examples = ["house-robber-iii", "binary-tree-maximum-path-sum", "diameter-of-binary-tree", "maximum-average-subtree"]
 
+[[extra]]
+id = "2-D Dynamic Programming:lcs-family"
+name = "LCS and its relatives"
+group = "LCS and edit distance"
+signals = [
+    "the longest palindromic subsequence, the fewest deletions to make two strings equal, crossing-free matchings",
+    "many problems are the longest common subsequence in disguise: of a string with its reverse, of two arrays",
+    "dp[i][j] over prefixes: extend on a match, otherwise the better of dropping one side",
+]
+template_name = "Longest palindromic subsequence"
+template = '''
+def longest_palindrome_subseq(s):
+    n = len(s)
+    dp = [[0] * n for _ in range(n)]  # dp[i][j]: the answer for s[i..j]
+    for i in range(n - 1, -1, -1):
+        dp[i][i] = 1
+        for j in range(i + 1, n):
+            if s[i] == s[j]:
+                dp[i][j] = dp[i + 1][j - 1] + 2  # the ends match
+            else:
+                dp[i][j] = max(dp[i + 1][j], dp[i][j - 1])  # drop an end
+    return dp[0][n - 1] if n else 0
+'''
+pitfalls = [
+    "Fill i from the end and j upwards so that dp[i + 1][...] and dp[i][j - 1] are ready.",
+    "When j = i + 1 the inner part is empty: dp[i + 1][j - 1] is 0 (it sits below the diagonal).",
+    "The same answer is the LCS of s and its reverse.",
+]
+examples = ["longest-palindromic-subsequence", "delete-operation-for-two-strings", "minimum-ascii-delete-sum-for-two-strings", "uncrossed-lines", "valid-palindrome-iii"]
+
+[[extra.variant]]
+name = "Delete operation for two strings"
+note = "The fewest deletions leave the longest common subsequence: answer = len(a) + len(b) - 2 * LCS."
+template = '''
+def min_distance(word1, word2):
+    m, n = len(word1), len(word2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if word1[i - 1] == word2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return m + n - 2 * dp[m][n]
+'''
+
+[[extra.variant]]
+name = "Minimum ASCII delete sum"
+note = "The cost of a deletion is the character's code: dp[i][j] is the cheapest way to make the prefixes equal."
+template = '''
+def minimum_delete_sum(s1, s2):
+    m, n = len(s1), len(s2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(1, m + 1):
+        dp[i][0] = dp[i - 1][0] + ord(s1[i - 1])  # delete everything
+    for j in range(1, n + 1):
+        dp[0][j] = dp[0][j - 1] + ord(s2[j - 1])
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if s1[i - 1] == s2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1]  # free: they match
+            else:
+                dp[i][j] = min(dp[i - 1][j] + ord(s1[i - 1]),
+                               dp[i][j - 1] + ord(s2[j - 1]))
+    return dp[m][n]
+'''
+
+[[extra.variant]]
+name = "Uncrossed lines"
+note = "Connecting equal numbers without crossing lines is exactly the longest common subsequence."
+template = '''
+def max_uncrossed_lines(nums1, nums2):
+    m, n = len(nums1), len(nums2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if nums1[i - 1] == nums2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return dp[m][n]
+'''
+
+[[extra]]
+id = "2-D Dynamic Programming:match-count"
+name = "Counting subsequences and matching patterns"
+group = "LCS and edit distance"
+signals = [
+    "how many times does t appear as a subsequence of s",
+    "is a string an interleaving of two others, does it match a pattern with . and *",
+    "dp over a prefix of each: a match adds the ways with both advanced, plus the ways that skip a character of s",
+]
+template_name = "Distinct subsequences"
+template = '''
+def num_distinct(s, t):
+    m, n = len(s), len(t)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m + 1):
+        dp[i][0] = 1  # the empty t appears once in any prefix
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            dp[i][j] = dp[i - 1][j]  # skip s[i - 1]
+            if s[i - 1] == t[j - 1]:
+                dp[i][j] += dp[i - 1][j - 1]  # or use it for t[j - 1]
+    return dp[m][n]
+'''
+pitfalls = [
+    "dp[i][0] = 1: the empty target is formed in exactly one way (take nothing).",
+    "Add, not max: this counts ways.",
+    "A row can be reused (iterate j downwards) to save memory.",
+]
+examples = ["distinct-subsequences", "interleaving-string", "regular-expression-matching", "is-subsequence"]
+
+[[extra.variant]]
+name = "Interleaving string"
+note = "dp[i][j]: the first i characters of s1 and j of s2 can form the first i + j of s3."
+template = '''
+def is_interleave(s1, s2, s3):
+    m, n = len(s1), len(s2)
+    if m + n != len(s3):
+        return False
+    dp = [[False] * (n + 1) for _ in range(m + 1)]
+    dp[0][0] = True
+    for i in range(m + 1):
+        for j in range(n + 1):
+            if i and dp[i - 1][j] and s1[i - 1] == s3[i + j - 1]:
+                dp[i][j] = True  # the last character came from s1
+            if j and dp[i][j - 1] and s2[j - 1] == s3[i + j - 1]:
+                dp[i][j] = True  # or from s2
+    return dp[m][n]
+'''
+
+[[extra.variant]]
+name = "Regular expression matching"
+note = "'.' matches any one character; 'x*' matches zero or more x. dp[i][j]: s[:i] matches p[:j]."
+template = '''
+def is_match(s, p):
+    m, n = len(s), len(p)
+    dp = [[False] * (n + 1) for _ in range(m + 1)]
+    dp[0][0] = True
+    for j in range(2, n + 1):
+        dp[0][j] = p[j - 1] == "*" and dp[0][j - 2]  # x* can match nothing
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if p[j - 1] == "*":
+                dp[i][j] = dp[i][j - 2]  # zero copies
+                if p[j - 2] in (s[i - 1], "."):
+                    dp[i][j] = dp[i][j] or dp[i - 1][j]  # one more copy
+            elif p[j - 1] in (s[i - 1], "."):
+                dp[i][j] = dp[i - 1][j - 1]
+    return dp[m][n]
+'''
+
+[[extra]]
+id = "2-D Dynamic Programming:square-shapes"
+name = "Squares and plus signs in a binary grid"
+group = "Grid and path DP"
+signals = [
+    "the largest square of ones, how many squares of ones, the largest plus sign",
+    "dp[r][c] = the side of the largest square whose bottom-right corner is (r, c)",
+    "the square extends the smallest of its three neighbours (up, left, up-left) by one",
+]
+template_name = "Maximal square"
+template = '''
+def maximal_square(matrix):
+    rows, cols = len(matrix), len(matrix[0])
+    dp = [[0] * (cols + 1) for _ in range(rows + 1)]  # a border of zeros
+    best = 0
+    for r in range(1, rows + 1):
+        for c in range(1, cols + 1):
+            if matrix[r - 1][c - 1] == "1":
+                neighbours = (dp[r - 1][c], dp[r][c - 1], dp[r - 1][c - 1])
+                dp[r][c] = 1 + min(neighbours)
+                best = max(best, dp[r][c])
+    return best * best
+'''
+pitfalls = [
+    "The border of zeros avoids index checks at the edges.",
+    "A square of side k ending here needs squares of side k - 1 ending at all three neighbours: the minimum.",
+    "The answer is the area: the side squared.",
+]
+examples = ["maximal-square", "count-square-submatrices-with-all-ones", "largest-plus-sign"]
+
+[[extra.variant]]
+name = "Count square submatrices"
+note = "dp[r][c] is also the number of squares that end at (r, c): sum them all."
+template = '''
+def count_squares(matrix):
+    rows, cols = len(matrix), len(matrix[0])
+    dp = [[0] * (cols + 1) for _ in range(rows + 1)]
+    total = 0
+    for r in range(1, rows + 1):
+        for c in range(1, cols + 1):
+            if matrix[r - 1][c - 1]:
+                neighbours = (dp[r - 1][c], dp[r][c - 1], dp[r - 1][c - 1])
+                dp[r][c] = 1 + min(neighbours)
+                total += dp[r][c]  # squares of side 1..dp[r][c] end here
+    return total
+'''
+
+[[extra.variant]]
+name = "Largest plus sign"
+note = "For each cell the longest run of ones in four directions; the plus has the minimum of the four."
+template = '''
+def order_of_largest_plus_sign(n, mines):
+    banned = {tuple(m) for m in mines}
+    grid = [[0 if (r, c) in banned else 1 for c in range(n)]
+            for r in range(n)]
+    arm = [[n] * n for _ in range(n)]  # shortest of the four arms
+    for r in range(n):
+        for order in (range(n), range(n - 1, -1, -1)):
+            run = 0
+            for c in order:  # left to right, then right to left
+                run = run + 1 if grid[r][c] else 0
+                arm[r][c] = min(arm[r][c], run)
+    for c in range(n):
+        for order in (range(n), range(n - 1, -1, -1)):
+            run = 0
+            for r in order:  # top to bottom, then bottom to top
+                run = run + 1 if grid[r][c] else 0
+                arm[r][c] = min(arm[r][c], run)
+    return max(max(row) for row in arm)
+'''
+
+[[extra]]
+id = "2-D Dynamic Programming:falling-paths"
+name = "Falling paths and DP from the end"
+group = "Grid and path DP"
+signals = [
+    "a path from the top row to the bottom row where each step goes to one of the cells below",
+    "dp[r][c] = the cell's value plus the best of the (up to three) cells above it",
+    "when the start is what you need to decide (dungeon game), run the DP backwards from the goal",
+]
+template_name = "Minimum falling path sum"
+template = '''
+def min_falling_path_sum(matrix):
+    n = len(matrix)
+    row = matrix[0][:]
+    for r in range(1, n):
+        nxt = []
+        for c in range(n):
+            best = row[c]  # straight down
+            if c > 0:
+                best = min(best, row[c - 1])  # from the upper left
+            if c < n - 1:
+                best = min(best, row[c + 1])  # from the upper right
+            nxt.append(matrix[r][c] + best)
+        row = nxt
+    return min(row)
+'''
+pitfalls = [
+    "Only the previous row is needed: keep one row.",
+    "Handle the first and last column when looking diagonally.",
+    "The answer is the best value in the last row.",
+]
+examples = ["minimum-falling-path-sum", "dungeon-game", "minimum-path-cost-in-a-grid", "triangle"]
+
+[[extra.variant]]
+name = "Dungeon game (backwards)"
+note = "The knight needs at least 1 health at every step: compute the health needed at each cell from the goal backwards."
+template = '''
+def calculate_minimum_hp(dungeon):
+    rows, cols = len(dungeon), len(dungeon[0])
+    inf = float("inf")
+    need = [[inf] * (cols + 1) for _ in range(rows + 1)]
+    need[rows][cols - 1] = need[rows - 1][cols] = 1  # after the goal
+    for r in range(rows - 1, -1, -1):
+        for c in range(cols - 1, -1, -1):
+            best_next = min(need[r + 1][c], need[r][c + 1])
+            need[r][c] = max(1, best_next - dungeon[r][c])  # never below 1
+    return need[0][0]
+'''
+
+[[extra]]
+id = "2-D Dynamic Programming:two-walkers"
+name = "Two walkers at once"
+group = "Grid and path DP"
+signals = [
+    "two robots (or one robot going and returning) collect from the same grid and shared cells count once",
+    "move both one row at a time: the state is the row and the column of each walker",
+    "when both are on the same cell count it only once",
+]
+template_name = "Cherry pickup II"
+template = '''
+from functools import cache
+
+
+def cherry_pickup(grid):
+    rows, cols = len(grid), len(grid[0])
+
+    @cache
+    def best(r, a, b):  # row, column of robot 1, column of robot 2
+        gain = grid[r][a]
+        if a != b:
+            gain += grid[r][b]  # a shared cell counts once
+        if r == rows - 1:
+            return gain
+        top = 0
+        for da in (-1, 0, 1):
+            for db in (-1, 0, 1):
+                na, nb = a + da, b + db
+                if 0 <= na < cols and 0 <= nb < cols:
+                    top = max(top, best(r + 1, na, nb))
+        return gain + top
+
+    return best(0, 0, cols - 1)
+'''
+pitfalls = [
+    "Move both robots down together: the row is shared, so the state is (row, col1, col2).",
+    "Count a cell once when both stand on it.",
+    "Nine moves per state, rows * cols^2 states.",
+]
+examples = ["cherry-pickup-ii", "cherry-pickup"]
+
+[[extra]]
+id = "2-D Dynamic Programming:step-states"
+name = "Counting over steps and states"
+group = "State machine DP"
+signals = [
+    "the number of ways after k steps, with a small set of positions or states",
+    "dp[step][state] = ways to be in that state; each step moves ways between states",
+    "sums of dice, walks that may leave the board, strings built with rules between neighbours",
+]
+template_name = "Number of dice rolls with a target sum"
+template = '''
+def num_rolls_to_target(n, k, target):
+    mod = 10**9 + 7
+    dp = [0] * (target + 1)  # dp[t]: ways to reach sum t so far
+    dp[0] = 1
+    for _ in range(n):  # one die at a time
+        nxt = [0] * (target + 1)
+        for t in range(target + 1):
+            if dp[t]:
+                for face in range(1, k + 1):
+                    if t + face <= target:
+                        nxt[t + face] = (nxt[t + face] + dp[t]) % mod
+        dp = nxt
+    return dp[target]
+'''
+pitfalls = [
+    "A new array per step: updating in place would let one die be used twice.",
+    "Take the modulus after every addition.",
+    "Counts that fall off the board (sum above target) are simply dropped.",
+]
+examples = ["number-of-dice-rolls-with-target-sum", "out-of-boundary-paths", "count-vowels-permutation", "number-of-ways-to-stay-in-the-same-place-after-some-steps", "number-of-music-playlists"]
+
+[[extra.variant]]
+name = "Out of boundary paths"
+note = "Each step spreads the count to the four neighbours; moving off the board adds to the answer."
+template = '''
+def find_paths(m, n, max_move, start_row, start_column):
+    mod = 10**9 + 7
+    cur = [[0] * n for _ in range(m)]
+    cur[start_row][start_column] = 1
+    out = 0
+    for _ in range(max_move):
+        nxt = [[0] * n for _ in range(m)]
+        for r in range(m):
+            for c in range(n):
+                if cur[r][c]:
+                    for a, b in ((r + 1, c), (r - 1, c),
+                                 (r, c + 1), (r, c - 1)):
+                        if 0 <= a < m and 0 <= b < n:
+                            nxt[a][b] = (nxt[a][b] + cur[r][c]) % mod
+                        else:
+                            out = (out + cur[r][c]) % mod  # off the board
+        cur = nxt
+    return out
+'''
+
+[[extra.variant]]
+name = "Count vowels permutation"
+note = "The vowel that may follow each vowel is fixed: spread the counts along those rules."
+template = '''
+def count_vowel_permutation(n):
+    mod = 10**9 + 7
+    a = e = i = o = u = 1  # strings of length 1 ending in each vowel
+    for _ in range(n - 1):
+        a, e, i, o, u = ((e + i + u) % mod, (a + i) % mod,
+                         (e + o) % mod, i, (i + o) % mod)
+    return (a + e + i + o + u) % mod
+'''
+
+[[extra]]
+id = "2-D Dynamic Programming:knapsack-2d"
+name = "Two-dimensional knapsack"
+group = "Constrained subsequences"
+signals = [
+    "pick the largest set of items under two limits at once: zeros and ones, people and profit",
+    "dp[a][b] = the best with a of the first resource and b of the second",
+    "iterate both capacities downwards so each item is used once",
+]
+template_name = "Ones and zeroes"
+template = '''
+def find_max_form(strs, m, n):
+    dp = [[0] * (n + 1) for _ in range(m + 1)]  # dp[zeros][ones]
+    for s in strs:
+        zeros, ones = s.count("0"), s.count("1")
+        for a in range(m, zeros - 1, -1):  # downwards: use s once
+            for b in range(n, ones - 1, -1):
+                dp[a][b] = max(dp[a][b], dp[a - zeros][b - ones] + 1)
+    return dp[m][n]
+'''
+pitfalls = [
+    "Loop both capacities from high to low: a string must be counted at most once.",
+    "Each string costs its own zeros and ones and adds one to the size of the set.",
+    "dp[a][b] is the best with at most a zeros and b ones.",
+]
+examples = ["ones-and-zeroes", "profitable-schemes", "target-sum", "painting-the-walls"]
+
+[[extra.variant]]
+name = "Profitable schemes"
+note = "dp[people][profit]: ways to reach at least that profit with that many people; cap the profit at the minimum."
+template = '''
+def profitable_schemes(n, min_profit, group, profit):
+    mod = 10**9 + 7
+    dp = [[0] * (min_profit + 1) for _ in range(n + 1)]
+    dp[0][0] = 1  # one way to do nothing
+    for need, gain in zip(group, profit):
+        for people in range(n, need - 1, -1):
+            for p in range(min_profit, -1, -1):
+                q = min(min_profit, p + gain)  # above the goal: the goal
+                dp[people][q] = (dp[people][q] + dp[people - need][p]) % mod
+    return sum(dp[people][min_profit] for people in range(n + 1)) % mod
+'''
+
+[[extra]]
+id = "2-D Dynamic Programming:interval-cuts"
+name = "Interval DP by the last cut"
+group = "Interval DP"
+signals = [
+    "cut a stick, triangulate a polygon, merge piles: the cost of a segment depends on how it is split",
+    "dp[i][j] = the best for the segment between positions i and j; try every split point k inside",
+    "think about the last operation: after it, the two sides are independent",
+]
+template_name = "Minimum cost to cut a stick"
+template = '''
+def min_cost(n, cuts):
+    cuts = sorted(cuts + [0, n])  # the ends are fixed cut points
+    m = len(cuts)
+    dp = [[0] * m for _ in range(m)]  # between cuts[i] and cuts[j]
+    for length in range(2, m):
+        for i in range(m - length):
+            j = i + length
+            # the first cut at k, then two independent parts
+            split = min(dp[i][k] + dp[k][j] for k in range(i + 1, j))
+            dp[i][j] = split + cuts[j] - cuts[i]
+    return dp[0][m - 1]
+'''
+pitfalls = [
+    "Choose the first cut of the segment: it splits the stick into two parts that never interact again.",
+    "The cost of a cut is the length of the segment being cut.",
+    "Segments of one gap (j = i + 1) cost nothing.",
+]
+examples = ["minimum-cost-to-cut-a-stick", "minimum-score-triangulation-of-polygon", "burst-balloons", "strange-printer"]
+
+[[extra.variant]]
+name = "Minimum score triangulation of polygon"
+note = "The last triangle on the edge (i, j) has a third vertex k; the two remaining polygons are independent."
+template = '''
+def min_score_triangulation(values):
+    n = len(values)
+    dp = [[0] * n for _ in range(n)]
+    for length in range(2, n):
+        for i in range(n - length):
+            j = i + length
+            dp[i][j] = min(
+                dp[i][k] + dp[k][j] + values[i] * values[k] * values[j]
+                for k in range(i + 1, j))
+    return dp[0][n - 1]
+'''
+
+[[extra.variant]]
+name = "Strange printer"
+note = "The last character of the segment: if it matches an earlier one, they can be printed together."
+template = '''
+def strange_printer(s):
+    n = len(s)
+    dp = [[0] * n for _ in range(n)]
+    for i in range(n - 1, -1, -1):
+        dp[i][i] = 1
+        for j in range(i + 1, n):
+            dp[i][j] = dp[i][j - 1] + 1  # print s[j] on its own
+            for k in range(i, j):
+                if s[k] == s[j]:  # share the stroke with s[k]
+                    inner = dp[k + 1][j - 1] if k + 1 <= j - 1 else 0
+                    dp[i][j] = min(dp[i][j], dp[i][k] + inner)
+    return dp[0][n - 1] if n else 0
+'''
+
+[[extra]]
+id = "2-D Dynamic Programming:two-states"
+name = "Two-state scans: a mode that can switch"
+group = "State machine DP"
+signals = [
+    "make a binary string monotone, pick an alternating subsequence of the best sum",
+    "keep two running values, one per mode, updated from the previous step",
+    "a value for 'so far in mode A' and 'so far in mode B', with a transition between them",
+]
+template_name = "Flip string to monotone increasing"
+template = '''
+def min_flips_mono_incr(s):
+    ones = flips = 0  # ones seen so far / the best flips so far
+    for ch in s:
+        if ch == "1":
+            ones += 1  # a 1 is fine before any 0 that is flipped
+        else:
+            # make this 0 a 1 (one more flip) or flip every earlier 1 to 0
+            flips = min(flips + 1, ones)
+    return flips
+'''
+pitfalls = [
+    "A monotone string is zeros then ones: for each 0, either flip it to 1 or flip all the ones before it.",
+    "flips is the cheapest cost for the prefix; it never exceeds the number of ones so far.",
+    "The same idea with two running values handles alternating sums.",
+]
+examples = ["flip-string-to-monotone-increasing", "maximum-alternating-subsequence-sum"]
+
+[[extra.variant]]
+name = "Maximum alternating subsequence sum"
+note = "Two states: the best sum when the next element would be added, and when it would be subtracted."
+template = '''
+def max_alternating_sum(nums):
+    plus, minus = 0, 0  # best ending with + / ending with -
+    for x in nums:
+        plus, minus = max(plus, minus + x), max(minus, plus - x)
+    return plus
+'''
+
+[[extra]]
+id = "2-D Dynamic Programming:arithmetic-dict"
+name = "Arithmetic subsequences: a dictionary per index"
+group = "Constrained subsequences"
+signals = [
+    "count subsequences (not subarrays) that form arithmetic progressions of length at least three",
+    "for each index keep a dictionary: difference -> number of progressions ending here",
+    "extend every earlier index j with the difference nums[i] - nums[j]",
+]
+template_name = "Arithmetic slices II (subsequences)"
+template = '''
+from collections import defaultdict
+
+
+def number_of_arithmetic_slices(nums):
+    n, total = len(nums), 0
+    # ways[i][d]: progressions that end at i with difference d
+    ways = [defaultdict(int) for _ in range(n)]
+    for i in range(n):
+        for j in range(i):
+            d = nums[i] - nums[j]
+            extend = ways[j][d]  # progressions at j with difference d
+            ways[i][d] += extend + 1  # extend them, plus the pair (j, i)
+            total += extend  # each extension has length >= 3
+    return total
+'''
+pitfalls = [
+    "A pair (j, i) is a progression of length 2: it is stored but not counted.",
+    "Every progression at j with the same difference becomes one of length at least 3 at i.",
+    "Use dictionaries because the differences can be huge.",
+]
+examples = ["arithmetic-slices-ii-subsequence", "arithmetic-slices", "length-of-longest-fibonacci-subsequence"]
+
+[[extra.variant]]
+name = "Arithmetic slices (subarrays)"
+note = "A run of equal differences of length k adds k to the count at every step."
+template = '''
+def number_of_arithmetic_slices_subarrays(nums):
+    total = run = 0  # run: slices ending at the previous index
+    for i in range(2, len(nums)):
+        if nums[i] - nums[i - 1] == nums[i - 1] - nums[i - 2]:
+            run += 1  # one more slice ends here than at the last index
+            total += run
+        else:
+            run = 0
+    return total
+'''
+
+[[extra]]
+id = "2-D Dynamic Programming:k-groups"
+name = "Split into k groups: dp[i][k]"
+group = "Constrained subsequences"
+signals = [
+    "schedule jobs over d days, split an array into k parts, compress a string by deleting k characters",
+    "dp[i][k] = the best for the first i items split into k groups",
+    "try every start of the last group: dp[i][k] = best over j of dp[j][k - 1] + cost(j..i)",
+]
+template_name = "Minimum difficulty of a job schedule"
+template = '''
+def min_difficulty(job_difficulty, d):
+    n = len(job_difficulty)
+    if n < d:
+        return -1  # every day needs at least one job
+    inf = float("inf")
+    dp = [[inf] * (n + 1) for _ in range(d + 1)]  # dp[day][jobs done]
+    dp[0][0] = 0
+    for day in range(1, d + 1):
+        for i in range(day, n + 1):
+            hardest = 0
+            for j in range(i, day - 1, -1):  # the last day does jobs j..i
+                hardest = max(hardest, job_difficulty[j - 1])
+                dp[day][i] = min(dp[day][i], dp[day - 1][j - 1] + hardest)
+    return dp[d][n]
+'''
+pitfalls = [
+    "A day's difficulty is its hardest job: update it as you extend the day backwards.",
+    "Every day must do at least one job, so the loops start at day for i.",
+    "Return -1 when there are fewer jobs than days.",
+]
+examples = ["minimum-difficulty-of-a-job-schedule", "painting-the-walls", "string-compression-ii"]
+
+[[extra.variant]]
+name = "Painting the walls"
+note = "A paid painter takes time[i] and covers time[i] + 1 walls in total; the free painter works while the paid one is busy."
+template = '''
+def paint_walls(cost, time):
+    n = len(cost)
+    inf = float("inf")
+    dp = [0] + [inf] * n  # dp[w]: the cheapest cost to cover w walls
+    for c, t in zip(cost, time):
+        for walls in range(n, 0, -1):
+            # the paid painter takes this wall; t more come free
+            dp[walls] = min(dp[walls], dp[max(0, walls - 1 - t)] + c)
+    return dp[n]
+'''
+
 [[listed]]
 name = "Reconstruct the LCS"
 group = "LCS and edit distance"

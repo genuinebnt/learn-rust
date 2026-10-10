@@ -12485,3 +12485,416 @@ def _(ns):
         t.append(t[-1] + t[-2] + t[-3])
     for n in range(0, 60):
         assert f(n) == t[n], n
+
+
+# ---- 2-d dynamic programming (extras) -------------------------------------------------------------------------------
+
+D2 = "2-D Dynamic Programming"
+
+
+def _lcs_len(a, b):
+    dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]
+    for i in range(1, len(a) + 1):
+        for j in range(1, len(b) + 1):
+            dp[i][j] = dp[i - 1][j - 1] + 1 if a[i - 1] == b[j - 1] else max(dp[i - 1][j], dp[i][j - 1])
+    return dp[-1][-1]
+
+
+@test(f"{D2}:lcs-family")
+def _(ns):
+    f = ns["longest_palindrome_subseq"]
+    assert f("bbbab") == 4 and f("cbbd") == 2
+    r = random.Random(1800)
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 9)))
+        best = max(len(sub) for mask in range(1, 1 << len(s)) for sub in ["".join(s[i] for i in range(len(s)) if mask >> i & 1)] if sub == sub[::-1])
+        assert f(s) == best
+
+
+@test(f"{D2}:lcs-family#Delete operation for two strings")
+def _(ns):
+    f = ns["min_distance"]
+    assert f("sea", "eat") == 2 and f("leetcode", "etco") == 4
+    r = random.Random(1801)
+    for _ in range(200):
+        a = "".join(r.choice("abc") for _ in range(r.randint(0, 7)))
+        b = "".join(r.choice("abc") for _ in range(r.randint(0, 7)))
+        assert f(a, b) == len(a) + len(b) - 2 * _lcs_len(a, b)
+
+
+@test(f"{D2}:lcs-family#Minimum ASCII delete sum")
+def _(ns):
+    f = ns["minimum_delete_sum"]
+    assert f("sea", "eat") == 231 and f("delete", "leet") == 403
+    r = random.Random(1802)
+    for _ in range(100):
+        a = "".join(r.choice("abc") for _ in range(r.randint(0, 5)))
+        b = "".join(r.choice("abc") for _ in range(r.randint(0, 5)))
+        best = float("inf")
+        for ma in range(1 << len(a)):
+            ka = "".join(a[i] for i in range(len(a)) if ma >> i & 1)
+            for mb in range(1 << len(b)):
+                kb = "".join(b[i] for i in range(len(b)) if mb >> i & 1)
+                if ka == kb:
+                    best = min(best, sum(map(ord, a)) - sum(map(ord, ka)) + sum(map(ord, b)) - sum(map(ord, kb)))
+        assert f(a, b) == best
+
+
+@test(f"{D2}:lcs-family#Uncrossed lines")
+def _(ns):
+    f = ns["max_uncrossed_lines"]
+    assert f([1, 4, 2], [1, 2, 4]) == 2 and f([2, 5, 1, 2, 5], [10, 5, 2, 1, 5, 2]) == 3
+    r = random.Random(1803)
+    for _ in range(200):
+        a = [r.randint(1, 3) for _ in range(r.randint(0, 6))]
+        b = [r.randint(1, 3) for _ in range(r.randint(0, 6))]
+        assert f(a[:], b[:]) == _lcs_len(a, b)
+
+
+@test(f"{D2}:match-count")
+def _(ns):
+    f = ns["num_distinct"]
+    assert f("rabbbit", "rabbit") == 3 and f("babgbag", "bag") == 5
+    r = random.Random(1804)
+    for _ in range(200):
+        s = "".join(r.choice("ab") for _ in range(r.randint(0, 9)))
+        t = "".join(r.choice("ab") for _ in range(r.randint(0, 4)))
+        want = sum(1 for idx in _it.combinations(range(len(s)), len(t)) if "".join(s[i] for i in idx) == t)
+        assert f(s, t) == want
+
+
+@test(f"{D2}:match-count#Interleaving string")
+def _(ns):
+    f = ns["is_interleave"]
+    assert f("aabcc", "dbbca", "aadbbcbcac") is True and f("aabcc", "dbbca", "aadbbbaccc") is False and f("", "", "") is True
+    r = random.Random(1805)
+    for _ in range(300):
+        a = "".join(r.choice("ab") for _ in range(r.randint(0, 4)))
+        b = "".join(r.choice("ab") for _ in range(r.randint(0, 4)))
+        c = "".join(r.choice("ab") for _ in range(len(a) + len(b)))
+
+        def go(i, j):
+            if i + j == len(c):
+                return True
+            return (i < len(a) and a[i] == c[i + j] and go(i + 1, j)) or (j < len(b) and b[j] == c[i + j] and go(i, j + 1))
+
+        assert f(a, b, c) is go(0, 0)
+
+
+@test(f"{D2}:match-count#Regular expression matching")
+def _(ns):
+    import re
+    f = ns["is_match"]
+    assert f("aa", "a") is False and f("aa", "a*") is True and f("ab", ".*") is True and f("aab", "c*a*b") is True and f("mississippi", "mis*is*p*.") is False
+    r = random.Random(1806)
+    for _ in range(400):
+        s = "".join(r.choice("ab") for _ in range(r.randint(0, 6)))
+        p = ""
+        for _ in range(r.randint(0, 4)):
+            p += r.choice("ab.") + ("*" if r.random() < 0.4 else "")
+        assert f(s, p) is (re.fullmatch(p, s) is not None), (s, p)
+
+
+@test(f"{D2}:square-shapes")
+def _(ns):
+    f = ns["maximal_square"]
+    assert f([["1", "0", "1", "0", "0"], ["1", "0", "1", "1", "1"], ["1", "1", "1", "1", "1"], ["1", "0", "0", "1", "0"]]) == 4
+    r = random.Random(1807)
+    for _ in range(150):
+        R, C = r.randint(1, 5), r.randint(1, 5)
+        m = [[r.choice("01") for _ in range(C)] for _ in range(R)]
+        best = max([k * k for k in range(1, min(R, C) + 1) for i in range(R - k + 1) for j in range(C - k + 1)
+                    if all(m[a][b] == "1" for a in range(i, i + k) for b in range(j, j + k))] or [0])
+        assert f([row[:] for row in m]) == best
+
+
+@test(f"{D2}:square-shapes#Count square submatrices")
+def _(ns):
+    f = ns["count_squares"]
+    assert f([[0, 1, 1, 1], [1, 1, 1, 1], [0, 1, 1, 1]]) == 15
+    r = random.Random(1808)
+    for _ in range(150):
+        R, C = r.randint(1, 5), r.randint(1, 5)
+        m = [[r.randint(0, 1) for _ in range(C)] for _ in range(R)]
+        want = sum(1 for k in range(1, min(R, C) + 1) for i in range(R - k + 1) for j in range(C - k + 1)
+                   if all(m[a][b] for a in range(i, i + k) for b in range(j, j + k)))
+        assert f([row[:] for row in m]) == want
+
+
+@test(f"{D2}:square-shapes#Largest plus sign")
+def _(ns):
+    f = ns["order_of_largest_plus_sign"]
+    assert f(5, [[4, 2]]) == 2 and f(1, [[0, 0]]) == 0
+    r = random.Random(1809)
+    for _ in range(150):
+        n = r.randint(1, 5)
+        mines = [[r.randrange(n), r.randrange(n)] for _ in range(r.randint(0, n))]
+        banned = {tuple(m) for m in mines}
+        best = 0
+        for i in range(n):
+            for j in range(n):
+                if (i, j) in banned:
+                    continue
+                k = 1
+                while all(0 <= x < n and 0 <= y < n and (x, y) not in banned for x, y in ((i + k, j), (i - k, j), (i, j + k), (i, j - k))):
+                    k += 1
+                best = max(best, k)
+        assert f(n, [m[:] for m in mines]) == best
+
+
+@test(f"{D2}:falling-paths")
+def _(ns):
+    f = ns["min_falling_path_sum"]
+    assert f([[2, 1, 3], [6, 5, 4], [7, 8, 9]]) == 13 and f([[-19, 57], [-40, -5]]) == -59
+    r = random.Random(1810)
+    for _ in range(150):
+        n = r.randint(1, 4)
+        m = [[r.randint(-5, 9) for _ in range(n)] for _ in range(n)]
+        best = float("inf")
+        for cols in _it.product(range(n), repeat=n):
+            if all(abs(cols[i] - cols[i + 1]) <= 1 for i in range(n - 1)):
+                best = min(best, sum(m[i][c] for i, c in enumerate(cols)))
+        assert f([row[:] for row in m]) == best
+
+
+@test(f"{D2}:falling-paths#Dungeon game (backwards)")
+def _(ns):
+    f = ns["calculate_minimum_hp"]
+    assert f([[-2, -3, 3], [-5, -10, 1], [10, 30, -5]]) == 7 and f([[0]]) == 1
+    r = random.Random(1811)
+    for _ in range(150):
+        R, C = r.randint(1, 3), r.randint(1, 3)
+        d = [[r.randint(-6, 6) for _ in range(C)] for _ in range(R)]
+
+        def ok(hp0):
+            def go(i, j, hp):
+                hp += d[i][j]
+                if hp <= 0:
+                    return False
+                if (i, j) == (R - 1, C - 1):
+                    return True
+                return (i + 1 < R and go(i + 1, j, hp)) or (j + 1 < C and go(i, j + 1, hp))
+            return go(0, 0, hp0)
+
+        need = next(h for h in range(1, 100) if ok(h))
+        assert f([row[:] for row in d]) == need
+
+
+@test(f"{D2}:two-walkers")
+def _(ns):
+    f = ns["cherry_pickup"]
+    assert f([[3, 1, 1], [2, 5, 1], [1, 5, 5], [2, 1, 1]]) == 24 and f([[1, 0, 0, 0, 0, 0, 1], [2, 0, 0, 0, 0, 3, 0], [2, 0, 9, 0, 0, 0, 0], [0, 3, 0, 5, 4, 0, 0], [1, 0, 2, 3, 0, 0, 6]]) == 28
+    r = random.Random(1812)
+    for _ in range(100):
+        R, C = r.randint(1, 4), r.randint(2, 4)
+        g = [[r.randint(0, 5) for _ in range(C)] for _ in range(R)]
+        best = 0
+        for p1 in _it.product((-1, 0, 1), repeat=R - 1):
+            for p2 in _it.product((-1, 0, 1), repeat=R - 1):
+                a, b, ok, total = 0, C - 1, True, g[0][0] + (g[0][C - 1] if C - 1 != 0 else 0)
+                for r_ in range(1, R):
+                    a, b = a + p1[r_ - 1], b + p2[r_ - 1]
+                    if not (0 <= a < C and 0 <= b < C):
+                        ok = False
+                        break
+                    total += g[r_][a] + (g[r_][b] if a != b else 0)
+                if ok:
+                    best = max(best, total)
+        assert f([row[:] for row in g]) == best
+
+
+@test(f"{D2}:step-states")
+def _(ns):
+    f = ns["num_rolls_to_target"]
+    assert f(1, 6, 3) == 1 and f(2, 6, 7) == 6 and f(30, 30, 500) == 222616187
+    r = random.Random(1813)
+    for _ in range(100):
+        n, k = r.randint(1, 4), r.randint(1, 5)
+        t = r.randint(1, 15)
+        assert f(n, k, t) == sum(1 for roll in _it.product(range(1, k + 1), repeat=n) if sum(roll) == t) % (10**9 + 7)
+
+
+@test(f"{D2}:step-states#Out of boundary paths")
+def _(ns):
+    f = ns["find_paths"]
+    assert f(2, 2, 2, 0, 0) == 6 and f(1, 3, 3, 0, 1) == 12
+    r = random.Random(1814)
+    for _ in range(100):
+        m, n, k = r.randint(1, 3), r.randint(1, 3), r.randint(0, 4)
+        sr, sc = r.randrange(m), r.randrange(n)
+
+        def go(x, y, left):
+            if not (0 <= x < m and 0 <= y < n):
+                return 1
+            if left == 0:
+                return 0
+            return sum(go(x + dx, y + dy, left - 1) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+
+        assert f(m, n, k, sr, sc) == go(sr, sc, k)
+
+
+@test(f"{D2}:step-states#Count vowels permutation")
+def _(ns):
+    f = ns["count_vowel_permutation"]
+    assert f(1) == 5 and f(2) == 10 and f(5) == 68
+    follow = {"a": "e", "e": "ai", "i": "aeou", "o": "iu", "u": "a"}
+    for n in range(1, 7):
+        count = sum(1 for w in _it.product("aeiou", repeat=n) if all(w[i + 1] in follow[w[i]] for i in range(n - 1)))
+        assert f(n) == count
+
+
+@test(f"{D2}:knapsack-2d")
+def _(ns):
+    f = ns["find_max_form"]
+    assert f(["10", "0001", "111001", "1", "0"], 5, 3) == 4 and f(["10", "0", "1"], 1, 1) == 2
+    r = random.Random(1815)
+    for _ in range(100):
+        strs = ["".join(r.choice("01") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 6))]
+        m, n = r.randint(0, 4), r.randint(0, 4)
+        best = max(bin(mask).count("1") for mask in range(1 << len(strs))
+                   if sum(strs[i].count("0") for i in range(len(strs)) if mask >> i & 1) <= m
+                   and sum(strs[i].count("1") for i in range(len(strs)) if mask >> i & 1) <= n)
+        assert f(strs[:], m, n) == best
+
+
+@test(f"{D2}:knapsack-2d#Profitable schemes")
+def _(ns):
+    f = ns["profitable_schemes"]
+    assert f(5, 3, [2, 2], [2, 3]) == 2 and f(10, 5, [2, 3, 5], [6, 7, 8]) == 7
+    r = random.Random(1816)
+    for _ in range(100):
+        k = r.randint(1, 5)
+        group = [r.randint(1, 3) for _ in range(k)]
+        profit = [r.randint(0, 4) for _ in range(k)]
+        n, mp = r.randint(1, 6), r.randint(0, 6)
+        count = sum(1 for mask in range(1 << k)
+                    if sum(group[i] for i in range(k) if mask >> i & 1) <= n and sum(profit[i] for i in range(k) if mask >> i & 1) >= mp)
+        assert f(n, mp, group[:], profit[:]) == count
+
+
+@test(f"{D2}:interval-cuts")
+def _(ns):
+    f = ns["min_cost"]
+    assert f(7, [1, 3, 4, 5]) == 16 and f(9, [5, 6, 1, 4, 2]) == 22
+    r = random.Random(1817)
+    for _ in range(100):
+        n = r.randint(2, 12)
+        cuts = r.sample(range(1, n), r.randint(1, min(4, n - 1)))
+        best = min(
+            sum(b - a for a, b in [(max(l for l in [0] + [c for c in order[:i] if c < x]), min(h for h in [n] + [c for c in order[:i] if c > x])) for i, x in enumerate(order)])
+            for order in _it.permutations(cuts)
+        )
+        assert f(n, cuts[:]) == best
+
+
+@test(f"{D2}:interval-cuts#Minimum score triangulation of polygon")
+def _(ns):
+    f = ns["min_score_triangulation"]
+    assert f([1, 2, 3]) == 6 and f([3, 7, 4, 5]) == 144 and f([1, 3, 1, 4, 1, 5]) == 13
+
+
+@test(f"{D2}:interval-cuts#Strange printer")
+def _(ns):
+    f = ns["strange_printer"]
+    assert f("aaabbb") == 2 and f("aba") == 2 and f("abcabc") == 5
+    from functools import lru_cache
+    r = random.Random(1818)
+    for _ in range(100):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 7)))
+        # BFS over strings painted from a blank board: paint any segment with one colour
+        from collections import deque
+        start = "_" * len(s)
+        seen, q = {start}, deque([(start, 0)])
+        best = None
+        while q:
+            cur, d = q.popleft()
+            if cur == s:
+                best = d
+                break
+            for i in range(len(s)):
+                for j in range(i, len(s)):
+                    for c in "abc":
+                        nxt = cur[:i] + c * (j - i + 1) + cur[j + 1:]
+                        if nxt not in seen:
+                            seen.add(nxt)
+                            q.append((nxt, d + 1))
+        assert f(s) == best, s
+
+
+@test(f"{D2}:two-states")
+def _(ns):
+    f = ns["min_flips_mono_incr"]
+    assert f("00110") == 1 and f("010110") == 2 and f("00011000") == 2
+    r = random.Random(1819)
+    for _ in range(200):
+        s = "".join(r.choice("01") for _ in range(r.randint(1, 9)))
+        best = min(sum(a != b for a, b in zip(s, "0" * k + "1" * (len(s) - k))) for k in range(len(s) + 1))
+        assert f(s) == best
+
+
+@test(f"{D2}:two-states#Maximum alternating subsequence sum")
+def _(ns):
+    f = ns["max_alternating_sum"]
+    assert f([4, 2, 5, 3]) == 7 and f([5, 6, 7, 8]) == 8 and f([6, 2, 1, 2, 4, 5]) == 10
+    r = random.Random(1820)
+    for _ in range(200):
+        a = [r.randint(1, 9) for _ in range(r.randint(1, 8))]
+        best = max(sum(sub[i] if i % 2 == 0 else -sub[i] for i in range(len(sub)))
+                   for mask in range(1, 1 << len(a)) for sub in [[a[i] for i in range(len(a)) if mask >> i & 1]])
+        assert f(a[:]) == best
+
+
+@test(f"{D2}:arithmetic-dict")
+def _(ns):
+    f = ns["number_of_arithmetic_slices"]
+    assert f([2, 4, 6, 8, 10]) == 7 and f([7, 7, 7, 7, 7]) == 16
+    r = random.Random(1821)
+    for _ in range(200):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 8))]
+        want = sum(1 for k in range(3, len(a) + 1) for idx in _it.combinations(range(len(a)), k)
+                   if len({a[idx[i + 1]] - a[idx[i]] for i in range(k - 1)}) == 1)
+        assert f(a[:]) == want
+
+
+@test(f"{D2}:arithmetic-dict#Arithmetic slices (subarrays)")
+def _(ns):
+    f = ns["number_of_arithmetic_slices_subarrays"]
+    assert f([1, 2, 3, 4]) == 3 and f([1]) == 0
+    r = random.Random(1822)
+    for _ in range(200):
+        a = [r.randint(0, 4) for _ in range(r.randint(1, 9))]
+        want = sum(1 for i in range(len(a)) for j in range(i + 3, len(a) + 1) if len({a[k + 1] - a[k] for k in range(i, j - 1)}) == 1)
+        assert f(a[:]) == want
+
+
+@test(f"{D2}:k-groups")
+def _(ns):
+    f = ns["min_difficulty"]
+    assert f([6, 5, 4, 3, 2, 1], 2) == 7 and f([9, 9, 9], 4) == -1 and f([1, 1, 1], 3) == 3
+    r = random.Random(1823)
+    for _ in range(150):
+        jobs = [r.randint(1, 9) for _ in range(r.randint(1, 7))]
+        d = r.randint(1, 4)
+        if len(jobs) < d:
+            assert f(jobs[:], d) == -1
+            continue
+        best = min(sum(max(jobs[a:b]) for a, b in zip((0,) + cuts, cuts + (len(jobs),)))
+                   for cuts in _it.combinations(range(1, len(jobs)), d - 1))
+        assert f(jobs[:], d) == best
+
+
+@test(f"{D2}:k-groups#Painting the walls")
+def _(ns):
+    f = ns["paint_walls"]
+    assert f([1, 2, 3, 2], [1, 2, 3, 2]) == 3 and f([2, 3, 4, 2], [1, 1, 1, 1]) == 4
+    r = random.Random(1824)
+    for _ in range(150):
+        n = r.randint(1, 6)
+        cost = [r.randint(1, 8) for _ in range(n)]
+        time = [r.randint(1, 4) for _ in range(n)]
+        best = float("inf")
+        for mask in range(1 << n):
+            paid = [i for i in range(n) if mask >> i & 1]
+            if len(paid) + sum(time[i] for i in paid) >= n:
+                best = min(best, sum(cost[i] for i in paid))
+        assert f(cost[:], time[:]) == best

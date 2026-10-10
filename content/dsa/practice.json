@@ -35640,6 +35640,357 @@
    "role": "practice",
    "practice_of": null,
    "priority": "practice"
+  },
+  {
+   "id": "lc-summary-ranges",
+   "slug": "summary-ranges",
+   "number": 228,
+   "title": "Summary Ranges",
+   "difficulty": "easy",
+   "pattern": "Intervals",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array"
+   ],
+   "companies": [
+    {
+     "name": "Netflix",
+     "group": "Big Tech",
+     "frequency": 64.9,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 38.6,
+     "recent": true
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 31.9,
+     "recent": true
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 30.2,
+     "recent": true
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 25.1,
+     "recent": false
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 25.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Intervals:from-data",
+   "order": 101728,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "warmup"
+  },
+  {
+   "id": "lc-maximum-population-year",
+   "slug": "maximum-population-year",
+   "number": 1854,
+   "title": "Maximum Population Year",
+   "difficulty": "easy",
+   "pattern": "Intervals",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Counting",
+    "Prefix Sum"
+   ],
+   "companies": [
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 35.7,
+     "recent": false
+    },
+    {
+     "name": "Apple",
+     "group": "Big Tech",
+     "frequency": 22.0,
+     "recent": false
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 17.7,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 15.7,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 14.6,
+     "recent": false
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 14.4,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Intervals:flowers",
+   "order": 101729,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "warmup"
+  },
+  {
+   "id": "lc-maximum-number-of-visible-points",
+   "slug": "maximum-number-of-visible-points",
+   "number": 1610,
+   "title": "Maximum Number of Visible Points",
+   "difficulty": "hard",
+   "pattern": "Intervals",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Math",
+    "Geometry",
+    "Sliding Window",
+    "Sorting"
+   ],
+   "companies": [
+    {
+     "name": "Nvidia",
+     "group": "Big Tech",
+     "frequency": 67.9,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 10.5,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Intervals:circular",
+   "order": 101730,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-corporate-flight-bookings",
+   "slug": "corporate-flight-bookings",
+   "number": 1109,
+   "title": "Corporate Flight Bookings",
+   "difficulty": "medium",
+   "pattern": "Intervals",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Prefix Sum"
+   ],
+   "companies": [
+    {
+     "name": "Pinterest",
+     "group": "Top tech",
+     "frequency": 35.2,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 22.1,
+     "recent": true
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 12.0,
+     "recent": true
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 8.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Intervals:difference-array",
+   "order": 101731,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-increment-submatrices-by-one",
+   "slug": "increment-submatrices-by-one",
+   "number": 2536,
+   "title": "Increment Submatrices by One",
+   "difficulty": "medium",
+   "pattern": "Intervals",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Matrix",
+    "Prefix Sum"
+   ],
+   "companies": [
+    {
+     "name": "Adobe",
+     "group": "Top tech",
+     "frequency": 41.7,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 18.0,
+     "recent": false
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Intervals:difference-array",
+   "order": 101732,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-falling-squares",
+   "slug": "falling-squares",
+   "number": 699,
+   "title": "Falling Squares",
+   "difficulty": "hard",
+   "pattern": "Intervals",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Segment Tree",
+    "Ordered Set"
+   ],
+   "companies": [
+    {
+     "name": "Uber",
+     "group": "Top tech",
+     "frequency": 47.5,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Intervals:skyline",
+   "order": 101733,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-rectangle-area-ii",
+   "slug": "rectangle-area-ii",
+   "number": 850,
+   "title": "Rectangle Area II",
+   "difficulty": "hard",
+   "pattern": "Intervals",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Segment Tree",
+    "Sweep Line",
+    "Ordered Set"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 8.1,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Intervals:rectangle",
+   "order": 101734,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-projection-area-of-3d-shapes",
+   "slug": "projection-area-of-3d-shapes",
+   "number": 883,
+   "title": "Projection Area of 3D Shapes",
+   "difficulty": "easy",
+   "pattern": "Intervals",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Math",
+    "Geometry",
+    "Matrix"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 5.5,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Intervals:rectangle",
+   "order": 101735,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
   }
  ]
 }

@@ -14,6 +14,7 @@ groups = ["Merge and combine", "Intersection and subtraction", "Selection by ear
 [[technique]]
 id = "Intervals:merge"
 group = "Merge and combine"
+template_name = "Merge overlapping"
 signals = [
     "combine overlapping ranges, or insert a new range into a sorted list",
     "ask what the union of the ranges looks like",
@@ -34,6 +35,36 @@ pitfalls = [
     "Decide whether touching ranges ([1, 2] and [2, 3]) overlap. Here start <= end says yes.",
     "To insert a new interval into a sorted list, copy the ones ending before it, merge the overlapping ones into it, then copy the rest.",
 ]
+
+[[technique.variant]]
+name = "Insert an interval"
+note = "Copy what ends before it, absorb everything it touches, copy the rest."
+template = '''
+def insert(intervals, new):
+    out, i, n = [], 0, len(intervals)
+    while i < n and intervals[i][1] < new[0]:
+        out.append(intervals[i])  # entirely before
+        i += 1
+    while i < n and intervals[i][0] <= new[1]:
+        new = [min(new[0], intervals[i][0]), max(new[1], intervals[i][1])]
+        i += 1  # overlaps: absorb it
+    out.append(new)
+    out.extend(intervals[i:])  # entirely after
+    return out
+'''
+
+[[technique.variant]]
+name = "Count groups of overlapping ranges"
+note = "Each group of ranges that overlap (directly or through others) is a component; every group is split in two ways."
+template = '''
+def count_ways(ranges):
+    groups, end = 0, -1  # end: the furthest end of the current group
+    for start, stop in sorted(ranges):
+        if start > end:  # no overlap with the group so far
+            groups += 1
+        end = max(end, stop)
+    return pow(2, groups, 10**9 + 7)
+'''
 
 [[technique]]
 id = "Intervals:by-end"
@@ -62,6 +93,7 @@ pitfalls = [
 [[technique]]
 id = "Intervals:calendar"
 group = "Calendar booking"
+template_name = "No double booking"
 signals = [
     "bookings arrive one at a time and each must be checked against the existing ones",
     "reject a booking that overlaps, or count the most overlapping at once",
@@ -92,6 +124,46 @@ pitfalls = [
     "A double booking that is allowed up to a limit needs counting (a sweep over events) instead of this check.",
 ]
 
+[[technique.variant]]
+name = "At most two at once"
+note = "Keep the booked ranges and the ranges that are already double booked; a new range must avoid the second list."
+template = '''
+class MyCalendarTwo:
+    def __init__(self):
+        self.booked, self.double = [], []
+
+    def book(self, start, end):
+        for s, e in self.double:
+            if start < e and s < end:
+                return False  # it would be the third booking
+        for s, e in self.booked:
+            if start < e and s < end:
+                self.double.append((max(s, start), min(e, end)))
+        self.booked.append((start, end))
+        return True
+'''
+
+[[technique.variant]]
+name = "Largest overlap so far"
+note = "Count changes at the start and end points; the answer is the maximum running sum."
+template = '''
+from collections import defaultdict
+
+
+class MyCalendarThree:
+    def __init__(self):
+        self.delta = defaultdict(int)
+
+    def book(self, startTime, endTime):
+        self.delta[startTime] += 1
+        self.delta[endTime] -= 1
+        cur = best = 0
+        for t in sorted(self.delta):
+            cur += self.delta[t]
+            best = max(best, cur)
+        return best
+'''
+
 [[technique]]
 id = "Intervals:sweep"
 group = "Line sweep"
@@ -119,20 +191,713 @@ pitfalls = [
     "Sorting the starts and the ends separately and walking both with two pointers does the same without a heap.",
 ]
 
-[[listed]]
-name = "Merge overlapping intervals"
-group = "Merge and combine"
-note = "Related lesson: Sort by start and merge"
-
-[[listed]]
-name = "Count groups of overlapping ranges"
-group = "Merge and combine"
-note = "Related lesson: Sort by start and merge"
-
-[[listed]]
-name = "Intersection of two sorted interval lists (two pointers) / of k lists"
+[[extra]]
+id = "Intervals:intersect"
+name = "Intersection of two sorted interval lists"
 group = "Intersection and subtraction"
-note = "e.g. running overlap count"
+signals = [
+    "two lists of disjoint intervals, each sorted, and you want where both are active",
+    "two pointers: the interval that ends first cannot overlap anything later in the other list",
+    "the overlap of two intervals is [max of the starts, min of the ends]",
+]
+template = '''
+def interval_intersection(a, b):
+    out, i, j = [], 0, 0
+    while i < len(a) and j < len(b):
+        lo = max(a[i][0], b[j][0])
+        hi = min(a[i][1], b[j][1])
+        if lo <= hi:
+            out.append([lo, hi])  # they share [lo, hi]
+        if a[i][1] < b[j][1]:
+            i += 1  # this one ends first: nothing later matches it
+        else:
+            j += 1
+    return out
+'''
+pitfalls = [
+    "Advance the pointer of the interval that ends first, not the one that starts first.",
+    "A single shared point counts (lo == hi) when the ends are closed.",
+    "For k lists, merge them pairwise or sweep all the events together.",
+]
+examples = ["interval-list-intersections"]
+
+[[extra]]
+id = "Intervals:stab-k"
+name = "At least k points inside every interval"
+group = "Covering points and ranges"
+signals = [
+    "choose the fewest integers so that every interval contains at least two of them",
+    "sort by the right end (largest start first on a tie) and look at the two newest points",
+    "a point placed as far right as possible helps the most later intervals",
+]
+template = '''
+def intersection_size_two(intervals):
+    intervals = sorted(intervals, key=lambda i: (i[1], -i[0]))
+    a, b = -1, -1  # the two largest chosen points, a < b
+    count = 0
+    for s, e in intervals:
+        if s > b:  # none of the chosen points is inside
+            a, b = e - 1, e
+            count += 2
+        elif s > a:  # only b is inside: add one more
+            count += 1
+            if e == b:
+                a, b = e - 1, e  # b stays; the new point is just below
+            else:
+                a, b = b, e
+    return count
+'''
+pitfalls = [
+    "Sort by end ascending and start descending: the interval that is contained in another one comes first.",
+    "Only the last two points matter: earlier intervals end before them and are already satisfied.",
+    "When the only point inside is b and e == b, the new point is e - 1, not e again.",
+]
+examples = ["set-intersection-size-at-least-two", "minimum-number-of-arrows-to-burst-balloons"]
+
+[[extra]]
+id = "Intervals:room-heap"
+name = "Which room: a heap of free rooms and a heap of busy ones"
+group = "Meeting rooms"
+signals = [
+    "each meeting takes the lowest-numbered free room, or waits for the first room to free up",
+    "two heaps: free room numbers, and (end time, room) of the busy ones",
+    "the output is a count per room or the room of one meeting",
+]
+template_name = "Most booked room"
+template = '''
+import heapq
+
+
+def most_booked(n, meetings):
+    meetings = sorted(meetings)
+    free = list(range(n))  # heap of free room numbers
+    busy = []  # heap of (end time, room)
+    used = [0] * n
+    for start, end in meetings:
+        while busy and busy[0][0] <= start:
+            _, room = heapq.heappop(busy)
+            heapq.heappush(free, room)  # that room is free again
+        if free:
+            room = heapq.heappop(free)
+            heapq.heappush(busy, (end, room))
+        else:
+            t, room = heapq.heappop(busy)  # wait for the first room
+            heapq.heappush(busy, (t + end - start, room))
+        used[room] += 1
+    return used.index(max(used))
+'''
+pitfalls = [
+    "Free every room whose meeting has ended by this start before deciding: only then is the lowest number known.",
+    "A delayed meeting keeps its length: the new end is the room's end plus the duration, not the original end.",
+    "On a tie of counts return the smallest room number: index(max(...)) does exactly that.",
+]
+examples = ["meeting-rooms-iii", "the-number-of-the-smallest-unoccupied-chair"]
+
+[[extra.variant]]
+name = "Smallest unoccupied chair"
+note = "Arrivals in order; a heap of free chairs and a heap of (leave time, chair)."
+template = '''
+import heapq
+
+
+def smallest_chair(times, target_friend):
+    order = sorted(range(len(times)), key=lambda i: times[i][0])
+    free = list(range(len(times)))  # a heap of free chairs
+    leaving = []  # heap of (leave time, chair)
+    for i in order:
+        arrive, leave = times[i]
+        while leaving and leaving[0][0] <= arrive:
+            heapq.heappush(free, heapq.heappop(leaving)[1])
+        chair = heapq.heappop(free)
+        if i == target_friend:
+            return chair
+        heapq.heappush(leaving, (leave, chair))
+'''
+
+[[extra]]
+id = "Intervals:difference-array"
+name = "Range updates with a difference array"
+group = "Range updates with difference arrays"
+signals = [
+    "many updates of the form 'add v to every position from l to r', and only the final array is asked",
+    "write +v at l and -v after r, then one prefix sum rebuilds every position",
+    "a capacity check over time (car pooling) is a prefix sum of the changes",
+]
+template_name = "Flight bookings"
+template = '''
+def corp_flight_bookings(bookings, n):
+    diff = [0] * (n + 1)
+    for first, last, seats in bookings:  # 1-based, inclusive
+        diff[first - 1] += seats
+        diff[last] -= seats  # stops counting after last
+    out, run = [], 0
+    for i in range(n):
+        run += diff[i]  # the prefix sum of the changes
+        out.append(run)
+    return out
+'''
+pitfalls = [
+    "The end marker goes one past the last position: size the array n + 1.",
+    "Convert 1-based inputs once at the start; mixing bases causes off-by-one answers.",
+    "Many updates then one rebuild is O(n + q); updating each position per query is O(n * q).",
+]
+examples = ["corporate-flight-bookings", "car-pooling", "increment-submatrices-by-one", "shifting-letters-ii", "zero-array-transformation-iii"]
+
+[[extra.variant]]
+name = "Car pooling (events by time)"
+note = "People get on at start and off at end; the load is a running sum over the sorted times."
+template = '''
+from collections import defaultdict
+
+
+def car_pooling(trips, capacity):
+    delta = defaultdict(int)
+    for people, start, end in trips:
+        delta[start] += people  # get on
+        delta[end] -= people  # get off before anyone boards at end
+    load = 0
+    for t in sorted(delta):
+        load += delta[t]
+        if load > capacity:
+            return False
+    return True
+'''
+
+[[extra.variant]]
+name = "Two dimensions"
+note = "Four corners per rectangle; a 2-D prefix sum rebuilds the grid."
+template = '''
+def range_add_queries(n, queries):
+    diff = [[0] * (n + 1) for _ in range(n + 1)]
+    for r1, c1, r2, c2 in queries:
+        diff[r1][c1] += 1
+        diff[r1][c2 + 1] -= 1
+        diff[r2 + 1][c1] -= 1
+        diff[r2 + 1][c2 + 1] += 1
+    for r in range(n + 1):
+        for c in range(n + 1):
+            if r:
+                diff[r][c] += diff[r - 1][c]
+            if c:
+                diff[r][c] += diff[r][c - 1]
+            if r and c:
+                diff[r][c] -= diff[r - 1][c - 1]  # counted twice
+    return [row[:n] for row in diff[:n]]
+'''
+
+[[extra]]
+id = "Intervals:skyline"
+name = "Skyline: sweep with a heap of heights"
+group = "Skyline problem"
+signals = [
+    "report where the maximum height changes as buildings (or intervals with weights) begin and end",
+    "events sorted by x: a start pushes the height, an end only matters when it was the maximum",
+    "a max-heap with lazy deletion: pop the top while its building has already ended",
+]
+template_name = "The skyline problem"
+template = '''
+import heapq
+
+
+def get_skyline(buildings):
+    events = sorted([(l, -h, r) for l, r, h in buildings]
+                    + [(r, 0, 0) for _, r, _ in buildings])
+    out, heap = [], [(0, float("inf"))]  # (negative height, right end)
+    for x, neg_h, r in events:
+        while heap[0][1] <= x:
+            heapq.heappop(heap)  # a building that ended
+        if neg_h:
+            heapq.heappush(heap, (neg_h, r))
+        top = -heap[0][0]
+        if not out or out[-1][1] != top:
+            out.append([x, top])  # the height changed here
+    return out
+'''
+pitfalls = [
+    "Sort starts with higher heights first at the same x (the negative height does this): then the tallest is seen at once.",
+    "Delete lazily: pop only when the top is dead, never search the heap.",
+    "Record a point only when the maximum changes, otherwise equal heights are listed twice.",
+]
+examples = ["the-skyline-problem", "falling-squares"]
+
+[[extra.variant]]
+name = "Falling squares (range assign and max)"
+note = "A square lands on the tallest thing under its span; its new height is that plus its size."
+template = '''
+def falling_squares(positions):
+    placed = []  # (left, right, height) of squares that have landed
+    out, tallest = [], 0
+    for left, size in positions:
+        right = left + size
+        base = 0
+        for l, r, h in placed:
+            if l < right and left < r:  # shares some width
+                base = max(base, h)
+        placed.append((left, right, base + size))
+        tallest = max(tallest, base + size)
+        out.append(tallest)
+    return out
+'''
+
+[[extra]]
+id = "Intervals:flowers"
+name = "Count intervals containing a point: two sorted arrays"
+group = "Line sweep"
+signals = [
+    "for each query time, how many intervals contain it?",
+    "the number that started by t minus the number that ended before t",
+    "sort the starts and the ends separately, then two binary searches per query",
+]
+template_name = "Flowers in bloom"
+template = '''
+from bisect import bisect_left, bisect_right
+
+
+def full_bloom_flowers(flowers, people):
+    starts = sorted(s for s, _ in flowers)
+    ends = sorted(e for _, e in flowers)
+    # in bloom at t: started by t, minus those that ended before t
+    return [bisect_right(starts, t) - bisect_left(ends, t) for t in people]
+'''
+pitfalls = [
+    "Closed intervals: a flower is in bloom on its last day, so count ends strictly before t (bisect_left).",
+    "Starts use bisect_right: a flower that starts at t counts at t.",
+    "The starts and the ends need not be paired: only their counts matter.",
+]
+examples = ["number-of-flowers-in-full-bloom", "maximum-population-year", "meeting-rooms-ii"]
+
+[[extra.variant]]
+name = "Maximum population year"
+note = "A difference array over the years: +1 at birth, -1 at death; the first year of the maximum wins."
+template = '''
+def maximum_population(logs):
+    delta = [0] * 101  # years 1950 .. 2050
+    for born, died in logs:
+        delta[born - 1950] += 1
+        delta[died - 1950] -= 1  # not alive in the year of death
+    best = alive = year = 0
+    for i, d in enumerate(delta):
+        alive += d
+        if alive > best:
+            best, year = alive, 1950 + i
+    return year
+'''
+
+[[extra]]
+id = "Intervals:bucket-counts"
+name = "Counts per time bucket"
+group = "Calendar booking"
+signals = [
+    "events with timestamps, and queries ask for the number in each minute, hour or day bucket of a range",
+    "bucket index = (t - start) // size",
+    "keep the raw timestamps per key; answer a query by one pass over them",
+]
+template = '''
+from collections import defaultdict
+
+
+class TweetCounts:
+    def __init__(self):
+        self.times = defaultdict(list)
+
+    def recordTweet(self, tweetName, time):
+        self.times[tweetName].append(time)
+
+    def getTweetCountsPerFrequency(
+            self, freq, tweetName, startTime, endTime):
+        size = 60 if freq == "minute" else 3600 if freq == "hour" else 86400
+        out = [0] * ((endTime - startTime) // size + 1)
+        for t in self.times[tweetName]:
+            if startTime <= t <= endTime:
+                out[(t - startTime) // size] += 1  # which bucket
+        return out
+'''
+pitfalls = [
+    "The last bucket may be shorter than the others: its size is (end - start) % size + 1, but it is still one bucket.",
+    "Buckets are counted from startTime, not from time 0.",
+    "Keep each key's times sorted (bisect) when there are many records and few queries.",
+]
+examples = ["tweet-counts-per-frequency"]
+
+[[extra]]
+id = "Intervals:interval-set"
+name = "A set of disjoint intervals with add, remove and query"
+group = "Calendar booking"
+signals = [
+    "numbers (or ranges) arrive over time, and you must report the union as sorted disjoint intervals",
+    "add, remove and ask 'is this whole range present'",
+    "a sorted list of intervals, found by bisect, merged or split on every change",
+]
+template_name = "Data stream as disjoint intervals"
+template = '''
+from bisect import bisect_left
+
+
+class SummaryRanges:
+    def __init__(self):
+        self.iv = []  # sorted, disjoint [start, end]
+
+    def addNum(self, value):
+        i = bisect_left(self.iv, [value, value])  # first start >= value
+        if i > 0 and self.iv[i - 1][1] >= value:
+            return  # inside the interval before
+        if i < len(self.iv) and self.iv[i][0] == value:
+            return  # already a start
+        join_left = i > 0 and self.iv[i - 1][1] == value - 1
+        join_right = i < len(self.iv) and self.iv[i][0] == value + 1
+        if join_left and join_right:
+            self.iv[i - 1][1] = self.iv[i][1]
+            del self.iv[i]
+        elif join_left:
+            self.iv[i - 1][1] = value
+        elif join_right:
+            self.iv[i][0] = value
+        else:
+            self.iv.insert(i, [value, value])
+
+    def getIntervals(self):
+        return [x[:] for x in self.iv]
+'''
+pitfalls = [
+    "Check 'already covered' before looking at the neighbours: the interval before may contain the value.",
+    "Joining can merge two intervals into one: update one and delete the other.",
+    "Return copies: the caller must not be able to change the stored intervals.",
+]
+examples = ["data-stream-as-disjoint-intervals", "range-module"]
+
+[[extra.variant]]
+name = "Range module (half-open ranges)"
+note = "Add merges every touching range, remove cuts pieces, query needs one stored range to contain it."
+template = '''
+class RangeModule:
+    def __init__(self):
+        self.iv = []  # sorted, disjoint half-open [left, right)
+
+    def addRange(self, left, right):
+        out = []
+        for l, r in self.iv:
+            if r < left or right < l:
+                out.append([l, r])  # apart, and not touching
+            else:
+                left, right = min(left, l), max(right, r)  # absorb it
+        out.append([left, right])
+        out.sort()
+        self.iv = out
+
+    def queryRange(self, left, right):
+        return any(l <= left and right <= r for l, r in self.iv)
+
+    def removeRange(self, left, right):
+        out = []
+        for l, r in self.iv:
+            if r <= left or right <= l:
+                out.append([l, r])
+                continue
+            if l < left:
+                out.append([l, left])  # the piece on the left
+            if right < r:
+                out.append([right, r])  # the piece on the right
+        self.iv = out
+'''
+
+[[extra]]
+id = "Intervals:free-days"
+name = "Days without a meeting"
+group = "Gaps and free time"
+signals = [
+    "count (or find) the days not covered by any meeting or busy interval",
+    "sort by start, keep the furthest end so far, and add each gap before the next start",
+    "the gaps before the first start and after the last end count as well",
+]
+template = '''
+def count_days(days, meetings):
+    free, end = 0, 0  # end: the last day covered so far
+    for start, stop in sorted(meetings):
+        if start > end + 1:
+            free += start - end - 1  # the gap before this meeting
+        end = max(end, stop)
+    return free + max(0, days - end)  # the days after the last meeting
+'''
+pitfalls = [
+    "Take the maximum of the ends: a long meeting may contain several later ones.",
+    "Days are inclusive on both sides: the gap between end and start is start - end - 1.",
+    "Add the tail after the last end separately.",
+]
+examples = ["count-days-without-meetings"]
+
+[[extra]]
+id = "Intervals:rectangle"
+name = "Overlap and union of rectangles"
+group = "Union length and area"
+signals = [
+    "the overlap of two axis-aligned rectangles is the overlap of two intervals in each axis",
+    "the area of a union by inclusion-exclusion, or by cutting into vertical strips",
+    "coordinates are compressed so that only the interesting x values are visited",
+]
+template_name = "Two rectangles"
+template = '''
+def compute_area(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2):
+    area = (ax2 - ax1) * (ay2 - ay1) + (bx2 - bx1) * (by2 - by1)
+    w = min(ax2, bx2) - max(ax1, bx1)  # overlap of the x intervals
+    h = min(ay2, by2) - max(ay1, by1)  # overlap of the y intervals
+    return area - (w * h if w > 0 and h > 0 else 0)
+'''
+pitfalls = [
+    "A negative width or height means no overlap: do not multiply two negatives into a positive area.",
+    "Touching edges (w == 0) overlap in no area.",
+    "Subtract the overlap once: it was counted in both rectangles.",
+]
+examples = ["rectangle-area", "rectangle-overlap", "rectangle-area-ii", "projection-area-of-3d-shapes"]
+
+[[extra.variant]]
+name = "Union area of many rectangles"
+note = "Cut the plane into vertical strips between consecutive x values; in each strip merge the y spans."
+template = '''
+def rectangle_area(rectangles):
+    xs = sorted({x for x1, _, x2, _ in rectangles for x in (x1, x2)})
+    total = 0
+    for a, b in zip(xs, xs[1:]):  # each vertical strip [a, b]
+        spans = sorted((y1, y2) for x1, y1, x2, y2 in rectangles
+                       if x1 <= a and b <= x2)
+        covered, top = 0, 0
+        for y1, y2 in spans:
+            y1 = max(y1, top)  # skip what is already counted
+            if y2 > y1:
+                covered += y2 - y1
+                top = y2
+        total += covered * (b - a)
+    return total % (10**9 + 7)
+'''
+
+[[extra.variant]]
+name = "Projection area of 3-D shapes"
+note = "Top = non-zero cells, front = the tallest of each row, side = the tallest of each column."
+template = '''
+def projection_area(grid):
+    top = sum(v > 0 for row in grid for v in row)
+    front = sum(max(row) for row in grid)
+    side = sum(max(col) for col in zip(*grid))
+    return top + front + side
+'''
+
+[[extra]]
+id = "Intervals:offline-queries"
+name = "Queries sorted, intervals pushed into a heap as they become eligible"
+group = "Queries on intervals (offline sort + heap)"
+signals = [
+    "for each query point, the smallest interval that contains it (or the best by some key)",
+    "answer queries in increasing order: intervals with start <= q are eligible, and stay eligible until their end passes",
+    "a heap keyed by size, with lazy deletion of intervals that already ended",
+]
+template = '''
+import heapq
+
+
+def min_interval(intervals, queries):
+    intervals = sorted(intervals)
+    heap, i, answer = [], 0, {}  # heap: (size, right end)
+    for q in sorted(set(queries)):
+        while i < len(intervals) and intervals[i][0] <= q:
+            l, r = intervals[i]
+            heapq.heappush(heap, (r - l + 1, r))  # eligible from now on
+            i += 1
+        while heap and heap[0][1] < q:
+            heapq.heappop(heap)  # ended before q: never useful again
+        answer[q] = heap[0][0] if heap else -1
+    return [answer[q] for q in queries]
+'''
+pitfalls = [
+    "Sort the queries but answer in the original order: keep a dict from query to answer.",
+    "An interval that ended before the current query also ended before every later query: popping it is final.",
+    "Do not remove from the middle of the heap: let dead entries reach the top and pop them there.",
+]
+examples = ["minimum-interval-to-include-each-query"]
+
+[[extra]]
+id = "Intervals:circular"
+name = "Circular intervals: unroll the circle once"
+group = "Circular intervals"
+signals = [
+    "times of day, angles or positions on a ring: the smallest difference may wrap around",
+    "sort, take adjacent differences, and add the wrap-around gap between the last and first",
+    "a window on a circle: duplicate the sorted list shifted by one full turn",
+]
+template_name = "Minimum time difference"
+template = '''
+def find_min_difference(time_points):
+    minutes = sorted(int(t[:2]) * 60 + int(t[3:]) for t in time_points)
+    gaps = [b - a for a, b in zip(minutes, minutes[1:])]
+    gaps.append(minutes[0] + 1440 - minutes[-1])  # across midnight
+    return min(gaps)
+'''
+pitfalls = [
+    "Include the gap from the last time to the first of the next day.",
+    "Equal times give difference 0: do not deduplicate before computing gaps.",
+    "More than 1440 time points must contain a duplicate (pigeonhole): the answer is 0 at once.",
+]
+examples = ["minimum-time-difference", "maximum-number-of-visible-points", "angle-between-hands-of-a-clock"]
+
+[[extra.variant]]
+name = "Visible points (window of angles)"
+note = "Sort the angles, append each plus 360, and for every start take the points within the field of view."
+template = '''
+import math
+from bisect import bisect_right
+
+
+def visible_points(points, angle, location):
+    here, angles = 0, []
+    for x, y in points:
+        if [x, y] == location:
+            here += 1  # at the viewer: always visible
+        else:
+            angles.append(math.degrees(
+                math.atan2(y - location[1], x - location[0])))
+    angles.sort()
+    angles += [a + 360 for a in angles]  # unroll the circle once
+    best = 0
+    for i in range(len(angles) // 2):
+        j = bisect_right(angles, angles[i] + angle + 1e-9)
+        best = max(best, j - i)  # points in [a_i, a_i + angle]
+    return best + here
+'''
+
+[[extra]]
+id = "Intervals:next-start"
+name = "The first interval that starts at or after an end"
+group = "Interval graphs and matching"
+signals = [
+    "for each interval, find the interval with the smallest start that is not before its end",
+    "sort the starts once, and answer each query with a binary search",
+    "pairing two sorted groups: players with trainers, jobs with workers",
+]
+template = '''
+from bisect import bisect_left
+
+
+def find_right_interval(intervals):
+    starts = sorted((s, i) for i, (s, _) in enumerate(intervals))
+    out = []
+    for _, end in intervals:
+        k = bisect_left(starts, (end, -1))  # first start >= end
+        out.append(starts[k][1] if k < len(starts) else -1)
+    return out
+'''
+pitfalls = [
+    "Keep the original index with each start, because the answer is an index.",
+    "Use >= for the start: an interval that starts exactly at this end is allowed.",
+    "bisect on tuples: (end, -1) sorts before any (end, i) with i >= 0.",
+]
+examples = ["find-right-interval", "maximum-matching-of-players-with-trainers"]
+
+[[extra]]
+id = "Intervals:from-data"
+name = "Intervals built from other data"
+group = "Intervals built from other data"
+signals = [
+    "turn sorted numbers into ranges, or marked positions in a string into bold spans",
+    "find runs of consecutive values, or merge the spans that overlap or touch",
+    "one range from each of k lists that is as small as possible",
+]
+template_name = "Summary ranges"
+template = '''
+def summary_ranges(nums):
+    out, i = [], 0
+    while i < len(nums):
+        j = i
+        while j + 1 < len(nums) and nums[j + 1] == nums[j] + 1:
+            j += 1  # extend the run
+        out.append(str(nums[i]) if i == j else f"{nums[i]}->{nums[j]}")
+        i = j + 1
+    return out
+'''
+pitfalls = [
+    "A run of one is printed as a single number, not 'a->a'.",
+    "Compare with the previous element (+1), not with the first of the run.",
+    "Avoid overflow thinking in other languages: nums[j] + 1 may overflow a 32-bit int.",
+]
+examples = ["summary-ranges", "add-bold-tag-in-string", "smallest-range-covering-elements-from-k-lists"]
+
+[[extra.variant]]
+name = "Add bold tags (mark, then merge runs)"
+note = "Mark every character covered by an occurrence; each maximal run of marks is one tag."
+template = '''
+def add_bold_tag(s, words):
+    bold = [False] * len(s)
+    for w in words:
+        start = s.find(w)
+        while start != -1:
+            for k in range(start, start + len(w)):
+                bold[k] = True
+            start = s.find(w, start + 1)  # overlapping occurrences count
+    out, i = [], 0
+    while i < len(s):
+        if bold[i]:
+            j = i
+            while j < len(s) and bold[j]:
+                j += 1
+            out.append("<b>" + s[i:j] + "</b>")
+            i = j
+        else:
+            out.append(s[i])
+            i += 1
+    return "".join(out)
+'''
+
+[[extra.variant]]
+name = "Smallest range covering k lists (heap)"
+note = "Keep one element per list in a min-heap and the current maximum; advance the list of the minimum."
+template = '''
+import heapq
+
+
+def smallest_range(nums):
+    heap = [(row[0], i, 0) for i, row in enumerate(nums)]
+    heapq.heapify(heap)
+    hi = max(row[0] for row in nums)
+    best = [heap[0][0], hi]
+    while True:
+        lo, i, j = heapq.heappop(heap)
+        if hi - lo < best[1] - best[0]:
+            best = [lo, hi]
+        if j + 1 == len(nums[i]):
+            return best  # one list has no more elements
+        nxt = nums[i][j + 1]
+        hi = max(hi, nxt)
+        heapq.heappush(heap, (nxt, i, j + 1))
+'''
+
+[[extra]]
+id = "Intervals:weighted-k"
+name = "Weighted intervals with at most k picks"
+group = "Interval scheduling: weighted, bounded and deadline"
+signals = [
+    "choose at most k non-overlapping events to maximise the total value",
+    "sort by end; for each event the compatible earlier events are a prefix, found by binary search",
+    "a table over (how many events used, how many events considered)",
+]
+template = '''
+from bisect import bisect_left
+
+
+def max_value(events, k):
+    events = sorted(events, key=lambda e: e[1])  # by end day
+    ends = [e[1] for e in events]
+    n = len(events)
+    # best[j][i]: the most value using at most j of the first i events
+    best = [[0] * (n + 1) for _ in range(k + 1)]
+    for i, (s, e, v) in enumerate(events):
+        p = bisect_left(ends, s, 0, i)  # events that end before day s
+        for j in range(1, k + 1):
+            best[j][i + 1] = max(best[j][i], best[j - 1][p] + v)
+    return best[k][n]
+'''
+pitfalls = [
+    "Two events may not share a day: the compatible ones end strictly before s (bisect_left), not on s.",
+    "The number of picks is part of the state: a greedy by value or by end is wrong here.",
+    "Iterate over events in the outer loop and picks in the inner one, so best[j - 1][p] is already final.",
+]
+examples = ["maximum-number-of-events-that-can-be-attended-ii", "maximum-profit-in-job-scheduling"]
 
 [[listed]]
 name = "Common slot of a given length"
@@ -144,57 +909,9 @@ name = "Remove (subtract) an interval from a set / difference of two interval se
 group = "Intersection and subtraction"
 
 [[listed]]
-name = "Minimum removals to leave non-overlapping intervals"
-group = "Selection by earliest end (non-overlapping)"
-note = "Related lesson: Greedy by earliest end"
-
-[[listed]]
-name = "Maximum non-overlapping intervals (activity selection) / longest chain of pairs"
-group = "Selection by earliest end (non-overlapping)"
-
-[[listed]]
-name = "Minimum points that stab every interval"
-group = "Covering points and ranges"
-note = "e.g. arrows, sort by end"
-
-[[listed]]
-name = "At least two (k) points per interval"
-group = "Covering points and ranges"
-note = "Related lesson: Sort by start and merge"
-
-[[listed]]
-name = "Minimum intervals to cover a range (sort by start, furthest reach) / as a jump game"
-group = "Covering points and ranges"
-
-[[listed]]
 name = "Is every integer of a range covered"
 group = "Covering points and ranges"
 note = "e.g. merge / difference array"
-
-[[listed]]
-name = "Can attend all meetings"
-group = "Meeting rooms"
-note = "Related lesson: Greedy by earliest end"
-
-[[listed]]
-name = "Minimum rooms"
-group = "Meeting rooms"
-note = "Related lesson: Sweep line or heap of ends"
-
-[[listed]]
-name = "Which room or chair"
-group = "Meeting rooms"
-note = "Related lesson: Greedy by earliest end"
-
-[[listed]]
-name = "Events: start +1 and end -1, with the tie order at equal times"
-group = "Line sweep"
-note = "Related lesson: Booking with a sorted structure"
-
-[[listed]]
-name = "Maximum overlap and where it happens"
-group = "Line sweep"
-note = "e.g. busiest point, brightest position"
 
 [[listed]]
 name = "Sweep with an active set (heap / ordered multiset) while events stream"
@@ -204,16 +921,6 @@ group = "Line sweep"
 name = "Sparse coordinates"
 group = "Line sweep"
 note = "e.g. sorted map of deltas / coordinate compression"
-
-[[listed]]
-name = "1-D difference array"
-group = "Range updates with difference arrays"
-note = "e.g. add on ranges, one prefix pass"
-
-[[listed]]
-name = "2-D difference array"
-group = "Range updates with difference arrays"
-note = "e.g. rectangle adds"
 
 [[listed]]
 name = "Sliding difference"
@@ -231,59 +938,14 @@ group = "Range updates with difference arrays"
 note = "e.g. union-find skip pointers / interval map"
 
 [[listed]]
-name = "Weighted with at most k picks"
-group = "Interval scheduling: weighted, bounded and deadline"
-note = "e.g. dp over index and picks left"
-
-[[listed]]
 name = "Position DP over coordinates"
 group = "Interval scheduling: weighted, bounded and deadline"
 note = "e.g. rides along a line"
 
 [[listed]]
-name = "Attend the most events, one per day"
-group = "Interval scheduling: weighted, bounded and deadline"
-note = "Related lesson: Booking with a sorted structure"
-
-[[listed]]
-name = "Deadline scheduling"
-group = "Interval scheduling: weighted, bounded and deadline"
-note = "e.g. sort by deadline, max-heap, evict the longest"
-
-[[listed]]
-name = "No double booking"
-group = "Calendar booking"
-note = "Related lesson: Booking with a sorted structure"
-
-[[listed]]
-name = "Up to k overlaps allowed"
-group = "Calendar booking"
-note = "Related lesson: Booking with a sorted structure"
-
-[[listed]]
-name = "Interval set with add, remove and query"
-group = "Calendar booking"
-note = "Related lesson: Greedy by earliest end"
-
-[[listed]]
-name = "Time-bucketed counts and log ranges"
-group = "Calendar booking"
-note = "Related lesson: Sweep line or heap of ends"
-
-[[listed]]
-name = "Free time in the union of busy intervals"
-group = "Gaps and free time"
-note = "Related lesson: Sweep line or heap of ends"
-
-[[listed]]
 name = "Free time after moving meetings"
 group = "Gaps and free time"
 note = "Related lesson: Sweep line or heap of ends"
-
-[[listed]]
-name = "Count intervals containing a point"
-group = "Interval tree and stabbing queries"
-note = "Related lesson: Booking with a sorted structure"
 
 [[listed]]
 name = "List intervals containing a point"
@@ -301,14 +963,6 @@ group = "Interval tree and stabbing queries"
 note = "e.g. segment tree over compressed coordinates"
 
 [[listed]]
-name = "Skyline by sweep"
-group = "Skyline problem"
-note = "Related lesson: Booking with a sorted structure"
-problems = [
-    { slug = "the-skyline-problem", title = "The Skyline Problem", number = 218, difficulty = "hard", premium = false },
-]
-
-[[listed]]
 name = "Skyline by divide and conquer"
 group = "Skyline problem"
 note = "e.g. merge two skylines"
@@ -316,14 +970,6 @@ problems = [
     { slug = "the-skyline-problem", title = "The Skyline Problem", number = 218, difficulty = "hard", premium = false },
     { slug = "count-of-smaller-numbers-after-self", title = "Count of Smaller Numbers After Self", number = 315, difficulty = "hard", premium = false },
     { slug = "reverse-pairs", title = "Reverse Pairs", number = 493, difficulty = "hard", premium = false },
-]
-
-[[listed]]
-name = "Range assign and max"
-group = "Skyline problem"
-note = "Related lesson: Sort by start and merge"
-problems = [
-    { slug = "falling-squares", title = "Falling Squares", number = 699, difficulty = "hard", premium = false },
 ]
 
 [[listed]]
@@ -337,58 +983,9 @@ group = "Interval DP (cross-reference to 2-D Dynamic Programming)"
 note = "e.g. stone games, palindromic subsequence"
 
 [[listed]]
-name = "Union length of 1-D intervals"
-group = "Union length and area"
-note = "Related lesson: Sort by start and merge"
-
-[[listed]]
-name = "Union area of rectangles"
-group = "Union length and area"
-note = "e.g. sweep + segment tree with cover counts"
-
-[[listed]]
-name = "Overlap of two rectangles"
-group = "Union length and area"
-note = "Related lesson: Sort by start and merge"
-
-[[listed]]
-name = "Projection to the axes"
-group = "Union length and area"
-note = "e.g. merge the x-ranges and the y-ranges of shapes"
-
-[[listed]]
 name = "New area painted per day"
 group = "Union length and area"
 note = "e.g. skip pointers / ordered set"
-
-[[listed]]
-name = "Smallest interval containing each query"
-group = "Queries on intervals (offline sort + heap)"
-note = "Related lesson: Sweep line or heap of ends"
-
-[[listed]]
-name = "Count of intervals containing each query"
-group = "Queries on intervals (offline sort + heap)"
-note = "Related lesson: Booking with a sorted structure"
-
-[[listed]]
-name = "Sorted queries with items pushed into a heap as they become eligible"
-group = "Queries on intervals (offline sort + heap)"
-
-[[listed]]
-name = "Unroll the circle"
-group = "Circular intervals"
-note = "e.g. double the array or take indices mod n"
-
-[[listed]]
-name = "Wrap-around interval split into two"
-group = "Circular intervals"
-note = "e.g. start > end"
-
-[[listed]]
-name = "Circular time differences"
-group = "Circular intervals"
-note = "e.g. sort, then close the circle with the wrap gap"
 
 [[listed]]
 name = "Cover a circle with arcs"
@@ -400,26 +997,9 @@ name = "Circular difference array"
 group = "Circular intervals"
 
 [[listed]]
-name = "Overlap number = colours = rooms (interval-graph colouring) / independent set = activity selection / stabbing = disjoint count"
-group = "Interval graphs and matching"
-
-[[listed]]
 name = "Assign points or days to intervals"
 group = "Interval graphs and matching"
 note = "e.g. sort, heap by end"
-
-[[listed]]
-name = "Greedy match of two sorted sequences"
-group = "Interval graphs and matching"
-note = "Related lesson: Greedy by earliest end"
-
-[[listed]]
-name = "Runs from sorted values"
-group = "Intervals built from other data"
-note = "Related lesson: Booking with a sorted structure"
-problems = [
-    { slug = "summary-ranges", title = "Summary Ranges", number = 228, difficulty = "easy", premium = false },
-]
 
 [[listed]]
 name = "Occurrence spans"
@@ -427,23 +1007,8 @@ group = "Intervals built from other data"
 note = "e.g. first and last index, then merge"
 
 [[listed]]
-name = "Marked positions in a string"
-group = "Intervals built from other data"
-note = "e.g. bold tags"
-
-[[listed]]
-name = "Reach windows [i - r, i + r]"
-group = "Intervals built from other data"
-note = "e.g. taps, lamps"
-
-[[listed]]
 name = "Projections of 2-D shapes"
 group = "Intervals built from other data"
-
-[[listed]]
-name = "Smallest range covering one element from each of k lists"
-group = "Intervals built from other data"
-note = "e.g. sort events + sliding window / heap of heads"
 
 [[listed]]
 name = "Sort key choice"

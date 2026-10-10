@@ -4504,3 +4504,538 @@ def _(ns):
                             dist[v] = dist[u] + 1
                             q.append(v)
         assert f(nodes[0]) == dist[goal], (coins, edges)
+
+
+# ---- intervals (extras) ---------------------------------------------------------------------------------------------
+
+def _merge_pairs(iv):
+    out = []
+    for s, e in sorted(iv):
+        if out and s <= out[-1][1]:
+            out[-1][1] = max(out[-1][1], e)
+        else:
+            out.append([s, e])
+    return out
+
+
+@test("Intervals:merge#Insert an interval")
+def _(ns):
+    f = ns["insert"]
+    assert f([[1, 3], [6, 9]], [2, 5]) == [[1, 5], [6, 9]] and f([], [5, 7]) == [[5, 7]]
+    r = random.Random(300)
+    for _ in range(300):
+        pts = sorted(r.sample(range(0, 30), 2 * r.randint(0, 5)))
+        iv = [[pts[i], pts[i + 1]] for i in range(0, len(pts), 2)]
+        a = r.randint(0, 28)
+        new = [a, a + r.randint(0, 5)]
+        assert f([x[:] for x in iv], new[:]) == _merge_pairs(iv + [new])
+
+
+@test("Intervals:merge#Count groups of overlapping ranges")
+def _(ns):
+    f = ns["count_ways"]
+    assert f([[6, 10], [5, 15]]) == 2 and f([[1, 3], [10, 20], [2, 5], [4, 8]]) == 4
+    r = random.Random(301)
+    for _ in range(200):
+        iv = []
+        for _ in range(r.randint(1, 7)):
+            a = r.randint(0, 15)
+            iv.append([a, a + r.randint(0, 4)])
+        parent = list(range(len(iv)))
+
+        def find(x):
+            while parent[x] != x:
+                x = parent[x]
+            return x
+
+        for i in range(len(iv)):
+            for j in range(i):
+                if iv[i][0] <= iv[j][1] and iv[j][0] <= iv[i][1]:
+                    parent[find(i)] = find(j)
+        comps = len({find(i) for i in range(len(iv))})
+        assert f([x[:] for x in iv]) == 2**comps
+
+
+class _CalendarBrute:
+    def __init__(self):
+        self.b = []
+
+    def book(self, s, e):
+        self.b.append((s, e))
+        t = sorted({x for iv in self.b for x in iv})
+        return max((sum(1 for a, c in self.b if a <= x < c) for x in t), default=0)
+
+
+@test("Intervals:calendar#At most two at once")
+def _(ns):
+    r = random.Random(302)
+    for _ in range(100):
+        cal, mine = ns["MyCalendarTwo"](), []
+        for _ in range(r.randint(1, 10)):
+            s = r.randint(0, 12)
+            e = s + r.randint(1, 5)
+            ok = all(sum(1 for a, c in mine if a <= x < c) < 2 for x in range(s, e))
+            assert cal.book(s, e) is ok
+            if ok:
+                mine.append((s, e))
+
+
+@test("Intervals:calendar#Largest overlap so far")
+def _(ns):
+    r = random.Random(303)
+    for _ in range(100):
+        cal, brute = ns["MyCalendarThree"](), _CalendarBrute()
+        for _ in range(r.randint(1, 10)):
+            s = r.randint(0, 12)
+            e = s + r.randint(1, 5)
+            assert cal.book(s, e) == brute.book(s, e)
+
+
+@test("Intervals:intersect")
+def _(ns):
+    f = ns["interval_intersection"]
+    assert f([[0, 2], [5, 10], [13, 23], [24, 25]], [[1, 5], [8, 12], [15, 24], [25, 26]]) == [[1, 2], [5, 5], [8, 10], [15, 23], [24, 24], [25, 25]]
+    r = random.Random(304)
+
+    def gen():
+        pts = sorted(r.sample(range(0, 40), 2 * r.randint(0, 5)))
+        return [[pts[i], pts[i + 1]] for i in range(0, len(pts), 2)]
+
+    for _ in range(200):
+        a, b = gen(), gen()
+        want = _merge_pairs([[x, x] for x in range(0, 41)
+                             if any(s <= x <= e for s, e in a) and any(s <= x <= e for s, e in b)])
+        got = f([x[:] for x in a], [x[:] for x in b])
+        pts = {x for s, e in got for x in range(s, e + 1)}
+        assert pts == {x for x in range(0, 41) if any(s <= x <= e for s, e in a) and any(s <= x <= e for s, e in b)}
+        assert all(s <= e for s, e in got) and got == sorted(got)
+
+
+@test("Intervals:stab-k")
+def _(ns):
+    f = ns["intersection_size_two"]
+    assert f([[1, 3], [3, 7], [8, 9]]) == 5 and f([[1, 3], [1, 4], [2, 5], [3, 5]]) == 3 and f([[1, 2], [2, 3], [2, 4], [4, 5]]) == 5
+    r = random.Random(305)
+    for _ in range(150):
+        iv = []
+        for _ in range(r.randint(1, 5)):
+            a = r.randint(0, 8)
+            iv.append([a, a + r.randint(1, 4)])
+        pts = range(0, 14)
+        want = next(k for k in range(2, 12) if any(all(sum(1 for p in ps if a <= p <= b) >= 2 for a, b in iv) for ps in _it.combinations(pts, k)))
+        assert f([x[:] for x in iv]) == want, iv
+
+
+@test("Intervals:room-heap")
+def _(ns):
+    f = ns["most_booked"]
+    assert f(2, [[0, 10], [1, 5], [2, 7], [3, 4]]) == 0 and f(3, [[1, 20], [2, 10], [3, 5], [4, 9], [6, 8]]) == 1
+    r = random.Random(306)
+    for _ in range(200):
+        n = r.randint(1, 3)
+        starts = r.sample(range(0, 30), r.randint(1, 7))
+        meet = [[s, s + r.randint(1, 8)] for s in starts]
+        free_at, used = [0] * n, [0] * n
+        for s, e in sorted(meet):
+            avail = [i for i in range(n) if free_at[i] <= s]
+            if avail:
+                room = avail[0]
+                free_at[room] = e
+            else:
+                room = min(range(n), key=lambda i: (free_at[i], i))
+                free_at[room] += e - s
+            used[room] += 1
+        assert f(n, [m[:] for m in meet]) == used.index(max(used))
+
+
+@test("Intervals:room-heap#Smallest unoccupied chair")
+def _(ns):
+    f = ns["smallest_chair"]
+    assert f([[1, 4], [2, 3], [4, 6]], 1) == 1 and f([[3, 10], [1, 5], [2, 6]], 0) == 2
+    r = random.Random(307)
+    for _ in range(200):
+        n = r.randint(1, 6)
+        arrivals = r.sample(range(0, 30), n)
+        times = [[a, a + r.randint(1, 10)] for a in arrivals]
+        target = r.randrange(n)
+        chairs = [0] * n  # time each chair becomes free
+        want = None
+        for i in sorted(range(n), key=lambda i: times[i][0]):
+            c = next(c for c in range(n) if chairs[c] <= times[i][0])
+            chairs[c] = times[i][1]
+            if i == target:
+                want = c
+        assert f([t[:] for t in times], target) == want
+
+
+@test("Intervals:difference-array")
+def _(ns):
+    f = ns["corp_flight_bookings"]
+    assert f([[1, 2, 10], [2, 3, 20], [2, 5, 25]], 5) == [10, 55, 45, 25, 25]
+    r = random.Random(308)
+    for _ in range(200):
+        n = r.randint(1, 8)
+        b = []
+        for _ in range(r.randint(0, 6)):
+            a = r.randint(1, n)
+            b.append([a, r.randint(a, n), r.randint(1, 9)])
+        want = [sum(s for x, y, s in b if x <= i <= y) for i in range(1, n + 1)]
+        assert f([x[:] for x in b], n) == want
+
+
+@test("Intervals:difference-array#Car pooling (events by time)")
+def _(ns):
+    f = ns["car_pooling"]
+    assert f([[2, 1, 5], [3, 3, 7]], 4) is False and f([[2, 1, 5], [3, 3, 7]], 5) is True and f([[3, 2, 7], [3, 7, 9], [8, 3, 9]], 11) is True
+    r = random.Random(309)
+    for _ in range(200):
+        trips = []
+        for _ in range(r.randint(1, 6)):
+            s = r.randint(0, 8)
+            trips.append([r.randint(1, 4), s, s + r.randint(1, 5)])
+        cap = r.randint(1, 8)
+        want = all(sum(p for p, a, b in trips if a <= t < b) <= cap for t in range(0, 15))
+        assert f([t[:] for t in trips], cap) is want
+
+
+@test("Intervals:difference-array#Two dimensions")
+def _(ns):
+    f = ns["range_add_queries"]
+    assert f(3, [[1, 1, 2, 2], [0, 0, 1, 1]]) == [[1, 1, 0], [1, 2, 1], [0, 1, 1]]
+    r = random.Random(310)
+    for _ in range(100):
+        n = r.randint(1, 6)
+        qs = []
+        for _ in range(r.randint(0, 5)):
+            a, b = sorted((r.randrange(n), r.randrange(n)))
+            c, d = sorted((r.randrange(n), r.randrange(n)))
+            qs.append([a, c, b, d])
+        want = [[sum(1 for r1, c1, r2, c2 in qs if r1 <= i <= r2 and c1 <= j <= c2) for j in range(n)] for i in range(n)]
+        assert f(n, [q[:] for q in qs]) == want
+
+
+def _skyline_brute(b):
+    if not b:
+        return []
+    hi = max(r for _, r, _ in b)
+    out, prev = [], 0
+    for x in range(0, hi + 1):
+        h = max([bh for l, r, bh in b if l <= x < r] or [0])
+        if h != prev:
+            out.append([x, h])
+            prev = h
+    return out
+
+
+@test("Intervals:skyline")
+def _(ns):
+    f = ns["get_skyline"]
+    assert f([[2, 9, 10], [3, 7, 15], [5, 12, 12], [15, 20, 10], [19, 24, 8]]) == [[2, 10], [3, 15], [7, 12], [12, 0], [15, 10], [20, 8], [24, 0]]
+    r = random.Random(311)
+    for _ in range(300):
+        b = []
+        for _ in range(r.randint(1, 6)):
+            l = r.randint(0, 10)
+            b.append([l, l + r.randint(1, 6), r.randint(1, 8)])
+        b.sort()
+        assert f([x[:] for x in b]) == _skyline_brute(b), b
+
+
+@test("Intervals:skyline#Falling squares (range assign and max)")
+def _(ns):
+    f = ns["falling_squares"]
+    assert f([[1, 2], [2, 3], [6, 1]]) == [2, 5, 5] and f([[100, 100], [200, 100]]) == [100, 100]
+    r = random.Random(312)
+    for _ in range(200):
+        pos = [[r.randint(0, 8), r.randint(1, 4)] for _ in range(r.randint(1, 6))]
+        h, out, top = {}, [], 0
+        for left, size in pos:
+            base = max([h.get(x, 0) for x in range(left, left + size)] or [0])
+            for x in range(left, left + size):
+                h[x] = base + size
+            top = max(top, base + size)
+            out.append(top)
+        assert f([p[:] for p in pos]) == out
+
+
+@test("Intervals:flowers")
+def _(ns):
+    f = ns["full_bloom_flowers"]
+    assert f([[1, 6], [3, 7], [9, 12], [4, 13]], [2, 3, 7, 11]) == [1, 2, 2, 2]
+    r = random.Random(313)
+    for _ in range(200):
+        fl = []
+        for _ in range(r.randint(0, 6)):
+            a = r.randint(1, 10)
+            fl.append([a, a + r.randint(0, 6)])
+        ppl = [r.randint(0, 18) for _ in range(r.randint(1, 6))]
+        assert f([x[:] for x in fl], ppl[:]) == [sum(1 for a, b in fl if a <= t <= b) for t in ppl]
+
+
+@test("Intervals:flowers#Maximum population year")
+def _(ns):
+    f = ns["maximum_population"]
+    assert f([[1993, 1999], [2000, 2010]]) == 1993 and f([[1950, 1961], [1960, 1971], [1970, 1981]]) == 1960
+    r = random.Random(314)
+    for _ in range(200):
+        logs = []
+        for _ in range(r.randint(1, 7)):
+            a = r.randint(1950, 2045)
+            logs.append([a, a + r.randint(1, 5)])
+        counts = {y: sum(1 for a, b in logs if a <= y < b) for y in range(1950, 2051)}
+        best = max(counts.values())
+        assert f([l[:] for l in logs]) == min(y for y, c in counts.items() if c == best)
+
+
+@test("Intervals:bucket-counts")
+def _(ns):
+    t = ns["TweetCounts"]()
+    t.recordTweet("t3", 0)
+    t.recordTweet("t3", 60)
+    t.recordTweet("t3", 10)
+    assert t.getTweetCountsPerFrequency("minute", "t3", 0, 59) == [2]
+    assert t.getTweetCountsPerFrequency("minute", "t3", 0, 60) == [2, 1]
+    r = random.Random(315)
+    for _ in range(100):
+        t, rec = ns["TweetCounts"](), []
+        for _ in range(r.randint(0, 12)):
+            x = r.randint(0, 200)
+            rec.append(x)
+            t.recordTweet("a", x)
+        lo = r.randint(0, 100)
+        hi = lo + r.randint(0, 150)
+        size = r.choice([("minute", 60), ("hour", 3600)])
+        want = [0] * ((hi - lo) // size[1] + 1)
+        for x in rec:
+            if lo <= x <= hi:
+                want[(x - lo) // size[1]] += 1
+        assert t.getTweetCountsPerFrequency(size[0], "a", lo, hi) == want
+
+
+@test("Intervals:interval-set")
+def _(ns):
+    r = random.Random(316)
+    for _ in range(100):
+        sr, seen = ns["SummaryRanges"](), set()
+        for _ in range(r.randint(1, 15)):
+            v = r.randint(0, 15)
+            sr.addNum(v)
+            seen.add(v)
+            want = []
+            for x in sorted(seen):
+                if want and want[-1][1] == x - 1:
+                    want[-1][1] = x
+                else:
+                    want.append([x, x])
+            assert sr.getIntervals() == want
+
+
+@test("Intervals:interval-set#Range module (half-open ranges)")
+def _(ns):
+    r = random.Random(317)
+    for _ in range(100):
+        m, cells = ns["RangeModule"](), set()
+        for _ in range(r.randint(1, 15)):
+            a = r.randint(0, 15)
+            b = a + r.randint(1, 5)
+            op = r.choice("aqr")
+            if op == "a":
+                m.addRange(a, b)
+                cells |= set(range(a, b))
+            elif op == "r":
+                m.removeRange(a, b)
+                cells -= set(range(a, b))
+            else:
+                assert m.queryRange(a, b) is (set(range(a, b)) <= cells)
+
+
+@test("Intervals:free-days")
+def _(ns):
+    f = ns["count_days"]
+    assert f(10, [[5, 7], [1, 3], [9, 10]]) == 2 and f(5, [[2, 4], [1, 3]]) == 1 and f(6, [[1, 6]]) == 0
+    r = random.Random(318)
+    for _ in range(200):
+        days = r.randint(1, 15)
+        m = []
+        for _ in range(r.randint(0, 5)):
+            a = r.randint(1, days)
+            m.append([a, r.randint(a, days)])
+        used = {d for a, b in m for d in range(a, b + 1)}
+        assert f(days, [x[:] for x in m]) == days - len(used)
+
+
+@test("Intervals:rectangle")
+def _(ns):
+    f = ns["compute_area"]
+    assert f(-3, 0, 3, 4, 0, -1, 9, 2) == 45 and f(-2, -2, 2, 2, -2, -2, 2, 2) == 16
+    r = random.Random(319)
+    for _ in range(300):
+        def rect():
+            x, y = r.randint(-4, 3), r.randint(-4, 3)
+            return x, y, x + r.randint(1, 5), y + r.randint(1, 5)
+        a, b = rect(), rect()
+        cells = set()
+        for x1, y1, x2, y2 in (a, b):
+            cells |= {(x, y) for x in range(x1, x2) for y in range(y1, y2)}
+        assert f(*a, *b) == len(cells)
+
+
+@test("Intervals:rectangle#Union area of many rectangles")
+def _(ns):
+    f = ns["rectangle_area"]
+    assert f([[0, 0, 2, 2], [1, 0, 2, 3], [1, 0, 3, 1]]) == 6 and f([[0, 0, 1000000000, 1000000000]]) == 49
+    r = random.Random(320)
+    for _ in range(200):
+        rects = []
+        for _ in range(r.randint(1, 5)):
+            x, y = r.randint(0, 6), r.randint(0, 6)
+            rects.append([x, y, x + r.randint(1, 5), y + r.randint(1, 5)])
+        cells = {(x, y) for x1, y1, x2, y2 in rects for x in range(x1, x2) for y in range(y1, y2)}
+        assert f([x[:] for x in rects]) == len(cells)
+
+
+@test("Intervals:rectangle#Projection area of 3-D shapes")
+def _(ns):
+    f = ns["projection_area"]
+    assert f([[1, 2], [3, 4]]) == 17 and f([[2]]) == 5 and f([[1, 0], [0, 2]]) == 8
+    r = random.Random(321)
+    for _ in range(200):
+        g = _grid(r, r.randint(1, 4), r.randint(1, 4), [0, 1, 2, 3])
+        vox = {(i, j, k) for i, row in enumerate(g) for j, v in enumerate(row) for k in range(v)}
+        want = len({(i, j) for i, j, _ in vox}) + len({(i, k) for i, _, k in vox}) + len({(j, k) for _, j, k in vox})
+        assert f([row[:] for row in g]) == want
+
+
+@test("Intervals:offline-queries")
+def _(ns):
+    f = ns["min_interval"]
+    assert f([[1, 4], [2, 4], [3, 6], [4, 4]], [2, 3, 4, 5]) == [3, 3, 1, 4]
+    assert f([[2, 3], [2, 5], [1, 8], [20, 25]], [2, 19, 5, 22]) == [2, -1, 4, 6]
+    r = random.Random(322)
+    for _ in range(200):
+        iv = []
+        for _ in range(r.randint(1, 6)):
+            a = r.randint(1, 12)
+            iv.append([a, a + r.randint(0, 6)])
+        q = [r.randint(1, 20) for _ in range(r.randint(1, 6))]
+        want = [min([b - a + 1 for a, b in iv if a <= x <= b] or [-1]) for x in q]
+        assert f([x[:] for x in iv], q[:]) == want
+
+
+@test("Intervals:circular")
+def _(ns):
+    f = ns["find_min_difference"]
+    assert f(["23:59", "00:00"]) == 1 and f(["00:00", "23:59", "00:00"]) == 0
+    r = random.Random(323)
+    for _ in range(200):
+        pts = ["%02d:%02d" % (r.randint(0, 23), r.randint(0, 59)) for _ in range(r.randint(2, 6))]
+        mins = [int(p[:2]) * 60 + int(p[3:]) for p in pts]
+        want = min(min(abs(a - b), 1440 - abs(a - b)) for a, b in _it.combinations(mins, 2))
+        assert f(pts[:]) == want
+
+
+@test("Intervals:circular#Visible points (window of angles)")
+def _(ns):
+    f = ns["visible_points"]
+    assert f([[2, 1], [2, 2], [3, 3]], 90, [1, 1]) == 3 and f([[2, 1], [2, 2], [3, 4], [1, 1]], 90, [1, 1]) == 4
+    r = random.Random(324)
+    import math
+    for _ in range(200):
+        pts = [[r.randint(-4, 4), r.randint(-4, 4)] for _ in range(r.randint(1, 7))]
+        loc = [r.randint(-2, 2), r.randint(-2, 2)]
+        ang = r.choice([0, 30, 45, 90, 135, 180, 270])
+        here = sum(1 for p in pts if p == loc)
+        dirs = [math.degrees(math.atan2(p[1] - loc[1], p[0] - loc[0])) % 360 for p in pts if p != loc]
+        best = 0
+        for a in dirs:
+            best = max(best, sum(1 for d in dirs if (d - a) % 360 <= ang + 1e-7 or (d - a) % 360 >= 360 - 1e-7))
+        assert f([p[:] for p in pts], ang, loc[:]) == best + here, (pts, loc, ang)
+
+
+@test("Intervals:next-start")
+def _(ns):
+    f = ns["find_right_interval"]
+    assert f([[1, 2]]) == [-1] and f([[3, 4], [2, 3], [1, 2]]) == [-1, 0, 1] and f([[1, 4], [2, 3], [3, 4]]) == [-1, 2, -1]
+    r = random.Random(325)
+    for _ in range(200):
+        starts = r.sample(range(0, 20), r.randint(1, 6))
+        iv = [[s, s + r.randint(0, 6)] for s in starts]
+        want = []
+        for _, e in iv:
+            c = [(s, i) for i, (s, _) in enumerate(iv) if s >= e]
+            want.append(min(c)[1] if c else -1)
+        assert f([x[:] for x in iv]) == want
+
+
+@test("Intervals:from-data")
+def _(ns):
+    f = ns["summary_ranges"]
+    assert f([0, 1, 2, 4, 5, 7]) == ["0->2", "4->5", "7"] and f([]) == [] and f([-1]) == ["-1"]
+    r = random.Random(326)
+    for _ in range(200):
+        nums = sorted(r.sample(range(-5, 15), r.randint(0, 10)))
+        out = f(nums[:])
+        got = []
+        for s in out:
+            if "->" in s:
+                a, b = map(int, s.split("->"))
+                got += list(range(a, b + 1))
+            else:
+                got.append(int(s))
+        assert got == nums
+        assert len(out) == sum(1 for i, x in enumerate(nums) if i == 0 or nums[i - 1] != x - 1)
+
+
+@test("Intervals:from-data#Add bold tags (mark, then merge runs)")
+def _(ns):
+    f = ns["add_bold_tag"]
+    assert f("abcxyz123", ["abc", "123"]) == "<b>abc</b>xyz<b>123</b>" and f("aaabbcc", ["aaa", "aab", "bc"]) == "<b>aaabbc</b>c"
+    r = random.Random(327)
+    for _ in range(200):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 10)))
+        words = ["".join(r.choice("abc") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 3))]
+        mark = [any(s.startswith(w, i) for w in words for i in range(max(0, k - len(w) + 1), k + 1)) for k in range(len(s))]
+        want, k = "", 0
+        while k < len(s):
+            if mark[k]:
+                j = k
+                while j < len(s) and mark[j]:
+                    j += 1
+                want += "<b>" + s[k:j] + "</b>"
+                k = j
+            else:
+                want += s[k]
+                k += 1
+        assert f(s, words[:]) == want, (s, words)
+
+
+@test("Intervals:from-data#Smallest range covering k lists (heap)")
+def _(ns):
+    f = ns["smallest_range"]
+    assert f([[4, 10, 15, 24, 26], [0, 9, 12, 20], [5, 18, 22, 30]]) == [20, 24] and f([[1, 2, 3], [1, 2, 3], [1, 2, 3]]) == [1, 1]
+    r = random.Random(328)
+    for _ in range(200):
+        lists = [sorted(r.sample(range(0, 20), r.randint(1, 5))) for _ in range(r.randint(1, 4))]
+        best = None
+        for lo in sorted({x for l in lists for x in l}):
+            if all(any(x >= lo for x in l) for l in lists):
+                hi = max(min(x for x in l if x >= lo) for l in lists)
+                if best is None or hi - lo < best[1] - best[0]:
+                    best = [lo, hi]
+        assert f([l[:] for l in lists]) == best, lists
+
+
+@test("Intervals:weighted-k")
+def _(ns):
+    f = ns["max_value"]
+    assert f([[1, 2, 4], [3, 4, 3], [2, 3, 1]], 2) == 7 and f([[1, 2, 4], [3, 4, 3], [2, 3, 10]], 2) == 10 and f([[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4]], 3) == 9
+    r = random.Random(329)
+    for _ in range(200):
+        ev = []
+        for _ in range(r.randint(1, 7)):
+            a = r.randint(1, 10)
+            ev.append([a, a + r.randint(0, 3), r.randint(1, 9)])
+        k = r.randint(1, 3)
+        best = max(sum(e[2] for e in c) for j in range(k + 1) for c in _it.combinations(ev, j)
+                   if all(a[1] < b[0] or b[1] < a[0] for a, b in _it.combinations(c, 2)))
+        assert f([e[:] for e in ev], k) == best, (ev, k)

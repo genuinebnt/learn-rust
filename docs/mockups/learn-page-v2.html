@@ -104,39 +104,105 @@ pre{margin:0;padding:14px 16px;background:var(--bg);border:1px solid var(--line2
 .sticky{position:sticky;top:12px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;padding:9px 14px;border-top:1px solid var(--line2);font-size:11.5px;color:var(--dim)}
 @media(max-width:1000px){.shell{grid-template-columns:1fr}.side{position:static;max-height:none}.work{grid-template-columns:1fr}.sticky{position:static}}
+
+/* ---- bold boxy grid ---- */
+:root{--bw:2px;--edge:var(--fg)}
+:root[data-theme="light"]{--edge:var(--fg)}
+*{border-radius:0 !important}
+body{font-family:var(--mono)}
+h1{font-size:34px;text-transform:uppercase;letter-spacing:-.02em}
+.stats{gap:0;border:var(--bw) solid var(--edge)}
+.stat{border:0;border-right:var(--bw) solid var(--edge);background:var(--panel);padding:10px 18px}
+.stat:last-child{border-right:0}
+.stat b{font-size:26px}
+.fbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));border:var(--bw) solid var(--edge);margin:18px 0 22px;background:var(--panel)}
+.fbar>*{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px 10px;margin:-1px -1px 0 0}
+.fbar .search{height:auto;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);grid-column:1/-1;background:var(--bg);color:var(--mut);font:600 13px var(--mono);padding:12px 14px}
+.fg{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.fg>span{flex-basis:100%;font:700 9.5px var(--mono);letter-spacing:.2em;color:var(--dim)}
+.fg button{height:26px;padding:0 9px;border:1px solid var(--line);font:700 10.5px var(--mono);letter-spacing:.04em;color:var(--mut)}
+.fg button:hover{border-color:var(--fg);color:var(--fg)}
+.fg button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.fg.end{grid-column:1/-1}
+.sec h2{font:800 14px var(--mono);letter-spacing:.12em;color:var(--fg);border-bottom:var(--bw) solid var(--edge);padding-bottom:6px}
+.sec h2 small{color:var(--dim)}
+.tiles{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:0;border:var(--bw) solid var(--edge);border-right:0;border-bottom:0}
+.tile{border:0;border-right:var(--bw) solid var(--edge);border-bottom:var(--bw) solid var(--edge);padding:0;gap:0;background:var(--panel);min-height:112px;justify-content:space-between;transform:none !important}
+.tile:hover{background:var(--fg);color:var(--bg)}
+.tile:hover .meta,.tile:hover .meta span{color:var(--bg)}
+.tile h3{padding:12px 14px;font:800 14px/1.25 var(--mono);text-transform:uppercase}
+.tile .meta{padding:8px 14px;border-top:1px solid var(--line);background:var(--bg);justify-content:space-between}
+.tile:hover .meta{background:transparent}
+.tag{border-width:1.5px;font-weight:800}
+.pips i{height:8px;width:12px;border-radius:0}
+.names{border:var(--bw) dashed var(--line)}
+.shell{gap:0;margin-top:0;border:var(--bw) solid var(--edge)}
+.side{position:sticky;border:0;border-right:var(--bw) solid var(--edge);padding:0;background:var(--panel)}
+.side .g{background:var(--fg);color:var(--bg);padding:6px 10px;margin:0;font-weight:800}
+.side a{padding:8px 10px;border-bottom:1px solid var(--line);font:700 12px var(--mono);text-transform:uppercase}
+.side a.on{background:var(--acc);color:var(--on-acc)}
+.side a.on span{color:var(--on-acc)}
+.side .back{background:var(--bg);color:var(--fg);border-bottom:var(--bw) solid var(--edge)}
+main{padding:16px}
+.dh h2{font:800 26px var(--mono);text-transform:uppercase}
+.nav button{border:var(--bw) solid var(--edge);height:34px;font:800 11px var(--mono)}
+.work{gap:0;margin-top:14px;border:var(--bw) solid var(--edge)}
+.pane{border:0;background:var(--panel)}
+.work .pane+.pane{border-left:var(--bw) solid var(--edge)}
+.ph{background:var(--fg);color:var(--bg);border-bottom:var(--bw) solid var(--edge);font-weight:800;padding:8px 14px}
+.ph .lang{background:transparent;border-color:var(--bg)}
+.ph .lang button{color:var(--bg);font-weight:800}
+.ph .lang button.on{background:var(--bg);color:var(--fg)}
+.tabs button{border:1px solid var(--line);font-weight:800}
+.tabs button.on{background:var(--acc);color:var(--on-acc);border-color:var(--acc)}
+pre{border:var(--bw) solid var(--edge);background:var(--bg)}
+.pf{display:none}
+.prow{grid-template-columns:34px minmax(0,1fr);padding:0;gap:0;border-bottom:var(--bw) solid var(--edge)}
+.prow>:first-child{display:grid;place-items:center;border-right:1px solid var(--line);background:var(--bg)}
+.prow>:last-child{padding:10px 12px}
+.prow.out{border-left:0;padding:0;background:repeating-linear-gradient(135deg,transparent 0 6px,var(--raise) 6px 7px)}
+.prow:hover{background:var(--raise)}
+.pt{font:700 13px var(--mono)}
+.legend{font:600 10.5px var(--mono);border-top:var(--bw) solid var(--edge)}
 </style>
 </head>
 <body>
-<div class="note"><b>Mockup · Learn page v2</b> · two views of the same page: <b>Overview</b> (every technique of the topic as a tile, grouped) and <b>Technique</b> (one technique at a time: implementation left, problems right). Use the buttons below to switch. Implementation pane has a <b>language switch</b>: Python today, Rust is a disabled placeholder so the layout and (later) the data model need no change when Rust patterns arrive.</div>
+<div class="note"><b>Mockup · Learn v2</b> · boxy grid · full filters · no prose. Python / Rust switch in the implementation pane.</div>
 <div class="bar"><span>VIEW</span><button id="b1" class="on" onclick="show('o')">Overview</button><button id="b2" onclick="show('d')">Technique</button><span style="margin-left:18px">THEME</span><button onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='light'?'dark':'light'">Toggle</button></div>
 <div class="page">
 <div class="top">
  <div><div class="eyebrow">LEARN · BACKTRACKING</div><h1>Backtracking</h1></div>
  <div class="stats"><div class="stat"><b>37</b><span>TECHNIQUES</span></div><div class="stat"><b>118</b><span>PROBLEMS</span></div><div class="stat m"><b>31</b><span>MUST SOLVE</span></div><div class="stat"><b>12 / 41</b><span>IN NEETCODE</span></div></div>
 </div>
-<div class="tools">
- <div class="search">⌕ Find a technique, a problem or a company… <kbd>/</kbd></div>
- <div class="seg"><button class="on">All</button><button>Has MUST</button><button>Not started</button></div>
- <div class="seg" title="language of the implementations"><button class="on">Python</button><button disabled style="opacity:.45">Rust · soon</button></div>
+<div class="fbar">
+ <div class="search">⌕ Search technique, problem, company <kbd>/</kbd></div>
+ <div class="fg"><span>PRIORITY</span><button class="on">ALL</button><button>MUST</button><button>STRONG</button><button>PRACTICE</button><button>WARM-UP</button></div>
+ <div class="fg"><span>LIST</span><button class="on">ALL</button><button>BLIND 75</button><button>NC 150</button><button>NC 250</button><button>NC ALL</button><button>NONE</button></div>
+ <div class="fg"><span>LEVEL</span><button class="on">ALL</button><button>EASY</button><button>MED</button><button>HARD</button></div>
+ <div class="fg"><span>STATE</span><button class="on">ALL</button><button>TODO</button><button>PARTLY</button><button>DONE</button><button>DUE</button></div>
+ <div class="fg"><span>COMPANY</span><button>ANY ▾</button></div>
+ <div class="fg"><span>TOPIC</span><button>ANY ▾</button></div>
+ <div class="fg"><span>RECENT</span><button>6 MONTHS</button></div>
+ <div class="fg"><span>LANG</span><button class="on">PYTHON</button><button disabled style="opacity:.4">RUST</button></div>
+ <div class="fg end"><span>SORT</span><button class="on">LEARN ORDER</button><button>PROBLEMS</button><button>MUST</button></div>
 </div>
-
 <div id="ov">
  <div class="sec"><h2>SUBSETS, COMBINATIONS AND PERMUTATIONS <small>6 techniques</small></h2>
   <div class="tiles">
-   <a class="tile" onclick="show('d')"><h3>Include or exclude each item</h3><div class="sig">Every subset of a list; each item is either in the answer or not.</div><div class="meta"><span class="tag t-must">3 MUST</span><span>5 problems</span><span class="pips"><i class="d"></i><i class="d"></i><i class="p"></i><i></i><i></i></span></div></a>
-   <a class="tile" onclick="show('d')"><h3>Combinations of k items</h3><div class="sig">Choose exactly k of n, in any order, with no repeats.</div><div class="meta"><span class="tag t-str">1 STRONG</span><span>4 problems</span><span class="pips"><i></i><i></i><i></i><i></i></span></div></a>
-   <a class="tile" onclick="show('d')"><h3>Permutations</h3><div class="sig">Every ordering; a used-flag per item and undo after the call.</div><div class="meta"><span class="tag t-must">2 MUST</span><span>5 problems</span><span class="pips"><i class="d"></i><i></i><i></i><i></i><i></i></span></div></a>
-   <a class="tile" onclick="show('d')"><h3>Reuse an item (combination sum)</h3><div class="sig">An item may be taken again: recurse with the same start index.</div><div class="meta"><span class="tag t-must">2 MUST</span><span>4 problems</span><span class="pips"><i></i><i></i><i></i><i></i></span></div></a>
-   <a class="tile" onclick="show('d')"><h3>Skip duplicates</h3><div class="sig">Sort, then skip an equal value at the same depth.</div><div class="meta"><span class="tag t-str">2 STRONG</span><span>4 problems</span><span class="pips"><i></i><i></i><i></i><i></i></span></div></a>
-   <a class="tile" onclick="show('d')"><h3>Arrangements of a multiset</h3><div class="sig">Branch over distinct values with counts, not positions.</div><div class="meta"><span class="tag t-pra">PRACTICE</span><span>2 problems</span><span class="pips"><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Include or exclude each item</h3><div class="meta"><span class="tag t-must">3 MUST</span><span>5 problems</span><span class="pips"><i class="d"></i><i class="d"></i><i class="p"></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Combinations of k items</h3><div class="meta"><span class="tag t-str">1 STRONG</span><span>4 problems</span><span class="pips"><i></i><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Permutations</h3><div class="meta"><span class="tag t-must">2 MUST</span><span>5 problems</span><span class="pips"><i class="d"></i><i></i><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Reuse an item (combination sum)</h3><div class="meta"><span class="tag t-must">2 MUST</span><span>4 problems</span><span class="pips"><i></i><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Skip duplicates</h3><div class="meta"><span class="tag t-str">2 STRONG</span><span>4 problems</span><span class="pips"><i></i><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Arrangements of a multiset</h3><div class="meta"><span class="tag t-pra">PRACTICE</span><span>2 problems</span><span class="pips"><i></i><i></i></span></div></a>
   </div></div>
  <div class="sec"><h2>CONSTRAINT SATISFACTION <small>5 techniques</small></h2>
   <div class="tiles">
-   <a class="tile" onclick="show('d')"><h3>N-Queens</h3><div class="sig">Place pieces row by row; sets for columns and both diagonals.</div><div class="meta"><span class="tag t-must">1 MUST</span><span>3 problems</span><span class="pips"><i class="d"></i><i></i><i></i></span><span class="tag">2 VERSIONS</span></div></a>
-   <a class="tile" onclick="show('d')"><h3>Sudoku</h3><div class="sig">Row, column and box sets; fill the most constrained cell first.</div><div class="meta"><span class="tag t-str">2 STRONG</span><span>3 problems</span><span class="pips"><i></i><i></i><i></i></span></div></a>
-   <a class="tile" onclick="show('d')"><h3>Fill slots under a rule</h3><div class="sig">Each position accepts only some values; fill the tightest first.</div><div class="meta"><span class="tag t-pra">PRACTICE</span><span>3 problems</span><span class="pips"><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>N-Queens</h3><div class="meta"><span class="tag t-must">1 MUST</span><span>3 problems</span><span class="pips"><i class="d"></i><i></i><i></i></span><span class="tag">2 VERSIONS</span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Sudoku</h3><div class="meta"><span class="tag t-str">2 STRONG</span><span>3 problems</span><span class="pips"><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Fill slots under a rule</h3><div class="meta"><span class="tag t-pra">PRACTICE</span><span>3 problems</span><span class="pips"><i></i><i></i><i></i></span></div></a>
   </div></div>
- <details class="names"><summary>▸ OTHER TECHNIQUES OF THIS TOPIC (46) · no LeetCode problem is attached to them</summary><ul><li>Alpha-beta pruning and move ordering</li><li>Exact cover: Algorithm X / dancing links</li><li>A* / IDA* with an admissible heuristic</li><li>Heap's algorithm</li><li>Iterative deepening</li></ul></details>
+ <details class="names"><summary>▸ NO PROBLEM YET (46)</summary><ul><li>Alpha-beta pruning and move ordering</li><li>Exact cover: Algorithm X / dancing links</li><li>A* / IDA* with an admissible heuristic</li><li>Heap's algorithm</li><li>Iterative deepening</li></ul></details>
 </div>
 
 <div id="dt" class="detail">
@@ -158,7 +224,7 @@ pre{margin:0;padding:14px 16px;background:var(--bg);border:1px solid var(--line2
      <div class="ph"><span>IMPLEMENTATION</span><span class="sp"></span><div class="lang"><button class="on">Python</button><button disabled title="Rust implementations are planned">Rust · soon</button></div></div>
      <div class="pb">
       <div><div class="eyebrow" style="margin-bottom:6px">USE IT WHEN</div><div class="when"><span>the answer is every subset, or the best one under a rule</span><span>each item is simply in or out</span><span>n is small (about 20 or fewer)</span></div></div>
-      <div><div class="tabs"><button class="on">INCLUDE / EXCLUDE</button><button>START INDEX</button><button>BITMASK</button></div><p class="tabnote" style="margin-top:6px">Decide item i: take it, recurse, undo, then skip it and recurse.</p></div>
+      <div><div class="tabs"><button class="on">INCLUDE / EXCLUDE</button><button>START INDEX</button><button>BITMASK</button></div></div>
 <pre><span class="kw">def</span> <span class="fn">subsets</span>(nums):
     out, path = [], []
 
@@ -179,12 +245,12 @@ pre{margin:0;padding:14px 16px;background:var(--bg);border:1px solid var(--line2
     <section class="pane sticky">
      <div class="ph"><span>PROBLEMS · 5</span><span class="sp"></span></div>
      <div class="pf"><button class="on">All 5</button><button>Must 3</button><button>In NeetCode 2</button><button>Not solved 3</button></div>
-     <div class="prow"><div class="st d"></div><div><div class="pt">Subsets<small>#78</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-must">MUST</span><span class="tag t-list">BLIND 75</span><span class="tag t-sol">SOLUTION</span><span class="co">Amazon · Meta · Google +4</span></div></div></div>
-     <div class="prow"><div class="st p"></div><div><div class="pt">Subsets II<small>#90</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-str">STRONG</span><span class="tag t-list">NEETCODE 150</span><span class="tag t-sol">SOLUTION</span><span class="co">Meta · Microsoft +2</span></div></div></div>
-     <div class="prow out"><div class="st"></div><div><div class="pt">Maximum length of a concatenated string with unique characters<small>#1239</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-must">MUST</span><span class="tag t-war" style="display:none"></span><span class="co">Amazon · Bloomberg +3</span></div></div></div>
-     <div class="prow out"><div class="st"></div><div><div class="pt">The number of beautiful subsets<small>#2597</small></div><div class="tg"><span class="tag t-h">HARD</span><span class="tag t-pra">PRACTICE</span><span class="tag">RECENT</span><span class="co">Google +1</span></div></div></div>
-     <div class="prow out"><div class="st"></div><div><div class="pt">Count number of maximum bitwise-or subsets<small>#2044</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-pra">PRACTICE</span><span class="co">Amazon +1</span></div></div></div>
-     <div class="legend"><span>● solved</span><span>◐ partly</span><span>○ not yet</span><span>┆ dashed = not in a NeetCode list (tracked, not counted in completion)</span></div>
+     <div class="prow"><div><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="var(--grn)" stroke="var(--grn)" stroke-width="1.8"/><path d="M7.2 12.4l3.2 3.2 6.4-6.8" stroke="var(--on-acc)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><div class="pt">Subsets<small>#78</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-must">MUST</span><span class="tag t-list">BLIND 75</span><span class="tag t-sol">SOLUTION</span><span class="co">Amazon · Meta · Google +4</span></div></div></div>
+     <div class="prow"><div><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="var(--grn)" stroke-width="1.8" fill="var(--grn-bg)"/><path d="M12 2a10 10 0 0 0 0 20z" fill="var(--grn)"/></svg></div><div><div class="pt">Subsets II<small>#90</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-str">STRONG</span><span class="tag t-list">NEETCODE 150</span><span class="tag t-sol">SOLUTION</span><span class="co">Meta · Microsoft +2</span></div></div></div>
+     <div class="prow out"><div><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 3.4" opacity=".7"/></svg></div><div><div class="pt">Maximum length of a concatenated string with unique characters<small>#1239</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-must">MUST</span><span class="tag t-war" style="display:none"></span><span class="co">Amazon · Bloomberg +3</span></div></div></div>
+     <div class="prow out"><div><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 3.4" opacity=".7"/></svg></div><div><div class="pt">The number of beautiful subsets<small>#2597</small></div><div class="tg"><span class="tag t-h">HARD</span><span class="tag t-pra">PRACTICE</span><span class="tag">RECENT</span><span class="co">Google +1</span></div></div></div>
+     <div class="prow out"><div><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 3.4" opacity=".7"/></svg></div><div><div class="pt">Count number of maximum bitwise-or subsets<small>#2044</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-pra">PRACTICE</span><span class="co">Amazon +1</span></div></div></div>
+     <div class="legend"><span>● DONE</span><span>◐ PARTLY</span><span>○ TODO</span><span>▨ NOT IN A LIST</span></div>
     </section>
    </div>
   </main>

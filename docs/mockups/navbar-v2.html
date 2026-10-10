@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Navbar v2: a two-tier header (mockup)</title>
+<style>
+:root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--vio:oklch(0.72 0.13 290);--grn:oklch(0.77 0.13 165);--shadow:oklch(0 0 0 / 0.35);--mono:'JetBrains Mono',ui-monospace,Menlo,monospace;--sans:'Plus Jakarta Sans',system-ui,sans-serif;--ease:cubic-bezier(.22,1,.36,1);color-scheme:dark}
+:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.54 0.13 50);--vio:oklch(0.52 0.17 290);--grn:oklch(0.515 0.12 165);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+a{color:inherit;text-decoration:none}button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
+/* mockup chrome */
+.lab{position:sticky;top:0;z-index:100;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 24px;background:oklch(0.12 0.01 255);color:oklch(0.8 0.01 255);font:500 11px var(--mono);letter-spacing:.08em}
+.lab b{color:var(--grn);letter-spacing:.16em}.lab .sp{flex:1}
+.lab button{border:1px solid oklch(0.35 0.014 255);border-radius:5px;padding:5px 10px;color:oklch(0.85 0.01 255);transition:border-color .2s,transform .15s var(--ease)}
+.lab button:hover{border-color:oklch(0.6 0.02 255)}.lab button.on{border-color:var(--grn);color:var(--grn)}
+.cap{margin:22px 24px 8px;font:500 11px var(--mono);letter-spacing:.22em;color:var(--dim)}.cap b{color:var(--grn);font-weight:500}
+.stage{margin:0 24px;border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:var(--bg);container-type:inline-size;max-width:var(--w,100%);transition:max-width .4s var(--ease)}
+.scroller{height:470px;overflow:auto;position:relative}
+.note{margin:28px 24px;max-width:880px;color:var(--mut);font-size:14px}.note h3{margin:26px 0 8px;font:500 11px var(--mono);letter-spacing:.22em;color:var(--dim)}.note li{margin:6px 0}
+.page{padding:34px 28px 140px;max-width:900px;margin:0 auto}.page h2{margin:0 0 10px;font-size:26px;letter-spacing:-.02em}.page p{color:var(--mut);max-width:60ch}
+.page .row{height:74px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);margin:12px 0}
+
+/* ================= THE HEADER ================= */
+.hdr{position:sticky;top:0;z-index:30;background:color-mix(in oklab,var(--bg) 88%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(10px);backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line2)}
+/* tier 1: who and where in the product */
+.t1{height:58px;display:flex;align-items:center;gap:20px;padding:0 20px}
+.logo{display:flex;align-items:center;gap:10px;flex:none;padding:4px 6px;margin-left:-6px;border-radius:8px}
+.logo .mk{display:grid;grid-template-columns:repeat(2,6px);gap:2px;transition:transform .5s var(--ease)}
+.logo .mk span{width:6px;height:6px;border-radius:1px;transition:border-radius .3s,transform .45s var(--ease)}
+.logo:hover .mk{transform:rotate(90deg)}.logo:hover .mk span{border-radius:50%}
+.logo b{font:500 13px var(--mono)}.logo b i{font-style:normal;color:var(--dim)}
+/* the area switcher: three real segments, each with its own progress */
+.areas{position:relative;display:flex;padding:3px;border:1px solid var(--line2);border-radius:12px;background:var(--panel);flex:none}
+.areas .thumb{position:absolute;top:3px;bottom:3px;left:0;border-radius:9px;background:var(--fg);width:var(--tw,0);transform:translateX(var(--tx,0));transition:transform .4s var(--ease),width .4s var(--ease)}
+.areas .thumb::after{content:"";position:absolute;left:24%;right:24%;bottom:3px;height:2px;border-radius:2px;background:var(--tc,var(--acc));transition:background .3s}
+.areas a{position:relative;z-index:1;display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 14px 2px;border-radius:9px;font:600 12.5px var(--mono);color:var(--mut);transition:color .25s}
+.areas a:hover{color:var(--fg)}.areas a.on{color:var(--bg)}
+.ring{width:18px;height:18px;flex:none;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:2.6}.ring .bg{stroke:currentColor;opacity:.22}.ring .fg{stroke:var(--c);stroke-linecap:round;stroke-dasharray:50.3;stroke-dashoffset:calc(50.3 * (1 - var(--p)));transition:stroke-dashoffset .8s var(--ease)}
+.areas a.on .ring .fg{stroke:var(--bg)}
+.areas small{font:500 10.5px var(--mono);opacity:.7}
+/* the search field: the one thing you do from anywhere */
+.search{flex:1;min-width:0;max-width:440px;margin:0 auto;height:36px;display:flex;align-items:center;gap:10px;padding:0 12px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);color:var(--dim);font:500 12.5px var(--mono);transition:border-color .2s,box-shadow .25s,background .2s}
+.search:hover{border-color:var(--line);color:var(--mut)}.search svg{width:15px;height:15px;flex:none}
+.search span{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.search kbd{font:500 10px var(--mono);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;background:var(--bg)}
+.r{display:flex;align-items:center;gap:8px;flex:none}
+.cta{position:relative;overflow:hidden;height:34px;display:inline-flex;align-items:center;gap:8px;padding:0 14px;border-radius:9px;background:var(--fg);color:var(--bg);font:600 12px var(--mono);transition:transform .2s var(--ease),box-shadow .25s}
+.cta::after{content:"";position:absolute;top:0;bottom:0;width:46px;left:-70px;background:linear-gradient(100deg,transparent,color-mix(in oklab,var(--bg) 45%,transparent),transparent);transform:skewX(-18deg)}
+.cta:hover{transform:translateY(-1px);box-shadow:0 8px 22px -10px var(--fg)}.cta:hover::after{animation:shine .8s var(--ease)}.cta:active{transform:scale(.97)}
+.cta small{font:500 11px var(--mono);opacity:.7}
+@keyframes shine{to{left:115%}}
+.ib{position:relative;width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line2);border-radius:10px;transition:border-color .2s,transform .18s var(--ease),background .2s}
+.ib:hover{border-color:var(--line);background:var(--raise);transform:translateY(-1px)}.ib:active{transform:scale(.94)}
+.ib svg{width:15px;height:15px}
+.thm .sun{position:absolute;transform:rotate(-90deg) scale(.4);opacity:0;transition:transform .5s var(--ease),opacity .3s}
+.thm .moon{position:absolute;transition:transform .5s var(--ease),opacity .3s}
+:root[data-theme="light"] .thm .sun{transform:none;opacity:1}:root[data-theme="light"] .thm .moon{transform:rotate(90deg) scale(.4);opacity:0}
+.av{width:34px;height:34px;border-radius:50%;border:1px solid var(--acc);display:grid;place-items:center;font:600 11px var(--mono);color:var(--acc);transition:box-shadow .25s}
+.av:hover{box-shadow:0 0 0 4px color-mix(in oklab,var(--acc) 18%,transparent)}
+
+/* tier 2: what you can do in this area (it changes with the area) */
+.t2{height:44px;display:flex;align-items:center;gap:14px;padding:0 20px;overflow:hidden;transition:height .35s var(--ease),opacity .25s;border-top:1px solid var(--line2)}
+.hdr.tuck .t2{height:0;opacity:0;border-top-color:transparent}
+.crumb{display:flex;align-items:center;gap:8px;flex:none;font:500 12px var(--mono);color:var(--dim);white-space:nowrap}
+.crumb i{font-style:normal;color:var(--line)}.crumb b{color:var(--fg);font-weight:500}
+.tabs{position:relative;display:flex;align-items:stretch;height:100%;gap:2px;min-width:0;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tabs .ink{position:absolute;left:0;bottom:0;height:2px;border-radius:2px;width:var(--iw,0);transform:translateX(var(--ix,0));background:var(--tc,var(--acc));transition:transform .38s var(--ease),width .38s var(--ease),background .3s;pointer-events:none}
+.tabs a{position:relative;display:inline-flex;align-items:center;gap:8px;padding:0 13px;font:500 12px var(--mono);color:var(--dim);white-space:nowrap;transition:color .2s}
+.tabs a:hover,.tabs a.on{color:var(--fg)}
+.tabs .n{font:600 10px var(--mono);padding:1px 6px;border-radius:999px;background:var(--raise);color:var(--mut)}
+.tabs .n.hot{background:var(--fg);color:var(--bg)}
+.tabs .later{display:inline-flex;align-items:center;padding:0 13px;font:500 12px var(--mono);color:var(--line);cursor:default}
+.t2 .sp{flex:1}
+.chips{display:flex;gap:8px;flex:none}
+.chip{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px;border:1px solid var(--line2);border-radius:999px;font:500 11px var(--mono);color:var(--mut);white-space:nowrap}
+.chip b{color:var(--fg);font-weight:600}
+.chip.beyond{color:var(--vio);border-color:color-mix(in oklab,var(--vio) 45%,transparent)}
+.pane{display:none}.pane.on{display:contents}
+
+/* phone: the three areas move to a bottom bar (thumb reach), the top bar keeps logo, search and account */
+.dock{display:none}
+@container (max-width:900px){
+  .t1{gap:10px;padding:0 14px}.logo b i{display:none}
+  .t1 .areas{display:none}.search{max-width:none;margin:0}.search kbd,.cta small,.t1 .cta .lbl{display:none}.cta{width:34px;padding:0;justify-content:center}
+  .t2{padding:0 6px;gap:6px}.crumb{display:none}.chips{display:none}
+  .dock{display:flex;position:sticky;bottom:0;z-index:30;justify-content:space-around;padding:6px 10px calc(6px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line2);background:color-mix(in oklab,var(--bg) 92%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  .dock a{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:84px;padding:6px 10px;border-radius:12px;font:600 10.5px var(--mono);color:var(--dim);transition:color .2s,background .25s}
+  .dock a.on{color:var(--bg);background:var(--fg)}
+  .dock a.on::after{content:"";position:absolute;left:30%;right:30%;bottom:3px;height:2px;border-radius:2px;background:var(--c)}
+  .dock .ring{width:20px;height:20px}.dock .ring .fg{stroke:var(--c)}.dock a.on .ring .fg{stroke:var(--bg)}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="lab"><b>NAVBAR V2 MOCKUP</b><span>Try it: switch area, switch tabs, scroll the page (the second row tucks away going down and returns going up), phone width, press <kbd style="font:inherit;border:1px solid oklch(0.35 0.014 255);border-radius:4px;padding:0 5px">1</kbd> <kbd style="font:inherit;border:1px solid oklch(0.35 0.014 255);border-radius:4px;padding:0 5px">2</kbd> <kbd style="font:inherit;border:1px solid oklch(0.35 0.014 255);border-radius:4px;padding:0 5px">3</kbd></span><span class="sp"></span><button id="bTheme">THEME</button><button id="bPhone">PHONE WIDTH</button></div>
+
+<div class="cap">NOW <b>(one flat row of ten items, no sense of place, utilities mixed with pages)</b></div>
+<div class="stage" style="--w:100%"><div style="height:52px;display:flex;align-items:center;gap:30px;padding:0 24px;font:500 12px var(--mono);overflow:hidden;white-space:nowrap"><b style="font-weight:500;font-size:13px">anneal<span style="color:var(--dim)">.genuinebasil.dev</span></b><span style="color:var(--acc)">DSA</span><span style="color:var(--vio);box-shadow:inset 0 -1px 0 currentColor">Rust</span><span style="color:var(--grn)">Courses</span><span style="color:var(--line)">|</span><span style="color:var(--line)">Library</span><span style="color:var(--dim)">Calendar</span><span style="color:var(--dim)">Mock interview</span><span style="color:var(--dim)">Progress</span><span style="color:var(--line)">Readiness</span><span style="margin-left:auto;color:var(--dim)">SOLVED 47</span></div></div>
+
+<div class="cap">PROPOSED <b>(two tiers: where am I, then what can I do here)</b></div>
+<div class="stage" id="frame">
+  <div class="scroller" id="sc">
+    <header class="hdr" id="hdr">
+      <div class="t1">
+        <a class="logo" href="#" aria-label="anneal home"><span class="mk"><span style="background:var(--acc)"></span><span style="background:var(--vio)"></span><span style="background:var(--grn)"></span><span style="box-shadow:inset 0 0 0 1px var(--line)"></span></span><b>anneal<i>.genuinebasil.dev</i></b></a>
+        <nav class="areas" id="areas" aria-label="Areas">
+          <span class="thumb" id="thumb"></span>
+        </nav>
+        <button class="search" id="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span>Search tracks, stages, concepts, problems…</span><kbd>⌘K</kbd></button>
+        <div class="r">
+          <a class="cta" href="#"><span class="lbl">Continue</span><small>3i-04 · LIKE</small><span>→</span></a>
+          <button class="ib" aria-label="Focus timer"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="9" r="5.2"/><path d="M8 6.2V9l2 1.2M6.4 1.8h3.2"/></svg></button>
+          <button class="ib thm" id="thm" aria-label="Toggle theme"><svg class="moon" viewBox="0 0 16 16" fill="currentColor"><path d="M13.5 9.6A6 6 0 0 1 6.4 2.5a6 6 0 1 0 7.1 7.1Z"/></svg><svg class="sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg></button>
+          <button class="av" aria-label="Account">gb</button>
+        </div>
+      </div>
+      <div class="t2" id="t2">
+        <!-- DSA -->
+        <div class="pane on" data-area="dsa"><div class="crumb"><b>DSA</b><i>/</i>Problems</div>
+          <div class="tabs" data-tabs><span class="ink"></span><a class="on" href="#">Problems <span class="n">250</span></a><a href="#">Plan</a><a href="#">Review <span class="n hot">4</span></a><a href="#">Calendar</a><a href="#">Mock interview</a><a href="#">Progress</a></div>
+          <span class="sp"></span><div class="chips"><span class="chip">solved <b>47</b> / 250</span><span class="chip">streak <b>6</b> days</span></div></div>
+        <!-- Rust -->
+        <div class="pane" data-area="rust"><div class="crumb"><b>Rust</b><i>/</i>Tracks</div>
+          <div class="tabs" data-tabs><span class="ink"></span><a class="on" href="#">Tracks <span class="n">14</span></a><a href="#">Progress</a><span class="later" title="Designed; not built yet">Library</span></div>
+          <span class="sp"></span><div class="chips"><span class="chip">problems <b>12</b> / 60</span></div></div>
+        <!-- Courses -->
+        <div class="pane" data-area="courses"><div class="crumb"><b>Courses</b><i>/</i>BusTub<i>/</i><b>3i · The SQL surface</b></div>
+          <div class="tabs" data-tabs><span class="ink"></span><a class="on" href="#">BusTub</a><a href="#">Concepts <span class="n">132</span></a><a href="#">Progress</a><span class="later" title="Designed; not built yet">Readiness</span></div>
+          <span class="sp"></span><div class="chips"><span class="chip">stages <b>82</b> / 300</span><span class="chip beyond">beyond BusTub <b>13</b></span></div></div>
+      </div>
+    </header>
+    <div class="page">
+      <h2>A page to scroll</h2>
+      <p>Going down tucks the second row away so the page gets its height; going up brings it back at once. The first row stays.</p>
+      <div class="row"></div><div class="row"></div><div class="row"></div><div class="row"></div><div class="row"></div><div class="row"></div><div class="row"></div><div class="row"></div><div class="row"></div>
+    </div>
+    <nav class="dock" id="dock" aria-label="Areas"></nav>
+  </div>
+</div>
+
+<div class="note">
+  <h3>WHAT IS DIFFERENT (THE STRUCTURE, NOT ONLY THE LOOK)</h3>
+  <ul>
+    <li><b>Two tiers.</b> The top row answers "where in the product am I": the logo, <b>three areas as one switcher with their own progress rings</b> (the current one is the solid segment, with its section colour as a bar), a <b>wide search field</b> in the middle, and your tools on the right. The second row answers "what can I do here": it changes with the area. Today everything is one row of ten items of different kinds.</li>
+    <li><b>The pages of an area live under that area.</b> Calendar, Mock interview, Review and Plan belong to DSA, so they leave the global row; Progress is shown in each area (it is one page today, filtered later if you want). Library and Readiness stay dimmed in the second row of the area they belong to, instead of sitting in the middle of the main row.</li>
+    <li><b>Context you do not have today:</b> a breadcrumb (Courses / BusTub / 3i), counters as chips (solved, streak, stages, challenges beyond BusTub), a badge on Review for what is due.</li>
+    <li><b>Search is a field, not an icon.</b> ⌘K or <code>/</code> opens the palette; the numbers <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch area.</li>
+    <li><b>Continue</b> keeps the black-and-white button and says where it goes.</li>
+    <li><b>Scrolling:</b> going down tucks the second row away (the page gets its height), going up brings it back.</li>
+    <li><b>Phones:</b> the three areas become a <b>bottom bar</b> (thumb reach), the top row keeps logo, search, Continue as an icon and the account; the tabs scroll sideways as they do now.</li>
+  </ul>
+  <h3>WHAT I NEED FROM YOU</h3>
+  <ul>
+    <li>Is the <b>two-tier structure</b> right? If you would rather keep one row, I can keep the area switcher and the search field and put the area's pages in a menu.</li>
+    <li>Which <b>counters</b> to show as chips (the ones here are examples; real numbers come from the API), and whether Progress stays one global page.</li>
+    <li>The extra buttons (search field, Continue, focus timer) are proposals; none of this is built until you say so.</li>
+  </ul>
+</div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const root=document.documentElement;
+$('#bTheme').onclick=$('#thm').onclick=()=>{root.dataset.theme=root.dataset.theme==='light'?'dark':'light'};
+$('#bPhone').onclick=e=>{const on=e.currentTarget.classList.toggle('on');$('#frame').style.setProperty('--w',on?'390px':'100%');setTimeout(place,450)};
+const A=[
+ {id:'dsa',label:'DSA',c:'var(--acc)',p:.19,n:'47'},
+ {id:'rust',label:'Rust',c:'var(--vio)',p:.2,n:'12'},
+ {id:'courses',label:'Courses',c:'var(--grn)',p:.27,n:'82'}];
+const ring=a=>`<svg class="ring" viewBox="0 0 20 20" style="--c:${a.c};--p:${a.p}"><circle class="bg" cx="10" cy="10" r="8"/><circle class="fg" cx="10" cy="10" r="8"/></svg>`;
+const areas=$('#areas'), dock=$('#dock'), thumb=$('#thumb');
+A.forEach((a,i)=>{
+  areas.insertAdjacentHTML('beforeend',`<a href="#" data-a="${a.id}" style="--c:${a.c}">${ring(a)}${a.label}<small>${a.n}</small></a>`);
+  dock.insertAdjacentHTML('beforeend',`<a href="#" data-a="${a.id}" style="--c:${a.c}">${ring(a)}${a.label}</a>`);
+});
+let cur='dsa';
+function place(){
+  const on=$(`#areas a[data-a=${cur}]`); if(!on||!on.offsetWidth) {return}
+  thumb.style.setProperty('--tx',on.offsetLeft+'px');thumb.style.setProperty('--tw',on.offsetWidth+'px');
+  thumb.style.setProperty('--tc',A.find(a=>a.id===cur).c);
+  $$('[data-tabs]').forEach(t=>t.style.setProperty('--tc',A.find(a=>a.id===cur).c));
+  tabInk();
+}
+function setArea(id){
+  cur=id;
+  $$('#areas a,#dock a').forEach(a=>a.classList.toggle('on',a.dataset.a===id));
+  $$('.pane').forEach(p=>p.classList.toggle('on',p.dataset.area===id));
+  place();
+}
+$$('#areas a,#dock a').forEach(a=>a.onclick=e=>{e.preventDefault();setArea(a.dataset.a)});
+// tabs: ink glides under the current tab of the visible pane
+function tabInk(){const pane=$('.pane.on');if(!pane)return;const t=$('[data-tabs]',pane),a=$('a.on',t),ink=$('.ink',t);if(!a)return;ink.style.setProperty('--ix',a.offsetLeft+'px');ink.style.setProperty('--iw',a.offsetWidth+'px')}
+$$('[data-tabs]').forEach(t=>$$('a',t).forEach(a=>a.onclick=e=>{e.preventDefault();$$('a',t).forEach(x=>x.classList.toggle('on',x===a));$('.crumb b:last-child',t.parentElement).textContent=a.childNodes[0].textContent.trim();tabInk()}));
+addEventListener('keydown',e=>{if(e.target.closest('input,textarea')||e.metaKey||e.ctrlKey||e.altKey)return;const i='123'.indexOf(e.key);if(i>=0)setArea(A[i].id)});
+// scrolling: tuck the second row going down, bring it back going up
+const sc=$('#sc'),hdr=$('#hdr');let last=0;
+sc.addEventListener('scroll',()=>{const y=sc.scrollTop;if(y>last+6&&y>80)hdr.classList.add('tuck');else if(y<last-6||y<20)hdr.classList.remove('tuck');last=y;});
+setArea('dsa');addEventListener('load',place);setTimeout(place,80);addEventListener('resize',place);
+</script>
+</body>
+</html>

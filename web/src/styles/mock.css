@@ -1,6 +1,6 @@
 /* The mock interview (docs/DSA.md, decisions 25 and 30): setup, the live round and the result. */
 .m-e{color:var(--grn)}.m-m{color:var(--warn)}.m-h{color:var(--bad)}
-.mi-wrap{max-width:1360px;margin:0 auto;padding:28px 40px 56px;display:flex;flex-direction:column;gap:18px}
+.mi-wrap{max-width:var(--pw-lg,1360px);margin:0 auto;padding:28px 40px 56px;display:flex;flex-direction:column;gap:18px}
 .mi-h1{margin:2px 0 0;font-size:clamp(30px,3.6vw,44px);font-weight:800;letter-spacing:-.03em;line-height:1.05}
 .mi-h2{margin:0;font-size:clamp(24px,2.8vw,34px);font-weight:800;letter-spacing:-.03em;line-height:1.1;text-wrap:balance}
 .mi-sub{margin:0;color:var(--mut);max-width:62ch;line-height:1.55}

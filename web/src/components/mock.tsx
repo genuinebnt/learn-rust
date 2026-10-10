@@ -19,7 +19,7 @@ export const reducedMotion = () => typeof matchMedia === "function" && matchMedi
 /** The root of a page built from the mockup: its stylesheet applies below this, and its entrance motion runs unless motion is reduced. */
 export function MockRoot({ children, off = 52, className = "", style, prefix = "k-" }: { children: ReactNode; off?: number; className?: string; style?: CSSProperties; prefix?: string }) {
     return (
-        <div className={`${prefix}root${reducedMotion() ? "" : ` ${prefix}motion`} ${className}`} style={{ "--k-off": `${off}px`, "--ease": "cubic-bezier(.22,1,.36,1)", ...style } as CSSProperties}>
+        <div className={`${prefix}root${reducedMotion() ? "" : ` ${prefix}motion`} ${className}`} style={{ "--k-off": off === 52 ? "var(--hdr-h, 52px)" : `calc(var(--hdr-h, 52px) + ${off - 52}px)`, "--ease": "cubic-bezier(.22,1,.36,1)", ...style } as CSSProperties}>
             {children}
         </div>
     );

@@ -321,6 +321,9 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
 .acct-menu .swatch { display: flex; align-items: center; gap: 8px; padding: 7px 10px; text-align: left; }
 .swatch > span { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px oklch(0 0 0 / 0.15); }
 .acct-menu .swatch.on { color: var(--fg); background: var(--raise); }
+.acct-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 0 2px 4px; }
+.acct-menu .acct-seg button { padding: 7px 10px; text-align: center; border-radius: 5px; }
+.acct-menu .acct-seg button.on { color: var(--fg); background: var(--raise); box-shadow: inset 0 0 0 1px var(--line); }
 .swatch.on > span { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--fg); }
 .swatch[data-swatch="copper"] > span { background: oklch(0.76 0.11 55); }
 .swatch[data-swatch="rose"] > span { background: oklch(0.75 0.12 350); }
@@ -367,7 +370,7 @@ a.dcode:hover { text-decoration: underline; text-underline-offset: 3px; }
    overflow: clip keeps the rounded corners without making the wrapper a scroll container, which would pin sticky to it. */
 @media (min-width: 1100px) {
     .tblw:has(> .tbl-co) { overflow: clip; }
-    .tbl-co > .tr.th { position: sticky; top: calc(52px + env(safe-area-inset-top, 0px)); z-index: 5; background: var(--panel); }
+    .tbl-co > .tr.th { position: sticky; top: calc(var(--hdr-h, 52px) + env(safe-area-inset-top, 0px)); z-index: 5; background: var(--panel); }
 }
 /* Phones: one card per problem instead of a 1040px table to scroll sideways. */
 @media (max-width: 760px) {

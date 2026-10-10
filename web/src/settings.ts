@@ -1,6 +1,6 @@
 // Settings stored on the server: editor fonts (applied as CSS variables the editor theme reads) and the
 // app's accent colour (applied as data-accent on <html>; the palettes live in app.css).
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Accent, type EditorSettings, type Settings } from "./api";
 
@@ -112,4 +112,41 @@ export function useAppearance() {
     if (accent) applyAccent(accent);
   }, [accent]);
   return { accent: accent ?? "copper", set: (next: Accent) => save.mutate({ accent: next }) };
+}
+
+export type PageWidth = "narrow" | "wide";
+const WIDTH_KEY = "anneal-width";
+
+const readWidth = (): PageWidth => {
+  try {
+    return localStorage.getItem(WIDTH_KEY) === "wide" ? "wide" : "narrow";
+  } catch {
+    return "narrow";
+  }
+};
+
+/** Sets how wide the main screens are (data-width on <html>) and remembers it in this browser. Reading screens ignore it. */
+export function applyWidth(width: PageWidth) {
+  if (width === "wide") document.documentElement.dataset.width = "wide";
+  else delete document.documentElement.dataset.width;
+  try {
+    localStorage.setItem(WIDTH_KEY, width);
+  } catch {
+    // the choice then lasts for this visit only
+  }
+}
+
+// Applied as soon as the module loads, so the first paint already has the chosen width.
+if (typeof document !== "undefined" && readWidth() === "wide") document.documentElement.dataset.width = "wide";
+
+/** The page width choice and a setter. */
+export function usePageWidth() {
+  const [width, setWidth] = useState<PageWidth>(readWidth);
+  return {
+    width,
+    set: (next: PageWidth) => {
+      applyWidth(next);
+      setWidth(next);
+    },
+  };
 }

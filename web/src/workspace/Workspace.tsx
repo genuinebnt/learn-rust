@@ -49,7 +49,7 @@ export function Workspace({ id }: { id: string }) {
   if (q.error instanceof ApiError && q.error.status === 423) {
     return (
       <>
-        <Header area="dsa" />
+        <Header area="dsa" compact />
         <main className="page">
           <div className="wrap" style={{ maxWidth: 640, paddingBlock: 48 }}>
             <div className="dash" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -72,7 +72,7 @@ export function Workspace({ id }: { id: string }) {
   if (!q.data) {
     return (
       <>
-        <Header area="dsa" />
+        <Header area="dsa" compact />
         <main className="page">
           <div className="wrap">
             <p className="notice">{q.isError ? `Couldn't load ${id}: ${(q.error as Error).message}` : "Loading…"}</p>
@@ -307,7 +307,7 @@ function Loaded({ p }: { p: ProblemDetail }) {
 
   return (
     <>
-      <Header area={area} />
+      <Header area={area} compact />
       {win && (
         <Celebration
           title="Problem solved"

@@ -1,6 +1,6 @@
 /* The plan and calendar (docs/DSA.md, decision 28). Everything is scoped under .c-wrap. */
 .c-page{padding-bottom:64px}
-.c-wrap{max-width:1360px;margin:0 auto;padding:28px 40px 0;display:flex;flex-direction:column;gap:16px}
+.c-wrap{max-width:var(--pw-lg,1360px);margin:0 auto;padding:28px 40px 0;display:flex;flex-direction:column;gap:16px}
 .c-wrap .sp{flex:1}
 .c-wrap button:disabled{opacity:.45;cursor:default}
 .c-title{display:flex;justify-content:space-between;align-items:flex-end;gap:16px}

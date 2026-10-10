@@ -265,30 +265,724 @@ pitfalls = [
     "Each index is pushed and popped at most once, so the total is O(n).",
 ]
 
-[[listed]]
-name = "Fixed-size sum / average"
-group = "Fixed-size window"
-note = "Related lesson: Fixed window with a running sum"
+[[extra]]
+id = "Sliding Window:both-ends"
+name = "Take from both ends: slide the middle"
+group = "Variable window, shortest valid"
+signals = [
+    "remove items only from the left and the right end, and you want the fewest removals",
+    "what stays is a contiguous middle: the longest middle window with a fixed total (or content) is the answer",
+    "the fewest taken from the ends = n minus the longest middle that is allowed",
+]
+template_name = "Reduce x to zero"
+template = '''
+def min_operations(nums, x):
+    target = sum(nums) - x  # the sum that must stay in the middle
+    if target < 0:
+        return -1
+    best, left, running = -1, 0, 0
+    for right, v in enumerate(nums):
+        running += v
+        while running > target:  # all numbers are positive: shrink
+            running -= nums[left]
+            left += 1
+        if running == target:
+            best = max(best, right - left + 1)
+    return len(nums) - best if best != -1 else -1
+'''
+pitfalls = [
+    "Think of the middle that stays, not the ends that go: a plain window then solves it.",
+    "No valid middle (best stays -1) means the target cannot be reached.",
+    "An empty middle is allowed when x equals the total: target 0 gives a window of length 0.",
+]
+examples = ["minimum-operations-to-reduce-x-to-zero", "take-k-of-each-character-from-left-and-right", "maximum-points-you-can-obtain-from-cards"]
 
-[[listed]]
-name = "Fixed-size count of a property"
-group = "Fixed-size window"
-note = "Related lesson: Variable window: longest valid"
+[[extra.variant]]
+name = "Take k of each character"
+note = "Keep the longest middle where every character still has at most (total - k) copies."
+template = '''
+from collections import Counter
 
-[[listed]]
-name = "Fixed-size minimise changes"
-group = "Fixed-size window"
-note = "Related lesson: Fixed-size window with counts"
 
-[[listed]]
-name = "Fixed-size with a set / count map of distinct values"
-group = "Fixed-size window"
-note = "Related lesson: Window with at most K of something"
+def take_characters(s, k):
+    count = Counter(s)
+    if any(count[c] < k for c in "abc"):
+        return -1
+    left, best = 0, 0
+    for right, ch in enumerate(s):
+        count[ch] -= 1  # the middle window keeps this one
+        while count[ch] < k:  # too many kept: not enough left for the ends
+            count[s[left]] += 1
+            left += 1
+        best = max(best, right - left + 1)
+    return len(s) - best
+'''
 
-[[listed]]
-name = "Fixed-size rule between neighbours"
+[[extra]]
+id = "Sliding Window:circular"
+name = "Circular windows: double the array"
+group = "Circular arrays"
+signals = [
+    "a window may wrap around the end of the array",
+    "concatenate the array with itself (or use index % n) and slide on the doubled array",
+    "only windows that start in the first copy are real",
+]
+template_name = "Defuse the bomb"
+template = '''
+def decrypt(code, k):
+    n = len(code)
+    if k == 0:
+        return [0] * n
+    doubled = code + code
+    # the window of the next k items, or of the previous |k| items
+    lo, hi = (1, k) if k > 0 else (n + k, n - 1)
+    running = sum(doubled[lo:hi + 1])
+    out = []
+    for i in range(n):
+        out.append(running)
+        running += doubled[hi + 1] - doubled[lo]  # slide by one
+        lo, hi = lo + 1, hi + 1
+    return out
+'''
+pitfalls = [
+    "For a negative k the window ends just before position i: shift it by n so the indexes stay positive.",
+    "Slide with one addition and one subtraction, never re-summing.",
+    "The doubled array must be long enough: n + k elements are read.",
+]
+examples = ["defuse-the-bomb", "alternating-groups-ii", "minimum-size-subarray-in-infinite-array", "minimum-number-of-flips-to-make-the-binary-string-alternating"]
+
+[[extra.variant]]
+name = "Alternating groups II"
+note = "Count windows of k tiles that alternate, on the doubled array."
+template = '''
+def number_of_alternating_groups(colors, k):
+    n = len(colors)
+    c = colors + colors[:k - 1]
+    count = run = 0
+    for i in range(1, len(c)):
+        run = run + 1 if c[i] != c[i - 1] else 0  # alternating run
+        if i >= k - 1 and run >= k - 1 and i - (k - 1) < n:
+            count += 1
+    return count
+'''
+
+[[extra.variant]]
+name = "Shortest subarray in an infinite array"
+note = "Whole copies take total sums; the rest is a window in the doubled array."
+template = '''
+def min_size_subarray(nums, target):
+    total, n = sum(nums), len(nums)
+    copies, need = divmod(target, total)  # whole copies of the array
+    if need == 0:
+        return copies * n
+    doubled = nums + nums
+    best, left, running = float("inf"), 0, 0
+    for right, v in enumerate(doubled):
+        running += v
+        while running > need:
+            running -= doubled[left]
+            left += 1
+        if running == need:
+            best = min(best, right - left + 1)
+    return copies * n + best if best != float("inf") else -1
+'''
+
+[[extra]]
+id = "Sliding Window:cost-budget"
+name = "A window whose cost stays within a budget"
+group = "Character-budget windows"
+signals = [
+    "the longest window that can be made uniform with at most k changes, or whose total cost is at most a limit",
+    "cost of a window = (what it should be) - (what it is), computed from the window's size and sum",
+    "if the window gets too expensive, move the left end; never let it shrink below its best size",
+]
+template_name = "Frequency of the most frequent element"
+template = '''
+def max_frequency(nums, k):
+    nums.sort()
+    left, running, best = 0, 0, 1
+    for right, x in enumerate(nums):
+        running += x
+        # raising every element of the window to x costs this much
+        while x * (right - left + 1) - running > k:
+            running -= nums[left]
+            left += 1
+        best = max(best, right - left + 1)
+    return best
+'''
+pitfalls = [
+    "Sort first: the best target for a window is its largest element, and sorting makes windows contiguous.",
+    "The cost is x * size - sum: no inner loop, just the running sum.",
+    "Shrink with while: one step is not always enough after the right end grows.",
+]
+examples = ["frequency-of-the-most-frequent-element", "get-equal-substrings-within-budget", "maximize-the-confusion-of-an-exam", "max-consecutive-ones-iii", "longest-repeating-character-replacement"]
+
+[[extra.variant]]
+name = "Equal substrings within a budget"
+note = "The cost of position i is |s[i] - t[i]|: a window of costs with a sum limit."
+template = '''
+def equal_substring(s, t, max_cost):
+    left, cost, best = 0, 0, 0
+    for right in range(len(s)):
+        cost += abs(ord(s[right]) - ord(t[right]))
+        while cost > max_cost:
+            cost -= abs(ord(s[left]) - ord(t[left]))
+            left += 1
+        best = max(best, right - left + 1)
+    return best
+'''
+
+[[extra.variant]]
+name = "Confusion of an exam"
+note = "Longest window with at most k answers of the other kind, tried for both letters."
+template = '''
+def max_consecutive_answers(answer_key, k):
+    def longest(keep):
+        left = flips = best = 0
+        for right, ch in enumerate(answer_key):
+            flips += ch != keep  # an answer to change
+            while flips > k:
+                flips -= answer_key[left] != keep
+                left += 1
+            best = max(best, right - left + 1)
+        return best
+
+    return max(longest("T"), longest("F"))
+'''
+
+[[extra.variant]]
+name = "Make the array continuous"
+note = "After sorting the distinct values, the answer is n minus the most values that fit in a range of n."
+template = '''
+def min_operations_continuous(nums):
+    n = len(nums)
+    vals = sorted(set(nums))
+    best, left = 0, 0
+    for right, v in enumerate(vals):
+        while v - vals[left] > n - 1:  # the range must be at most n wide
+            left += 1
+        best = max(best, right - left + 1)
+    return n - best
+'''
+
+[[extra]]
+id = "Sliding Window:prefix-hash"
+name = "When windows fail: prefix sums and a hash map"
+group = "Negative numbers (when windows fail: prefix sums)"
+signals = [
+    "count subarrays with a given sum when numbers can be negative (the sum is not monotone)",
+    "a subarray sum is a difference of two prefix sums: look up how many earlier prefixes equal prefix - target",
+    "the same trick counts subarrays with a given count of odd numbers, or sums divisible by k",
+]
+template_name = "Subarray sum equals k"
+template = '''
+from collections import defaultdict
+
+
+def subarray_sum(nums, k):
+    seen = defaultdict(int)
+    seen[0] = 1  # the empty prefix
+    prefix = count = 0
+    for x in nums:
+        prefix += x
+        count += seen[prefix - k]  # earlier prefixes that make a sum of k
+        seen[prefix] += 1
+    return count
+'''
+pitfalls = [
+    "Seed the map with {0: 1}: it counts the subarrays that start at index 0.",
+    "Look up before inserting the current prefix: a subarray cannot be empty.",
+    "Shrinking a window needs non-negative numbers: that is when this version is required.",
+]
+examples = ["subarray-sum-equals-k", "binary-subarrays-with-sum", "count-number-of-nice-subarrays", "subarray-sums-divisible-by-k", "continuous-subarray-sum"]
+
+[[extra.variant]]
+name = "Sums divisible by k"
+note = "Two equal remainders of prefix sums mean the subarray between them is divisible."
+template = '''
+from collections import defaultdict
+
+
+def subarrays_div_by_k(nums, k):
+    seen = defaultdict(int)
+    seen[0] = 1
+    prefix = count = 0
+    for x in nums:
+        prefix = (prefix + x) % k  # Python keeps it non-negative
+        count += seen[prefix]
+        seen[prefix] += 1
+    return count
+'''
+
+[[extra.variant]]
+name = "Nice subarrays (k odd numbers)"
+note = "The prefix is the number of odd values so far."
+template = '''
+from collections import defaultdict
+
+
+def number_of_subarrays(nums, k):
+    seen = defaultdict(int)
+    seen[0] = 1
+    odd = count = 0
+    for x in nums:
+        odd += x & 1
+        count += seen[odd - k]
+        seen[odd] += 1
+    return count
+'''
+
+[[extra]]
+id = "Sliding Window:anagram"
+name = "Anagram windows: a fixed window against a count"
+group = "Frequency (need / have) windows"
+signals = [
+    "every start index where a window is a permutation of a pattern",
+    "a window of the pattern's length, with letter counts compared as it slides",
+    "a matched-letters counter makes each step O(1) instead of comparing 26 counts",
+]
+template_name = "Find all anagrams"
+template = '''
+from collections import Counter
+
+
+def find_anagrams(s, p):
+    need, window, out = Counter(p), Counter(), []
+    k = len(p)
+    for i, ch in enumerate(s):
+        window[ch] += 1
+        if i >= k:
+            old = s[i - k]
+            window[old] -= 1
+            if window[old] == 0:
+                del window[old]  # keep the counters comparable
+        if window == need:
+            out.append(i - k + 1)
+    return out
+'''
+pitfalls = [
+    "Delete a count that reaches zero, or two Counters with zero entries compare unequal.",
+    "The window has exactly len(p) letters: remove the letter that leaves before comparing.",
+    "Comparing Counters costs O(26); a counter of satisfied letters makes it O(1).",
+]
+examples = ["find-all-anagrams-in-a-string", "permutation-in-string", "count-substrings-that-can-be-rearranged-to-contain-a-string-i", "substring-with-concatenation-of-all-words"]
+
+[[extra.variant]]
+name = "Concatenation of all words"
+note = "Slide by whole words from every offset; the window holds as many words as the list."
+template = '''
+from collections import Counter
+
+
+def find_substring(s, words):
+    w, m = len(words[0]), len(words)
+    need, out = Counter(words), []
+    for offset in range(w):  # words may start at any of w alignments
+        left, seen = offset, Counter()
+        for right in range(offset, len(s) - w + 1, w):
+            word = s[right:right + w]
+            if word not in need:
+                seen.clear()
+                left = right + w
+                continue
+            seen[word] += 1
+            while seen[word] > need[word]:  # one copy too many
+                seen[s[left:left + w]] -= 1
+                left += w
+            if (right - left) // w + 1 == m:
+                out.append(left)
+    return sorted(out)
+'''
+
+[[extra]]
+id = "Sliding Window:rolling-hash"
+name = "Rolling hash of a window"
+group = "Windows over two sequences"
+signals = [
+    "find repeated or matching substrings of a fixed length without comparing characters each time",
+    "the hash of the next window comes from the previous one in O(1): drop the first letter, add the new one",
+    "a short alphabet (DNA) fits in a bit mask instead of a modular hash",
+]
+template_name = "Repeated DNA sequences"
+template = '''
+def find_repeated_dna(s):
+    code = {"A": 0, "C": 1, "G": 2, "T": 3}
+    mask = (1 << 20) - 1  # ten letters of two bits each
+    seen, repeated, h = set(), set(), 0
+    for i, ch in enumerate(s):
+        h = ((h << 2) | code[ch]) & mask  # slide: shift in, drop the oldest
+        if i >= 9:
+            if h in seen:
+                repeated.add(s[i - 9:i + 1])
+            seen.add(h)
+    return list(repeated)
+'''
+pitfalls = [
+    "Start checking only once the window has 10 letters (i >= 9).",
+    "Mask the hash to the window width: the shift would keep old letters forever.",
+    "For general text use a polynomial hash modulo a large prime, and compare the strings when hashes match.",
+]
+examples = ["repeated-dna-sequences", "find-the-index-of-the-first-occurrence-in-a-string", "longest-duplicate-substring"]
+
+[[extra.variant]]
+name = "Rabin-Karp substring search"
+note = "Hash the pattern, slide a hash over the text, and verify on a match."
+template = '''
+def str_str(haystack, needle):
+    n, m = len(haystack), len(needle)
+    if m == 0:
+        return 0
+    base, mod = 256, 1_000_000_007
+    top = pow(base, m - 1, mod)  # the weight of the leading letter
+    hn = hh = 0
+    for i in range(m):
+        hn = (hn * base + ord(needle[i])) % mod
+    for i in range(n):
+        if i >= m:
+            hh = (hh - ord(haystack[i - m]) * top) % mod  # drop the oldest
+        hh = (hh * base + ord(haystack[i])) % mod
+        if i >= m - 1 and hh == hn and haystack[i - m + 1:i + 1] == needle:
+            return i - m + 1
+    return -1
+'''
+
+[[extra]]
+id = "Sliding Window:answer-window"
+name = "Binary search on the answer, check with a window"
+group = "Binary search on window size"
+signals = [
+    "maximise the minimum (or minimise the maximum) of something that depends on how much you spend",
+    "feasibility is monotone: if the target works, every smaller one works",
+    "the check is a greedy sweep with a running window of what has been added so far",
+]
+template_name = "Maximize the minimum powered city"
+template = '''
+def max_min_power(stations, r, k):
+    n = len(stations)
+    power = [0] * n
+    run = sum(stations[:r])  # stations that reach city 0 are in [0, r]
+    for i in range(n):
+        if i + r < n:
+            run += stations[i + r]
+        if i - r - 1 >= 0:
+            run -= stations[i - r - 1]
+        power[i] = run
+
+    def ok(target):
+        extra = [0] * (n + 1)  # new stations, as a difference array
+        added, window = 0, 0
+        for i in range(n):
+            window += extra[i]
+            need = target - power[i] - window
+            if need > 0:
+                added += need
+                if added > k:
+                    return False
+                window += need
+                if i + 2 * r + 1 < n + 1:
+                    extra[min(n, i + 2 * r + 1)] -= need  # stops helping
+        return True
+
+    lo, hi = min(power), min(power) + k
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if ok(mid):
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo
+'''
+pitfalls = [
+    "Place a missing station as far right as it still covers the current city: it helps the most later cities.",
+    "Keep a difference array for the effect of stations you added, so each is applied and removed in O(1).",
+    "The search range is from the current minimum to that minimum plus k.",
+]
+examples = ["maximize-the-minimum-powered-city", "maximum-length-of-repeated-subarray"]
+
+[[extra]]
+id = "Sliding Window:count-range"
+name = "Counts in a small value range, or in buckets"
+group = "Ordered-set / heap windows"
+signals = [
+    "the x-th smallest (a beauty, a median) in every window of size k when values are in a small range",
+    "a count array indexed by value replaces a heap: add and remove in O(1), query by scanning the range",
+    "a window of values within a distance t: put values in buckets of width t + 1",
+]
+template_name = "Sliding subarray beauty"
+template = '''
+def get_subarray_beauty(nums, k, x):
+    count = [0] * 101  # values -50 .. 50, shifted by 50
+    out = []
+    for i, v in enumerate(nums):
+        count[v + 50] += 1
+        if i >= k:
+            count[nums[i - k] + 50] -= 1
+        if i >= k - 1:
+            seen = 0
+            for value in range(-50, 0):  # negatives only
+                seen += count[value + 50]
+                if seen >= x:
+                    out.append(value)  # the x-th smallest negative
+                    break
+            else:
+                out.append(0)
+    return out
+'''
+pitfalls = [
+    "Shift negative values by an offset to use them as indexes.",
+    "Remove the element that leaves before querying.",
+    "A scan of the value range is O(range) per window: fine for 101 values, not for 10^9 (use a tree).",
+]
+examples = ["sliding-subarray-beauty", "contains-duplicate-iii", "sliding-window-median"]
+
+[[extra.variant]]
+name = "Nearby almost duplicate (buckets)"
+note = "Values within t land in the same or adjacent bucket; keep at most k recent items."
+template = '''
+def contains_nearby_almost_duplicate(nums, index_diff, value_diff):
+    if value_diff < 0:
+        return False
+    width = value_diff + 1
+    buckets = {}
+    for i, v in enumerate(nums):
+        b = v // width
+        if b in buckets:
+            return True  # the same bucket: within value_diff
+        for nb in (b - 1, b + 1):
+            if nb in buckets and abs(buckets[nb] - v) <= value_diff:
+                return True
+        buckets[b] = v
+        if i >= index_diff:
+            del buckets[nums[i - index_diff] // width]  # too old
+    return False
+'''
+
+[[extra]]
+id = "Sliding Window:count-from-right"
+name = "Count windows by the earliest valid start"
+group = "Counting windows (atMost(k) - atMost(k-1))"
+signals = [
+    "count subarrays where a condition holds once a count reaches k (the maximum appears k times, a bound is met)",
+    "once a window is valid, every window that starts earlier is valid too",
+    "for each right end add the number of valid starts, found with a moving left pointer",
+]
+template_name = "Maximum appears at least k times"
+template = '''
+def count_subarrays(nums, k):
+    top = max(nums)
+    left = count = total = 0  # count: copies of top in the window
+    for x in nums:
+        count += x == top
+        while count >= k:  # the window [left, right] is valid
+            count -= nums[left] == top
+            left += 1
+        total += left  # every start before left gives a valid subarray
+    return total
+'''
+pitfalls = [
+    "Shrink while the window is still valid: left stops at the first start that is invalid.",
+    "Every start in [0, left) forms a valid subarray with this right end: add left.",
+    "Counting with atMost(k) - atMost(k - 1) is the other way when the condition is 'exactly k'.",
+]
+examples = ["count-subarrays-where-max-element-appears-at-least-k-times", "count-subarrays-with-fixed-bounds", "count-complete-subarrays-in-an-array", "number-of-substrings-containing-all-three-characters"]
+
+[[extra.variant]]
+name = "Fixed bounds (last seen positions)"
+note = "Remember the last index of min-k, of max-k and of a value outside the range; valid starts are up to the older of the first two."
+template = '''
+def count_subarrays_bounds(nums, min_k, max_k):
+    total, last_min, last_max, bad = 0, -1, -1, -1
+    for i, x in enumerate(nums):
+        if x < min_k or x > max_k:
+            bad = i  # no window may cross this element
+        if x == min_k:
+            last_min = i
+        if x == max_k:
+            last_max = i
+        total += max(0, min(last_min, last_max) - bad)
+    return total
+'''
+
+[[extra.variant]]
+name = "Substrings with all of a, b, c"
+note = "Once a window holds all three letters, every start up to the last-seen of the rarest works."
+template = '''
+def number_of_substrings(s):
+    last = {"a": -1, "b": -1, "c": -1}
+    total = 0
+    for i, ch in enumerate(s):
+        last[ch] = i
+        total += min(last.values()) + 1  # starts 0 .. oldest last-seen
+    return total
+'''
+
+[[extra]]
+id = "Sliding Window:deque-dp"
+name = "A deque inside a DP"
+group = "Monotonic-queue windows"
+signals = [
+    "dp[i] depends on the best of dp[j] for j in a sliding range, such as the last k positions",
+    "a monotonic deque of indexes keeps that best in O(1) per step",
+    "partitions whose max - min is at most k: the last cut can be anywhere in a range",
+]
+template_name = "Partitions with max - min at most k"
+template = '''
+from collections import deque
+
+
+def count_partitions(nums, k):
+    mod, n = 10**9 + 7, len(nums)
+    dp = [0] * (n + 1)  # dp[i]: ways to split the first i numbers
+    pre = [0] * (n + 2)  # pre[i + 1] = dp[0] + ... + dp[i]
+    dp[0], pre[1] = 1, 1
+    big, small, left = deque(), deque(), 0
+    for i, x in enumerate(nums):
+        while big and nums[big[-1]] <= x:
+            big.pop()
+        big.append(i)
+        while small and nums[small[-1]] >= x:
+            small.pop()
+        small.append(i)
+        while nums[big[0]] - nums[small[0]] > k:
+            left += 1  # the last piece must start at or after left
+            if big[0] < left:
+                big.popleft()
+            if small[0] < left:
+                small.popleft()
+        dp[i + 1] = (pre[i + 1] - pre[left]) % mod  # starts left .. i
+        pre[i + 2] = (pre[i + 1] + dp[i + 1]) % mod
+    return dp[n]
+'''
+pitfalls = [
+    "Keep two deques (a max and a min) over the same window of the last piece's candidates.",
+    "A start j is allowed when the window nums[j..i] has max - min at most k: valid starts form a range [left, i].",
+    "A prefix sum of dp turns the sum over a range of starts into one subtraction.",
+]
+examples = ["count-partitions-with-max-min-difference-at-most-k", "continuous-subarrays", "jump-game-vi"]
+
+[[extra.variant]]
+name = "Continuous subarrays"
+note = "Count windows whose largest and smallest differ by at most 2, with two deques."
+template = '''
+from collections import deque
+
+
+def continuous_subarrays(nums):
+    big, small, left, total = deque(), deque(), 0, 0
+    for right, x in enumerate(nums):
+        while big and nums[big[-1]] <= x:
+            big.pop()
+        big.append(right)
+        while small and nums[small[-1]] >= x:
+            small.pop()
+        small.append(right)
+        while nums[big[0]] - nums[small[0]] > 2:
+            left += 1
+            if big[0] < left:
+                big.popleft()
+            if small[0] < left:
+                small.popleft()
+        total += right - left + 1  # windows ending at right
+    return total
+'''
+
+[[extra]]
+id = "Sliding Window:rows-pairs"
+name = "Collapse pairs of rows to one dimension"
+group = "2-D windows"
+signals = [
+    "a rectangle in a matrix with a given sum (or a sum not above k)",
+    "fix a top row and a bottom row, add the rows column by column, and solve a 1-D problem",
+    "O(rows^2 * cols) with a prefix-sum hash map per row pair",
+]
+template_name = "Submatrices summing to target"
+template = '''
+from collections import defaultdict
+
+
+def num_submatrix_sum_target(matrix, target):
+    rows, cols, total = len(matrix), len(matrix[0]), 0
+    for top in range(rows):
+        col_sum = [0] * cols  # the rows top..bottom added up
+        for bottom in range(top, rows):
+            for c in range(cols):
+                col_sum[c] += matrix[bottom][c]
+            seen = defaultdict(int)  # prefix sums of this 1-D array
+            seen[0] = 1
+            prefix = 0
+            for v in col_sum:
+                prefix += v
+                total += seen[prefix - target]
+                seen[prefix] += 1
+    return total
+'''
+pitfalls = [
+    "Add the row to a column-sum array instead of recomputing: each bottom row costs O(cols).",
+    "The 1-D step is the prefix-sum hash map: it works with negative numbers too.",
+    "For the largest sum at most k use a sorted list of prefixes and bisect instead of a map.",
+]
+examples = ["number-of-submatrices-that-sum-to-target", "max-sum-of-rectangle-no-larger-than-k"]
+
+[[extra]]
+id = "Sliding Window:min-changes"
+name = "Fixed window: the fewest changes"
 group = "Fixed-size window"
-note = "Related lesson: Fixed-size window with counts"
+signals = [
+    "the fewest recolours, flips or swaps so that some window of length k is perfect",
+    "the cost of a window is how many items in it are wrong, which the slide updates in O(1)",
+    "take the minimum cost over all windows",
+]
+template_name = "Recolours to get k black blocks"
+template = '''
+def minimum_recolors(blocks, k):
+    whites = blocks[:k].count("W")  # recolours needed in the first window
+    best = whites
+    for i in range(k, len(blocks)):
+        whites += blocks[i] == "W"  # enters
+        whites -= blocks[i - k] == "W"  # leaves
+        best = min(best, whites)
+    return best
+'''
+pitfalls = [
+    "Build the first window separately, then slide with one add and one remove.",
+    "Compare booleans as 0/1 to update the count without if statements.",
+    "For a circular array double it first; for swaps count the ones in the window.",
+]
+examples = ["minimum-recolors-to-get-k-consecutive-black-blocks", "minimum-swaps-to-group-all-1s-together-ii", "maximum-average-subarray-i", "k-radius-subarray-averages"]
+
+[[extra.variant]]
+name = "Group all 1s together (circular)"
+note = "The best window of length (number of ones) is the one with the most ones; swaps = zeros in it."
+template = '''
+def min_swaps(nums):
+    ones, n = sum(nums), len(nums)
+    if ones in (0, n):
+        return 0
+    doubled = nums + nums
+    window = sum(doubled[:ones])
+    best = window
+    for i in range(ones, n + ones):
+        window += doubled[i] - doubled[i - ones]
+        best = max(best, window)
+    return ones - best
+'''
+
+[[extra.variant]]
+name = "K-radius averages"
+note = "A window of 2k + 1 with a running sum; positions without a full window stay -1."
+template = '''
+def get_averages(nums, k):
+    n, size = len(nums), 2 * k + 1
+    out = [-1] * n
+    if size > n:
+        return out
+    running = sum(nums[:size])
+    out[k] = running // size
+    for i in range(k + 1, n - k):
+        running += nums[i + k] - nums[i - k - 1]
+        out[i] = running // size
+    return out
+'''
 
 [[listed]]
 name = "Running best so far"
@@ -334,33 +1028,14 @@ group = "Variable window, shortest valid"
 note = "Related lesson: Variable window: shortest valid"
 
 [[listed]]
-name = "Take from both ends = keep a middle window of the complement"
-group = "Variable window, shortest valid"
-
-[[listed]]
 name = "Shortest with a tie-break"
 group = "Variable window, shortest valid"
 note = "Related lesson: Variable window: shortest valid"
 
 [[listed]]
-name = "Subarrays ending at right"
-group = "Counting windows (atMost(k) - atMost(k-1))"
-note = "Related lesson: Counting windows (at most K minus at most K-1)"
-
-[[listed]]
 name = "Exactly K as atMost(K) - atMost"
 group = "Counting windows (atMost(k) - atMost(k-1))"
 note = "Related lesson: Fixed window with a running sum"
-
-[[listed]]
-name = "At least K: once valid, every longer window is valid"
-group = "Counting windows (atMost(k) - atMost(k-1))"
-note = "Related lesson: Monotonic deque for the window maximum"
-
-[[listed]]
-name = "Counting with last-seen positions"
-group = "Counting windows (atMost(k) - atMost(k-1))"
-note = "Related lesson: Variable window: longest valid"
 
 [[listed]]
 name = "Counting good pairs inside the window"
@@ -370,15 +1045,6 @@ group = "Counting windows (atMost(k) - atMost(k-1))"
 name = "Need / have counts with a satisfied counter"
 group = "Frequency (need / have) windows"
 note = "Related lesson: Fixed-size window with counts"
-
-[[listed]]
-name = "Fixed-size anagram / permutation match"
-group = "Frequency (need / have) windows"
-
-[[listed]]
-name = "Word-level window"
-group = "Frequency (need / have) windows"
-note = "e.g. slide by word length, several offsets"
 
 [[listed]]
 name = "Cover every distinct kind"
@@ -396,16 +1062,6 @@ group = "Windows over two sequences"
 note = "Related lesson: Window over a sorted array"
 
 [[listed]]
-name = "Common subarray of two arrays"
-group = "Windows over two sequences"
-note = "e.g. slide one against the other"
-
-[[listed]]
-name = "Rolling hash of fixed windows"
-group = "Windows over two sequences"
-note = "Related lesson: Fixed window with a running sum"
-
-[[listed]]
 name = "Window over a text against a target pattern"
 group = "Windows over two sequences"
 note = "Related lesson: Fixed-size window with counts"
@@ -414,44 +1070,6 @@ note = "Related lesson: Fixed-size window with counts"
 name = "Two-pointer windows across two sorted sequences"
 group = "Windows over two sequences"
 note = "e.g. interval lists"
-
-[[listed]]
-name = "Double the array"
-group = "Circular arrays"
-note = "Related lesson: Fixed window with a running sum"
-
-[[listed]]
-name = "Circular maximum subarray"
-group = "Circular arrays"
-note = "e.g. total minus minimum, or prefix sums plus deque"
-
-[[listed]]
-name = "Infinite repeated array"
-group = "Circular arrays"
-note = "e.g. whole copies plus a window"
-
-[[listed]]
-name = "Circular groups with wrap-around windows"
-group = "Circular arrays"
-
-[[listed]]
-name = "Window maximum / minimum"
-group = "Monotonic-queue windows"
-note = "Related lesson: Monotonic deque for the window maximum"
-
-[[listed]]
-name = "Two deques (max and min) for a range limit"
-group = "Monotonic-queue windows"
-
-[[listed]]
-name = "Deque-optimised DP"
-group = "Monotonic-queue windows"
-note = "Related lesson: Monotonic deque for the window maximum"
-
-[[listed]]
-name = "Deque inside a budget window"
-group = "Monotonic-queue windows"
-note = "Related lesson: Monotonic deque for the window maximum"
 
 [[listed]]
 name = "Ordered set / multiset"
@@ -468,88 +1086,9 @@ problems = [
 ]
 
 [[listed]]
-name = "Counting array over a small value range"
-group = "Ordered-set / heap windows"
-note = "e.g. K-th smallest in the window"
-
-[[listed]]
-name = "Bucket by value range"
-group = "Ordered-set / heap windows"
-note = "e.g. near-duplicate detection"
-
-[[listed]]
 name = "Sorted window with a binary-searched edge"
 group = "Ordered-set / heap windows"
 note = "Related lesson: Window over a sorted array"
-
-[[listed]]
-name = "Why shrinking fails: the sum is not monotone"
-group = "Negative numbers (when windows fail: prefix sums)"
-
-[[listed]]
-name = "Prefix sums + hash map"
-group = "Negative numbers (when windows fail: prefix sums)"
-note = "e.g. count subarrays with sum K"
-
-[[listed]]
-name = "Prefix sums + monotonic deque"
-group = "Negative numbers (when windows fail: prefix sums)"
-note = "Related lesson: Monotonic deque for the window maximum"
-
-[[listed]]
-name = "Kadane / best window ending here"
-group = "Negative numbers (when windows fail: prefix sums)"
-
-[[listed]]
-name = "Prefix sums + binary search"
-group = "Negative numbers (when windows fail: prefix sums)"
-note = "Related lesson: Window over a sorted array"
-
-[[listed]]
-name = "Replacement budget"
-group = "Character-budget windows"
-note = "e.g. window size - max frequency <= K"
-
-[[listed]]
-name = "Flip budget"
-group = "Character-budget windows"
-note = "e.g. at most K zeros"
-
-[[listed]]
-name = "Cost budget"
-group = "Character-budget windows"
-note = "e.g. sum of per-position costs <= budget"
-
-[[listed]]
-name = "Operation budget on sorted values"
-group = "Character-budget windows"
-note = "Related lesson: Window over a sorted array"
-
-[[listed]]
-name = "Swap budget around a median"
-group = "Character-budget windows"
-
-[[listed]]
-name = "Fixed-size submatrix sums"
-group = "2-D windows"
-note = "Related lesson: Fixed-size window with counts"
-
-[[listed]]
-name = "Collapse row pairs to 1-D, then window or hash"
-group = "2-D windows"
-
-[[listed]]
-name = "Largest square / rectangle"
-group = "2-D windows"
-note = "e.g. grow the window in two directions"
-
-[[listed]]
-name = "Maximum-sum rectangle no larger than K"
-group = "2-D windows"
-
-[[listed]]
-name = "K x K maximum by two passes of 1-D deques"
-group = "2-D windows"
 
 [[listed]]
 name = "Sort, then a window of K"
@@ -631,10 +1170,6 @@ group = "Core implementation patterns"
 
 [[listed]]
 name = "Doubling the array or index modulo n"
-group = "Core implementation patterns"
-
-[[listed]]
-name = "Prefix-sum array and prefix-sum hash map"
 group = "Core implementation patterns"
 
 [[listed]]

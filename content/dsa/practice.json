@@ -36376,6 +36376,51 @@
    "role": "practice",
    "practice_of": null,
    "priority": "practice"
+  },
+  {
+   "id": "lc-max-sum-of-rectangle-no-larger-than-k",
+   "slug": "max-sum-of-rectangle-no-larger-than-k",
+   "number": 363,
+   "title": "Max Sum of Rectangle No Larger Than K",
+   "difficulty": "hard",
+   "pattern": "Sliding Window",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Binary Search",
+    "Matrix",
+    "Prefix Sum",
+    "Ordered Set"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 22.1,
+     "recent": true
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 13.4,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Sliding Window:rows-pairs",
+   "order": 101745,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
   }
  ]
 }

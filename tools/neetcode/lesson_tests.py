@@ -7586,3 +7586,402 @@ def _(ns):
         else:
             for k in range(1, min(len(t), 40) + 1):
                 assert f(s, k) == t[k - 1], (s, k)
+
+
+# ---- sliding window (extras) ----------------------------------------------------------------------------------------
+
+SW = "Sliding Window"
+
+
+@test(f"{SW}:both-ends")
+def _(ns):
+    f = ns["min_operations"]
+    assert f([1, 1, 4, 2, 3], 5) == 2 and f([5, 6, 7, 8, 9], 4) == -1 and f([3, 2, 20, 1, 1, 3], 10) == 5
+    r = random.Random(700)
+    for _ in range(300):
+        a = [r.randint(1, 5) for _ in range(r.randint(1, 8))]
+        x = r.randint(1, 20)
+        best = -1
+        for l in range(len(a) + 1):
+            for rr in range(len(a) - l + 1):
+                if sum(a[:l]) + sum(a[len(a) - rr:]) == x and (best == -1 or l + rr < best):
+                    best = l + rr
+        assert f(a[:], x) == best, (a, x)
+
+
+@test(f"{SW}:both-ends#Take k of each character")
+def _(ns):
+    f = ns["take_characters"]
+    assert f("aabaaaacaabc", 2) == 8 and f("a", 1) == -1
+    r = random.Random(701)
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 10)))
+        k = r.randint(0, 3)
+        best = -1
+        for l in range(len(s) + 1):
+            for rr in range(len(s) - l + 1):
+                t = s[:l] + s[len(s) - rr:]
+                if all(t.count(c) >= k for c in "abc") and (best == -1 or l + rr < best):
+                    best = l + rr
+        assert f(s, k) == best, (s, k)
+
+
+@test(f"{SW}:circular")
+def _(ns):
+    f = ns["decrypt"]
+    assert f([5, 7, 1, 4], 3) == [12, 10, 16, 13] and f([1, 2, 3, 4], 0) == [0, 0, 0, 0] and f([2, 4, 9, 3], -2) == [12, 5, 6, 13]
+    r = random.Random(702)
+    for _ in range(300):
+        c = [r.randint(1, 9) for _ in range(r.randint(1, 8))]
+        n = len(c)
+        k = r.randint(-(n - 1), n - 1) if n > 1 else 0
+        want = [sum(c[(i + d) % n] for d in range(1, k + 1)) if k > 0 else sum(c[(i - d) % n] for d in range(1, -k + 1)) for i in range(n)]
+        assert f(c[:], k) == want, (c, k)
+
+
+@test(f"{SW}:circular#Alternating groups II")
+def _(ns):
+    f = ns["number_of_alternating_groups"]
+    assert f([0, 1, 0, 1, 0], 3) == 3 and f([0, 1, 0, 0, 1, 0, 1], 6) == 2 and f([1, 1, 0, 1], 4) == 0
+    r = random.Random(703)
+    for _ in range(300):
+        n = r.randint(3, 9)
+        c = [r.randint(0, 1) for _ in range(n)]
+        k = r.randint(3, n)
+        want = sum(1 for i in range(n) if all(c[(i + j) % n] != c[(i + j + 1) % n] for j in range(k - 1)))
+        assert f(c[:], k) == want, (c, k)
+
+
+@test(f"{SW}:circular#Shortest subarray in an infinite array")
+def _(ns):
+    f = ns["min_size_subarray"]
+    assert f([1, 2, 3], 5) == 2 and f([1, 1, 1, 2, 3], 4) == 2 and f([2, 4, 6, 8], 3) == -1
+    r = random.Random(704)
+    for _ in range(300):
+        a = [r.randint(1, 5) for _ in range(r.randint(1, 5))]
+        t = r.randint(1, 30)
+        rep = a * (t // min(a) + 2)
+        best = -1
+        for i in range(len(a)):
+            run = 0
+            for j in range(i, len(rep)):
+                run += rep[j]
+                if run == t:
+                    best = j - i + 1 if best == -1 else min(best, j - i + 1)
+                    break
+                if run > t:
+                    break
+        assert f(a[:], t) == best, (a, t)
+
+
+@test(f"{SW}:cost-budget")
+def _(ns):
+    f = ns["max_frequency"]
+    assert f([1, 2, 4], 5) == 3 and f([1, 4, 8, 13], 5) == 2 and f([3, 9, 6], 2) == 1
+    r = random.Random(705)
+    for _ in range(300):
+        a = [r.randint(1, 8) for _ in range(r.randint(1, 8))]
+        k = r.randint(0, 12)
+        best = 1
+        for target in range(1, 10):
+            cost = sorted((target - x for x in a if x <= target), reverse=True)
+            cost.sort()
+            used, cnt = 0, 0
+            for c in cost:
+                if used + c > k:
+                    break
+                used += c
+                cnt += 1
+            best = max(best, cnt)
+        assert f(a[:], k) == best, (a, k)
+
+
+@test(f"{SW}:cost-budget#Equal substrings within a budget")
+def _(ns):
+    f = ns["equal_substring"]
+    assert f("abcd", "bcdf", 3) == 3 and f("abcd", "cdef", 3) == 1 and f("abcd", "acde", 0) == 1
+    r = random.Random(706)
+    for _ in range(300):
+        n = r.randint(1, 8)
+        s = "".join(r.choice("abcd") for _ in range(n))
+        t = "".join(r.choice("abcd") for _ in range(n))
+        m = r.randint(0, 6)
+        best = max([j - i for i in range(n) for j in range(i + 1, n + 1) if sum(abs(ord(s[x]) - ord(t[x])) for x in range(i, j)) <= m] or [0])
+        assert f(s, t, m) == best
+
+
+@test(f"{SW}:cost-budget#Confusion of an exam")
+def _(ns):
+    f = ns["max_consecutive_answers"]
+    assert f("TTFF", 2) == 4 and f("TFFT", 1) == 3 and f("TTFTTFTT", 1) == 5
+    r = random.Random(707)
+    for _ in range(300):
+        s = "".join(r.choice("TF") for _ in range(r.randint(1, 10)))
+        k = r.randint(0, 4)
+        best = max(j - i for i in range(len(s)) for j in range(i + 1, len(s) + 1) if min(s[i:j].count("T"), s[i:j].count("F")) <= k)
+        assert f(s, k) == best
+
+
+@test(f"{SW}:cost-budget#Make the array continuous")
+def _(ns):
+    f = ns["min_operations_continuous"]
+    assert f([4, 2, 5, 3]) == 0 and f([1, 2, 3, 5, 6]) == 1 and f([1, 10, 100, 1000]) == 3
+    r = random.Random(708)
+    for _ in range(200):
+        a = [r.randint(1, 12) for _ in range(r.randint(1, 6))]
+        n = len(a)
+        best = n
+        for lo in range(-2, 16):
+            vals = set(range(lo, lo + n))
+            keep = len(vals & set(a))
+            # duplicates must be replaced, so only distinct values inside the range stay
+            best = min(best, n - keep)
+        assert f(a[:]) == best, a
+
+
+@test(f"{SW}:prefix-hash")
+def _(ns):
+    f = ns["subarray_sum"]
+    assert f([1, 1, 1], 2) == 2 and f([1, 2, 3], 3) == 2
+    r = random.Random(709)
+    for _ in range(300):
+        a = [r.randint(-3, 4) for _ in range(r.randint(1, 10))]
+        k = r.randint(-3, 6)
+        assert f(a[:], k) == sum(1 for i in range(len(a)) for j in range(i + 1, len(a) + 1) if sum(a[i:j]) == k)
+
+
+@test(f"{SW}:prefix-hash#Sums divisible by k")
+def _(ns):
+    f = ns["subarrays_div_by_k"]
+    assert f([4, 5, 0, -2, -3, 1], 5) == 7 and f([5], 9) == 0
+    r = random.Random(710)
+    for _ in range(300):
+        a = [r.randint(-6, 6) for _ in range(r.randint(1, 10))]
+        k = r.randint(1, 6)
+        assert f(a[:], k) == sum(1 for i in range(len(a)) for j in range(i + 1, len(a) + 1) if sum(a[i:j]) % k == 0)
+
+
+@test(f"{SW}:prefix-hash#Nice subarrays (k odd numbers)")
+def _(ns):
+    f = ns["number_of_subarrays"]
+    assert f([1, 1, 2, 1, 1], 3) == 2 and f([2, 4, 6], 1) == 0
+    r = random.Random(711)
+    for _ in range(300):
+        a = [r.randint(0, 5) for _ in range(r.randint(1, 10))]
+        k = r.randint(1, 3)
+        assert f(a[:], k) == sum(1 for i in range(len(a)) for j in range(i + 1, len(a) + 1) if sum(x & 1 for x in a[i:j]) == k)
+
+
+@test(f"{SW}:anagram")
+def _(ns):
+    f = ns["find_anagrams"]
+    assert f("cbaebabacd", "abc") == [0, 6] and f("abab", "ab") == [0, 1, 2]
+    r = random.Random(712)
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(0, 12)))
+        p = "".join(r.choice("abc") for _ in range(r.randint(1, 4)))
+        want = [i for i in range(len(s) - len(p) + 1) if sorted(s[i:i + len(p)]) == sorted(p)]
+        assert f(s, p) == want
+
+
+@test(f"{SW}:anagram#Concatenation of all words")
+def _(ns):
+    f = ns["find_substring"]
+    assert f("barfoothefoobarman", ["foo", "bar"]) == [0, 9] and f("wordgoodgoodgoodbestword", ["word", "good", "best", "word"]) == []
+    r = random.Random(713)
+    for _ in range(300):
+        words = ["".join(r.choice("ab") for _ in range(2)) for _ in range(r.randint(1, 3))]
+        s = "".join(r.choice("ab") for _ in range(r.randint(0, 12)))
+        w, m = 2, len(words)
+        want = [i for i in range(len(s) - w * m + 1) if sorted(s[i + j * w:i + j * w + w] for j in range(m)) == sorted(words)]
+        assert f(s, words[:]) == want, (s, words)
+
+
+@test(f"{SW}:rolling-hash")
+def _(ns):
+    f = ns["find_repeated_dna"]
+    assert sorted(f("AAAAACCCCCAAAAACCCCCCAAAAAGGGTTT")) == ["AAAAACCCCC", "CCCCCAAAAA"] and f("AAAAAAAAAAAAA") == ["AAAAAAAAAA"]
+    r = random.Random(714)
+    for _ in range(100):
+        s = "".join(r.choice("ACGT") for _ in range(r.randint(0, 40)))
+        seen, rep = set(), set()
+        for i in range(len(s) - 9):
+            w = s[i:i + 10]
+            (rep if w in seen else seen).add(w)
+        assert sorted(f(s)) == sorted(rep)
+
+
+@test(f"{SW}:rolling-hash#Rabin-Karp substring search")
+def _(ns):
+    f = ns["str_str"]
+    assert f("sadbutsad", "sad") == 0 and f("leetcode", "leeto") == -1 and f("a", "") == 0
+    r = random.Random(715)
+    for _ in range(300):
+        h = "".join(r.choice("ab") for _ in range(r.randint(0, 12)))
+        n = "".join(r.choice("ab") for _ in range(r.randint(1, 4)))
+        assert f(h, n) == h.find(n)
+
+
+@test(f"{SW}:answer-window")
+def _(ns):
+    f = ns["max_min_power"]
+    assert f([1, 2, 4, 5, 0], 1, 2) == 5 and f([4, 4, 4, 4], 0, 3) == 4
+    r = random.Random(716)
+    for _ in range(150):
+        n = r.randint(1, 5)
+        st = [r.randint(0, 4) for _ in range(n)]
+        rad, k = r.randint(0, 2), r.randint(0, 3)
+        best = 0
+        for alloc in _it.product(range(k + 1), repeat=n):
+            if sum(alloc) != k:
+                continue
+            s2 = [a + b for a, b in zip(st, alloc)]
+            power = [sum(s2[j] for j in range(max(0, i - rad), min(n, i + rad + 1))) for i in range(n)]
+            best = max(best, min(power))
+        assert f(st[:], rad, k) == best, (st, rad, k)
+
+
+@test(f"{SW}:count-range")
+def _(ns):
+    f = ns["get_subarray_beauty"]
+    assert f([1, -1, -3, -2, 3], 3, 2) == [-1, -2, -2] and f([-1, -2, -3, -4, -5], 2, 2) == [-1, -2, -3, -4]
+    r = random.Random(717)
+    for _ in range(200):
+        a = [r.randint(-5, 5) for _ in range(r.randint(1, 10))]
+        k = r.randint(1, len(a))
+        x = r.randint(1, k)
+        want = []
+        for i in range(len(a) - k + 1):
+            w = sorted(a[i:i + k])
+            v = w[x - 1]
+            want.append(v if v < 0 else 0)
+        assert f(a[:], k, x) == want
+
+
+@test(f"{SW}:count-range#Nearby almost duplicate (buckets)")
+def _(ns):
+    f = ns["contains_nearby_almost_duplicate"]
+    assert f([1, 2, 3, 1], 3, 0) is True and f([1, 0, 1, 1], 1, 2) is True and f([1, 5, 9, 1, 5, 9], 2, 3) is False
+    r = random.Random(718)
+    for _ in range(300):
+        a = [r.randint(-8, 8) for _ in range(r.randint(1, 8))]
+        k, t = r.randint(1, 5), r.randint(0, 4)
+        want = any(abs(a[i] - a[j]) <= t for i in range(len(a)) for j in range(i + 1, min(len(a), i + k + 1)))
+        assert f(a[:], k, t) is want, (a, k, t)
+
+
+@test(f"{SW}:count-from-right")
+def _(ns):
+    f = ns["count_subarrays"]
+    assert f([1, 3, 2, 3, 3], 2) == 6 and f([1, 4, 2, 1], 3) == 0
+    r = random.Random(719)
+    for _ in range(300):
+        a = [r.randint(1, 4) for _ in range(r.randint(1, 9))]
+        k = r.randint(1, 3)
+        top = max(a)
+        want = sum(1 for i in range(len(a)) for j in range(i + 1, len(a) + 1) if a[i:j].count(top) >= k)
+        assert f(a[:], k) == want
+
+
+@test(f"{SW}:count-from-right#Fixed bounds (last seen positions)")
+def _(ns):
+    f = ns["count_subarrays_bounds"]
+    assert f([1, 3, 5, 2, 7, 5], 1, 5) == 2 and f([1, 1, 1, 1], 1, 1) == 10
+    r = random.Random(720)
+    for _ in range(300):
+        a = [r.randint(1, 5) for _ in range(r.randint(1, 9))]
+        lo, hi = r.randint(1, 3), r.randint(3, 5)
+        want = sum(1 for i in range(len(a)) for j in range(i + 1, len(a) + 1) if min(a[i:j]) == lo and max(a[i:j]) == hi)
+        assert f(a[:], lo, hi) == want
+
+
+@test(f"{SW}:count-from-right#Substrings with all of a, b, c")
+def _(ns):
+    f = ns["number_of_substrings"]
+    assert f("abcabc") == 10 and f("aaacb") == 3 and f("abc") == 1
+    r = random.Random(721)
+    for _ in range(300):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 10)))
+        want = sum(1 for i in range(len(s)) for j in range(i + 1, len(s) + 1) if set(s[i:j]) >= set("abc"))
+        assert f(s) == want
+
+
+@test(f"{SW}:deque-dp")
+def _(ns):
+    f = ns["count_partitions"]
+    assert f([9, 4, 1, 3, 7], 4) == 6 and f([3, 3, 4], 0) == 2
+    r = random.Random(722)
+    for _ in range(300):
+        a = [r.randint(1, 6) for _ in range(r.randint(1, 8))]
+        k = r.randint(0, 4)
+        n = len(a)
+        dp = [1] + [0] * n
+        for i in range(1, n + 1):
+            for j in range(i):
+                if max(a[j:i]) - min(a[j:i]) <= k:
+                    dp[i] += dp[j]
+        assert f(a[:], k) == dp[n] % (10**9 + 7)
+
+
+@test(f"{SW}:deque-dp#Continuous subarrays")
+def _(ns):
+    f = ns["continuous_subarrays"]
+    assert f([5, 4, 2, 4]) == 8 and f([1, 2, 3]) == 6
+    r = random.Random(723)
+    for _ in range(300):
+        a = [r.randint(1, 7) for _ in range(r.randint(1, 9))]
+        want = sum(1 for i in range(len(a)) for j in range(i + 1, len(a) + 1) if max(a[i:j]) - min(a[i:j]) <= 2)
+        assert f(a[:]) == want
+
+
+@test(f"{SW}:rows-pairs")
+def _(ns):
+    f = ns["num_submatrix_sum_target"]
+    assert f([[0, 1, 0], [1, 1, 1], [0, 1, 0]], 0) == 4 and f([[1, -1], [-1, 1]], 0) == 5
+    r = random.Random(724)
+    for _ in range(100):
+        c = r.randint(1, 4)
+        m = [[r.randint(-2, 3) for _ in range(c)] for _ in range(r.randint(1, 4))]
+        t = r.randint(-2, 4)
+        R, C = len(m), c
+        want = sum(1 for r1 in range(R) for r2 in range(r1, R) for c1 in range(C) for c2 in range(c1, C)
+                   if sum(m[i][j] for i in range(r1, r2 + 1) for j in range(c1, c2 + 1)) == t)
+        assert f([row[:] for row in m], t) == want
+
+
+@test(f"{SW}:min-changes")
+def _(ns):
+    f = ns["minimum_recolors"]
+    assert f("WBBWWBBWBW", 7) == 3 and f("WBWBBBW", 2) == 0
+    r = random.Random(725)
+    for _ in range(300):
+        s = "".join(r.choice("WB") for _ in range(r.randint(1, 12)))
+        k = r.randint(1, len(s))
+        assert f(s, k) == min(s[i:i + k].count("W") for i in range(len(s) - k + 1))
+
+
+@test(f"{SW}:min-changes#Group all 1s together (circular)")
+def _(ns):
+    f = ns["min_swaps"]
+    assert f([0, 1, 1, 1, 0, 0, 1, 1, 0]) == 2 and f([0, 1, 1, 1, 0, 0, 1, 1, 0]) == 2 and f([1, 1, 0, 0, 1]) == 0
+    r = random.Random(726)
+    for _ in range(300):
+        a = [r.randint(0, 1) for _ in range(r.randint(1, 10))]
+        n, ones = len(a), sum(a)
+        if ones in (0, n):
+            assert f(a[:]) == 0
+            continue
+        want = min(sum(1 - a[(i + j) % n] for j in range(ones)) for i in range(n))
+        assert f(a[:]) == want
+
+
+@test(f"{SW}:min-changes#K-radius averages")
+def _(ns):
+    f = ns["get_averages"]
+    assert f([7, 4, 3, 9, 1, 8, 5, 2, 6], 3) == [-1, -1, -1, 5, 4, 4, -1, -1, -1] and f([100000], 0) == [100000]
+    r = random.Random(727)
+    for _ in range(300):
+        a = [r.randint(0, 20) for _ in range(r.randint(1, 10))]
+        k = r.randint(0, 3)
+        want = [sum(a[i - k:i + k + 1]) // (2 * k + 1) if i - k >= 0 and i + k < len(a) else -1 for i in range(len(a))]
+        assert f(a[:], k) == want

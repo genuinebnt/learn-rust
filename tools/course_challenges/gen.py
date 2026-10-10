@@ -88,6 +88,11 @@ def main():
                 os.makedirs(os.path.dirname(p), exist_ok=True)
                 open(p, "w").write(c["src"]["code"].lstrip("\n"))
                 sorted_mod(os.path.join(a.root, "reference", os.path.dirname(c["src"]["path"]), "mod.rs"), os.path.basename(c["src"]["path"])[:-3])
+            for x in c.get("extra", []):
+                p = os.path.join(a.root, "reference", x["path"])
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                open(p, "w").write(x["code"].lstrip("\n"))
+                sorted_mod(os.path.join(a.root, "reference", os.path.dirname(x["path"]), "mod.rs"), os.path.basename(x["path"])[:-3])
             if "test" in c:
                 put_tests(os.path.join(a.root, "reference", c["test"]["file"]), c["id"], c["test"]["code"])
             n += 1

@@ -8,7 +8,7 @@ The optional Rust on-ramp (r, 5 stages), modules 1a to 4c, and the optional prim
 
 ### Built since the first version of this list
 
-- **Challenges** (`kind = "challenge"`): optional extra exercises after a module. Own tally (`challenges`, `challenges_done`), never `current`, never block unlocking, no solution uploaded, CHALLENGE tag. Pages say what and why only, plus the invariants, the relations between input and output, and worked examples (lint-enforced). **129 shipped, at least five per module** (R, 0a-0d, 1a, 1b, 1f, 1g, 2a-2d, 3a-3h, 4a-4d); each has at least five tests, and every one is checked in all three tiers: **Build** (write it from the contract), **Extend** (builds on your own Trie, SkipList, hash set, ...) and **Debug** (the stub lines *are* the bug). The replacer modules 1c, 1d (two each) and 1e (none) are deliberately not extended: a replacer's policy is the module, there is nothing more to practise. Tests live in the module's own test file inside `mod ch_<id>` with the prefix `s<code>_c<n>` / `sr_c<n>`. The pages and Rust are produced by `tools/course_challenges/gen.py` from the packs in `tools/course_challenges/packs/` (one `C(...)` per challenge); run it with `--root <author tree>`, it is idempotent.
+- **Challenges** (`kind = "challenge"`): optional extra exercises after a module. Own tally (`challenges`, `challenges_done`), never `current`, never block unlocking, no solution uploaded, CHALLENGE tag. Pages say what and why only, plus the invariants, the relations between input and output, and worked examples (lint-enforced). **131 shipped, at least five per module** (R, 0a-0d, 1a, 1b, 1f, 1g, 2a-2d, 3a-3h, 4a-4d); each has at least five tests, and every one is checked in all three tiers: **Build** (write it from the contract), **Extend** (builds on your own Trie, SkipList, hash set, ...) and **Debug** (the stub lines *are* the bug). The replacer modules 1c, 1d (two each) and 1e (none) are deliberately not extended: a replacer's policy is the module, there is nothing more to practise. Tests live in the module's own test file inside `mod ch_<id>` with the prefix `s<code>_c<n>` / `sr_c<n>`. The pages and Rust are produced by `tools/course_challenges/gen.py` from the packs in `tools/course_challenges/packs/` (one `C(...)` per challenge); run it with `--root <author tree>`, it is idempotent.
 - **Listening run strip:** the stage page shows "listening", "running tests…" (the CLI posts `runs/start`) and then the result; the button says "Copy test command".
 - **Reset progress:** the whole course, a project or a module (Courses page and `anneal course reset --module M | --all`).
 
@@ -16,7 +16,7 @@ The optional Rust on-ramp (r, 5 stages), modules 1a to 4c, and the optional prim
 
 | # | Item | Size | Notes |
 |---|---|---|---|
-| 1 | **4d Lock manager** (standalone 2PL), **built** (7 stages; the hybrid stage 4d-08 is still to do) | 7 stages | Modes IS/IX/S/SIX/X and the compatibility matrix; one request queue; blocking and FIFO; upgrades; 2PL and isolation levels with intent locks; deadlock detection (waits-for graph, abort the youngest); boss: strict-2PL store equals a serial order, and the same workloads under MVCC are serializable. Plan in the planning thread; open decisions in §5. |
+| 1 | **4d Lock manager** (standalone 2PL), **built** (7 stages; the hybrid store and the anomaly lab are the optional challenges 4d-c6 and 4d-c7) | 7 stages | Modes IS/IX/S/SIX/X and the compatibility matrix; one request queue; blocking and FIFO; upgrades; 2PL and isolation levels with intent locks; deadlock detection (waits-for graph, abort the youngest); boss: strict-2PL store equals a serial order, and the same workloads under MVCC are serializable. Plan in the planning thread; open decisions in §5. |
 | 2 | "Errors you will meet" pages, one per module, **built** | 28 concept pages `errors-<code>` | 21 error families, each produced and checked with a real compiler (the bad program, the message, the fix), mapped to the modules that provoke them; linked as optional concepts from every stage. The generator is /tmp/c2/gen/errfam.py, errmods.py and errgen.py (copy them into tools/ before they are lost). |
 | 3 | `anneal course adopt <stage>` | CLI only | Copy our implementation of a stage into the learner's repo. |
 | 4 | Rewrite the older concept articles in the newer style | ongoing | Quality pass, no new content. |
@@ -25,8 +25,8 @@ The optional Rust on-ramp (r, 5 stages), modules 1a to 4c, and the optional prim
 ## 3. Proposed, by area
 
 ### 3.1 Transactions and concurrency
-- **4d-08 Hybrid stage (optional):** MVCC snapshot reads with row locks for writes, and `SELECT … FOR UPDATE`. Readers never wait; writers wait instead of aborting. (about 1 stage)
-- **Isolation-anomaly lab:** spot write skew, lost update and phantom on the stores that exist. (1 stage, cheap)
+- **Hybrid store** (**built** as the optional challenge `4d-c6`, Extend tier): snapshot reads that never wait, row locks from the learner's own lock manager for writes that wait instead of aborting, and `get_for_update`.
+- **Isolation-anomaly lab** (**built** as the optional challenge `4d-c7`, Build tier): a given step-driven database at five isolation levels; the learner writes the five scenarios (dirty read, non-repeatable read, lost update, write skew, phantom) and predicts the table, which the tests compare with what the scenarios observe. The engine is `src/concurrency/lab_db.rs`, tied to 4d with `files = [...]`.
 - **Key-range / next-key locking** with the lock manager, to stop phantoms under 2PL. (about 2 stages)
 - **Optimistic concurrency control** (validation at commit). (about 3 stages)
 - **Time-travel queries** (`AS OF`) from MVCC. (1 to 2 stages)

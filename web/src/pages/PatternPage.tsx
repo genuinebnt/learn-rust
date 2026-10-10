@@ -17,7 +17,6 @@ export function PatternPage({ code }: { code: string }) {
       {lessons.isError && <p className="notice bad">Couldn't load the lessons: {(lessons.error as Error).message}</p>}
       {d && (
         <>
-          <p className="l-intro">{d.intro ?? `${d.total} problems across the lists, grouped by the idea they use.`}</p>
           {d.groups ? <Grouped d={d} today={today} /> : <Flat d={d} today={today} />}
           <OtherTechniques items={d.listed ?? []} />
         </>

@@ -67,6 +67,10 @@ html[data-width="wide"]{--pw:1560px;--pw-lg:1760px}
 .hd-ib:hover{border-color:var(--line);background:var(--raise);transform:translateY(-1px)}
 .hd-ib:active{transform:scale(.94)}
 .hd-ib svg{width:15px;height:15px}
+.hd-ib.wdt .pane{transform-box:fill-box;transform-origin:center;transition:transform .22s var(--ease)}
+.hd-ib.wdt.wide .pane{transform:scaleX(1.7)}
+.hd-ib.wdt.wide{color:var(--acc);border-color:color-mix(in oklab,var(--acc) 45%,var(--line2))}
+@media (max-width:900px){.hd-ib.wdt{display:none}}
 .thm svg{position:absolute;transition:transform .5s var(--ease),opacity .3s}
 .thm .sun{transform:rotate(-90deg) scale(.4);opacity:0}
 :root[data-theme="light"] .thm .sun{transform:none;opacity:1}

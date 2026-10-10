@@ -3,7 +3,7 @@ import { marked } from "marked";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, type DsaCompany, type DsaProblem, type Grade } from "../api";
-import { DIFF, MARK_GLYPH, markOf, niceDate } from "../dsa";
+import { DIFF, markOf, niceDate } from "../dsa";
 
 const SAID: Record<Grade, string> = { good: "on your own", hard: "with help", again: "not yet", easy: "easy" };
 
@@ -37,13 +37,23 @@ export function useLogger(today: string | undefined): { log: (p: DsaProblem, gra
   };
 }
 
-/** The ring that says how the latest log went: ✓ on my own, ½ with help, ✗ not yet. */
+/** The state icon of a problem: a filled disc with a check (solved on my own), a half-filled ring (solved with help),
+ *  a red ring with a cross (couldn't yet), a violet ring with a clock when a review is due, and a dashed ring when not started. */
 export function Mark({ p, today }: { p: DsaProblem; today: string }) {
   const mark = markOf(p);
-  const label = p.state.last_grade ? (p.state.due && p.state.due <= today && mark !== "fail" ? "Due for review" : mark === "fail" ? "Couldn't yet" : "Solved") : "Not started";
+  const started = !!p.state.last_grade;
+  const due = started && !!p.state.due && p.state.due <= today && mark !== "fail";
+  const label = started ? (due ? "Due for review" : mark === "fail" ? "Couldn't yet" : mark === "help" ? "Solved with help" : "Solved") : "Not started";
+  const kind = due ? "due" : mark || "none";
   return (
-    <span className={`d-st ${mark}`} title={label}>
-      {MARK_GLYPH[mark]}
+    <span className={`d-st ${mark} k-${kind}`} title={label} role="img" aria-label={label}>
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle className="r" cx="12" cy="12" r="10" />
+        {kind === "solo" && <path className="g" d="M7.2 12.4l3.2 3.2 6.4-6.8" />}
+        {kind === "help" && <path className="h" d="M12 2a10 10 0 0 0 0 20z" />}
+        {kind === "fail" && <path className="g" d="M8.4 8.4l7.2 7.2M15.6 8.4l-7.2 7.2" />}
+        {kind === "due" && <path className="g" d="M12 6.8V12l3.4 2" />}
+      </svg>
     </span>
   );
 }

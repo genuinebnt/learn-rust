@@ -35991,6 +35991,284 @@
    "role": "practice",
    "practice_of": null,
    "priority": "practice"
+  },
+  {
+   "id": "lc-lowest-common-ancestor-of-deepest-leaves",
+   "slug": "lowest-common-ancestor-of-deepest-leaves",
+   "number": 1123,
+   "title": "Lowest Common Ancestor of Deepest Leaves",
+   "difficulty": "medium",
+   "pattern": "Trees",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Hash Table",
+    "Tree",
+    "Depth-First Search",
+    "Breadth-First Search",
+    "Binary Tree",
+    "binary-lifting",
+    "lowest-common-ancestor",
+    "dp-on-trees"
+   ],
+   "companies": [
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 34.0,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 14.6,
+     "recent": false
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 13.4,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Trees:lca",
+   "order": 101736,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-smallest-subtree-with-all-the-deepest-nodes",
+   "slug": "smallest-subtree-with-all-the-deepest-nodes",
+   "number": 865,
+   "title": "Smallest Subtree with all the Deepest Nodes",
+   "difficulty": "medium",
+   "pattern": "Trees",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Hash Table",
+    "Tree",
+    "Depth-First Search",
+    "Breadth-First Search",
+    "Binary Tree",
+    "binary-lifting",
+    "lowest-common-ancestor",
+    "dp-on-trees"
+   ],
+   "companies": [
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 38.5,
+     "recent": false
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 13.4,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 8.1,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Trees:lca",
+   "order": 101737,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-kth-ancestor-of-a-tree-node",
+   "slug": "kth-ancestor-of-a-tree-node",
+   "number": 1483,
+   "title": "Kth Ancestor of a Tree Node",
+   "difficulty": "hard",
+   "pattern": "Trees",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Binary Search",
+    "Dynamic Programming",
+    "Bit Manipulation",
+    "Tree",
+    "Depth-First Search",
+    "Breadth-First Search",
+    "Design",
+    "binary-lifting"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 27.2,
+     "recent": true
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 8.2,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 7.2,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Trees:binary-lifting",
+   "order": 101738,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-most-frequent-subtree-sum",
+   "slug": "most-frequent-subtree-sum",
+   "number": 508,
+   "title": "Most Frequent Subtree Sum",
+   "difficulty": "medium",
+   "pattern": "Trees",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Hash Table",
+    "Tree",
+    "Depth-First Search",
+    "Binary Tree",
+    "dp-on-trees"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 26.5,
+     "recent": false
+    },
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 8.2,
+     "recent": false
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 7.3,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Trees:subtree-sums",
+   "order": 101739,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-number-of-ways-to-reorder-array-to-get-same-bst",
+   "slug": "number-of-ways-to-reorder-array-to-get-same-bst",
+   "number": 1569,
+   "title": "Number of Ways to Reorder Array to Get Same BST",
+   "difficulty": "hard",
+   "pattern": "Trees",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Math",
+    "Divide and Conquer",
+    "Dynamic Programming",
+    "Tree",
+    "Union-Find",
+    "Binary Search Tree",
+    "Memoization",
+    "Combinatorics",
+    "Binary Tree",
+    "fermats-little-theorem"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 18.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Trees:insertion-orders",
+   "order": 101740,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-binary-tree-tilt",
+   "slug": "binary-tree-tilt",
+   "number": 563,
+   "title": "Binary Tree Tilt",
+   "difficulty": "easy",
+   "pattern": "Trees",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Tree",
+    "Depth-First Search",
+    "Binary Tree",
+    "dp-on-trees"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 7.2,
+     "recent": false
+    },
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Trees:subtree-sums",
+   "order": 101741,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
   }
  ]
 }

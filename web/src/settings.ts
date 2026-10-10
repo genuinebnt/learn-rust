@@ -134,6 +134,7 @@ export function applyWidth(width: PageWidth) {
   } catch {
     // the choice then lasts for this visit only
   }
+  window.dispatchEvent(new Event("anneal-width"));
 }
 
 // Applied as soon as the module loads, so the first paint already has the chosen width.
@@ -142,6 +143,12 @@ if (typeof document !== "undefined" && readWidth() === "wide") document.document
 /** The page width choice and a setter. */
 export function usePageWidth() {
   const [width, setWidth] = useState<PageWidth>(readWidth);
+  // the header toggle and the account menu both set it: follow the one that did
+  useEffect(() => {
+    const sync = () => setWidth(document.documentElement.dataset.width === "wide" ? "wide" : "narrow");
+    window.addEventListener("anneal-width", sync);
+    return () => window.removeEventListener("anneal-width", sync);
+  }, []);
   return {
     width,
     set: (next: PageWidth) => {

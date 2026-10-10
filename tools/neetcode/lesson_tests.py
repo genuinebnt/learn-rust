@@ -5039,3 +5039,1605 @@ def _(ns):
         best = max(sum(e[2] for e in c) for j in range(k + 1) for c in _it.combinations(ev, j)
                    if all(a[1] < b[0] or b[1] < a[0] for a, b in _it.combinations(c, 2)))
         assert f([e[:] for e in ev], k) == best, (ev, k)
+
+
+# ---- trees (extras) -------------------------------------------------------------------------------------------------
+
+from page_tests import _inorder_vals, _preorder, _random_bst, _random_tree, _tree_copy, _tree_distances  # noqa: E402
+
+
+def _rec_order(t, order):
+    if t is None:
+        return []
+    if order == "in":
+        return _rec_order(t.left, order) + [t.val] + _rec_order(t.right, order)
+    if order == "pre":
+        return [t.val] + _rec_order(t.left, order) + _rec_order(t.right, order)
+    return _rec_order(t.left, order) + _rec_order(t.right, order) + [t.val]
+
+
+def _levels(t):
+    out, level = [], [t] if t else []
+    while level:
+        out.append(level)
+        level = [c for n in level for c in (n.left, n.right) if c]
+    return out
+
+
+def _parents(t):
+    par = {id(t): None} if t else {}
+    for n in _preorder(t):
+        for c in (n.left, n.right):
+            if c:
+                par[id(c)] = n
+    return par
+
+
+def _height_edges(t):
+    return -1 if t is None else 1 + max(_height_edges(t.left), _height_edges(t.right))
+
+
+@test("Trees:traversals-iterative")
+def _(ns):
+    f = ns["inorder"]
+    assert f(None) == []
+    r = random.Random(400)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 10))
+        assert f(t) == _rec_order(t, "in")
+    chain = cur = TreeNode(0)
+    for i in range(1, 3000):
+        cur.right = TreeNode(i)
+        cur = cur.right
+    assert f(chain) == list(range(3000)), "a deep tree must not use recursion"
+
+
+@test("Trees:traversals-iterative#Preorder")
+def _(ns):
+    f = ns["preorder"]
+    assert f(None) == []
+    r = random.Random(401)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 10))
+        assert f(t) == _rec_order(t, "pre")
+
+
+@test("Trees:traversals-iterative#Postorder")
+def _(ns):
+    f = ns["postorder"]
+    assert f(None) == []
+    r = random.Random(402)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 10))
+        assert f(t) == _rec_order(t, "post")
+
+
+@test("Trees:traversals-iterative#Morris inorder (O(1) space)")
+def _(ns):
+    f = ns["morris_inorder"]
+    r = random.Random(403)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 10))
+        before = _shape(t)
+        assert f(t) == _rec_order(t, "in")
+        assert _shape(t) == before, "the threads must be removed again"
+
+
+@test("Trees:bfs-levels#Zigzag")
+def _(ns):
+    f = ns["zigzag_level_order"]
+    assert f(_tree([3, 9, 20, None, None, 15, 7])) == [[3], [20, 9], [15, 7]] and f(None) == []
+    r = random.Random(404)
+    for _ in range(100):
+        t = _random_tree(r, r.randint(0, 10))
+        want = [[n.val for n in lv][:: -1 if i % 2 else 1] for i, lv in enumerate(_levels(t))]
+        assert f(t) == want
+
+
+@test("Trees:bfs-levels#Right side view")
+def _(ns):
+    f = ns["right_side_view"]
+    assert f(_tree([1, 2, 3, None, 5, None, 4])) == [1, 3, 4] and f(None) == []
+    r = random.Random(405)
+    for _ in range(100):
+        t = _random_tree(r, r.randint(0, 10))
+        assert f(t) == [lv[-1].val for lv in _levels(t)]
+
+
+def _positions(t):
+    out = {}
+
+    def go(n, pos, depth):
+        if n:
+            out[id(n)] = (pos, depth)
+            go(n.left, 2 * pos, depth + 1)
+            go(n.right, 2 * pos + 1, depth + 1)
+
+    go(t, 1, 0)
+    return out
+
+
+@test("Trees:bfs-levels#Maximum width")
+def _(ns):
+    f = ns["width_of_binary_tree"]
+    assert f(_tree([1, 3, 2, 5, 3, None, 9])) == 4 and f(_tree([1, 3, 2, 5])) == 2
+    r = random.Random(406)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(1, 10))
+        pos = _positions(t)
+        want = 0
+        for d in range(len(_levels(t))):
+            ps = [p for p, dd in pos.values() if dd == d]
+            want = max(want, max(ps) - min(ps) + 1)
+        assert f(t) == want
+    deep = cur = TreeNode(1)
+    for _ in range(200):
+        cur.left = TreeNode(1)
+        cur = cur.left
+    assert f(deep) == 1
+
+
+@test("Trees:bfs-levels#Is complete")
+def _(ns):
+    f = ns["is_complete_tree"]
+    assert f(_tree([1, 2, 3, 4, 5, 6])) is True and f(_tree([1, 2, 3, 4, 5, None, 7])) is False
+    r = random.Random(407)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 9))
+        n = len(_preorder(t))
+        assert f(t) is ({p for p, _ in _positions(t).values()} == set(range(1, n + 1)))
+    for n in range(1, 12):
+        assert f(_tree(list(range(1, n + 1)))) is True
+
+
+@test("Trees:bfs-levels#Next right pointers (O(1) space)")
+def _(ns):
+    f = ns["connect"]
+    r = random.Random(408)
+    for _ in range(100):
+        t = _random_tree(r, r.randint(1, 11))
+        for n in _preorder(t):
+            n.next = None
+        f(t)
+        for lv in _levels(t):
+            for a, b in zip(lv, lv[1:] + [None]):
+                assert a.next is b
+
+
+@test("Trees:bfs-levels#Cousins")
+def _(ns):
+    f = ns["is_cousins"]
+    assert f(_tree([1, 2, 3, 4]), 4, 3) is False and f(_tree([1, 2, 3, None, 4, None, 5]), 5, 4) is True
+    r = random.Random(409)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(2, 9), distinct=True)
+        nodes = _preorder(t)
+        x, y = r.sample([n.val for n in nodes], 2)
+        par, depth = {}, {}
+
+        def go(n, p, d):
+            if n:
+                par[n.val], depth[n.val] = p, d
+                go(n.left, n, d + 1)
+                go(n.right, n, d + 1)
+
+        go(t, None, 0)
+        assert f(t, x, y) is (depth[x] == depth[y] and par[x] is not par[y])
+
+
+@test("Trees:bfs-levels#Reverse odd levels")
+def _(ns):
+    f = ns["reverse_odd_levels"]
+    r = random.Random(410)
+
+    def perfect(d):
+        if d == 0:
+            return None
+        return TreeNode(r.randint(0, 99), perfect(d - 1), perfect(d - 1))
+
+    for _ in range(60):
+        t = perfect(r.randint(1, 4))
+        want = [[n.val for n in lv][:: -1 if i % 2 else 1] for i, lv in enumerate(_levels(t))]
+        got = f(t)
+        assert [[n.val for n in lv] for lv in _levels(got)] == want
+
+
+@test("Trees:bfs-levels#Cousin sums")
+def _(ns):
+    f = ns["replace_value_in_tree"]
+    r = random.Random(411)
+    for _ in range(100):
+        t = _random_tree(r, r.randint(1, 10), lo=0, hi=9)
+        par = _parents(t)
+        levels = _levels(t)
+        want = {}
+        for lv in levels:
+            total = sum(n.val for n in lv)
+            for n in lv:
+                p = par[id(n)]
+                sibs = sum(c.val for c in (p.left, p.right) if c) if p else n.val
+                want[id(n)] = total - sibs
+        got = f(t)
+        assert all(n.val == want[id(n)] for n in _preorder(got))
+
+
+def _boundary_alt(root):
+    if root is None:
+        return []
+
+    def leaf(n):
+        return n.left is None and n.right is None
+
+    if leaf(root):
+        return [root.val]
+    out = [root.val]
+
+    def left(n):
+        if n is None or leaf(n):
+            return
+        out.append(n.val)
+        left(n.left or n.right)
+
+    def leaves(n):
+        if n is None:
+            return
+        if leaf(n):
+            out.append(n.val)
+        leaves(n.left)
+        leaves(n.right)
+
+    def right(n):
+        if n is None or leaf(n):
+            return
+        right(n.right or n.left)
+        out.append(n.val)
+
+    left(root.left)
+    leaves(root.left)
+    leaves(root.right)
+    right(root.right)
+    return out
+
+
+@test("Trees:columns")
+def _(ns):
+    f = ns["vertical_traversal"]
+    assert f(_tree([3, 9, 20, None, None, 15, 7])) == [[9], [3, 15], [20], [7]] and f(None) == []
+    r = random.Random(412)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 10))
+        cols = {}
+
+        def go(n, row, col):
+            if n:
+                cols.setdefault(col, []).append((row, n.val))
+                go(n.left, row + 1, col - 1)
+                go(n.right, row + 1, col + 1)
+
+        go(t, 0, 0)
+        assert f(t) == [[v for _, v in sorted(cols[c])] for c in sorted(cols)]
+
+
+@test("Trees:columns#Boundary of a binary tree")
+def _(ns):
+    f = ns["boundary_of_binary_tree"]
+    assert f(_tree([1, None, 2, 3, 4])) == [1, 3, 4, 2] and f(_tree([1, 2, 3, 4, 5, 6, None, None, None, 7, 8, 9, 10])) == [1, 2, 4, 7, 8, 9, 10, 6, 3]
+    r = random.Random(413)
+    for _ in range(300):
+        t = _random_tree(r, r.randint(0, 11))
+        assert f(t) == _boundary_alt(t)
+
+
+@test("Trees:dfs-return#Balanced tree")
+def _(ns):
+    f = ns["is_balanced"]
+    assert f(_tree([3, 9, 20, None, None, 15, 7])) is True and f(_tree([1, 2, 2, 3, 3, None, None, 4, 4])) is False and f(None) is True
+    r = random.Random(414)
+
+    def ok(n):
+        return n is None or (abs(_height_edges(n.left) - _height_edges(n.right)) <= 1 and ok(n.left) and ok(n.right))
+
+    for _ in range(200):
+        t = _random_tree(r, r.randint(0, 11))
+        assert f(t) is ok(t)
+
+
+def _path_nodes(par, a, b):
+    """The nodes on the tree path from a to b (inclusive)."""
+    up_a, x = [], a
+    while x is not None:
+        up_a.append(x)
+        x = par[id(x)]
+    ids = {id(n) for n in up_a}
+    up_b, y = [], b
+    while id(y) not in ids:
+        up_b.append(y)
+        y = par[id(y)]
+    return up_a[: [id(n) for n in up_a].index(id(y)) + 1] + up_b[::-1]
+
+
+@test("Trees:dfs-return#Maximum path sum")
+def _(ns):
+    f = ns["max_path_sum"]
+    assert f(_tree([1, 2, 3])) == 6 and f(_tree([-10, 9, 20, None, None, 15, 7])) == 42 and f(_tree([-3])) == -3
+    r = random.Random(415)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 9), lo=-9, hi=9)
+        par = _parents(t)
+        nodes = _preorder(t)
+        want = max(sum(n.val for n in _path_nodes(par, a, b)) for a in nodes for b in nodes)
+        assert f(t) == want
+
+
+@test("Trees:dfs-return#House robber III")
+def _(ns):
+    f = ns["rob"]
+    assert f(_tree([3, 2, 3, None, 3, None, 1])) == 7 and f(_tree([3, 4, 5, 1, 3, None, 1])) == 9
+    r = random.Random(416)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(1, 9), lo=0, hi=9)
+        nodes = _preorder(t)
+        idx = {id(n): i for i, n in enumerate(nodes)}
+        edges = [(idx[id(n)], idx[id(c)]) for n in nodes for c in (n.left, n.right) if c]
+        best = 0
+        for mask in range(1 << len(nodes)):
+            if all(not (mask >> a & 1 and mask >> b & 1) for a, b in edges):
+                best = max(best, sum(nodes[i].val for i in range(len(nodes)) if mask >> i & 1))
+        assert f(t) == best
+
+
+@test("Trees:dfs-return#Largest BST subtree")
+def _(ns):
+    f = ns["largest_bst_subtree"]
+    assert f(_tree([10, 5, 15, 1, 8, None, 7])) == 3 and f(None) == 0
+    r = random.Random(417)
+
+    def size_if_bst(n):
+        vals = _inorder_vals(n)
+        return len(vals) if all(a < b for a, b in zip(vals, vals[1:])) else 0
+
+    for _ in range(200):
+        t = _random_tree(r, r.randint(0, 10), lo=0, hi=12)
+        assert f(t) == max([size_if_bst(n) for n in _preorder(t)] or [0])
+
+
+@test("Trees:dfs-return#Longest univalue path")
+def _(ns):
+    f = ns["longest_univalue_path"]
+    assert f(_tree([5, 4, 5, 1, 1, None, 5])) == 2 and f(_tree([1, 4, 5, 4, 4, None, 5])) == 2
+    r = random.Random(418)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 10), lo=1, hi=2)
+        par = _parents(t)
+        nodes = _preorder(t)
+        want = 0
+        for a in nodes:
+            for b in nodes:
+                p = _path_nodes(par, a, b)
+                if len({n.val for n in p}) == 1:
+                    want = max(want, len(p) - 1)
+        assert f(t) == want
+
+
+@test("Trees:dfs-return#Good leaf pairs")
+def _(ns):
+    f = ns["count_pairs"]
+    assert f(_tree([1, 2, 3, None, 4]), 3) == 1 and f(_tree([1, 2, 3, 4, 5, 6, 7]), 3) == 2
+    r = random.Random(419)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(1, 10))
+        dist = _tree_distances(t)
+        leaves = [n for n in _preorder(t) if n.left is None and n.right is None]
+        k = r.randint(1, 5)
+        want = sum(1 for a, b in _it.combinations(leaves, 2) if dist[(id(a), id(b))] <= k)
+        assert f(t, k) == want
+
+
+def _root_to_leaf(t):
+    out = []
+
+    def go(n, path):
+        if n is None:
+            return
+        path = path + [n.val]
+        if n.left is None and n.right is None:
+            out.append(path)
+        go(n.left, path)
+        go(n.right, path)
+
+    go(t, [])
+    return out
+
+
+@test("Trees:dfs-carry#Path sum II (all paths)")
+def _(ns):
+    f = ns["path_sum"]
+    assert sorted(f(_tree([5, 4, 8, 11, None, 13, 4, 7, 2, None, None, 5, 1]), 22)) == [[5, 4, 11, 2], [5, 8, 4, 5]]
+    r = random.Random(420)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 10), lo=0, hi=4)
+        target = r.randint(0, 12)
+        assert sorted(f(t, target)) == sorted(p for p in _root_to_leaf(t) if sum(p) == target)
+
+
+@test("Trees:dfs-carry#Root-to-leaf numbers")
+def _(ns):
+    f = ns["sum_numbers"]
+    assert f(_tree([1, 2, 3])) == 25 and f(_tree([4, 9, 0, 5, 1])) == 1026 and f(None) == 0
+    r = random.Random(421)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 10), lo=0, hi=9)
+        assert f(t) == sum(int("".join(map(str, p))) for p in _root_to_leaf(t))
+
+
+@test("Trees:dfs-carry#Largest difference with an ancestor")
+def _(ns):
+    f = ns["max_ancestor_diff"]
+    assert f(_tree([8, 3, 10, 1, 6, None, 14, None, None, 4, 7, 13])) == 7 and f(_tree([1, None, 2, None, 0, 3])) == 3
+    r = random.Random(422)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 10), lo=0, hi=30)
+        par = _parents(t)
+        want = 0
+        for n in _preorder(t):
+            a = par[id(n)]
+            while a is not None:
+                want = max(want, abs(a.val - n.val))
+                a = par[id(a)]
+        assert f(t) == want
+
+
+@test("Trees:dfs-carry#Pseudo-palindromic paths (bitmask)")
+def _(ns):
+    f = ns["pseudo_palindromic_paths"]
+    assert f(_tree([2, 3, 1, 3, 1, None, 1])) == 2 and f(_tree([2, 1, 1, 1, 3, None, None, None, None, None, 1])) == 1
+    r = random.Random(423)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(1, 10), lo=1, hi=3)
+        want = sum(1 for p in _root_to_leaf(t) if sum(1 for d in set(p) if p.count(d) % 2) <= 1)
+        assert f(t) == want
+
+
+@test("Trees:dfs-carry#Longest zigzag path")
+def _(ns):
+    f = ns["longest_zigzag"]
+    assert f(_tree([1, None, 1, 1, 1, None, None, 1, 1, None, 1, None, None, None, 1])) == 3 and f(_tree([1])) == 0
+    r = random.Random(424)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 11))
+        want = 0
+        for n in _preorder(t):
+            for first in ("left", "right"):
+                cur, side, steps = n, first, 0
+                while getattr(cur, side) is not None:
+                    cur = getattr(cur, side)
+                    steps += 1
+                    side = "right" if side == "left" else "left"
+                want = max(want, steps)
+        assert f(t) == want
+
+
+@test("Trees:dfs-edit#Delete nodes, return the forest")
+def _(ns):
+    f = ns["del_nodes"]
+    r = random.Random(425)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(1, 10), distinct=True, lo=1, hi=30)
+        vals = [n.val for n in _preorder(t)]
+        gone = set(r.sample(vals, r.randint(0, min(3, len(vals)))))
+        par = _parents(t)
+
+        def cut(n):
+            return (n.val, cut(n.left) if n.left and n.left.val not in gone else None,
+                    cut(n.right) if n.right and n.right.val not in gone else None)
+
+        want = sorted(
+            repr(cut(n)) for n in _preorder(t)
+            if n.val not in gone and (par[id(n)] is None or par[id(n)].val in gone)
+        )
+        got = sorted(repr(_shape(x)) for x in f(_tree_copy(t), list(gone)))
+        assert got == want
+
+
+@test("Trees:dfs-edit#Prune subtrees of zeros")
+def _(ns):
+    f = ns["prune_tree"]
+    assert _shape(f(_tree([1, None, 0, 0, 1]))) == (1, None, (0, None, (1, None, None)))
+    r = random.Random(426)
+
+    def brute(n):
+        if n is None:
+            return None
+        left, right = brute(n.left), brute(n.right)
+        if left is None and right is None and n.val == 0:
+            return None
+        return (n.val, left, right)
+
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 10), lo=0, hi=1)
+        assert _shape(f(_tree_copy(t))) == brute(t)
+
+
+@test("Trees:prefix-map")
+def _(ns):
+    f = ns["path_sum_iii"]
+    assert f(_tree([10, 5, -3, 3, 2, None, 11, 3, -2, None, 1]), 8) == 3
+    r = random.Random(427)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 10), lo=-3, hi=5)
+        target = r.randint(-3, 8)
+
+        def count(n):
+            if n is None:
+                return 0
+
+            def down(m, s):
+                if m is None:
+                    return 0
+                s += m.val
+                return (s == target) + down(m.left, s) + down(m.right, s)
+
+            return down(n, 0) + count(n.left) + count(n.right)
+
+        assert f(t, target) == count(t)
+
+
+@test("Trees:lca")
+def _(ns):
+    f = ns["lowest_common_ancestor"]
+    r = random.Random(428)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 10), distinct=True, lo=1, hi=40)
+        nodes = _preorder(t)
+        p, q = r.choice(nodes), r.choice(nodes)
+        par = _parents(t)
+        anc = set()
+        x = p
+        while x is not None:
+            anc.add(id(x))
+            x = par[id(x)]
+        y = q
+        while id(y) not in anc:
+            y = par[id(y)]
+        assert f(t, p, q) is y
+
+
+@test("Trees:lca#With parent pointers (two walkers)")
+def _(ns):
+    f = ns["lowest_common_ancestor_parent"]
+    r = random.Random(429)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 10), distinct=True, lo=1, hi=40)
+        par = _parents(t)
+        nodes = _preorder(t)
+        for n in nodes:
+            n.parent = par[id(n)]
+        p, q = r.choice(nodes), r.choice(nodes)
+        anc = set()
+        x = p
+        while x is not None:
+            anc.add(id(x))
+            x = x.parent
+        y = q
+        while id(y) not in anc:
+            y = y.parent
+        assert f(p, q) is y
+
+
+@test("Trees:lca#Deepest leaves")
+def _(ns):
+    f = ns["lca_deepest_leaves"]
+    assert f(_tree([3, 5, 1, 6, 2, 0, 8, None, None, 7, 4])).val == 2 and f(_tree([1])).val == 1
+    r = random.Random(430)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 11))
+        levels = _levels(t)
+        deepest = {id(n) for n in levels[-1]}
+        best = None
+        for n in _preorder(t):  # the deepest node whose subtree holds all the deepest leaves
+            sub = {id(m) for m in _preorder(n)}
+            if deepest <= sub:
+                best = n
+        assert f(t) is best
+
+
+@test("Trees:lca#Directions between two nodes")
+def _(ns):
+    f = ns["get_directions"]
+    assert f(_tree([5, 1, 2, 3, None, 6, 4]), 3, 6) == "UURL" and f(_tree([2, 1]), 2, 1) == "L"
+    r = random.Random(431)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(2, 10), distinct=True, lo=1, hi=40)
+        nodes = _preorder(t)
+        a, b = r.sample(nodes, 2)
+        par = _parents(t)
+        path = _path_nodes(par, a, b)
+        out = []
+        for u, v in zip(path, path[1:]):
+            if par[id(u)] is v:
+                out.append("U")
+            else:
+                out.append("L" if u.left is v else "R")
+        assert f(t, a.val, b.val) == "".join(out)
+
+
+@test("Trees:bst-bounds")
+def _(ns):
+    f = ns["is_valid_bst"]
+    assert f(_tree([2, 1, 3])) is True and f(_tree([5, 1, 4, None, None, 3, 6])) is False and f(_tree([5, 4, 6, None, None, 3, 7])) is False
+    r = random.Random(432)
+    for _ in range(300):
+        t = _random_tree(r, r.randint(0, 9), lo=0, hi=9)
+        vals = _inorder_vals(t)
+        assert f(t) is all(a < b for a, b in zip(vals, vals[1:]))
+
+
+@test("Trees:bst-bounds#Build from preorder")
+def _(ns):
+    f = ns["bst_from_preorder"]
+    r = random.Random(433)
+    for _ in range(150):
+        t = _random_bst(r, r.randint(1, 10))
+        pre = [n.val for n in _preorder(t)]
+        assert _shape(f(pre[:])) == _shape(t)
+
+
+@test("Trees:bst-bounds#Verify a preorder list (stack)")
+def _(ns):
+    f = ns["verify_preorder"]
+    assert f([5, 2, 1, 3, 6]) is True and f([5, 2, 6, 1, 3]) is False
+    r = random.Random(434)
+    for _ in range(300):
+        seq = r.sample(range(0, 12), r.randint(1, 7))
+        root = None
+        for v in seq:  # insert in this order: the preorder of the result is the sequence iff it is a valid preorder
+            if root is None:
+                root = TreeNode(v)
+                continue
+            cur = root
+            while True:
+                side = "left" if v < cur.val else "right"
+                if getattr(cur, side) is None:
+                    setattr(cur, side, TreeNode(v))
+                    break
+                cur = getattr(cur, side)
+        # a sequence is a BST preorder iff rebuilding by bounds consumes it all
+        pre = [n.val for n in _preorder(root)]
+        # an exact reference: valid iff the bounds recursion (low and high) consumes everything
+        i = 0
+
+        def build(lo, hi):
+            nonlocal i
+            if i == len(seq) or not lo < seq[i] < hi:
+                return
+            v = seq[i]
+            i += 1
+            build(lo, v)
+            build(v, hi)
+
+        build(float("-inf"), float("inf"))
+        assert f(seq[:]) is (i == len(seq)), seq
+
+
+@test("Trees:bst-bounds#Trim to a range")
+def _(ns):
+    f = ns["trim_bst"]
+    r = random.Random(435)
+    for _ in range(150):
+        t = _random_bst(r, r.randint(1, 10))
+        lo = r.randint(0, 30)
+        hi = lo + r.randint(0, 30)
+        want = [v for v in _inorder_vals(t) if lo <= v <= hi]
+        got = f(_tree_copy(t), lo, hi)
+        vals = _inorder_vals(got)
+        assert vals == want and all(a < b for a, b in zip(vals, vals[1:]))
+
+
+@test("Trees:bst-bounds#Range sum")
+def _(ns):
+    f = ns["range_sum_bst"]
+    r = random.Random(436)
+    for _ in range(150):
+        t = _random_bst(r, r.randint(1, 10))
+        lo = r.randint(0, 40)
+        hi = lo + r.randint(0, 30)
+        assert f(t, lo, hi) == sum(v for v in _inorder_vals(t) if lo <= v <= hi)
+
+
+@test("Trees:bst-bounds#Nearest keys")
+def _(ns):
+    f = ns["closest_nodes"]
+    r = random.Random(437)
+    for _ in range(100):
+        t = _random_bst(r, r.randint(1, 10))
+        vals = _inorder_vals(t)
+        qs = [r.randint(0, 60) for _ in range(5)]
+        want = [[max([v for v in vals if v <= q], default=-1), min([v for v in vals if v >= q], default=-1)] for q in qs]
+        assert f(t, qs) == want
+
+
+@test("Trees:bst-iterator")
+def _(ns):
+    cls = ns["BSTIterator"]
+    r = random.Random(438)
+    for _ in range(100):
+        t = _random_bst(r, r.randint(1, 10))
+        it, got = cls(t), []
+        while it.hasNext():
+            got.append(it.next())
+        assert got == _inorder_vals(t)
+
+
+@test("Trees:bst-iterator#Two sum on a BST")
+def _(ns):
+    f = ns["find_target"]
+    assert f(_tree([5, 3, 6, 2, 4, None, 7]), 9) is True and f(_tree([5, 3, 6, 2, 4, None, 7]), 28) is False
+    r = random.Random(439)
+    for _ in range(200):
+        t = _random_bst(r, r.randint(1, 9))
+        vals = _inorder_vals(t)
+        k = r.randint(0, 120)
+        assert f(t, k) is any(a + b == k for a, b in _it.combinations(vals, 2))
+
+
+def _bst_with_duplicates(values):
+    root = None
+    for v in values:
+        node = TreeNode(v)
+        if root is None:
+            root = node
+            continue
+        cur = root
+        while True:
+            side = "left" if v <= cur.val else "right"
+            if getattr(cur, side) is None:
+                setattr(cur, side, node)
+                break
+            cur = getattr(cur, side)
+    return root
+
+
+@test("Trees:inorder-state")
+def _(ns):
+    f = ns["recover_tree"]
+    r = random.Random(440)
+    for _ in range(150):
+        t = _random_bst(r, r.randint(2, 10))
+        nodes = _preorder(t)
+        a, b = r.sample(nodes, 2)
+        a.val, b.val = b.val, a.val
+        f(t)
+        vals = _inorder_vals(t)
+        assert vals == sorted(vals)
+
+
+@test("Trees:inorder-state#Minimum difference between nodes")
+def _(ns):
+    f = ns["min_diff_in_bst"]
+    assert f(_tree([4, 2, 6, 1, 3])) == 1
+    r = random.Random(441)
+    for _ in range(150):
+        t = _random_bst(r, r.randint(2, 10))
+        vals = sorted(_inorder_vals(t))
+        assert f(t) == min(b - a for a, b in zip(vals, vals[1:]))
+
+
+@test("Trees:inorder-state#Greater tree (reverse inorder)")
+def _(ns):
+    f = ns["convert_bst"]
+    r = random.Random(442)
+    for _ in range(150):
+        t = _random_bst(r, r.randint(1, 10))
+        vals = _inorder_vals(t)
+        want = [sum(w for w in vals if w >= v) for v in vals]
+        assert _inorder_vals(f(t)) == want
+
+
+@test("Trees:inorder-state#Mode of a BST")
+def _(ns):
+    f = ns["find_mode"]
+    assert f(_tree([1, None, 2, 2])) == [2]
+    r = random.Random(443)
+    for _ in range(200):
+        vals = [r.randint(0, 5) for _ in range(r.randint(1, 10))]
+        t = _bst_with_duplicates(vals)
+        counts = {v: vals.count(v) for v in set(vals)}
+        top = max(counts.values())
+        assert sorted(f(t)) == sorted(v for v, c in counts.items() if c == top)
+
+
+def _balanced_bst(t):
+    def ok(n):
+        return n is None or (abs(_height_edges(n.left) - _height_edges(n.right)) <= 1 and ok(n.left) and ok(n.right))
+
+    return ok(t)
+
+
+@test("Trees:sorted-to-bst")
+def _(ns):
+    f = ns["sorted_array_to_bst"]
+    assert f([]) is None
+    for n in range(1, 20):
+        t = f(list(range(n)))
+        assert _inorder_vals(t) == list(range(n)) and _balanced_bst(t)
+
+
+@test("Trees:sorted-to-bst#Balance an existing BST")
+def _(ns):
+    f = ns["balance_bst"]
+    r = random.Random(444)
+    for _ in range(100):
+        vals = sorted(r.sample(range(0, 50), r.randint(1, 12)))
+        root = None
+        for v in vals:  # sorted insertion: a right-leaning chain
+            node = TreeNode(v)
+            if root is None:
+                root = cur = node
+            else:
+                cur.right = node
+                cur = node
+        t = f(root)
+        assert _inorder_vals(t) == vals and _balanced_bst(t)
+
+
+@test("Trees:sorted-to-bst#Sorted linked list (inorder simulation)")
+def _(ns):
+    f = ns["sorted_list_to_bst"]
+    assert f(None) is None
+    for n in range(1, 20):
+        t = f(_ll(list(range(n))))
+        assert _inorder_vals(t) == list(range(n)) and _balanced_bst(t)
+
+
+def _pair(r):
+    a = _random_tree(r, r.randint(0, 7), lo=0, hi=2)
+    b = _tree_copy(a)
+    if r.random() < 0.5:
+        b = _random_tree(r, r.randint(0, 7), lo=0, hi=2)
+    elif b is not None and r.random() < 0.5:
+        r.choice(_preorder(b)).val += 1
+    return a, b
+
+
+@test("Trees:compare")
+def _(ns):
+    f = ns["is_same_tree"]
+    r = random.Random(445)
+    for _ in range(300):
+        a, b = _pair(r)
+        assert f(a, b) is (_shape(a) == _shape(b))
+
+
+def _mirror_shape(t):
+    return None if t is None else (t.val, _mirror_shape(t.right), _mirror_shape(t.left))
+
+
+@test("Trees:compare#Symmetric")
+def _(ns):
+    f = ns["is_symmetric"]
+    assert f(_tree([1, 2, 2, 3, 4, 4, 3])) is True and f(_tree([1, 2, 2, None, 3, None, 3])) is False
+    r = random.Random(446)
+    for _ in range(300):
+        left = _random_tree(r, r.randint(0, 5), lo=0, hi=1)
+        right = _mirror_shape_tree(left) if r.random() < 0.6 else _random_tree(r, r.randint(0, 5), lo=0, hi=1)
+        t = TreeNode(1, left, right)
+        want = _shape(t.left) == _mirror_shape(t.right)
+        assert f(t) is want
+
+
+def _mirror_shape_tree(t):
+    return None if t is None else TreeNode(t.val, _mirror_shape_tree(t.right), _mirror_shape_tree(t.left))
+
+
+@test("Trees:compare#Subtree of another tree")
+def _(ns):
+    f = ns["is_subtree"]
+    assert f(_tree([3, 4, 5, 1, 2]), _tree([4, 1, 2])) is True and f(_tree([3, 4, 5, 1, 2, None, None, None, None, 0]), _tree([4, 1, 2])) is False
+    r = random.Random(447)
+    for _ in range(300):
+        t = _random_tree(r, r.randint(1, 8), lo=0, hi=2)
+        sub = _tree_copy(r.choice(_preorder(t))) if r.random() < 0.5 else _random_tree(r, r.randint(1, 4), lo=0, hi=2)
+        want = any(_shape(n) == _shape(sub) for n in _preorder(t))
+        assert f(t, sub) is want
+
+
+def _canon(t):
+    if t is None:
+        return None
+    kids = sorted([repr(_canon(t.left)), repr(_canon(t.right))])
+    return (t.val, tuple(kids))
+
+
+@test("Trees:compare#Flip equivalent")
+def _(ns):
+    f = ns["flip_equiv"]
+    r = random.Random(448)
+
+    def flipped(t):
+        if t is None:
+            return None
+        a, b = flipped(t.left), flipped(t.right)
+        return TreeNode(t.val, b, a) if r.random() < 0.5 else TreeNode(t.val, a, b)
+
+    for _ in range(200):
+        a = _random_tree(r, r.randint(0, 8), lo=0, hi=2)
+        b = flipped(a) if r.random() < 0.6 else _random_tree(r, r.randint(0, 8), lo=0, hi=2)
+        assert f(a, b) is (_canon(a) == _canon(b))
+
+
+@test("Trees:compare#Merge two trees")
+def _(ns):
+    f = ns["merge_trees"]
+    r = random.Random(449)
+
+    def brute(a, b):
+        if a is None and b is None:
+            return None
+        if a is None:
+            return _shape(b)
+        if b is None:
+            return _shape(a)
+        return (a.val + b.val, brute(a.left, b.left), brute(a.right, b.right))
+
+    for _ in range(200):
+        a = _random_tree(r, r.randint(0, 7))
+        b = _random_tree(r, r.randint(0, 7))
+        want = brute(a, b)
+        assert _shape(f(_tree_copy(a), _tree_copy(b))) == want
+
+
+@test("Trees:compare#Linked list in a binary tree")
+def _(ns):
+    f = ns["is_sub_path"]
+    assert f(_ll([4, 2, 8]), _tree([1, 4, 4, None, 2, 2, None, 1, None, 6, 8, None, None, None, None, 1, 3])) is True
+    r = random.Random(450)
+    for _ in range(300):
+        t = _random_tree(r, r.randint(1, 9), lo=0, hi=2)
+        lst = [r.randint(0, 2) for _ in range(r.randint(1, 4))]
+
+        def down(n, i):
+            if i == len(lst):
+                return True
+            return n is not None and n.val == lst[i] and (down(n.left, i + 1) or down(n.right, i + 1))
+
+        want = any(down(n, 0) for n in _preorder(t))
+        assert f(_ll(lst), t) is want
+
+
+@test("Trees:signature")
+def _(ns):
+    f = ns["find_duplicate_subtrees"]
+    r = random.Random(451)
+    for _ in range(200):
+        t = _random_tree(r, r.randint(1, 12), lo=0, hi=1)
+        counts = {}
+        for n in _preorder(t):
+            counts[repr(_shape(n))] = counts.get(repr(_shape(n)), 0) + 1
+        want = sorted(k for k, c in counts.items() if c >= 2)
+        got = f(t)
+        assert sorted(repr(_shape(n)) for n in got) == want
+
+
+@test("Trees:signature#String from a binary tree")
+def _(ns):
+    f = ns["tree_to_str"]
+    assert f(_tree([1, 2, 3, 4])) == "1(2(4))(3)" and f(_tree([1, 2, 3, None, 4])) == "1(2()(4))(3)"
+    r = random.Random(452)
+
+    def brute(n):
+        if n is None:
+            return ""
+        if n.left is None and n.right is None:
+            return str(n.val)
+        if n.right is None:
+            return f"{n.val}({brute(n.left)})"
+        return f"{n.val}({brute(n.left)})({brute(n.right)})"
+
+    for _ in range(150):
+        t = _random_tree(r, r.randint(1, 10))
+        assert f(t) == brute(t)
+
+
+class _NAry:
+    def __init__(self, val=0, children=None):
+        self.val = val
+        self.children = children if children is not None else []
+
+
+def _random_nary(r, n):
+    nodes = [_NAry(i + 1) for i in range(n)]
+    for i in range(1, n):
+        nodes[r.randrange(i)].children.append(nodes[i])
+    return nodes
+
+
+def _nary_depth(t):
+    return 1 + max([_nary_depth(c) for c in t.children], default=0)
+
+
+@test("Trees:n-ary")
+def _(ns):
+    f = ns["max_depth"]
+    assert f(None) == 0
+    r = random.Random(453)
+    for _ in range(100):
+        nodes = _random_nary(r, r.randint(1, 10))
+        assert f(nodes[0]) == _nary_depth(nodes[0])
+
+
+@test("Trees:n-ary#Find the root (sum trick)")
+def _(ns):
+    f = ns["find_root"]
+    r = random.Random(454)
+    for _ in range(100):
+        nodes = _random_nary(r, r.randint(1, 10))
+        shuffled = nodes[:]
+        r.shuffle(shuffled)
+        assert f(shuffled) is nodes[0]
+
+
+@test("Trees:n-ary#Diameter")
+def _(ns):
+    f = ns["diameter"]
+    r = random.Random(455)
+    for _ in range(100):
+        nodes = _random_nary(r, r.randint(1, 10))
+        adj = {id(n): [] for n in nodes}
+        for n in nodes:
+            for c in n.children:
+                adj[id(n)].append(c)
+                adj[id(c)].append(n)
+        best = 0
+        for s in nodes:
+            seen, q = {id(s): 0}, [s]
+            for u in q:
+                for v in adj[id(u)]:
+                    if id(v) not in seen:
+                        seen[id(v)] = seen[id(u)] + 1
+                        q.append(v)
+            best = max(best, max(seen.values()))
+        assert f(nodes[0]) == best
+    assert f(None) == 0
+
+
+@test("Trees:n-ary#Clone")
+def _(ns):
+    ns["Node"] = _NAry
+    f = ns["clone_tree"]
+    r = random.Random(456)
+    for _ in range(50):
+        nodes = _random_nary(r, r.randint(1, 10))
+        c = f(nodes[0])
+
+        def same(a, b):
+            return a.val == b.val and a is not b and len(a.children) == len(b.children) and all(same(x, y) for x, y in zip(a.children, b.children))
+
+        assert same(nodes[0], c)
+    assert f(None) is None
+
+
+def _random_edges(r, n):
+    return [[r.randrange(i), i] for i in range(1, n)]
+
+
+def _bfs_dists(n, edges, s):
+    adj = [[] for _ in range(n)]
+    for a, b in edges:
+        adj[a].append(b)
+        adj[b].append(a)
+    dist, q = {s: 0}, [s]
+    for u in q:
+        for v in adj[u]:
+            if v not in dist:
+                dist[v] = dist[u] + 1
+                q.append(v)
+    return dist
+
+
+@test("Trees:rerooting")
+def _(ns):
+    f = ns["sum_of_distances_in_tree"]
+    assert f(1, []) == [0] and f(6, [[0, 1], [0, 2], [2, 3], [2, 4], [2, 5]]) == [8, 12, 6, 10, 10, 10]
+    r = random.Random(457)
+    for _ in range(100):
+        n = r.randint(1, 9)
+        edges = _random_edges(r, n)
+        assert f(n, [e[:] for e in edges]) == [sum(_bfs_dists(n, edges, s).values()) for s in range(n)]
+
+
+@test("Trees:rerooting#Binary tree coloring game")
+def _(ns):
+    f = ns["btree_game_winning_move"]
+    assert f(_tree([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]), 11, 3) is True and f(_tree([1, 2, 3]), 3, 1) is False
+    r = random.Random(458)
+    for _ in range(80):
+        n = r.choice([1, 3, 5, 7])
+        t = _random_tree(r, n, distinct=True, lo=1, hi=n)
+        nodes = _preorder(t)
+        adj = {n_.val: [] for n_ in nodes}
+        for a in nodes:
+            for c in (a.left, a.right):
+                if c:
+                    adj[a.val].append(c.val)
+                    adj[c.val].append(a.val)
+        x = r.choice([nn.val for nn in nodes])
+
+        def play(c1, c2, turn, passes):
+            if len(c1) + len(c2) == n or passes == 2:
+                return len(c2) > len(c1)
+            mine = c1 if turn == 1 else c2
+            moves = {v for u in mine for v in adj[u] if v not in c1 and v not in c2}
+            if not moves:
+                return play(c1, c2, 3 - turn, passes + 1)
+            res = [play(c1 | {v}, c2, 2, 0) if turn == 1 else play(c1, c2 | {v}, 1, 0) for v in moves]
+            return all(res) if turn == 1 else any(res)
+
+        want = any(play(frozenset({x}), frozenset({y}), 1, 0) for y in adj if y != x)
+        assert f(t, n, x) is want, (n, x)
+
+
+@test("Trees:peel-leaves")
+def _(ns):
+    f = ns["find_min_height_trees"]
+    assert f(1, []) == [0] and sorted(f(6, [[3, 0], [3, 1], [3, 2], [3, 4], [5, 4]])) == [3, 4]
+    r = random.Random(459)
+    for _ in range(150):
+        n = r.randint(1, 10)
+        edges = _random_edges(r, n)
+        ecc = [max(_bfs_dists(n, edges, s).values()) for s in range(n)]
+        assert sorted(f(n, [e[:] for e in edges])) == [i for i in range(n) if ecc[i] == min(ecc)]
+
+
+@test("Trees:parent-map")
+def _(ns):
+    f = ns["distance_k"]
+    r = random.Random(460)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(1, 10), distinct=True, lo=1, hi=40)
+        nodes = _preorder(t)
+        idx = {id(n): i for i, n in enumerate(nodes)}
+        edges = [[idx[id(a)], idx[id(c)]] for a in nodes for c in (a.left, a.right) if c]
+        target = r.choice(nodes)
+        k = r.randint(0, 4)
+        dist = _bfs_dists(len(nodes), edges, idx[id(target)])
+        want = sorted(nodes[i].val for i, d in dist.items() if d == k)
+        assert sorted(f(t, target, k)) == want
+
+
+@test("Trees:parent-map#Time to infect the whole tree")
+def _(ns):
+    f = ns["amount_of_time"]
+    assert f(_tree([1, 5, 3, None, 4, 10, 6, 9, 2]), 3) == 4 and f(_tree([1]), 1) == 0
+    r = random.Random(461)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(1, 10), distinct=True, lo=1, hi=40)
+        nodes = _preorder(t)
+        idx = {id(n): i for i, n in enumerate(nodes)}
+        edges = [[idx[id(a)], idx[id(c)]] for a in nodes for c in (a.left, a.right) if c]
+        s = r.choice(nodes)
+        assert f(t, s.val) == max(_bfs_dists(len(nodes), edges, idx[id(s)]).values())
+
+
+@test("Trees:complete")
+def _(ns):
+    f = ns["count_nodes"]
+    assert f(None) == 0
+    for n in range(1, 70):
+        assert f(_tree(list(range(1, n + 1)))) == n
+
+
+@test("Trees:complete#Complete binary tree inserter")
+def _(ns):
+    cls = ns["CBTInserter"]
+    r = random.Random(462)
+    for _ in range(40):
+        n = r.randint(1, 8)
+        it = cls(_tree(list(range(1, n + 1))))
+        for k in range(r.randint(1, 8)):
+            idx = n + k + 1  # the heap index of the new node
+            parent_val = it.insert(100 + k)
+            assert parent_val == idx // 2 if idx // 2 <= n else True
+            want = list(range(1, n + 1)) + [100 + j for j in range(k + 1)]
+            assert _shape(it.get_root()) == _shape(_tree(want))
+
+
+class _QNode:
+    def __init__(self, val, isLeaf, topLeft, topRight, bottomLeft, bottomRight):
+        self.val, self.isLeaf = val, isLeaf
+        self.topLeft, self.topRight, self.bottomLeft, self.bottomRight = topLeft, topRight, bottomLeft, bottomRight
+
+
+@test("Trees:quad-tree")
+def _(ns):
+    ns["Node"] = _QNode
+    f = ns["construct"]
+    r = random.Random(463)
+
+    def expand(q, size, grid, r0, c0):
+        if q.isLeaf:
+            assert q.topLeft is None
+            for i in range(size):
+                for j in range(size):
+                    grid[r0 + i][c0 + j] = int(q.val)
+            return
+        h = size // 2
+        expand(q.topLeft, h, grid, r0, c0)
+        expand(q.topRight, h, grid, r0, c0 + h)
+        expand(q.bottomLeft, h, grid, r0 + h, c0)
+        expand(q.bottomRight, h, grid, r0 + h, c0 + h)
+
+    for _ in range(100):
+        n = r.choice([1, 2, 4, 8])
+        grid = [[r.choice([0, 1]) if r.random() < 0.5 else 1 for _ in range(n)] for _ in range(n)]
+        if r.random() < 0.3:
+            grid = [[r.choice([0, 1])] * n] * n
+        q = f([row[:] for row in grid])
+        back = [[None] * n for _ in range(n)]
+        expand(q, n, back, 0, 0)
+        assert back == grid
+        uniform = len({v for row in grid for v in row}) == 1
+        assert q.isLeaf is uniform
+
+
+@test("Trees:from-descriptions")
+def _(ns):
+    f = ns["create_binary_tree"]
+    r = random.Random(464)
+    for _ in range(100):
+        t = _random_tree(r, r.randint(1, 10), distinct=True, lo=1, hi=50)
+        desc = [[a.val, c.val, 1 if a.left is c else 0] for a in _preorder(t) for c in (a.left, a.right) if c]
+        r.shuffle(desc)
+        if not desc:
+            continue
+        assert _shape(f([d[:] for d in desc])) == _shape(t)
+
+
+@test("Trees:from-descriptions#Depth-marked preorder (dashes)")
+def _(ns):
+    f = ns["recover_from_preorder"]
+    assert _shape(f("1-2--3--4-5--6--7")) == _shape(_tree([1, 2, 5, 3, 4, 6, 7]))
+    r = random.Random(465)
+
+    def gen(k, vals):
+        if k == 0:
+            return None
+        node = TreeNode(next(vals))
+        left = r.randint(0, k - 1)
+        node.left = gen(left, vals)
+        node.right = gen(k - 1 - left, vals) if node.left else None  # a single child is the left one
+        if node.left is None and k - 1 > 0:
+            node.left = gen(k - 1, vals)
+        return node
+
+    def dump(n, depth, out):
+        if n:
+            out.append("-" * depth + str(n.val))
+            dump(n.left, depth + 1, out)
+            dump(n.right, depth + 1, out)
+
+    for _ in range(100):
+        k = r.randint(1, 9)
+        t = gen(k, iter(r.sample(range(1, 100), k)))
+        out = []
+        dump(t, 0, out)
+        assert _shape(f("".join(out))) == _shape(t)
+
+
+@test("Trees:subtree-sums")
+def _(ns):
+    f = ns["find_tilt"]
+    assert f(_tree([1, 2, 3])) == 1 and f(_tree([4, 2, 9, 3, 5, None, 7])) == 15
+    r = random.Random(466)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 10))
+
+        def total(n):
+            return 0 if n is None else n.val + total(n.left) + total(n.right)
+
+        assert f(t) == sum(abs(total(n.left) - total(n.right)) for n in _preorder(t))
+
+
+@test("Trees:subtree-sums#Maximum product of a split")
+def _(ns):
+    f = ns["max_product"]
+    assert f(_tree([1, 2, 3, 4, 5, 6])) == 110
+    r = random.Random(467)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(2, 10), lo=1, hi=9)
+
+        def total(n):
+            return 0 if n is None else n.val + total(n.left) + total(n.right)
+
+        whole = total(t)
+        want = max(total(n) * (whole - total(n)) for n in _preorder(t) if n is not t) % (10**9 + 7)
+        assert f(t) == want
+
+
+@test("Trees:flatten")
+def _(ns):
+    f = ns["flatten"]
+    r = random.Random(468)
+    for _ in range(150):
+        t = _random_tree(r, r.randint(0, 11))
+        want = [n.val for n in _preorder(t)]
+        f(t)
+        got, cur = [], t
+        while cur:
+            assert cur.left is None
+            got.append(cur.val)
+            cur = cur.right
+        assert got == want
+
+
+@test("Trees:valid-tree")
+def _(ns):
+    f = ns["validate_binary_tree_nodes"]
+    assert f(4, [1, -1, 3, -1], [2, -1, -1, -1]) is True and f(4, [1, -1, 3, -1], [2, 3, -1, -1]) is False and f(2, [1, 0], [-1, -1]) is False
+    r = random.Random(469)
+    for _ in range(400):
+        n = r.randint(1, 6)
+        left = [r.choice([-1] * 2 + list(range(n))) for _ in range(n)]
+        right = [r.choice([-1] * 2 + list(range(n))) for _ in range(n)]
+        want = False
+        for root in range(n):
+            seen, stack, ok = set(), [root], True
+            while stack and ok:
+                u = stack.pop()
+                if u in seen:
+                    ok = False
+                    break
+                seen.add(u)
+                stack += [c for c in (left[u], right[u]) if c != -1]
+            if ok and len(seen) == n:
+                want = True
+        assert f(n, left[:], right[:]) is want, (n, left, right)
+
+
+@test("Trees:from-traversals#Inorder and postorder")
+def _(ns):
+    f = ns["build_tree_post"]
+    r = random.Random(470)
+    for _ in range(100):
+        t = _random_tree(r, r.randint(1, 10), distinct=True, lo=1, hi=60)
+        assert _shape(f(_rec_order(t, "in"), _rec_order(t, "post"))) == _shape(t)
+
+
+@test("Trees:from-traversals#Preorder and postorder")
+def _(ns):
+    f = ns["construct_from_pre_post"]
+    r = random.Random(471)
+    for _ in range(100):
+        t = _random_tree(r, r.randint(1, 10), distinct=True, lo=1, hi=60)
+        pre, post = _rec_order(t, "pre"), _rec_order(t, "post")
+        got = f(pre[:], post[:])
+        assert _rec_order(got, "pre") == pre and _rec_order(got, "post") == post
+
+
+@test("Trees:hierarchy")
+def _(ns):
+    f = ns["num_of_minutes"]
+    assert f(1, 0, [-1], [0]) == 0 and f(6, 2, [2, 2, -1, 2, 2, 2], [0, 0, 1, 0, 0, 0]) == 1
+    r = random.Random(472)
+    for _ in range(150):
+        n = r.randint(1, 10)
+        manager = [-1] + [r.randrange(i) for i in range(1, n)]
+        inform = [r.randint(0, 5) for _ in range(n)]
+        best = 0
+        for v in range(n):
+            tot, u = 0, v
+            while u != -1:
+                tot += inform[u]
+                u = manager[u]
+            best = max(best, tot)
+        assert f(n, 0, manager[:], inform[:]) == best
+
+
+@test("Trees:labelled")
+def _(ns):
+    f = ns["path_in_zig_zag_tree"]
+    assert f(14) == [1, 3, 4, 14] and f(26) == [1, 2, 6, 10, 26] and f(1) == [1]
+    # build the zigzag numbering level by level
+    label_at = {}
+    for level in range(1, 8):
+        lo, hi = 1 << (level - 1), (1 << level) - 1
+        row = list(range(lo, hi + 1))
+        if level % 2 == 0:
+            row.reverse()
+        for pos, v in enumerate(row):
+            label_at[(level, pos)] = v
+    for (level, pos), v in label_at.items():
+        path, lv, p = [], level, pos
+        while lv >= 1:
+            path.append(label_at[(lv, p)])
+            lv, p = lv - 1, p // 2
+        assert f(v) == path[::-1], v
+
+
+@test("Trees:remove-subtree-heights")
+def _(ns):
+    f = ns["tree_queries"]
+    assert f(_tree([1, 3, 4, 2, None, 6, 5, None, None, None, None, None, 7]), [4]) == [2]
+    r = random.Random(473)
+    for _ in range(100):
+        t = _random_tree(r, r.randint(2, 11), distinct=True, lo=1, hi=60)
+        qs = [n.val for n in _preorder(t) if n is not t]
+        want = []
+        for q in qs:
+            def without(n):
+                if n is None or n.val == q:
+                    return None
+                return TreeNode(n.val, without(n.left), without(n.right))
+            want.append(_height_edges(without(t)))
+        assert f(t, qs) == want
+
+
+@test("Trees:remove-node-product")
+def _(ns):
+    f = ns["count_highest_score_nodes"]
+    assert f([-1, 2, 0, 2, 0]) == 3 and f([-1, 2, 0]) == 2
+    r = random.Random(474)
+    for _ in range(150):
+        n = r.randint(1, 9)
+        parents = [-1] + [r.randrange(i) for i in range(1, n)]
+        best, count = 0, 0
+        for v in range(n):
+            comp = list(range(n))
+
+            def find(x):
+                while comp[x] != x:
+                    x = comp[x]
+                return x
+
+            for i in range(1, n):
+                if i != v and parents[i] != v:
+                    comp[find(i)] = find(parents[i])
+            sizes = {}
+            for i in range(n):
+                if i != v:
+                    sizes[find(i)] = sizes.get(find(i), 0) + 1
+            score = 1
+            for s in sizes.values():
+                score *= s
+            if score > best:
+                best, count = score, 1
+            elif score == best:
+                count += 1
+        assert f(parents[:]) == count
+
+
+@test("Trees:path-parity")
+def _(ns):
+    f = ns["count_palindrome_paths"]
+    assert f([-1, 0, 0, 1, 1, 2], "acaabc") == 8 and f([-1, 0, 0, 0, 0], "aaaaa") == 10
+    r = random.Random(475)
+    for _ in range(100):
+        n = r.randint(1, 9)
+        parent = [-1] + [r.randrange(i) for i in range(1, n)]
+        s = "a" + "".join(r.choice("abc") for _ in range(n - 1))
+        want = 0
+        for u in range(n):
+            for v in range(u + 1, n):
+                anc_u, x = [], u
+                while x != -1:
+                    anc_u.append(x)
+                    x = parent[x]
+                y = v
+                below_v = []
+                while y not in anc_u:
+                    below_v.append(y)
+                    y = parent[y]
+                below_u = anc_u[: anc_u.index(y)]
+                letters = [s[k] for k in below_u + below_v]
+                if sum(1 for c in set(letters) if letters.count(c) % 2) <= 1:
+                    want += 1
+        assert f(parent[:], s) == want
+
+
+@test("Trees:binary-lifting")
+def _(ns):
+    cls = ns["TreeAncestor"]
+    r = random.Random(476)
+    for _ in range(60):
+        n = r.randint(1, 12)
+        parent = [-1] + [r.randrange(i) for i in range(1, n)]
+        ta = cls(n, parent[:])
+        for _ in range(20):
+            node, k = r.randrange(n), r.randint(0, 14)
+            want, cur = node, k
+            while cur and want != -1:
+                want = parent[want]
+                cur -= 1
+            assert ta.getKthAncestor(node, k) == (want if cur == 0 else -1)
+
+
+class _NI:
+    def __init__(self, v):
+        self.v = v
+
+    def isInteger(self):
+        return not isinstance(self.v, list)
+
+    def getInteger(self):
+        return self.v
+
+    def getList(self):
+        return self.v
+
+
+def _to_ni(x):
+    return _NI([_to_ni(y) for y in x]) if isinstance(x, list) else _NI(x)
+
+
+def _flat(x):
+    return [z for y in x for z in _flat(y)] if isinstance(x, list) else [x]
+
+
+@test("Trees:lazy-iterators")
+def _(ns):
+    cls = ns["NestedIterator"]
+    r = random.Random(477)
+
+    def gen(depth):
+        return [gen(depth - 1) if depth and r.random() < 0.4 else r.randint(0, 9) for _ in range(r.randint(0, 4))]
+
+    for _ in range(150):
+        data = gen(3)
+        it, got = cls([_to_ni(x) for x in data]), []
+        while it.hasNext():
+            if r.random() < 0.3:
+                assert it.hasNext()  # asking again must not skip anything
+            got.append(it.next())
+        assert got == _flat(data)
+
+
+@test("Trees:lazy-iterators#Peeking iterator")
+def _(ns):
+    cls = ns["PeekingIterator"]
+
+    class It:
+        def __init__(self, xs):
+            self.xs, self.i = xs, 0
+
+        def hasNext(self):
+            return self.i < len(self.xs)
+
+        def next(self):
+            self.i += 1
+            return self.xs[self.i - 1]
+
+    r = random.Random(478)
+    for _ in range(100):
+        xs = [r.randint(0, 9) for _ in range(r.randint(0, 6))]
+        p, got = cls(It(xs)), []
+        while p.hasNext():
+            assert p.peek() == xs[len(got)]
+            got.append(p.next())
+        assert got == xs
+
+
+@test("Trees:insertion-orders")
+def _(ns):
+    f = ns["num_of_ways"]
+    assert f([2, 1, 3]) == 1 and f([3, 4, 5, 1, 2]) == 5 and f([1, 2, 3]) == 0
+    r = random.Random(479)
+
+    def shape(seq):
+        root = None
+        for v in seq:
+            node = TreeNode(v)
+            if root is None:
+                root = node
+                continue
+            cur = root
+            while True:
+                side = "left" if v < cur.val else "right"
+                if getattr(cur, side) is None:
+                    setattr(cur, side, node)
+                    break
+                cur = getattr(cur, side)
+        return _shape(root)
+
+    for _ in range(40):
+        seq = r.sample(range(1, 20), r.randint(1, 6))
+        want = sum(1 for p in _it.permutations(seq) if shape(p) == shape(seq)) - 1
+        assert f(seq[:]) == want % (10**9 + 7)

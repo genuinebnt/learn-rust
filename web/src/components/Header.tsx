@@ -60,6 +60,20 @@ function toggleTheme() {
     }
 }
 
+/** Centred or wide pages: a two-state switch beside the theme button. The same setting is in the account menu. */
+function WidthToggle() {
+    const { width, set } = usePageWidth();
+    const wide = width === "wide";
+    return (
+        <button className={`hd-ib wdt${wide ? " wide" : ""}`} onClick={() => set(wide ? "narrow" : "wide")} aria-pressed={wide} title={wide ? "Wide pages: click for centred" : "Centred pages: click for wide"} aria-label="Page width">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="1.5" y="3" width="13" height="10" rx="2" />
+                <rect className="pane" x="5" y="5.5" width="6" height="5" rx="1" fill="currentColor" stroke="none" />
+            </svg>
+        </button>
+    );
+}
+
 /** A small ring: how far along an area is. */
 function Ring({ p, color }: { p: number; color: string }) {
     return (
@@ -160,6 +174,7 @@ export function Header({ area, compact = false }: { area?: AreaId; compact?: boo
                     </button>
                     <div className="hdr-r">
                         <Continue current={current} course={course.data} dsa={dsa.data} />
+                        <WidthToggle />
                         <button className="hd-ib thm" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle theme">
                             <svg className="moon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                                 <path d="M13.5 9.6A6 6 0 0 1 6.4 2.5a6 6 0 1 0 7.1 7.1Z" />

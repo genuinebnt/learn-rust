@@ -13,7 +13,7 @@ groups = ["Traversals", "Level-order family", "Subtree aggregation", "Path probl
 
 [[technique]]
 id = "Trees:dfs"
-group = "Tree comparison"
+group = "Traversals"
 signals = [
     "do the same thing at every node (invert, compare, count, find the depth)",
     "the answer for a node comes from the answers for its two children",
@@ -40,12 +40,13 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:dfs-return"
-group = "N-ary trees"
+group = "Subtree aggregation"
 signals = [
     "the best path, longest chain or biggest difference passing through a node",
     "what a node reports upward is different from what it records as a candidate answer",
     "balanced, diameter, maximum path sum",
 ]
+template_name = "Diameter"
 template = '''
 def diameter(root):
     best = 0
@@ -67,9 +68,136 @@ pitfalls = [
     "Computing heights again at every node is O(n squared). Return the height from one pass.",
 ]
 
+[[technique.variant]]
+name = "Balanced tree"
+note = "Return the height, or -1 when a subtree is already unbalanced."
+template = '''
+def is_balanced(root):
+    def height(node):  # -1: unbalanced somewhere below
+        if node is None:
+            return 0
+        left, right = height(node.left), height(node.right)
+        if left < 0 or right < 0 or abs(left - right) > 1:
+            return -1
+        return 1 + max(left, right)
+
+    return height(root) >= 0
+'''
+
+[[technique.variant]]
+name = "Maximum path sum"
+note = "Return the best downward path; the answer may bend at a node and use both sides."
+template = '''
+def max_path_sum(root):
+    best = float("-inf")
+
+    def down(node):  # the best path that starts here and goes down
+        nonlocal best
+        if node is None:
+            return 0
+        left = max(down(node.left), 0)  # a negative side is dropped
+        right = max(down(node.right), 0)
+        best = max(best, node.val + left + right)  # a path bending here
+        return node.val + max(left, right)
+
+    down(root)
+    return best
+'''
+
+[[technique.variant]]
+name = "House robber III"
+note = "Return two numbers per node: the best when it is robbed and the best when it is skipped."
+template = '''
+def rob(root):
+    def go(node):  # (best if node is robbed, best if it is skipped)
+        if node is None:
+            return 0, 0
+        l_take, l_skip = go(node.left)
+        r_take, r_skip = go(node.right)
+        take = node.val + l_skip + r_skip
+        skip = max(l_take, l_skip) + max(r_take, r_skip)
+        return take, skip
+
+    return max(go(root))
+'''
+
+[[technique.variant]]
+name = "Largest BST subtree"
+note = "Return a tuple (is BST, size, min, max) so the parent can decide without looking again."
+template = '''
+def largest_bst_subtree(root):
+    best = 0
+
+    def go(node):  # (is a BST, size, min, max)
+        nonlocal best
+        if node is None:
+            return True, 0, float("inf"), float("-inf")
+        lb, ls, lmin, lmax = go(node.left)
+        rb, rs, rmin, rmax = go(node.right)
+        if lb and rb and lmax < node.val < rmin:
+            size = ls + rs + 1
+            best = max(best, size)
+            return True, size, min(lmin, node.val), max(rmax, node.val)
+        return False, 0, 0, 0
+
+    go(root)
+    return best
+'''
+
+[[technique.variant]]
+name = "Longest univalue path"
+note = "Extend a child's chain only when the values match; the answer joins the two chains."
+template = '''
+def longest_univalue_path(root):
+    best = 0
+
+    def go(node):  # the longest equal chain going down from node
+        nonlocal best
+        if node is None:
+            return 0
+        left, right = go(node.left), go(node.right)
+        left = (left + 1 if node.left
+                and node.left.val == node.val else 0)
+        right = (right + 1 if node.right
+                 and node.right.val == node.val else 0)
+        best = max(best, left + right)
+        return max(left, right)
+
+    go(root)
+    return best
+'''
+
+[[technique.variant]]
+name = "Good leaf pairs"
+note = "Return how many leaves lie at each distance below; pair the two children's counts."
+template = '''
+def count_pairs(root, distance):
+    pairs = 0
+
+    def go(node):  # counts[d]: leaves at distance d below node
+        nonlocal pairs
+        counts = [0] * (distance + 1)
+        if node is None:
+            return counts
+        if node.left is None and node.right is None:
+            counts[0] = 1
+            return counts
+        left, right = go(node.left), go(node.right)
+        for i in range(distance + 1):
+            for j in range(distance + 1):
+                if i + j + 2 <= distance:  # two edges to reach this node
+                    pairs += left[i] * right[j]
+        for i in range(distance):
+            counts[i + 1] = left[i] + right[i]
+        return counts
+
+    go(root)
+    return pairs
+'''
+
 [[technique]]
 id = "Trees:bst-walk"
-group = "Level-order family"
+group = "BST operations"
 signals = [
     "a binary SEARCH tree: left is smaller, right is larger",
     "find a value, a closest value or an ancestor without visiting everything",
@@ -94,7 +222,7 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:bst-edit"
-group = "Traversals"
+group = "BST operations"
 signals = [
     "insert, delete or trim values in a binary search tree",
     "the tree must stay a valid search tree afterwards",
@@ -144,6 +272,7 @@ signals = [
     "the right-side view, the average of each level, a zigzag order",
     "the shortest distance from the root",
 ]
+template_name = "Level order"
 template = '''
 from collections import deque
 
@@ -168,6 +297,152 @@ pitfalls = [
     "Use a deque. list.pop(0) is O(n).",
     "A DFS that passes the depth down and appends to levels[depth] builds the same result.",
 ]
+
+[[technique.variant]]
+name = "Zigzag"
+note = "Reverse every other level."
+template = '''
+from collections import deque
+
+
+def zigzag_level_order(root):
+    out, level, left_to_right = [], deque([root] if root else []), True
+    while level:
+        vals = [n.val for n in level]
+        out.append(vals if left_to_right else vals[::-1])
+        left_to_right = not left_to_right
+        level = deque(c for n in level for c in (n.left, n.right) if c)
+    return out
+'''
+
+[[technique.variant]]
+name = "Right side view"
+note = "The last node of each level is the one you see from the right."
+template = '''
+def right_side_view(root):
+    out, level = [], [root] if root else []
+    while level:
+        out.append(level[-1].val)  # the last node of each level
+        level = [c for n in level for c in (n.left, n.right) if c]
+    return out
+'''
+
+[[technique.variant]]
+name = "Maximum width"
+note = "Number the nodes like a heap (2i, 2i + 1); the width of a level is last index - first index + 1."
+template = '''
+def width_of_binary_tree(root):
+    best, level = 0, [(root, 0)] if root else []
+    while level:
+        base = level[0][1]
+        best = max(best, level[-1][1] - base + 1)
+        nxt = []
+        for node, i in level:
+            i -= base  # keep the numbers small
+            if node.left:
+                nxt.append((node.left, 2 * i))
+            if node.right:
+                nxt.append((node.right, 2 * i + 1))
+        level = nxt
+    return best
+'''
+
+[[technique.variant]]
+name = "Is complete"
+note = "Put the missing children in the queue too: after the first gap no real node may follow."
+template = '''
+from collections import deque
+
+
+def is_complete_tree(root):
+    queue, seen_gap = deque([root]), False
+    while queue:
+        node = queue.popleft()
+        if node is None:
+            seen_gap = True  # after a gap only gaps may follow
+        else:
+            if seen_gap:
+                return False
+            queue.append(node.left)
+            queue.append(node.right)
+    return True
+'''
+
+[[technique.variant]]
+name = "Next right pointers (O(1) space)"
+note = "Walk a level through the next pointers you have already built, and link the level below."
+template = '''
+def connect(root):
+    start = root  # the leftmost node of the level being walked
+    while start:
+        prev, next_start = None, None
+        node = start
+        while node:  # walk this level along the next pointers
+            for child in (node.left, node.right):
+                if child:
+                    if prev:
+                        prev.next = child
+                    else:
+                        next_start = child
+                    prev = child
+            node = node.next
+        start = next_start
+    return root
+'''
+
+[[technique.variant]]
+name = "Cousins"
+note = "Same depth, different parents: keep each node's parent in the level list."
+template = '''
+def is_cousins(root, x, y):
+    level = [(root, None)]
+    while level:
+        found = [par for node, par in level if node.val in (x, y)]
+        if len(found) == 2:
+            return found[0] is not found[1]  # same level, other parents
+        if found:
+            return False  # only one of them is on this level
+        level = [(c, node) for node, _ in level
+                 for c in (node.left, node.right) if c]
+    return False
+'''
+
+[[technique.variant]]
+name = "Reverse odd levels"
+note = "Collect each level, and on odd depths write the values back reversed."
+template = '''
+def reverse_odd_levels(root):
+    level, depth = [root], 0
+    while level[0].left:  # a perfect tree: all or none have children
+        kids = [c for n in level for c in (n.left, n.right)]
+        depth += 1
+        if depth % 2:
+            vals = [c.val for c in kids][::-1]
+            for c, v in zip(kids, vals):
+                c.val = v
+        level = kids
+    return root
+'''
+
+[[technique.variant]]
+name = "Cousin sums"
+note = "Replace each value by the level sum minus the sum of its siblings."
+template = '''
+def replace_value_in_tree(root):
+    root.val = 0
+    level = [root]
+    while level:
+        total = sum(c.val for n in level for c in (n.left, n.right) if c)
+        nxt = []
+        for n in level:
+            sibs = sum(c.val for c in (n.left, n.right) if c)
+            for c in (n.left, n.right):
+                if c:
+                    c.val = total - sibs  # all cousins, no siblings
+                    nxt.append(c)
+        level = nxt
+    return root
+'''
 
 [[technique]]
 id = "Trees:tree-as-graph"
@@ -205,12 +480,13 @@ pitfalls = [
 
 [[technique]]
 id = "Trees:dfs-carry"
-group = "Subtree aggregation"
+group = "Path problems"
 signals = [
     "the answer for a node depends on the path from the root to it",
     "count nodes that are bigger than everything above them, or whose path sums to a target",
     "pass information DOWN as an argument",
 ]
+template_name = "Good nodes"
 template = '''
 def good_nodes(root):
     def count(node, highest):
@@ -228,9 +504,102 @@ pitfalls = [
     "Use >= when an equal value still counts.",
 ]
 
+[[technique.variant]]
+name = "Path sum II (all paths)"
+note = "Keep one shared path list: append going down, pop coming back."
+template = '''
+def path_sum(root, target):
+    out, path = [], []
+
+    def go(node, left):
+        if node is None:
+            return
+        path.append(node.val)
+        left -= node.val
+        if node.left is None and node.right is None and left == 0:
+            out.append(path[:])  # a copy: the list keeps changing
+        go(node.left, left)
+        go(node.right, left)
+        path.pop()  # undo
+
+    go(root, target)
+    return out
+'''
+
+[[technique.variant]]
+name = "Root-to-leaf numbers"
+note = "Carry the number so far: acc * 10 + digit."
+template = '''
+def sum_numbers(root):
+    def go(node, acc):
+        if node is None:
+            return 0
+        acc = acc * 10 + node.val
+        if node.left is None and node.right is None:
+            return acc  # a complete number
+        return go(node.left, acc) + go(node.right, acc)
+
+    return go(root, 0)
+'''
+
+[[technique.variant]]
+name = "Largest difference with an ancestor"
+note = "Carry the minimum and maximum on the path; at the leaves the answer is max - min."
+template = '''
+def max_ancestor_diff(root):
+    def go(node, lo, hi):
+        if node is None:
+            return hi - lo
+        lo, hi = min(lo, node.val), max(hi, node.val)
+        return max(go(node.left, lo, hi), go(node.right, lo, hi))
+
+    return go(root, root.val, root.val)
+'''
+
+[[technique.variant]]
+name = "Pseudo-palindromic paths (bitmask)"
+note = "Toggle one bit per digit: a path can be rearranged into a palindrome when at most one bit is set."
+template = '''
+def pseudo_palindromic_paths(root):
+    def go(node, mask):
+        if node is None:
+            return 0
+        mask ^= 1 << node.val  # toggle this digit's parity
+        if node.left is None and node.right is None:
+            return 1 if mask & (mask - 1) == 0 else 0  # <= one odd
+        return go(node.left, mask) + go(node.right, mask)
+
+    return go(root, 0)
+'''
+
+[[technique.variant]]
+name = "Longest zigzag path"
+note = "Carry the direction and the length: switch side to continue, or restart with length 1."
+template = '''
+def longest_zigzag(root):
+    best = 0
+
+    def go(node, went_left, length):
+        nonlocal best
+        if node is None:
+            return
+        best = max(best, length)
+        if went_left:
+            go(node.right, False, length + 1)  # switch: keep the zigzag
+            go(node.left, True, 1)  # same side: restart
+        else:
+            go(node.left, True, length + 1)
+            go(node.right, False, 1)
+
+    if root:
+        go(root.left, True, 1)
+        go(root.right, False, 1)
+    return best
+'''
+
 [[technique]]
 id = "Trees:inorder"
-group = "BST operations"
+group = "Traversals"
 signals = [
     "the k-th smallest value, or a check that a tree is a valid search tree",
     "an in-order walk of a search tree visits values in sorted order",
@@ -263,6 +632,7 @@ signals = [
     "the first preorder value is the root, and inorder splits the left from the right",
     "all values are distinct",
 ]
+template_name = "Preorder and inorder"
 template = '''
 def build_tree(preorder, inorder):
     position = {v: i for i, v in enumerate(inorder)}
@@ -286,6 +656,52 @@ pitfalls = [
     "Build the left subtree before the right, because preorder lists it first.",
     "Pass index bounds, not sliced lists. Slicing copies and turns this into O(n squared).",
 ]
+
+[[technique.variant]]
+name = "Inorder and postorder"
+note = "The root is the last postorder value; build the right subtree first."
+template = '''
+def build_tree_post(inorder, postorder):
+    index = {v: i for i, v in enumerate(inorder)}
+    post = len(postorder) - 1
+
+    def build(lo, hi):  # inorder[lo..hi]
+        nonlocal post
+        if lo > hi:
+            return None
+        node = TreeNode(postorder[post])
+        post -= 1
+        mid = index[node.val]
+        node.right = build(mid + 1, hi)  # postorder ends with the right
+        node.left = build(lo, mid - 1)
+        return node
+
+    return build(0, len(inorder) - 1)
+'''
+
+[[technique.variant]]
+name = "Preorder and postorder"
+note = "The value after the root in preorder is the left subtree's root: find it in postorder."
+template = '''
+def construct_from_pre_post(preorder, postorder):
+    index = {v: i for i, v in enumerate(postorder)}
+    pre = 0
+
+    def build(lo, hi):  # postorder[lo..hi]
+        nonlocal pre
+        if lo > hi:
+            return None
+        node = TreeNode(preorder[pre])
+        pre += 1
+        if lo == hi:
+            return node
+        mid = index[preorder[pre]]  # the root of the left subtree
+        node.left = build(lo, mid)
+        node.right = build(mid + 1, hi - 1)
+        return node
+
+    return build(0, len(postorder) - 1)
+'''
 
 [[technique]]
 id = "Trees:catalan"
@@ -329,6 +745,7 @@ signals = [
     "prune subtrees that are empty or don't satisfy a rule",
     "children must be fixed BEFORE you decide about the node (post-order)",
 ]
+template_name = "Remove leaf nodes"
 template = '''
 def remove_leaf_nodes(root, target):
     if root is None:
@@ -344,6 +761,41 @@ pitfalls = [
     "Reassign root.left and root.right from the calls. Returning None is how a node disappears.",
     "The whole tree may vanish: the function can return None.",
 ]
+
+[[technique.variant]]
+name = "Delete nodes, return the forest"
+note = "A deleted node's children become roots: pass 'my parent was deleted' down."
+template = '''
+def del_nodes(root, to_delete):
+    gone, out = set(to_delete), []
+
+    def go(node, is_root):
+        if node is None:
+            return None
+        deleted = node.val in gone
+        if is_root and not deleted:
+            out.append(node)  # a new tree starts here
+        node.left = go(node.left, deleted)
+        node.right = go(node.right, deleted)
+        return None if deleted else node
+
+    go(root, True)
+    return out
+'''
+
+[[technique.variant]]
+name = "Prune subtrees of zeros"
+note = "Prune the children first: then a node with no children and value 0 can go."
+template = '''
+def prune_tree(root):
+    if root is None:
+        return None
+    root.left = prune_tree(root.left)
+    root.right = prune_tree(root.right)
+    if root.val == 0 and root.left is None and root.right is None:
+        return None
+    return root
+'''
 
 [[technique]]
 id = "Trees:serialize"
@@ -389,48 +841,1623 @@ pitfalls = [
     "One iterator shared by every call keeps the position in the token stream.",
 ]
 
-[[listed]]
-name = "DFS recursive: preorder / inorder / postorder"
+[[extra]]
+id = "Trees:traversals-iterative"
+name = "Traversals with an explicit stack"
 group = "Traversals"
-note = "Related lesson: Building a tree from traversals"
+signals = [
+    "the recursion depth could be 10^5 (a skewed tree), or you are asked for the iterative version",
+    "the output is preorder, inorder or postorder values",
+    "O(1) extra space is wanted: temporarily thread the tree (Morris)",
+]
+template_name = "Inorder"
+template = '''
+def inorder(root):
+    out, stack, node = [], [], root
+    while node or stack:
+        while node:
+            stack.append(node)  # go as far left as possible
+            node = node.left
+        node = stack.pop()
+        out.append(node.val)
+        node = node.right  # then the right subtree
+    return out
+'''
+pitfalls = [
+    "Inorder visits a node when it is popped, preorder when it is pushed: that is the only difference.",
+    "Push the right child before the left in preorder, so the left is popped first.",
+    "Postorder is the reverse of 'node, right, left': that is the simplest iterative version.",
+]
+examples = ["binary-tree-inorder-traversal", "binary-tree-preorder-traversal", "binary-tree-postorder-traversal", "n-ary-tree-preorder-traversal", "n-ary-tree-postorder-traversal"]
 
-[[listed]]
-name = "DFS iterative with an explicit stack"
-group = "Traversals"
-note = "Related lesson: Inorder traversal of a BST"
+[[extra.variant]]
+name = "Preorder"
+note = "Visit when pushed; the right child goes on the stack first."
+template = '''
+def preorder(root):
+    out, stack = [], [root] if root else []
+    while stack:
+        node = stack.pop()
+        out.append(node.val)
+        if node.right:
+            stack.append(node.right)  # popped after the left
+        if node.left:
+            stack.append(node.left)
+    return out
+'''
 
-[[listed]]
-name = "Iterative postorder: two stacks / last-visited pointer"
-group = "Traversals"
-
-[[listed]]
-name = "Inorder of a BST is sorted order"
-group = "Traversals"
-note = "Related lesson: Inorder traversal of a BST"
-
-[[listed]]
-name = "Reverse inorder"
-group = "Traversals"
-note = "Related lesson: Inorder traversal of a BST"
-
-[[listed]]
-name = "Preorder with null markers"
-group = "Traversals"
-note = "e.g. root first, shape kept"
-
-[[listed]]
+[[extra.variant]]
 name = "Postorder"
-group = "Traversals"
-note = "Related lesson: Building a tree from traversals"
+note = "Preorder with the children swapped is node, right, left: reversed it is left, right, node."
+template = '''
+def postorder(root):
+    out, stack = [], [root] if root else []
+    while stack:
+        node = stack.pop()
+        out.append(node.val)  # node, then right, then left ...
+        if node.left:
+            stack.append(node.left)
+        if node.right:
+            stack.append(node.right)
+    return out[::-1]  # ... reversed: left, right, node
+'''
 
-[[listed]]
-name = "Boundary traversal"
-group = "Traversals"
-note = "Related lesson: Inorder traversal of a BST"
+[[extra.variant]]
+name = "Morris inorder (O(1) space)"
+note = "Thread the rightmost node of the left subtree back to the current node, and remove the thread on the way back."
+template = '''
+def morris_inorder(root):
+    out, node = [], root
+    while node:
+        if node.left is None:
+            out.append(node.val)
+            node = node.right
+            continue
+        pred = node.left
+        while pred.right and pred.right is not node:
+            pred = pred.right  # the rightmost of the left subtree
+        if pred.right is None:
+            pred.right = node  # a thread back to node
+            node = node.left
+        else:
+            pred.right = None  # second visit: remove the thread
+            out.append(node.val)
+            node = node.right
+    return out
+'''
 
-[[listed]]
-name = "Vertical-column traversal"
-group = "Traversals"
+[[extra]]
+id = "Trees:columns"
+name = "Columns and boundaries: vertical order and boundary"
+group = "Views"
+signals = [
+    "report the nodes column by column, left to right, top to bottom",
+    "the boundary of a tree: left edge, leaves, right edge",
+    "give every node a (row, column) coordinate while walking",
+]
+template_name = "Vertical order"
+template = '''
+from collections import defaultdict, deque
+
+
+def vertical_traversal(root):
+    cols = defaultdict(list)  # column -> [(row, value)]
+    queue = deque([(root, 0, 0)] if root else [])
+    while queue:
+        node, row, col = queue.popleft()
+        cols[col].append((row, node.val))
+        if node.left:
+            queue.append((node.left, row + 1, col - 1))
+        if node.right:
+            queue.append((node.right, row + 1, col + 1))
+    # within a column: by row, then by value
+    return [[v for _, v in sorted(cols[c])] for c in sorted(cols)]
+'''
+pitfalls = [
+    "Two nodes in the same row and column are ordered by value, not by arrival: sort the (row, value) pairs.",
+    "Columns can be negative: sort the keys of the dict, do not index an array.",
+    "Some versions of the problem want only top-to-bottom order of arrival: then no sort within a column is needed.",
+]
+examples = ["vertical-order-traversal-of-a-binary-tree", "binary-tree-vertical-order-traversal", "boundary-of-binary-tree", "binary-tree-right-side-view"]
+
+[[extra.variant]]
+name = "Boundary of a binary tree"
+note = "Left edge (no leaves), then all leaves left to right, then the right edge in reverse."
+template = '''
+def boundary_of_binary_tree(root):
+    def is_leaf(n):
+        return n.left is None and n.right is None
+
+    if root is None:
+        return []
+    out = [] if is_leaf(root) else [root.val]
+    node = root.left
+    while node:  # left edge, top down, leaves excluded
+        if not is_leaf(node):
+            out.append(node.val)
+        node = node.left or node.right
+
+    def leaves(n):
+        if n is None:
+            return
+        if is_leaf(n):
+            out.append(n.val)
+        leaves(n.left)
+        leaves(n.right)
+
+    leaves(root)
+    edge, node = [], root.right
+    while node:  # right edge, collected top down, then reversed
+        if not is_leaf(node):
+            edge.append(node.val)
+        node = node.right or node.left
+    return out + edge[::-1]
+'''
+
+[[extra]]
+id = "Trees:prefix-map"
+name = "Paths that start anywhere: a prefix-sum map with undo"
+group = "Path problems"
+signals = [
+    "count downward paths (not necessarily from the root) whose values add up to a target",
+    "prefix sums along the root-to-node path, like the subarray-sum problem on an array",
+    "a hash map of seen prefix sums that is updated on the way down and undone on the way up",
+]
+template = '''
+from collections import defaultdict
+
+
+def path_sum_iii(root, target):
+    seen = defaultdict(int)
+    seen[0] = 1  # the empty prefix
+    def go(node, running):
+        if node is None:
+            return 0
+        running += node.val
+        count = seen[running - target]  # paths that end at this node
+        seen[running] += 1
+        count += go(node.left, running) + go(node.right, running)
+        seen[running] -= 1  # leaving the node: undo
+        return count
+
+    return go(root, 0)
+'''
+pitfalls = [
+    "Undo the map entry after both children: otherwise a sibling's branch sees prefixes that are not its ancestors.",
+    "Seed the map with {0: 1}: it counts the paths that start at the root.",
+    "Count before adding the current prefix: a path of length zero must not match.",
+]
+examples = ["path-sum-iii", "path-sum-ii", "binary-tree-paths", "path-sum"]
+
+[[extra]]
+id = "Trees:lca"
+name = "Lowest common ancestor in a binary tree"
+group = "Lowest common ancestor"
+signals = [
+    "the lowest node that has both p and q below it (or is one of them)",
+    "a node is the answer when p is found on one side and q on the other",
+    "the deepest leaves, the nodes of a tree path, or turns between two nodes all use the same LCA idea",
+]
+template_name = "Recursive return"
+template = '''
+def lowest_common_ancestor(root, p, q):
+    if root is None or root is p or root is q:
+        return root
+    left = lowest_common_ancestor(root.left, p, q)
+    right = lowest_common_ancestor(root.right, p, q)
+    if left and right:
+        return root  # p and q are on different sides
+    return left or right  # both on one side, or only one exists
+'''
+pitfalls = [
+    "Return the node itself when you meet p or q: if the other is below it, this node is the answer.",
+    "If both subtrees return something, the current node is the split point.",
+    "A BST needs no recursion into both sides: compare the values and descend into one.",
+]
+examples = ["lowest-common-ancestor-of-a-binary-tree", "lowest-common-ancestor-of-a-binary-tree-iii", "lowest-common-ancestor-of-deepest-leaves", "smallest-subtree-with-all-the-deepest-nodes", "step-by-step-directions-from-a-binary-tree-node-to-another"]
+
+[[extra.variant]]
+name = "With parent pointers (two walkers)"
+note = "Each walker goes up and, at the top, restarts from the other node: they meet at the LCA after a - b + b - a steps."
+template = '''
+def lowest_common_ancestor_parent(p, q):
+    a, b = p, q
+    while a is not b:
+        a = a.parent if a else q  # at the top, switch to the other start
+        b = b.parent if b else p
+    return a
+'''
+
+[[extra.variant]]
+name = "Deepest leaves"
+note = "Return (depth, answer): the deeper side wins, a tie makes the current node the answer."
+template = '''
+def lca_deepest_leaves(root):
+    def go(node):  # (depth below node, lca of the deepest leaves there)
+        if node is None:
+            return 0, None
+        ld, lc = go(node.left)
+        rd, rc = go(node.right)
+        if ld > rd:
+            return ld + 1, lc
+        if rd > ld:
+            return rd + 1, rc
+        return ld + 1, node  # equal: node is where they split
+    return go(root)[1]
+'''
+
+[[extra.variant]]
+name = "Directions between two nodes"
+note = "Path from the root to each node; drop the shared prefix, go up for the rest of the first and down along the second."
+template = '''
+def get_directions(root, start, dest):
+    def path(node, target, acc):
+        if node is None:
+            return False
+        if node.val == target:
+            return True
+        acc.append("L")
+        if path(node.left, target, acc):
+            return True
+        acc[-1] = "R"
+        if path(node.right, target, acc):
+            return True
+        acc.pop()
+        return False
+
+    a, b = [], []
+    path(root, start, a)
+    path(root, dest, b)
+    i = 0
+    while i < min(len(a), len(b)) and a[i] == b[i]:
+        i += 1  # the shared prefix leads to the LCA
+    return "U" * (len(a) - i) + "".join(b[i:])
+'''
+
+[[extra]]
+id = "Trees:bst-bounds"
+name = "BST by bounds: validate, rebuild, trim"
+group = "BST operations"
+signals = [
+    "every value in a subtree must lie in an interval inherited from its ancestors",
+    "validate, build from a preorder list, or trim to a range by passing (low, high) down",
+    "comparing a node only with its children is wrong: the bounds come from all ancestors",
+]
+template_name = "Validate"
+template = '''
+def is_valid_bst(root):
+    def ok(node, lo, hi):  # every value must lie in (lo, hi)
+        if node is None:
+            return True
+        if not lo < node.val < hi:
+            return False
+        return ok(node.left, lo, node.val) and ok(node.right, node.val, hi)
+
+    return ok(root, float("-inf"), float("inf"))
+'''
+pitfalls = [
+    "Checking only left < node < right misses a deep violation: pass the bounds down.",
+    "Use strict inequalities: duplicates are not allowed in a BST.",
+    "Do not use INT_MIN as the first bound: a node may hold that value. Use infinities (or None).",
+]
+examples = ["validate-binary-search-tree", "construct-binary-search-tree-from-preorder-traversal", "verify-preorder-sequence-in-binary-search-tree", "range-sum-of-bst", "trim-a-binary-search-tree"]
+
+[[extra.variant]]
+name = "Build from preorder"
+note = "Take values while they are below the upper bound; the left child's bound is the node, the right child's is the parent's."
+template = '''
+def bst_from_preorder(preorder):
+    i = 0
+
+    def build(hi):  # take values while they are below hi
+        nonlocal i
+        if i == len(preorder) or preorder[i] > hi:
+            return None
+        node = TreeNode(preorder[i])
+        i += 1
+        node.left = build(node.val)
+        node.right = build(hi)
+        return node
+
+    return build(float("inf"))
+'''
+
+[[extra.variant]]
+name = "Verify a preorder list (stack)"
+note = "A pop means we turned right of the popped value: from then on nothing may be smaller than it."
+template = '''
+def verify_preorder(preorder):
+    stack, low = [], float("-inf")
+    for x in preorder:
+        if x < low:
+            return False  # smaller than an ancestor we passed on the right
+        while stack and stack[-1] < x:
+            low = stack.pop()  # went right of it: a new lower bound
+        stack.append(x)
+    return True
+'''
+
+[[extra.variant]]
+name = "Trim to a range"
+note = "A root below the range is replaced by the trimmed right subtree, a root above it by the left."
+template = '''
+def trim_bst(root, low, high):
+    if root is None:
+        return None
+    if root.val < low:
+        return trim_bst(root.right, low, high)  # root and left are out
+    if root.val > high:
+        return trim_bst(root.left, low, high)  # root and right are out
+    root.left = trim_bst(root.left, low, high)
+    root.right = trim_bst(root.right, low, high)
+    return root
+'''
+
+[[extra.variant]]
+name = "Range sum"
+note = "Skip the side that cannot contain values in the range."
+template = '''
+def range_sum_bst(root, low, high):
+    if root is None:
+        return 0
+    if root.val < low:
+        return range_sum_bst(root.right, low, high)  # left is too small
+    if root.val > high:
+        return range_sum_bst(root.left, low, high)  # right is too big
+    return (root.val + range_sum_bst(root.left, low, high)
+            + range_sum_bst(root.right, low, high))
+'''
+
+[[extra.variant]]
+name = "Nearest keys"
+note = "Inorder gives the sorted keys; the floor and the ceiling of a query come from one binary search."
+template = '''
+from bisect import bisect_left
+
+
+def closest_nodes(root, queries):
+    vals = []
+
+    def walk(node):
+        if node:
+            walk(node.left)
+            vals.append(node.val)
+            walk(node.right)
+
+    walk(root)
+    out = []
+    for q in queries:
+        i = bisect_left(vals, q)
+        if i < len(vals) and vals[i] == q:
+            out.append([q, q])
+        else:
+            out.append([vals[i - 1] if i else -1,
+                        vals[i] if i < len(vals) else -1])
+    return out
+'''
+
+[[extra]]
+id = "Trees:bst-iterator"
+name = "BST iterator: a stack of the left spine"
+group = "Iterator design"
+template_name = "Iterator"
+signals = [
+    "an object that hands out the next smaller (or larger) value on demand, in O(h) memory",
+    "next() and hasNext() in amortised O(1)",
+    "two iterators, one from each end, find pairs in a BST",
+]
+template = '''
+class BSTIterator:
+    def __init__(self, root):
+        self.stack = []
+        self._push_left(root)
+
+    def _push_left(self, node):
+        while node:
+            self.stack.append(node)
+            node = node.left
+
+    def next(self):
+        node = self.stack.pop()
+        self._push_left(node.right)  # what follows comes from its right
+        return node.val
+
+    def hasNext(self):
+        return bool(self.stack)
+'''
+pitfalls = [
+    "Keep only the left spine, not the whole inorder list: that is the O(h) memory.",
+    "After popping a node push the left spine of its right child, and nothing else.",
+    "A second iterator that goes right first gives the descending order: two-sum on a BST needs both.",
+]
+examples = ["binary-search-tree-iterator", "two-sum-iv-input-is-a-bst", "two-sum-bsts", "closest-binary-search-tree-value-ii"]
+
+[[extra.variant]]
+name = "Two sum on a BST"
+note = "One generator ascending and one descending: move the one that brings the sum towards the target."
+template = '''
+def find_target(root, k):
+    def walk(forward):
+        stack, node = [], root
+        while stack or node:
+            while node:
+                stack.append(node)
+                node = node.left if forward else node.right
+            node = stack.pop()
+            yield node.val
+            node = node.right if forward else node.left
+
+    lo, hi = walk(True), walk(False)
+    a, b = next(lo, None), next(hi, None)
+    while a is not None and b is not None and a < b:
+        s = a + b
+        if s == k:
+            return True
+        if s < k:
+            a = next(lo, None)
+        else:
+            b = next(hi, None)
+    return False
+'''
+
+[[extra]]
+id = "Trees:inorder-state"
+name = "Inorder with a running previous node"
+group = "BST operations"
+signals = [
+    "the inorder sequence of a BST is sorted, so questions about neighbours are questions about adjacent nodes",
+    "find the two swapped nodes, the minimum gap, the mode",
+    "carry the previous node (or value) through the walk instead of building the list",
+]
+template_name = "Recover a BST"
+template = '''
+def recover_tree(root):
+    first = second = prev = None
+    stack, node = [], root
+    while stack or node:
+        while node:
+            stack.append(node)
+            node = node.left
+        node = stack.pop()
+        if prev and prev.val > node.val:  # an inversion
+            if first is None:
+                first = prev  # the larger of the first inversion
+            second = node  # the smaller of the last inversion
+        prev = node
+        node = node.right
+    first.val, second.val = second.val, first.val
+'''
+pitfalls = [
+    "Two swapped nodes give one inversion (adjacent) or two (far apart): keep the first 'larger' and the last 'smaller'.",
+    "Swap the values, not the nodes: that is far simpler and the structure stays valid.",
+    "The O(1)-space version is the same loop with Morris threading.",
+]
+examples = ["recover-binary-search-tree", "minimum-distance-between-bst-nodes", "minimum-absolute-difference-in-bst", "convert-bst-to-greater-tree", "binary-search-tree-to-greater-sum-tree", "find-mode-in-binary-search-tree"]
+
+[[extra.variant]]
+name = "Minimum difference between nodes"
+note = "Only neighbours in the inorder order can be closest."
+template = '''
+def min_diff_in_bst(root):
+    best, prev = float("inf"), None
+    stack, node = [], root
+    while stack or node:
+        while node:
+            stack.append(node)
+            node = node.left
+        node = stack.pop()
+        if prev is not None:
+            best = min(best, node.val - prev)  # neighbours in order
+        prev = node.val
+        node = node.right
+    return best
+'''
+
+[[extra.variant]]
+name = "Greater tree (reverse inorder)"
+note = "Walk from the largest to the smallest, keeping a running total of what is bigger."
+template = '''
+def convert_bst(root):
+    total, stack, node = 0, [], root
+    while stack or node:
+        while node:
+            stack.append(node)
+            node = node.right  # the biggest first
+        node = stack.pop()
+        total += node.val
+        node.val = total  # itself plus everything larger
+        node = node.left
+    return root
+'''
+
+[[extra.variant]]
+name = "Mode of a BST"
+note = "Equal values are adjacent in order: count the current run and keep the longest ones."
+template = '''
+def find_mode(root):
+    best, count, prev, modes = 0, 0, None, []
+    stack, node = [], root
+    while stack or node:
+        while node:
+            stack.append(node)
+            node = node.left
+        node = stack.pop()
+        count = count + 1 if node.val == prev else 1
+        prev = node.val
+        if count > best:
+            best, modes = count, [node.val]
+        elif count == best:
+            modes.append(node.val)
+        node = node.right
+    return modes
+'''
+
+[[extra]]
+id = "Trees:sorted-to-bst"
+name = "Height-balanced BST from sorted data"
+group = "Construction"
+signals = [
+    "a sorted array or list must become a BST whose subtree heights differ by at most one",
+    "the middle element is the root, and both halves are the same problem",
+    "an unbalanced BST is rebalanced through its inorder list",
+]
+template_name = "Sorted array"
+template = '''
+def sorted_array_to_bst(nums):
+    def build(lo, hi):  # nums[lo:hi]
+        if lo >= hi:
+            return None
+        mid = (lo + hi) // 2
+        return TreeNode(nums[mid], build(lo, mid), build(mid + 1, hi))
+
+    return build(0, len(nums))
+'''
+pitfalls = [
+    "Use half-open ranges (lo, hi): then an empty range is lo >= hi and no off-by-one appears.",
+    "Slicing the list in every call is O(n log n): pass indexes.",
+    "A linked list has no random access: simulate the inorder walk with a moving pointer.",
+]
+examples = ["convert-sorted-array-to-binary-search-tree", "convert-sorted-list-to-binary-search-tree", "balance-a-binary-search-tree"]
+
+[[extra.variant]]
+name = "Balance an existing BST"
+note = "Inorder gives the sorted values; build the balanced tree from them."
+template = '''
+def balance_bst(root):
+    vals = []
+
+    def walk(node):
+        if node:
+            walk(node.left)
+            vals.append(node.val)
+            walk(node.right)
+
+    def build(lo, hi):
+        if lo >= hi:
+            return None
+        mid = (lo + hi) // 2
+        return TreeNode(vals[mid], build(lo, mid), build(mid + 1, hi))
+
+    walk(root)
+    return build(0, len(vals))
+'''
+
+[[extra.variant]]
+name = "Sorted linked list (inorder simulation)"
+note = "Build the left subtree first, then take the next list node as the root, then build the right subtree."
+template = '''
+def sorted_list_to_bst(head):
+    n, node = 0, head
+    while node:
+        n += 1
+        node = node.next
+    cur = head
+
+    def build(lo, hi):  # builds nodes lo .. hi - 1 in order
+        nonlocal cur
+        if lo >= hi:
+            return None
+        mid = (lo + hi) // 2
+        left = build(lo, mid)
+        root = TreeNode(cur.val)  # the next list node is the root
+        cur = cur.next
+        root.left = left
+        root.right = build(mid + 1, hi)
+        return root
+
+    return build(0, n)
+'''
+
+[[extra]]
+id = "Trees:compare"
+name = "Comparing two trees"
+group = "Tree comparison"
+signals = [
+    "are two trees equal, mirror images, one inside the other, or equal up to flipping children?",
+    "walk both trees together and compare node by node",
+    "the base case is a pair of nulls (equal) or exactly one null (not equal)",
+]
+template_name = "Same tree"
+template = '''
+def is_same_tree(p, q):
+    if p is None or q is None:
+        return p is q  # both empty, or exactly one
+    return (p.val == q.val and is_same_tree(p.left, q.left)
+            and is_same_tree(p.right, q.right))
+'''
+pitfalls = [
+    "Handle the null cases first, and compare the values before recursing.",
+    "For a mirror compare left with right and right with left.",
+    "A subtree test must try every node as the root of the match, not only the root.",
+]
+examples = ["same-tree", "symmetric-tree", "subtree-of-another-tree", "flip-equivalent-binary-trees", "leaf-similar-trees", "merge-two-binary-trees", "linked-list-in-binary-tree"]
+
+[[extra.variant]]
+name = "Symmetric"
+note = "The two halves must mirror each other: left with right, and right with left."
+template = '''
+def is_symmetric(root):
+    def mirror(a, b):
+        if a is None or b is None:
+            return a is b
+        return (a.val == b.val and mirror(a.left, b.right)
+                and mirror(a.right, b.left))
+
+    return root is None or mirror(root.left, root.right)
+'''
+
+[[extra.variant]]
+name = "Subtree of another tree"
+note = "Try the match at every node of the big tree."
+template = '''
+def is_subtree(root, sub):
+    def same(a, b):
+        if a is None or b is None:
+            return a is b
+        return (a.val == b.val and same(a.left, b.left)
+                and same(a.right, b.right))
+
+    def go(node):
+        if node is None:
+            return sub is None
+        return same(node, sub) or go(node.left) or go(node.right)
+
+    return go(root)
+'''
+
+[[extra.variant]]
+name = "Flip equivalent"
+note = "At each node either the children match straight or after swapping them."
+template = '''
+def flip_equiv(a, b):
+    if a is None or b is None:
+        return a is b
+    if a.val != b.val:
+        return False
+    straight = flip_equiv(a.left, b.left) and flip_equiv(a.right, b.right)
+    flipped = flip_equiv(a.left, b.right) and flip_equiv(a.right, b.left)
+    return straight or flipped
+'''
+
+[[extra.variant]]
+name = "Merge two trees"
+note = "Add the values where both exist, and reuse the subtree where only one does."
+template = '''
+def merge_trees(a, b):
+    if a is None or b is None:
+        return a or b
+    a.val += b.val
+    a.left = merge_trees(a.left, b.left)
+    a.right = merge_trees(a.right, b.right)
+    return a
+'''
+
+[[extra.variant]]
+name = "Linked list in a binary tree"
+note = "Try to match the list starting at every node, going down one child at a time."
+template = '''
+def is_sub_path(head, root):
+    def match(node, cur):  # does the list from cur go down from node?
+        if cur is None:
+            return True
+        if node is None or node.val != cur.val:
+            return False
+        return match(node.left, cur.next) or match(node.right, cur.next)
+
+    if root is None:
+        return False
+    return (match(root, head) or is_sub_path(head, root.left)
+            or is_sub_path(head, root.right))
+'''
+
+[[extra]]
+id = "Trees:signature"
+name = "Subtree signatures: duplicates by canonical id"
+group = "Tree comparison"
+signals = [
+    "find repeated subtrees, or compare many subtrees at once",
+    "give every distinct subtree shape an integer id from (left id, value, right id)",
+    "two subtrees are equal exactly when their ids are equal",
+]
+template_name = "Duplicate subtrees"
+template = '''
+from collections import defaultdict
+
+
+def find_duplicate_subtrees(root):
+    ids = {}  # (left id, value, right id) -> id
+    count = defaultdict(int)
+    out = []
+
+    def go(node):
+        if node is None:
+            return 0
+        key = (go(node.left), node.val, go(node.right))
+        if key not in ids:
+            ids[key] = len(ids) + 1  # a new shape gets a new id
+        i = ids[key]
+        count[i] += 1
+        if count[i] == 2:
+            out.append(node)  # report each duplicate once
+        return i
+
+    go(root)
+    return out
+'''
+pitfalls = [
+    "Report a shape when its count reaches 2, not on every later hit.",
+    "String serialisations also work but cost O(n^2) in the worst case; ids make it O(n).",
+    "Use 0 for null so a leaf's key is (0, value, 0).",
+]
+examples = ["find-duplicate-subtrees", "construct-string-from-binary-tree"]
+
+[[extra.variant]]
+name = "String from a binary tree"
+note = "Empty parentheses are needed for a missing left child only when a right child exists."
+template = '''
+def tree_to_str(root):
+    if root is None:
+        return ""
+    left, right = tree_to_str(root.left), tree_to_str(root.right)
+    if not left and not right:
+        return str(root.val)
+    if not right:
+        return f"{root.val}({left})"  # the right part is left out
+    return f"{root.val}({left})({right})"
+'''
+
+[[extra]]
+id = "Trees:n-ary"
+name = "N-ary trees"
+group = "N-ary trees"
+signals = [
+    "each node has a list of children instead of left and right",
+    "depth, clone, diameter and finding the root without parents use the same recursion over children",
+    "the answer combines the best two child values (diameter) or the sum over children",
+]
+template_name = "Maximum depth"
+template = '''
+def max_depth(root):
+    if root is None:
+        return 0
+    return 1 + max((max_depth(c) for c in root.children), default=0)
+'''
+pitfalls = [
+    "A leaf has an empty children list: max over nothing needs a default.",
+    "The diameter needs the two largest child heights: keep top1 and top2 while looping.",
+    "Without parent pointers the root is the one node that is nobody's child: sum values and subtract the children's.",
+]
+examples = ["maximum-depth-of-n-ary-tree", "clone-n-ary-tree", "find-root-of-n-ary-tree", "diameter-of-n-ary-tree"]
+
+[[extra.variant]]
+name = "Find the root (sum trick)"
+note = "Add every node once as a node and subtract it once as a child: the root is left."
+template = '''
+def find_root(tree):
+    total = 0
+    for node in tree:  # the list of all nodes
+        total += node.val  # counted once as itself ...
+        for child in node.children:
+            total -= child.val  # ... minus once as somebody's child
+    return next(n for n in tree if n.val == total)
+'''
+
+[[extra.variant]]
+name = "Diameter"
+note = "Combine the two tallest children at each node."
+template = '''
+def diameter(root):
+    best = 0
+
+    def height(node):
+        nonlocal best
+        top1 = top2 = 0
+        for c in node.children:
+            h = height(c)
+            if h > top1:
+                top1, top2 = h, top1
+            elif h > top2:
+                top2 = h
+        best = max(best, top1 + top2)  # a path through this node
+        return top1 + 1
+
+    if root:
+        height(root)
+    return best
+'''
+
+[[extra.variant]]
+name = "Clone"
+note = "Copy the value and clone every child."
+template = '''
+def clone_tree(root):
+    if root is None:
+        return None
+    return Node(root.val, [clone_tree(c) for c in root.children])
+'''
+
+[[extra]]
+id = "Trees:rerooting"
+name = "Rerooting: the answer for every node as the root"
+group = "Tree DP"
+signals = [
+    "an answer for each node taken as the root (sum of distances, height, number of reachable nodes)",
+    "one pass up computes subtree sizes and sums; one pass down moves the root across each edge",
+    "moving the root from u to its child v changes the sum by (n - size[v]) - size[v]",
+]
+template_name = "Sum of distances in a tree"
+template = '''
+from collections import defaultdict
+
+
+def sum_of_distances_in_tree(n, edges):
+    adj = defaultdict(list)
+    for a, b in edges:
+        adj[a].append(b)
+        adj[b].append(a)
+    size, ans = [1] * n, [0] * n
+    order, parent, stack = [], [-1] * n, [0]
+    while stack:  # a DFS order, without recursion
+        u = stack.pop()
+        order.append(u)
+        for v in adj[u]:
+            if v != parent[u]:
+                parent[v] = u
+                stack.append(v)
+    for u in reversed(order):  # children before parents
+        for v in adj[u]:
+            if v != parent[u]:
+                size[u] += size[v]
+                ans[u] += ans[v] + size[v]  # distances inside u's subtree
+    for u in order:  # parents before children: move the root u -> v
+        for v in adj[u]:
+            if v != parent[u]:
+                ans[v] = ans[u] - size[v] + (n - size[v])
+    return ans
+'''
+pitfalls = [
+    "First compute the answer for one root (node 0) with subtree sizes, then derive every other node from its parent.",
+    "Moving the root to v: the size[v] nodes get one step closer, the other n - size[v] one step farther.",
+    "Avoid recursion on a path of 10^4 nodes: the order list makes both passes iterative.",
+]
+examples = ["sum-of-distances-in-tree", "binary-tree-coloring-game", "minimum-height-trees"]
+
+[[extra.variant]]
+name = "Binary tree coloring game"
+note = "The second player takes the biggest of three regions around x: its left subtree, its right subtree, or everything above."
+template = '''
+def btree_game_winning_move(root, n, x):
+    left = right = 0
+
+    def count(node):
+        nonlocal left, right
+        if node is None:
+            return 0
+        l, r = count(node.left), count(node.right)
+        if node.val == x:
+            left, right = l, r  # the sizes under x
+        return l + r + 1
+
+    count(root)
+    above = n - left - right - 1
+    return max(left, right, above) > n // 2
+'''
+
+[[extra]]
+id = "Trees:peel-leaves"
+name = "Peel the leaves: the centre of a tree"
+group = "Parent pointers and tree-to-graph"
+signals = [
+    "the roots that give the minimum height, the centre of a tree, or counting components after removals",
+    "repeatedly remove all leaves at once; the last one or two nodes are the centres",
+    "the same process as topological sorting on a degree-1 frontier",
+]
+template = '''
+from collections import defaultdict
+
+
+def find_min_height_trees(n, edges):
+    if n == 1:
+        return [0]
+    adj = defaultdict(set)
+    for a, b in edges:
+        adj[a].add(b)
+        adj[b].add(a)
+    leaves = [u for u in range(n) if len(adj[u]) == 1]
+    remaining = n
+    while remaining > 2:
+        remaining -= len(leaves)
+        nxt = []
+        for leaf in leaves:
+            (nb,) = adj[leaf]  # a leaf has exactly one neighbour
+            adj[nb].discard(leaf)
+            if len(adj[nb]) == 1:
+                nxt.append(nb)  # it has become a leaf
+        leaves = nxt
+    return leaves
+'''
+pitfalls = [
+    "Peel a whole layer at a time: peeling one leaf at a time can remove the wrong end of a path.",
+    "A tree has one or two centres: stop when at most two nodes remain.",
+    "n == 1 has no edges and no leaf: return [0] at the start.",
+]
+examples = ["minimum-height-trees", "maximum-number-of-k-divisible-components"]
+
+[[extra]]
+id = "Trees:parent-map"
+name = "Parent map, then BFS outward"
+group = "Parent pointers and tree-to-graph"
+signals = [
+    "nodes at distance k from a target, or the time for something to spread from a node",
+    "a binary tree has no parent pointers: a dict from node to parent makes it an undirected graph",
+    "BFS by levels from the start, never going back to a visited node",
+]
+template_name = "Nodes at distance k"
+template = '''
+def distance_k(root, target, k):
+    parent = {}
+
+    def link(node, par):
+        if node:
+            parent[node] = par
+            link(node.left, node)
+            link(node.right, node)
+
+    link(root, None)
+    seen, level = {target}, [target]
+    for _ in range(k):  # one BFS level per step
+        level = [nb for n in level for nb in (n.left, n.right, parent[n])
+                 if nb and nb not in seen]
+        seen.update(level)
+    return [n.val for n in level]
+'''
+pitfalls = [
+    "Mark nodes as seen, or the walk goes back to the parent it came from.",
+    "The parent of the root is None: skip it when expanding.",
+    "Use node objects (not values) as dictionary keys if values can repeat.",
+]
+examples = ["all-nodes-distance-k-in-binary-tree", "amount-of-time-for-binary-tree-to-be-infected"]
+
+[[extra.variant]]
+name = "Time to infect the whole tree"
+note = "BFS from the start node over (left, right, parent); the number of levels is the time."
+template = '''
+def amount_of_time(root, start):
+    parent, begin, stack = {}, None, [(root, None)]
+    while stack:
+        node, par = stack.pop()
+        parent[node] = par
+        if node.val == start:
+            begin = node
+        for c in (node.left, node.right):
+            if c:
+                stack.append((c, node))
+    seen, level, minutes = {begin}, [begin], -1
+    while level:
+        minutes += 1  # one level of BFS = one minute
+        nxt = []
+        for n in level:
+            for nb in (n.left, n.right, parent[n]):
+                if nb and nb not in seen:
+                    seen.add(nb)
+                    nxt.append(nb)
+        level = nxt
+    return minutes
+'''
+
+[[extra]]
+id = "Trees:complete"
+name = "Complete binary trees"
+group = "Count and enumerate trees"
+signals = [
+    "count the nodes of a complete tree in less than O(n)",
+    "one of the two subtrees of a complete tree is always perfect, and a perfect tree's size is 2^h - 1",
+    "an object that appends nodes in level order: a queue of nodes with a free child slot",
+]
+template_name = "Count nodes"
+template = '''
+def count_nodes(root):
+    def depth(node):  # depth going only left
+        d = 0
+        while node:
+            d += 1
+            node = node.left
+        return d
+
+    if root is None:
+        return 0
+    left, right = depth(root.left), depth(root.right)
+    if left == right:
+        return (1 << left) + count_nodes(root.right)  # left is perfect
+    return (1 << right) + count_nodes(root.left)  # right is perfect
+'''
+pitfalls = [
+    "Equal left depths mean the left subtree is perfect; unequal means the right one is (one level shorter).",
+    "(1 << h) is the root plus a perfect subtree of height h: 2^h - 1 + 1.",
+    "Only one side recurses each time, so the work is O(log^2 n).",
+]
+examples = ["count-complete-tree-nodes", "complete-binary-tree-inserter", "check-completeness-of-a-binary-tree"]
+
+[[extra.variant]]
+name = "Complete binary tree inserter"
+note = "Keep the nodes that still have a free child slot in level order; the first one is the parent of the next insert."
+template = '''
+from collections import deque
+
+
+class CBTInserter:
+    def __init__(self, root):
+        self.root = root
+        self.open = deque()  # nodes with a free child slot, in order
+        queue = deque([root])
+        while queue:
+            node = queue.popleft()
+            for c in (node.left, node.right):
+                if c:
+                    queue.append(c)
+            if node.left is None or node.right is None:
+                self.open.append(node)
+
+    def insert(self, val):
+        parent = self.open[0]
+        child = TreeNode(val)
+        if parent.left is None:
+            parent.left = child
+        else:
+            parent.right = child
+            self.open.popleft()  # now full
+        self.open.append(child)
+        return parent.val
+
+    def get_root(self):
+        return self.root
+'''
+
+[[extra]]
+id = "Trees:quad-tree"
+name = "Quad tree from a grid"
+group = "Construction"
+signals = [
+    "a square grid is split into four quadrants until each part is a single value",
+    "a node is a leaf when every cell of its square is equal",
+    "build children recursively on the four halves",
+]
+template = '''
+def construct(grid):
+    def build(r, c, size):
+        first = grid[r][c]
+        if all(grid[r + i][c + j] == first
+               for i in range(size) for j in range(size)):
+            return Node(bool(first), True, None, None, None, None)
+        half = size // 2
+        return Node(True, False,
+                    build(r, c, half), build(r, c + half, half),
+                    build(r + half, c, half),
+                    build(r + half, c + half, half))
+
+    return build(0, 0, len(grid))
+'''
+pitfalls = [
+    "Check uniformity first, then split: a uniform square must not be divided.",
+    "The four children are top-left, top-right, bottom-left, bottom-right, in that order.",
+    "Checking uniformity by scanning is O(n^2 log n) overall; prefix sums make each check O(1).",
+]
+examples = ["construct-quad-tree"]
+
+[[extra]]
+id = "Trees:from-descriptions"
+name = "Build a tree from parent-child records"
+group = "Construction"
+signals = [
+    "the tree is given as (parent, child, is_left) triples or as a depth-marked string",
+    "the root is the one node that never appears as a child",
+    "one dict from value to node, created on first sight",
+]
+template_name = "From descriptions"
+template = '''
+def create_binary_tree(descriptions):
+    nodes, children = {}, set()
+    for parent, child, is_left in descriptions:
+        p = nodes.setdefault(parent, TreeNode(parent))
+        c = nodes.setdefault(child, TreeNode(child))
+        if is_left:
+            p.left = c
+        else:
+            p.right = c
+        children.add(child)
+    root = next(v for v in nodes if v not in children)  # nobody's child
+    return nodes[root]
+'''
+pitfalls = [
+    "Use setdefault so a node created as a child is reused when it later appears as a parent.",
+    "The root is the only value that is never a child.",
+    "Triples may arrive in any order: do not assume parents come before children.",
+]
+examples = ["create-binary-tree-from-descriptions", "recover-a-tree-from-preorder-traversal"]
+
+[[extra.variant]]
+name = "Depth-marked preorder (dashes)"
+note = "A stack holds the current path: the number of dashes says how many nodes to keep."
+template = '''
+def recover_from_preorder(traversal):
+    stack, i, n = [], 0, len(traversal)
+    while i < n:
+        depth = 0
+        while i < n and traversal[i] == "-":
+            depth += 1
+            i += 1
+        j = i
+        while j < n and traversal[j] != "-":
+            j += 1
+        node = TreeNode(int(traversal[i:j]))
+        i = j
+        while len(stack) > depth:
+            stack.pop()  # climb back to the parent
+        if stack:
+            parent = stack[-1]
+            if parent.left is None:
+                parent.left = node  # the left child comes first
+            else:
+                parent.right = node
+        stack.append(node)
+    return stack[0]
+'''
+
+[[extra]]
+id = "Trees:subtree-sums"
+name = "Per-node values from subtree sums"
+group = "Subtree aggregation"
+signals = [
+    "the tilt of a node, the best split, the average of a subtree: all need the sum under each node",
+    "a postorder DFS returns the subtree sum and updates a global as a side effect",
+    "collect all subtree sums in one pass, then answer from the list",
+]
+template_name = "Binary tree tilt"
+template = '''
+def find_tilt(root):
+    total = 0
+
+    def go(node):  # the sum of the subtree
+        nonlocal total
+        if node is None:
+            return 0
+        left, right = go(node.left), go(node.right)
+        total += abs(left - right)  # this node's tilt
+        return node.val + left + right
+
+    go(root)
+    return total
+'''
+pitfalls = [
+    "Return the sum for the parent; keep the answer in a nonlocal: the two are different numbers.",
+    "Compute the whole tree sum first when a split needs it, then use the stored subtree sums.",
+    "Take the modulus only at the end when asked: a product of two sums is large but Python's ints are exact.",
+]
+examples = ["binary-tree-tilt", "maximum-product-of-splitted-binary-tree", "count-nodes-equal-to-average-of-subtree", "most-frequent-subtree-sum", "k-th-largest-perfect-subtree-size-in-binary-tree"]
+
+[[extra.variant]]
+name = "Maximum product of a split"
+note = "Cutting above a node splits the tree into s and total - s; try every subtree sum."
+template = '''
+def max_product(root):
+    sums = []
+
+    def go(node):
+        if node is None:
+            return 0
+        s = node.val + go(node.left) + go(node.right)
+        sums.append(s)  # the sum of every subtree
+        return s
+
+    total = go(root)
+    return max(s * (total - s) for s in sums) % (10**9 + 7)
+'''
+
+[[extra]]
+id = "Trees:flatten"
+name = "Flatten a tree in place"
+group = "Transformations"
+signals = [
+    "turn a tree into a linked list in preorder using the right pointers, with no extra memory",
+    "hook a node's right subtree under the rightmost node of its left subtree, then move the left subtree to the right",
+    "Morris-style: each node's predecessor is found by walking right",
+]
+template = '''
+def flatten(root):
+    node = root
+    while node:
+        if node.left:
+            pred = node.left
+            while pred.right:
+                pred = pred.right  # the last node of the left subtree
+            pred.right = node.right  # the right subtree follows it
+            node.right = node.left
+            node.left = None
+        node = node.right
+'''
+pitfalls = [
+    "Set node.left to None: leaving the old pointer keeps a cycle-like structure.",
+    "Find the predecessor before moving the subtrees, or its right pointer is already changed.",
+    "A recursive version that flattens the right first and keeps a 'prev' pointer is simpler but uses O(h) stack.",
+]
+examples = ["flatten-binary-tree-to-linked-list", "convert-binary-search-tree-to-sorted-doubly-linked-list"]
+
+[[extra]]
+id = "Trees:valid-tree"
+name = "Is this a valid binary tree?"
+group = "Parent pointers and tree-to-graph"
+signals = [
+    "child arrays (left, right) may describe a tree, a forest, or a graph with a cycle",
+    "a tree has exactly one root (in-degree 0), every other node has exactly one parent, and all nodes are reachable",
+    "count in-degrees, find the root, walk from it",
+]
+template = '''
+def validate_binary_tree_nodes(n, left, right):
+    indeg = [0] * n
+    for kids in (left, right):
+        for c in kids:
+            if c != -1:
+                indeg[c] += 1
+                if indeg[c] > 1:
+                    return False  # two parents
+    roots = [i for i in range(n) if indeg[i] == 0]
+    if len(roots) != 1:
+        return False  # none (a cycle) or several (a forest)
+    seen, stack = set(), [roots[0]]
+    while stack:
+        u = stack.pop()
+        if u in seen:
+            return False
+        seen.add(u)
+        stack += [c for c in (left[u], right[u]) if c != -1]
+    return len(seen) == n  # everything is reachable
+'''
+pitfalls = [
+    "Check in-degree before looking for the root: a node with two parents is not a tree even with one root.",
+    "No node of in-degree 0 means every node is somebody's child: a cycle.",
+    "All of n nodes must be reached from the root: otherwise it is a forest.",
+]
+examples = ["validate-binary-tree-nodes"]
+
+[[extra]]
+id = "Trees:hierarchy"
+name = "Manager hierarchies as trees"
+group = "Parent pointers and tree-to-graph"
+signals = [
+    "employees with a manager array: the time to inform everyone, the depth of the chain, who reports to whom",
+    "build children lists from the parent array, then a DFS from the head",
+    "the answer combines the node's own cost with the slowest child",
+]
+template_name = "Inform all employees"
+template = '''
+from collections import defaultdict
+
+
+def num_of_minutes(n, head_id, manager, inform_time):
+    kids = defaultdict(list)
+    for i, m in enumerate(manager):
+        if m != -1:
+            kids[m].append(i)  # invert the parent array
+
+    def go(u):  # time until everyone below u knows
+        return inform_time[u] + max((go(v) for v in kids[u]), default=0)
+
+    return go(head_id)
+'''
+pitfalls = [
+    "The array gives parents, not children: invert it once, in O(n).",
+    "A leaf has inform time 0 and no children: max over nothing needs a default.",
+    "Recursion depth can be n for a chain: use an explicit stack for n up to 10^5.",
+]
+examples = ["time-needed-to-inform-all-employees", "minimum-time-to-collect-all-apples-in-a-tree"]
+
+[[extra]]
+id = "Trees:labelled"
+name = "Heap-numbered trees: the label arithmetic"
+group = "Parent pointers and tree-to-graph"
+signals = [
+    "nodes are numbered level by level, so the parent of label x is x // 2",
+    "every other level is numbered right to left (zigzag): mirror the label inside its level first",
+    "the path from the root to a label, or the depth, comes from the bits of the number",
+]
+template = '''
+def path_in_zig_zag_tree(label):
+    out = []
+    level = label.bit_length()  # level 1 holds just the label 1
+    while label:
+        out.append(label)
+        lo, hi = 1 << (level - 1), (1 << level) - 1
+        label = (lo + hi - label) // 2  # mirror in the level, then halve
+        level -= 1
+    return out[::-1]
+'''
+pitfalls = [
+    "The mirror of x in a level [lo, hi] is lo + hi - x.",
+    "In a zigzag tree the parent is the mirror of x, halved: x // 2 is the parent only in the plain numbering.",
+    "The loop ends when the label reaches 0 (the parent of the root).",
+]
+examples = ["path-in-zigzag-labelled-binary-tree"]
+
+[[extra]]
+id = "Trees:remove-subtree-heights"
+name = "Height after removing a subtree: top two per depth"
+group = "Subtree aggregation"
+signals = [
+    "many queries, each removes a subtree and asks for the height of the rest",
+    "the new height is the deepest node among the other nodes at the removed node's depth, or the depth above",
+    "for each depth keep only the two deepest (depth + height) values",
+]
+template = '''
+from collections import defaultdict
+
+
+def tree_queries(root, queries):
+    depth, height = {}, {}
+
+    def go(node, d):  # height in edges; an empty tree is -1
+        if node is None:
+            return -1
+        depth[node.val] = d
+        height[node.val] = 1 + max(go(node.left, d + 1),
+                                   go(node.right, d + 1))
+        return height[node.val]
+
+    go(root, 0)
+    top = defaultdict(list)  # depth -> the two deepest (reach, value)
+    for v, d in depth.items():
+        top[d].append((d + height[v], v))
+    for d in top:
+        top[d] = sorted(top[d], reverse=True)[:2]
+    out = []
+    for q in queries:
+        d = depth[q]
+        others = [reach for reach, v in top[d] if v != q]
+        out.append(others[0] if others else d - 1)
+    return out
+'''
+pitfalls = [
+    "Keeping two per depth is enough: one may be the removed node itself.",
+    "If the removed node is alone at its depth, the tree ends one level above: d - 1.",
+    "Heights counted in edges: a single node has height 0, an empty tree -1.",
+]
+examples = ["height-of-binary-tree-after-subtree-removal-queries"]
+
+[[extra]]
+id = "Trees:remove-node-product"
+name = "Remove a node: the product of the pieces"
+group = "Tree DP"
+signals = [
+    "for each node, removing it splits the tree into its child subtrees and the rest",
+    "the score is the product of the sizes of the pieces; count the nodes with the highest score",
+    "one DFS that returns the subtree size and updates the best score",
+]
+template = '''
+def count_highest_score_nodes(parents):
+    n = len(parents)
+    kids = [[] for _ in range(n)]
+    for i, p in enumerate(parents):
+        if p >= 0:
+            kids[p].append(i)
+    best = count = 0
+
+    def size(u):
+        nonlocal best, count
+        total, score = 1, 1
+        for v in kids[u]:
+            s = size(v)
+            total += s
+            score *= s  # a piece for each child subtree
+        if n - total:
+            score *= n - total  # the rest above u
+        if score > best:
+            best, count = score, 1
+        elif score == best:
+            count += 1
+        return total
+
+    size(0)
+    return count
+'''
+pitfalls = [
+    "The piece above the node has n - size nodes: it exists only when the node is not the root.",
+    "A product of non-zero sizes: skip the factor when a piece is empty, do not multiply by 0.",
+    "Count ties: compare with the best so far and reset the count on a strictly better score.",
+]
+examples = ["count-nodes-with-the-highest-score"]
+
+[[extra]]
+id = "Trees:path-parity"
+name = "Path parity: a mask from the root and a counter"
+group = "Tree DP"
+signals = [
+    "count node pairs whose path letters can be rearranged into a palindrome",
+    "each node's mask is the parity of every letter on its path from the root",
+    "a pair is good when the XOR of the two masks has at most one bit set",
+]
+template = '''
+from collections import defaultdict
+
+
+def count_palindrome_paths(parent, s):
+    n = len(parent)
+    kids = [[] for _ in range(n)]
+    for i in range(1, n):
+        kids[parent[i]].append(i)
+    seen = defaultdict(int)
+    answer = 0
+    stack = [(0, 0)]  # (node, parity mask of the path from the root)
+    while stack:
+        u, mask = stack.pop()
+        answer += seen[mask]  # the same parity: an even path
+        for b in range(26):
+            answer += seen[mask ^ (1 << b)]  # exactly one letter odd
+        seen[mask] += 1
+        for v in kids[u]:
+            stack.append((v, mask ^ (1 << (ord(s[v]) - 97))))
+    return answer
+'''
+pitfalls = [
+    "XOR of two root masks is the parity of the path between them: the shared part cancels.",
+    "At most one odd letter is the palindrome condition: the XOR is 0 or a single bit.",
+    "Count a pair once: look up the masks of the nodes already seen, then add the current one.",
+]
+examples = ["count-paths-that-can-form-a-palindrome-in-a-tree"]
+
+[[extra]]
+id = "Trees:binary-lifting"
+name = "Binary lifting: the k-th ancestor"
+group = "Lowest common ancestor"
+signals = [
+    "many queries for the k-th ancestor (or the LCA) of a node in a rooted tree",
+    "store the 2^j-th ancestor of every node: any k is a sum of powers of two",
+    "O(n log n) to build, O(log n) per query",
+]
+template = '''
+class TreeAncestor:
+    def __init__(self, n, parent):
+        self.log = max(1, n.bit_length())
+        self.up = [parent[:]]  # up[j][v]: the 2^j-th ancestor of v
+        for _ in range(1, self.log):
+            prev = self.up[-1]
+            self.up.append([prev[prev[v]] if prev[v] != -1 else -1
+                            for v in range(n)])
+
+    def getKthAncestor(self, node, k):
+        if k >= 1 << self.log:
+            return -1  # deeper than any chain
+        for j in range(self.log):
+            if k >> j & 1:
+                node = self.up[j][node]
+                if node == -1:
+                    return -1
+        return node
+'''
+pitfalls = [
+    "Use -1 for 'no ancestor' and keep it sticky: the ancestor of -1 is -1.",
+    "Level j is built from level j - 1: up[j][v] = up[j - 1][up[j - 1][v]].",
+    "For the LCA lift the deeper node to the same depth, then lift both while their ancestors differ.",
+]
+examples = ["kth-ancestor-of-a-tree-node"]
+
+[[extra]]
+id = "Trees:lazy-iterators"
+name = "Lazy iterators: flatten and peek"
+group = "Iterator design"
+signals = [
+    "an iterator over a nested structure that must not build the full flat list",
+    "keep a stack of iterators: the innermost one is read, and a nested list pushes a new one",
+    "peek without consuming: buffer one value ahead",
+]
+template_name = "Nested list iterator"
+template = '''
+class NestedIterator:
+    def __init__(self, nestedList):
+        self.stack = [iter(nestedList)]  # innermost iterator last
+        self.value = None
+
+    def _advance(self):
+        while self.stack:
+            for item in self.stack[-1]:
+                if item.isInteger():
+                    self.value = item.getInteger()
+                    return
+                self.stack.append(iter(item.getList()))  # go inside
+                break
+            else:
+                self.stack.pop()  # this list is finished
+
+    def hasNext(self):
+        if self.value is None:
+            self._advance()
+        return self.value is not None
+
+    def next(self):
+        self.hasNext()
+        out, self.value = self.value, None
+        return out
+'''
+pitfalls = [
+    "Skip empty nested lists: the loop must keep going until it finds an integer or runs out of iterators.",
+    "hasNext does the work (it may need to look ahead through empty lists), next only reads the buffer.",
+    "Never call getList on an integer item: test isInteger first.",
+]
+examples = ["flatten-nested-list-iterator", "peeking-iterator"]
+
+[[extra.variant]]
+name = "Peeking iterator"
+note = "Keep one value ahead of the wrapped iterator."
+template = '''
+class PeekingIterator:
+    def __init__(self, iterator):
+        self.it = iterator
+        self.has = iterator.hasNext()
+        self.buf = iterator.next() if self.has else None
+
+    def peek(self):
+        return self.buf
+
+    def next(self):
+        out = self.buf
+        self.has = self.it.hasNext()
+        self.buf = self.it.next() if self.has else None
+        return out
+
+    def hasNext(self):
+        return self.has
+'''
+
+[[extra]]
+id = "Trees:insertion-orders"
+name = "Count the insertion orders that build the same BST"
+group = "Count and enumerate trees"
+signals = [
+    "how many permutations of the keys give exactly this BST?",
+    "the root is first; the left and right sequences interleave in any way: C(n - 1, |left|) ways",
+    "multiply with the counts for the two subtrees",
+]
+template = '''
+from math import comb
+
+
+def num_of_ways(nums):
+    mod = 10**9 + 7
+
+    def go(a):
+        if len(a) <= 2:
+            return 1
+        left = [x for x in a if x < a[0]]
+        right = [x for x in a if x > a[0]]
+        # the left and right orders can be interleaved freely
+        return comb(len(a) - 1, len(left)) * go(left) * go(right)
+
+    return (go(nums) - 1) % mod  # the given order itself is not counted
+'''
+pitfalls = [
+    "Each subtree keeps its own order: only the interleaving is free.",
+    "Subtract 1: the question asks for the other orders.",
+    "Work with exact integers (math.comb) and reduce at the end, or use modular inverses in other languages.",
+]
+examples = ["number-of-ways-to-reorder-array-to-get-same-bst"]
 
 [[listed]]
 name = "Diagonal traversal"
@@ -438,178 +2465,8 @@ group = "Traversals"
 note = "Related lesson: Inorder traversal of a BST"
 
 [[listed]]
-name = "Leaf sequence left to right"
-group = "Traversals"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "Basic level-order / bottom-up level-order"
-group = "Level-order family"
-note = "Related lesson: BFS level by level"
-
-[[listed]]
-name = "Zigzag level-order"
-group = "Level-order family"
-note = "Related lesson: BFS level by level"
-
-[[listed]]
-name = "Per-level aggregates: sum, max, average"
-group = "Level-order family"
-note = "Related lesson: BFS level by level"
-
-[[listed]]
-name = "Side views by BFS: right / left"
-group = "Level-order family"
-note = "Related lesson: BFS level by level"
-
-[[listed]]
-name = "Next-right pointers: queue / O(1) space using the pointers already built"
-group = "Level-order family"
-
-[[listed]]
-name = "Maximum width with position indices"
-group = "Level-order family"
-
-[[listed]]
-name = "Completeness check by BFS with null markers"
-group = "Level-order family"
-
-[[listed]]
-name = "Level-parity rules and per-level rewrites"
-group = "Level-order family"
-
-[[listed]]
-name = "Minimum depth by BFS"
-group = "Level-order family"
-note = "Related lesson: Recursive DFS on a tree"
-
-[[listed]]
-name = "Cousins"
-group = "Level-order family"
-note = "e.g. same depth, different parent"
-
-[[listed]]
-name = "BFS spread from a start node"
-group = "Level-order family"
-note = "e.g. time to infect"
-
-[[listed]]
-name = "Depth: maximum / minimum"
-group = "Subtree aggregation"
-
-[[listed]]
-name = "Balanced check by returning height or a sentinel"
-group = "Subtree aggregation"
-
-[[listed]]
-name = "Maximum path sum"
-group = "Subtree aggregation"
-note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
-name = "Subtree sum / count / average"
-group = "Subtree aggregation"
-note = "Related lesson: Treating a tree as a graph"
-problems = [
-    { slug = "count-nodes-equal-to-average-of-subtree", title = "Count Nodes Equal to Average of Subtree", number = 2265, difficulty = "medium", premium = false },
-]
-
-[[listed]]
 name = "Subtree property checks: univalue, perfect, same size"
 group = "Subtree aggregation"
-
-[[listed]]
-name = "Longest consecutive or equal-value chain"
-group = "Subtree aggregation"
-note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
-name = "Sum of tilts and similar per-node differences"
-group = "Subtree aggregation"
-
-[[listed]]
-name = "Subtree height with one node removed"
-group = "Subtree aggregation"
-note = "Related lesson: Navigating a BST by its order"
-
-[[listed]]
-name = "Leaf-pair distances"
-group = "Subtree aggregation"
-note = "e.g. count pairs within distance k"
-
-[[listed]]
-name = "Root-to-leaf path: exists / all paths"
-group = "Path problems"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "Root-to-leaf number or string built along the path"
-group = "Path problems"
-
-[[listed]]
-name = "Any-to-any path with a prefix-sum map"
-group = "Path problems"
-
-[[listed]]
-name = "Best path bending at a node"
-group = "Path problems"
-note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
-name = "Longest path with a rule"
-group = "Path problems"
-note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
-name = "Path property carried down: max so far, bitmask parity"
-group = "Path problems"
-
-[[listed]]
-name = "Best difference between a node and its ancestors"
-group = "Path problems"
-note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
-name = "Path between two nodes as a string of directions"
-group = "Path problems"
-
-[[listed]]
-name = "Position and path in a perfect or labelled tree"
-group = "Path problems"
-note = "Related lesson: Building a tree from traversals"
-
-[[listed]]
-name = "From preorder and inorder / inorder and postorder"
-group = "Construction"
-note = "Related lesson: Building a tree from traversals"
-
-[[listed]]
-name = "From preorder and postorder"
-group = "Construction"
-note = "Related lesson: Building a tree from traversals"
-
-[[listed]]
-name = "From a sorted array / sorted list"
-group = "Construction"
-note = "e.g. balanced BST"
-
-[[listed]]
-name = "BST from its preorder: bounds / monotonic stack"
-group = "Construction"
-note = "Related lesson: Building a tree from traversals"
-
-[[listed]]
-name = "From parent-child descriptions"
-group = "Construction"
-note = "Related lesson: Treating a tree as a graph"
-
-[[listed]]
-name = "From a depth-marked preorder string"
-group = "Construction"
-
-[[listed]]
-name = "String from a tree, and canonical subtree signatures"
-group = "Construction"
 
 [[listed]]
 name = "Rebuild or validate from constraints"
@@ -617,84 +2474,8 @@ group = "Construction"
 note = "e.g. pair sets, child arrays"
 
 [[listed]]
-name = "Quad tree from a grid"
-group = "Construction"
-
-[[listed]]
-name = "Complete tree with an inserter or recovered values"
-group = "Construction"
-
-[[listed]]
-name = "Rebalance a BST via the sorted inorder list"
-group = "Construction"
-note = "Related lesson: Inorder traversal of a BST"
-
-[[listed]]
 name = "Merge trees or BSTs into one"
 group = "Construction"
-
-[[listed]]
-name = "Search / insert iteratively"
-group = "BST operations"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "Delete"
-group = "BST operations"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "Trim to a range"
-group = "BST operations"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "Validate with bounds / with an inorder walk"
-group = "BST operations"
-note = "Related lesson: Inorder traversal of a BST"
-
-[[listed]]
-name = "Kth smallest and order statistics"
-group = "BST operations"
-note = "Related lesson: Inorder traversal of a BST"
-
-[[listed]]
-name = "Successor and predecessor, with or without parent pointers"
-group = "BST operations"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "Range queries: sum in range"
-group = "BST operations"
-note = "Related lesson: BFS level by level"
-
-[[listed]]
-name = "Closest value and nearest keys"
-group = "BST operations"
-note = "Related lesson: Navigating a BST by its order"
-
-[[listed]]
-name = "Greater-sum tree"
-group = "BST operations"
-note = "Related lesson: Inorder traversal of a BST"
-
-[[listed]]
-name = "Recover a BST with two swapped nodes"
-group = "BST operations"
-
-[[listed]]
-name = "Minimum difference between nodes, mode"
-group = "BST operations"
-note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
-name = "Largest BST inside a binary tree"
-group = "BST operations"
-note = "Related lesson: Navigating a BST by its order"
-
-[[listed]]
-name = "BST to a sorted doubly linked list"
-group = "BST operations"
 
 [[listed]]
 name = "Self-balancing trees"
@@ -707,21 +2488,6 @@ group = "BST operations"
 note = "e.g. rank, order-statistic tree"
 
 [[listed]]
-name = "LCA in a BST by splitting values"
-group = "Lowest common ancestor"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "LCA in a binary tree: recursive return of found nodes"
-group = "Lowest common ancestor"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "LCA with parent pointers"
-group = "Lowest common ancestor"
-note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
 name = "Distance between two nodes through the LCA"
 group = "Lowest common ancestor"
 note = "Related lesson: DFS that returns a value and updates an answer"
@@ -732,52 +2498,8 @@ group = "Lowest common ancestor"
 note = "Related lesson: DFS that returns a value and updates an answer"
 
 [[listed]]
-name = "LCA of the deepest leaves"
-group = "Lowest common ancestor"
-note = "Related lesson: Recursive DFS on a tree"
-
-[[listed]]
-name = "Binary lifting for repeated queries"
-group = "Lowest common ancestor"
-
-[[listed]]
 name = "Euler tour + range-minimum, offline Tarjan"
 group = "Lowest common ancestor"
-
-[[listed]]
-name = "Flip equivalence"
-group = "Tree comparison"
-
-[[listed]]
-name = "Duplicate subtrees by canonical signature or hashing"
-group = "Tree comparison"
-
-[[listed]]
-name = "Pattern match: a linked list in a tree"
-group = "Tree comparison"
-
-[[listed]]
-name = "Merge two trees node by node"
-group = "Tree comparison"
-
-[[listed]]
-name = "Invert / mirror"
-group = "Transformations"
-note = "Related lesson: Recursive DFS on a tree"
-
-[[listed]]
-name = "Prune subtrees that fail a rule"
-group = "Transformations"
-note = "Related lesson: Postorder editing of a tree"
-
-[[listed]]
-name = "BST to greater tree / sorted doubly linked list"
-group = "Transformations"
-note = "Related lesson: Inorder traversal of a BST"
-
-[[listed]]
-name = "Reverse values on odd levels, replace values by sibling sums"
-group = "Transformations"
 
 [[listed]]
 name = "Binary encoding of an N-ary tree"
@@ -785,91 +2507,14 @@ group = "Transformations"
 note = "Related lesson: Navigating a BST by its order"
 
 [[listed]]
-name = "Trim or merge"
-group = "Transformations"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "Two-state DP: take / skip a node"
-group = "Tree DP"
-note = "Related lesson: Recursive DFS on a tree"
-
-[[listed]]
-name = "Three-state DP: camera placement"
-group = "Tree DP"
-note = "e.g. covered / has camera / needs cover"
-
-[[listed]]
-name = "Balance and flow across edges"
-group = "Tree DP"
-note = "e.g. moves as the sum of excess"
-
-[[listed]]
-name = "DP returning a tuple: validity, min, max, sum"
-group = "Tree DP"
-
-[[listed]]
-name = "Counting by removing a node"
-group = "Tree DP"
-note = "Related lesson: Postorder editing of a tree"
-
-[[listed]]
-name = "Time or cost to collect along a tree"
-group = "Tree DP"
-note = "Related lesson: Treating a tree as a graph"
-
-[[listed]]
-name = "Prune or peel leaves then count components"
-group = "Tree DP"
-
-[[listed]]
-name = "Parity argument on a tree"
-group = "Tree DP"
-note = "e.g. flip pairs along paths"
-
-[[listed]]
 name = "Knapsack on a tree"
 group = "Tree DP"
 note = "Related lesson: Recursive DFS on a tree"
 
 [[listed]]
-name = "Rerooting DP"
-group = "Tree DP"
-note = "e.g. answers for every root"
-
-[[listed]]
-name = "Parent map, then BFS outward from a node"
-group = "Parent pointers and tree-to-graph"
-note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
-name = "Tree given as an edge list: build adjacency, pass the parent down"
-group = "Parent pointers and tree-to-graph"
-note = "Related lesson: Treating a tree as a graph"
-
-[[listed]]
-name = "Manager / employee hierarchies"
-group = "Parent pointers and tree-to-graph"
-
-[[listed]]
-name = "Leaf peeling / center of a tree"
-group = "Parent pointers and tree-to-graph"
-note = "Related lesson: Insert, delete and trim in a BST"
-
-[[listed]]
-name = "Check that a graph or child arrays form a tree"
-group = "Parent pointers and tree-to-graph"
-note = "Related lesson: Treating a tree as a graph"
-
-[[listed]]
 name = "Walk upward with parent pointers"
 group = "Parent pointers and tree-to-graph"
 note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
-name = "Tree game on subtree sizes"
-group = "Parent pointers and tree-to-graph"
-note = "Related lesson: Navigating a BST by its order"
 
 [[listed]]
 name = "Dynamic tree structures: inheritance order, lock operations on a tree"
@@ -878,21 +2523,6 @@ group = "Parent pointers and tree-to-graph"
 [[listed]]
 name = "Euler tour timestamps (entry / exit) and subtree ranges"
 group = "Parent pointers and tree-to-graph"
-
-[[listed]]
-name = "Left view / bottom-left value"
-group = "Views"
-note = "Related lesson: DFS that returns a value and updates an answer"
-
-[[listed]]
-name = "Vertical order"
-group = "Views"
-note = "Related lesson: Navigating a BST by its order"
-
-[[listed]]
-name = "Boundary view"
-group = "Views"
-note = "Related lesson: BFS level by level"
 
 [[listed]]
 name = "Top view / bottom view"
@@ -905,61 +2535,9 @@ group = "Views"
 note = "Related lesson: BFS level by level"
 
 [[listed]]
-name = "Count BSTs with n keys"
-group = "Count and enumerate trees"
-note = "Related lesson: Counting and building trees by root choice"
-
-[[listed]]
-name = "Generate all BSTs with n keys"
-group = "Count and enumerate trees"
-note = "Related lesson: Counting and building trees by root choice"
-
-[[listed]]
-name = "All full binary trees with n nodes"
-group = "Count and enumerate trees"
-note = "Related lesson: Counting and building trees by root choice"
-
-[[listed]]
-name = "Count nodes of a complete tree faster than O"
-group = "Count and enumerate trees"
-note = "Related lesson: Treating a tree as a graph"
-problems = [
-    { slug = "count-complete-tree-nodes", title = "Count Complete Tree Nodes", number = 222, difficulty = "medium", premium = false },
-]
-
-[[listed]]
-name = "Count good nodes / paths with a property"
-group = "Count and enumerate trees"
-note = "Related lesson: DFS carrying state down"
-
-[[listed]]
 name = "Count tree shapes consistent with constraints"
 group = "Count and enumerate trees"
 note = "Related lesson: Counting and building trees by root choice"
-
-[[listed]]
-name = "Count BST insertion orders giving the same tree"
-group = "Count and enumerate trees"
-
-[[listed]]
-name = "Preorder / postorder of an N-ary tree"
-group = "N-ary trees"
-note = "Related lesson: Building a tree from traversals"
-
-[[listed]]
-name = "Depth of an N-ary tree"
-group = "N-ary trees"
-note = "Related lesson: Recursive DFS on a tree"
-
-[[listed]]
-name = "Clone an N-ary tree"
-group = "N-ary trees"
-note = "Related lesson: Recursive DFS on a tree"
-
-[[listed]]
-name = "Find the root without a parent pointer"
-group = "N-ary trees"
-note = "Related lesson: Recursive DFS on a tree"
 
 [[listed]]
 name = "Child-sibling (left-child right-sibling) representation"
@@ -967,26 +2545,5 @@ group = "N-ary trees"
 note = "Related lesson: Recursive DFS on a tree"
 
 [[listed]]
-name = "BST iterator with an explicit stack"
-group = "Iterator design"
-note = "Related lesson: Inorder traversal of a BST"
-
-[[listed]]
-name = "Two iterators merged: two-sum on BSTs"
-group = "Iterator design"
-
-[[listed]]
 name = "Forward and backward iterators: closest values"
-group = "Iterator design"
-
-[[listed]]
-name = "Flatten a nested structure lazily"
-group = "Iterator design"
-
-[[listed]]
-name = "Design with a tree behind it: inserter, stream, locks"
-group = "Iterator design"
-
-[[listed]]
-name = "Peek / has-next with a precomputed list vs lazy stack"
 group = "Iterator design"

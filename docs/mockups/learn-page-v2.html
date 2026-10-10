@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Learn page v2 (mockup)</title>
+<style>
+:root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--grid:oklch(0.205 0.012 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--acc-bg:oklch(0.76 0.11 55 / 0.14);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--grn-bg:oklch(0.77 0.13 165 / 0.13);--bad:oklch(0.70 0.16 25);--bad-bg:oklch(0.70 0.16 25 / 0.14);--warn:oklch(0.83 0.12 85);--warn-bg:oklch(0.83 0.12 85 / 0.12);--on-acc:oklch(0.17 0.02 255);--kw:oklch(0.75 0.12 290);--ty:oklch(0.82 0.10 70);--fn:oklch(0.79 0.10 235);--str:oklch(0.79 0.11 160);--num:oklch(0.79 0.11 45);--mac:oklch(0.79 0.09 200);--lt:oklch(0.77 0.12 340);--com:oklch(0.58 0.012 255);--inlay:oklch(0.64 0.012 255);--inlay-bg:oklch(0.235 0.013 255);--sel:oklch(0.76 0.11 55 / 0.07);--shadow:oklch(0 0 0 / 0.35);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--code:'Fira Code',ui-monospace,SFMono-Regular,Menlo,monospace;--sans:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;color-scheme:dark}
+:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--grid:oklch(0.94 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.54 0.13 50);--acc-bg:oklch(0.54 0.13 50 / 0.11);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.515 0.12 165);--grn-bg:oklch(0.515 0.12 165 / 0.11);--bad:oklch(0.54 0.18 25);--bad-bg:oklch(0.54 0.18 25 / 0.09);--warn:oklch(0.535 0.12 75);--warn-bg:oklch(0.535 0.12 75 / 0.10);--on-acc:oklch(0.99 0.002 255);--kw:oklch(0.50 0.17 290);--ty:oklch(0.52 0.11 65);--fn:oklch(0.47 0.13 250);--str:oklch(0.48 0.12 160);--num:oklch(0.54 0.13 45);--mac:oklch(0.48 0.10 200);--lt:oklch(0.50 0.15 340);--com:oklch(0.56 0.012 255);--inlay:oklch(0.50 0.012 255);--inlay-bg:oklch(0.935 0.005 255);--sel:oklch(0.54 0.13 50 / 0.06);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans)}
+a{color:inherit;text-decoration:none}button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+::-webkit-scrollbar{display:none}*{scrollbar-width:none}
+.note{padding:12px 24px;border-bottom:1px solid var(--line2);font:500 12px/1.6 var(--mono);color:var(--dim)}
+.note b{color:var(--fg)}
+.bar{display:flex;gap:8px;align-items:center;padding:10px 24px;border-bottom:1px solid var(--line2);background:var(--panel);font:500 12px var(--mono);color:var(--dim);flex-wrap:wrap}
+.bar button{height:28px;padding:0 12px;border:1px solid var(--line);border-radius:999px;color:var(--mut)}
+.bar button.on{background:var(--acc-bg);border-color:var(--acc);color:var(--acc)}
+.page{max-width:1320px;margin:0 auto;padding:22px 24px 80px}
+.top{display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap;justify-content:space-between}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.2em;color:var(--dim)}
+h1{margin:4px 0 6px;font-size:28px;letter-spacing:-.01em}
+.intro{margin:0;max-width:70ch;color:var(--mut);font-size:14.5px}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{border:1px solid var(--line2);background:var(--panel);border-radius:10px;padding:8px 14px;min-width:96px}
+.stat b{display:block;font:600 20px var(--mono)}.stat span{font:500 10px var(--mono);letter-spacing:.14em;color:var(--dim)}
+.stat.m b{color:var(--acc)}
+/* search + filters */
+.tools{display:flex;gap:10px;margin:18px 0 14px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:240px;height:38px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--dim);font-size:13.5px}
+.search kbd{margin-left:auto;font:500 11px var(--mono);border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{height:36px;padding:0 13px;font-size:12.5px;color:var(--mut)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--raise);color:var(--fg)}
+/* overview */
+.sec{margin-top:24px}
+.sec h2{margin:0 0 10px;font-size:13px;letter-spacing:.14em;font-family:var(--mono);color:var(--dim);display:flex;gap:10px;align-items:baseline}
+.sec h2 small{font-weight:500;letter-spacing:0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.tile{display:flex;flex-direction:column;gap:8px;padding:13px 14px;border:1px solid var(--line2);border-radius:11px;background:var(--panel);cursor:pointer;transition:border-color .12s,transform .12s}
+.tile:hover{border-color:var(--acc);transform:translateY(-1px)}
+.tile h3{margin:0;font-size:14.5px;line-height:1.3}
+.tile .meta{display:flex;gap:8px;align-items:center;font:500 11px var(--mono);color:var(--dim)}
+.tile .sig{font-size:12.5px;color:var(--mut);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pips{display:flex;gap:3px}.pips i{width:14px;height:5px;border-radius:2px;background:var(--line2)}.pips i.d{background:var(--grn)}.pips i.p{background:var(--warn)}
+.tag{font:600 10px var(--mono);letter-spacing:.06em;padding:2px 6px;border-radius:4px;border:1px solid var(--line)}
+.t-must{color:var(--acc);border-color:var(--acc);background:var(--acc-bg)}
+.t-str{color:var(--vio);border-color:var(--vio);background:var(--vio-bg)}
+.t-pra{color:var(--mut)}.t-war{color:var(--dim);border-style:dashed}
+.t-e{color:var(--grn)}.t-m{color:var(--warn)}.t-h{color:var(--bad)}
+.t-list{color:var(--fg);background:var(--raise)}
+.t-sol{color:var(--grn);border-color:var(--grn)}
+.names{margin-top:30px;border:1px dashed var(--line);border-radius:10px;padding:12px 14px}
+.names summary{cursor:pointer;font:600 11px var(--mono);letter-spacing:.12em;color:var(--dim)}
+.names ul{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.names li{font-size:12px;color:var(--mut);border:1px solid var(--line2);border-radius:999px;padding:3px 10px}
+/* detail */
+.detail{display:none}
+.shell{display:grid;grid-template-columns:260px minmax(0,1fr);gap:22px;margin-top:6px}
+.side{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto;border:1px solid var(--line2);border-radius:12px;background:var(--panel);padding:10px}
+.side .g{font:600 10px var(--mono);letter-spacing:.14em;color:var(--dim);padding:12px 8px 4px}
+.side a{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:7px;font-size:13px;color:var(--mut)}
+.side a:hover{background:var(--raise)}
+.side a.on{background:var(--acc-bg);color:var(--fg)}
+.side a span{margin-left:auto;font:500 11px var(--mono);color:var(--dim)}
+.side .back{color:var(--acc);font:600 12px var(--mono);padding:6px 8px}
+.dh{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.dh h2{margin:2px 0 6px;font-size:24px;letter-spacing:-.01em}
+.nav{display:flex;gap:6px}.nav button{height:32px;padding:0 12px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;color:var(--mut)}
+.work{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;margin-top:14px;align-items:start}
+.pane{border:1px solid var(--line2);border-radius:12px;background:var(--panel);overflow:hidden}
+.ph{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line2);font:600 10px var(--mono);letter-spacing:.16em;color:var(--dim);flex-wrap:wrap}
+.ph .sp{flex:1}
+.lang{display:flex;gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:2px}
+.lang button{height:24px;padding:0 10px;border-radius:6px;font:600 11px var(--mono);letter-spacing:0;color:var(--mut)}
+.lang button.on{background:var(--raise);color:var(--fg)}
+.lang button[disabled]{opacity:.45;cursor:not-allowed}
+.pb{padding:14px;display:flex;flex-direction:column;gap:14px}
+.when{display:flex;flex-direction:column;gap:6px}
+.when span{position:relative;padding-left:14px;font-size:13.5px}
+.when span::before{content:"";position:absolute;left:0;top:.62em;width:5px;height:5px;border-radius:50%;background:var(--acc)}
+.tabs{display:flex;gap:2px;flex-wrap:wrap}
+.tabs button{height:28px;padding:0 11px;border-radius:7px;font:600 11px var(--mono);letter-spacing:.04em;color:var(--mut);border:1px solid transparent}
+.tabs button.on{background:var(--raise);border-color:var(--line);color:var(--fg)}
+.tabnote{margin:0;font-size:12.5px;color:var(--mut)}
+pre{margin:0;padding:14px 16px;background:var(--bg);border:1px solid var(--line2);border-radius:9px;font:12.5px/1.65 var(--code);overflow:auto;color:var(--fg)}
+.kw{color:var(--kw)}.fn{color:var(--fn)}.com{color:var(--com)}.num{color:var(--num)}.str{color:var(--str)}
+.trap{margin:0;padding-left:16px;color:var(--mut);font-size:12.5px;display:flex;flex-direction:column;gap:5px}
+.pf{display:flex;gap:6px;flex-wrap:wrap;padding:9px 14px;border-bottom:1px solid var(--line2)}
+.pf button{height:26px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font:600 11px var(--mono);color:var(--mut)}
+.pf button.on{background:var(--acc-bg);border-color:var(--acc);color:var(--acc)}
+.prow{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;padding:10px 14px;border-bottom:1px solid var(--line2);align-items:start}
+.prow:last-child{border-bottom:0}
+.prow:hover{background:var(--raise)}
+.st{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);margin-top:3px}
+.st.d{background:var(--grn);border-color:var(--grn)}.st.p{border-color:var(--warn);background:linear-gradient(90deg,var(--warn) 50%,transparent 50%)}
+.prow.out{border-left:2px dashed var(--line);padding-left:12px}
+.pt{font-size:13.5px;font-weight:500}
+.pt small{font:500 11px var(--mono);color:var(--dim);margin-left:6px}
+.tg{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;align-items:center}
+.co{font-size:11.5px;color:var(--dim)}
+.sticky{position:sticky;top:12px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:9px 14px;border-top:1px solid var(--line2);font-size:11.5px;color:var(--dim)}
+@media(max-width:1000px){.shell{grid-template-columns:1fr}.side{position:static;max-height:none}.work{grid-template-columns:1fr}.sticky{position:static}}
+</style>
+</head>
+<body>
+<div class="note"><b>Mockup · Learn page v2</b> · two views of the same page: <b>Overview</b> (every technique of the topic as a tile, grouped) and <b>Technique</b> (one technique at a time: implementation left, problems right). Use the buttons below to switch. Implementation pane has a <b>language switch</b>: Python today, Rust is a disabled placeholder so the layout and (later) the data model need no change when Rust patterns arrive.</div>
+<div class="bar"><span>VIEW</span><button id="b1" class="on" onclick="show('o')">Overview</button><button id="b2" onclick="show('d')">Technique</button><span style="margin-left:18px">THEME</span><button onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='light'?'dark':'light'">Toggle</button></div>
+<div class="page">
+<div class="top">
+ <div><div class="eyebrow">LEARN · BACKTRACKING</div><h1>Backtracking</h1></div>
+ <div class="stats"><div class="stat"><b>37</b><span>TECHNIQUES</span></div><div class="stat"><b>118</b><span>PROBLEMS</span></div><div class="stat m"><b>31</b><span>MUST SOLVE</span></div><div class="stat"><b>12 / 41</b><span>IN NEETCODE</span></div></div>
+</div>
+<div class="tools">
+ <div class="search">⌕ Find a technique, a problem or a company… <kbd>/</kbd></div>
+ <div class="seg"><button class="on">All</button><button>Has MUST</button><button>Not started</button></div>
+ <div class="seg" title="language of the implementations"><button class="on">Python</button><button disabled style="opacity:.45">Rust · soon</button></div>
+</div>
+
+<div id="ov">
+ <div class="sec"><h2>SUBSETS, COMBINATIONS AND PERMUTATIONS <small>6 techniques</small></h2>
+  <div class="tiles">
+   <a class="tile" onclick="show('d')"><h3>Include or exclude each item</h3><div class="sig">Every subset of a list; each item is either in the answer or not.</div><div class="meta"><span class="tag t-must">3 MUST</span><span>5 problems</span><span class="pips"><i class="d"></i><i class="d"></i><i class="p"></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Combinations of k items</h3><div class="sig">Choose exactly k of n, in any order, with no repeats.</div><div class="meta"><span class="tag t-str">1 STRONG</span><span>4 problems</span><span class="pips"><i></i><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Permutations</h3><div class="sig">Every ordering; a used-flag per item and undo after the call.</div><div class="meta"><span class="tag t-must">2 MUST</span><span>5 problems</span><span class="pips"><i class="d"></i><i></i><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Reuse an item (combination sum)</h3><div class="sig">An item may be taken again: recurse with the same start index.</div><div class="meta"><span class="tag t-must">2 MUST</span><span>4 problems</span><span class="pips"><i></i><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Skip duplicates</h3><div class="sig">Sort, then skip an equal value at the same depth.</div><div class="meta"><span class="tag t-str">2 STRONG</span><span>4 problems</span><span class="pips"><i></i><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Arrangements of a multiset</h3><div class="sig">Branch over distinct values with counts, not positions.</div><div class="meta"><span class="tag t-pra">PRACTICE</span><span>2 problems</span><span class="pips"><i></i><i></i></span></div></a>
+  </div></div>
+ <div class="sec"><h2>CONSTRAINT SATISFACTION <small>5 techniques</small></h2>
+  <div class="tiles">
+   <a class="tile" onclick="show('d')"><h3>N-Queens</h3><div class="sig">Place pieces row by row; sets for columns and both diagonals.</div><div class="meta"><span class="tag t-must">1 MUST</span><span>3 problems</span><span class="pips"><i class="d"></i><i></i><i></i></span><span class="tag">2 VERSIONS</span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Sudoku</h3><div class="sig">Row, column and box sets; fill the most constrained cell first.</div><div class="meta"><span class="tag t-str">2 STRONG</span><span>3 problems</span><span class="pips"><i></i><i></i><i></i></span></div></a>
+   <a class="tile" onclick="show('d')"><h3>Fill slots under a rule</h3><div class="sig">Each position accepts only some values; fill the tightest first.</div><div class="meta"><span class="tag t-pra">PRACTICE</span><span>3 problems</span><span class="pips"><i></i><i></i><i></i></span></div></a>
+  </div></div>
+ <details class="names"><summary>▸ OTHER TECHNIQUES OF THIS TOPIC (46) · no LeetCode problem is attached to them</summary><ul><li>Alpha-beta pruning and move ordering</li><li>Exact cover: Algorithm X / dancing links</li><li>A* / IDA* with an admissible heuristic</li><li>Heap's algorithm</li><li>Iterative deepening</li></ul></details>
+</div>
+
+<div id="dt" class="detail">
+ <div class="shell">
+  <nav class="side">
+   <a class="back" onclick="show('o')">← All techniques</a>
+   <div class="g">SUBSETS, COMBINATIONS, PERMUTATIONS</div>
+   <a class="on">Include or exclude <span>5</span></a><a>Combinations of k items <span>4</span></a><a>Permutations <span>5</span></a><a>Reuse an item <span>4</span></a><a>Skip duplicates <span>4</span></a>
+   <div class="g">CONSTRAINT SATISFACTION</div>
+   <a>N-Queens <span>3</span></a><a>Sudoku <span>3</span></a><a>Fill slots under a rule <span>3</span></a>
+   <div class="g">PARTITIONING</div><a>Split with a dictionary <span>3</span></a><a>Equal-sum groups <span>4</span></a>
+  </nav>
+  <main>
+   <div class="dh"><div><div class="eyebrow">SUBSETS, COMBINATIONS AND PERMUTATIONS · 1 / 37</div><h2>Include or exclude each item</h2>
+     <div class="tg"><span class="tag t-must">3 MUST</span><span class="tag t-str">1 STRONG</span><span class="tag">5 PROBLEMS</span><span class="tag t-list">2 IN NEETCODE</span></div></div>
+    <div class="nav"><button>← Previous</button><button>Next →</button></div></div>
+   <div class="work">
+    <section class="pane">
+     <div class="ph"><span>IMPLEMENTATION</span><span class="sp"></span><div class="lang"><button class="on">Python</button><button disabled title="Rust implementations are planned">Rust · soon</button></div></div>
+     <div class="pb">
+      <div><div class="eyebrow" style="margin-bottom:6px">USE IT WHEN</div><div class="when"><span>the answer is every subset, or the best one under a rule</span><span>each item is simply in or out</span><span>n is small (about 20 or fewer)</span></div></div>
+      <div><div class="tabs"><button class="on">INCLUDE / EXCLUDE</button><button>START INDEX</button><button>BITMASK</button></div><p class="tabnote" style="margin-top:6px">Decide item i: take it, recurse, undo, then skip it and recurse.</p></div>
+<pre><span class="kw">def</span> <span class="fn">subsets</span>(nums):
+    out, path = [], []
+
+    <span class="kw">def</span> <span class="fn">go</span>(i):
+        <span class="kw">if</span> i == len(nums):
+            out.append(path[:])  <span class="com"># copy: the list keeps changing</span>
+            <span class="kw">return</span>
+        path.append(nums[i])     <span class="com"># take it</span>
+        go(i + <span class="num">1</span>)
+        path.pop()               <span class="com"># undo</span>
+        go(i + <span class="num">1</span>)               <span class="com"># skip it</span>
+
+    go(<span class="num">0</span>)
+    <span class="kw">return</span> out</pre>
+      <div><div class="eyebrow" style="margin-bottom:6px">TRAPS</div><ul class="trap"><li>Copy the path when you record it.</li><li>Pop after every recursive call.</li><li>2ⁿ answers: the output size is the lower bound on the work.</li></ul></div>
+     </div>
+    </section>
+    <section class="pane sticky">
+     <div class="ph"><span>PROBLEMS · 5</span><span class="sp"></span></div>
+     <div class="pf"><button class="on">All 5</button><button>Must 3</button><button>In NeetCode 2</button><button>Not solved 3</button></div>
+     <div class="prow"><div class="st d"></div><div><div class="pt">Subsets<small>#78</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-must">MUST</span><span class="tag t-list">BLIND 75</span><span class="tag t-sol">SOLUTION</span><span class="co">Amazon · Meta · Google +4</span></div></div></div>
+     <div class="prow"><div class="st p"></div><div><div class="pt">Subsets II<small>#90</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-str">STRONG</span><span class="tag t-list">NEETCODE 150</span><span class="tag t-sol">SOLUTION</span><span class="co">Meta · Microsoft +2</span></div></div></div>
+     <div class="prow out"><div class="st"></div><div><div class="pt">Maximum length of a concatenated string with unique characters<small>#1239</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-must">MUST</span><span class="tag t-war" style="display:none"></span><span class="co">Amazon · Bloomberg +3</span></div></div></div>
+     <div class="prow out"><div class="st"></div><div><div class="pt">The number of beautiful subsets<small>#2597</small></div><div class="tg"><span class="tag t-h">HARD</span><span class="tag t-pra">PRACTICE</span><span class="tag">RECENT</span><span class="co">Google +1</span></div></div></div>
+     <div class="prow out"><div class="st"></div><div><div class="pt">Count number of maximum bitwise-or subsets<small>#2044</small></div><div class="tg"><span class="tag t-m">MEDIUM</span><span class="tag t-pra">PRACTICE</span><span class="co">Amazon +1</span></div></div></div>
+     <div class="legend"><span>● solved</span><span>◐ partly</span><span>○ not yet</span><span>┆ dashed = not in a NeetCode list (tracked, not counted in completion)</span></div>
+    </section>
+   </div>
+  </main>
+ </div>
+</div>
+</div>
+<script>
+function show(v){document.getElementById('ov').style.display=v==='o'?'block':'none';document.getElementById('dt').style.display=v==='d'?'block':'none';document.getElementById('b1').classList.toggle('on',v==='o');document.getElementById('b2').classList.toggle('on',v==='d');scrollTo(0,0)}
+</script>
+
+</body>
+</html>

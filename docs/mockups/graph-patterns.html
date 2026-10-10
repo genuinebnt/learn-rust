@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Graph pattern lesson (mockup)</title>
+<style>
+:root{--bg:oklch(0.165 0.012 255);--panel:oklch(0.195 0.013 255);--raise:oklch(0.235 0.014 255);--line:oklch(0.32 0.014 255);--line2:oklch(0.255 0.013 255);--fg:oklch(0.95 0.005 255);--mut:oklch(0.80 0.01 255);--dim:oklch(0.63 0.012 255);--acc:oklch(0.76 0.11 55);--vio:oklch(0.72 0.13 290);--vio-bg:oklch(0.72 0.13 290 / 0.14);--grn:oklch(0.77 0.13 165);--bad:oklch(0.70 0.16 25);--on-acc:oklch(0.17 0.02 255);--shadow:oklch(0 0 0 / 0.35);--mono:'JetBrains Mono',ui-monospace,Menlo,monospace;--sans:'Plus Jakarta Sans',system-ui,sans-serif;--ease:cubic-bezier(.22,1,.36,1);color-scheme:dark}
+:root[data-theme="light"]{--bg:oklch(0.975 0.003 255);--panel:oklch(0.995 0.002 255);--raise:oklch(0.95 0.005 255);--line:oklch(0.86 0.008 255);--line2:oklch(0.915 0.006 255);--fg:oklch(0.20 0.015 255);--mut:oklch(0.40 0.015 255);--dim:oklch(0.52 0.015 255);--acc:oklch(0.54 0.13 50);--vio:oklch(0.52 0.17 290);--vio-bg:oklch(0.52 0.17 290 / 0.10);--grn:oklch(0.515 0.12 165);--bad:oklch(0.54 0.18 25);--on-acc:oklch(0.99 0.002 255);--shadow:oklch(0.3 0.02 255 / 0.14);color-scheme:light}
+*{box-sizing:border-box}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans);padding:0 0 90px}
+a{color:inherit;text-decoration:none}button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.note{max-width:1100px;margin:0 auto;padding:18px 24px;border-bottom:1px solid var(--line2);font:500 12px/1.6 var(--mono);color:var(--dim)}
+.note b{color:var(--fg);font-weight:600}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px;display:flex;flex-direction:column;gap:18px}
+.q{border:1px solid var(--line2);border-left:3px solid var(--acc);border-radius:8px;padding:12px 16px;background:var(--panel);font-size:13.5px;color:var(--mut)}
+.q b{color:var(--fg)}
+.q ol{margin:6px 0 0;padding-left:18px}
+h1{font-size:30px;margin:0;letter-spacing:-.01em}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.2em;color:var(--dim)}
+.l-intro{margin:0;max-width:78ch;font-size:15.5px;line-height:1.65;color:var(--mut)}
+.l-soon{margin:0;font-size:13px;color:var(--dim);line-height:1.5}
+.cov{display:flex;gap:18px;flex-wrap:wrap;font:500 12px var(--mono);color:var(--dim)}
+.cov b{color:var(--fg)}
+.cov .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+/* jump list, grouped */
+.jump{display:grid;gap:10px}
+.jg{display:grid;grid-template-columns:200px 1fr;gap:10px;align-items:start}
+@media (max-width:760px){.jg{grid-template-columns:1fr}}
+.jg>span{font:600 10px var(--mono);letter-spacing:.14em;color:var(--dim);padding-top:7px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips a{height:30px;display:inline-flex;align-items:center;gap:7px;padding:0 12px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;font-weight:500;color:var(--mut);background:var(--bg)}
+.chips a:hover{border-color:var(--dim);color:var(--fg)}
+.chips a i{width:7px;height:7px;border-radius:50%;background:var(--grn)}
+.chips a.ex i{background:var(--vio)}
+.chips a.soon{border-style:dashed;color:var(--dim)}.chips a.soon i{background:var(--line)}
+/* group header */
+.grp{margin-top:14px;display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line2);padding-bottom:8px}
+.grp h2{margin:0;font-size:18px}
+.grp small{font:500 11px var(--mono);color:var(--dim)}
+/* technique card (as in the app today) */
+.pat{border:1px solid var(--line2);border-radius:12px;background:var(--panel);display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);overflow:hidden}
+@media (max-width:900px){.pat{grid-template-columns:1fr}.pat .lft{border-right:0;border-bottom:1px solid var(--line2)}}
+.lft,.rgt{padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.lft{border-right:1px solid var(--line2)}
+.pat h3{margin:0;font-size:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pat h3 small{font:500 11px var(--mono);color:var(--dim)}
+.tag{font:600 10px var(--mono);letter-spacing:.1em;padding:2px 7px;border-radius:5px;border:1px solid var(--line)}
+.tag.ex{color:var(--vio);border-color:color-mix(in oklab,var(--vio) 50%,var(--line))}
+.tag.var{color:var(--acc);border-color:color-mix(in oklab,var(--acc) 50%,var(--line))}
+.lab{font:600 10px var(--mono);letter-spacing:.16em;color:var(--dim)}
+.when{display:flex;flex-direction:column;gap:6px}
+.when span{position:relative;padding-left:14px;font-size:13.5px;line-height:1.5}
+.when span::before{content:"";position:absolute;left:0;top:.62em;width:5px;height:5px;border-radius:50%;background:var(--acc)}
+.pit{margin:0;padding-left:16px;color:var(--mut);font-size:12.5px;line-height:1.55;display:flex;flex-direction:column;gap:4px}
+/* variant tabs: the new part */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line2);margin-bottom:-4px}
+.tabs button{padding:8px 14px;font:600 11px var(--mono);letter-spacing:.08em;color:var(--dim);border:1px solid transparent;border-bottom:0;border-radius:7px 7px 0 0}
+.tabs button[aria-selected=true]{color:var(--fg);background:var(--bg);border-color:var(--line2);position:relative;top:1px}
+.tabs button:hover{color:var(--fg)}
+.pane[hidden]{display:none}
+.tabnote{font-size:12.5px;color:var(--mut);margin:0}
+pre{scrollbar-width:none;margin:0;padding:12px 14px;background:var(--bg);border:1px solid var(--line2);border-radius:8px;overflow:auto;font:12.5px/1.6 var(--mono)}
+.kw{color:var(--kw)}.cm{color:var(--com)}.fn{color:var(--fn)}
+/* problems */
+.plist{display:flex;flex-direction:column;gap:4px}
+.prow{display:flex;align-items:center;gap:8px;min-height:34px;padding:4px 8px;border:1px solid var(--line2);border-radius:7px;background:var(--bg);font-size:13px}
+.prow .t{flex:1;min-width:0}
+.bdg{font:600 9.5px var(--mono);letter-spacing:.08em;padding:1px 6px;border-radius:4px;border:1px solid var(--line)}
+.bdg.ml{color:var(--grn);border-color:color-mix(in oklab,var(--grn) 50%,var(--line))}
+.bdg.ex{color:var(--vio);border-color:color-mix(in oklab,var(--vio) 50%,var(--line))}
+.lv{font:600 10px var(--mono)}.lv.m{color:var(--warn)}.lv.h{color:var(--bad)}.lv.e{color:var(--grn)}
+.exnote{margin:0;padding:8px 10px;border:1px dashed color-mix(in oklab,var(--vio) 45%,var(--line));border-radius:7px;font-size:12.5px;color:var(--mut)}
+.exnote b{color:var(--vio)}
+.listed{border:1px dashed var(--line);border-radius:12px;padding:14px 18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel)}
+.listed h3{margin:0;font-size:15px}
+.listed p{margin:0;font-size:13px;color:var(--dim);flex:1;min-width:240px}
+
+pre::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body>
+<div class="note"><b>MOCKUP · pattern lesson, Graphs · for approval (docs/DSA.md decisions 13 and 32).</b> Nothing here is built. It shows the three open questions of decision 32 answered one way each, with real problems from <code>problems.json</code>. Counts are examples.</div>
+<div class="wrap">
+  <div class="q"><b>What to decide:</b>
+    <ol>
+      <li><b>Where the extra patterns sit:</b> the lesson page is grouped by the 17 groups of DSA_GRAPH_PATTERNS.md (headers below); each group holds technique cards. Today's 12 + 7 techniques move under them; nothing is dropped.</li>
+      <li><b>Variants as tabs:</b> one card, one set of signals and pitfalls, a tab per variant with its own template (see DFS).</li>
+      <li><b>Patterns with no must-learn problem:</b> a violet <span class="tag ex">EXAMPLES</span> card whose problems are marked <span class="bdg ex">EXAMPLE</span>, with a note that they are not in the lists you are working through.</li>
+    </ol>
+  </div>
+
+  <div class="eyebrow">DSA / GRAPHS / LEARN</div>
+  <h1>Graphs</h1>
+  <p class="l-intro">First decide what the graph is (grid cells, courses, words, people), then which question it asks: reach everything, fewest steps, an order, or who is connected. Every pattern that can come up is listed here, grouped by the question it answers. 15 problems in the lists, must-learn first in each card.</p>
+  <div class="cov">
+    <span><i class="dot" style="background:var(--grn)"></i><b>written</b> lesson with must-learn problem</span>
+    <span><i class="dot" style="background:var(--vio)"></i><b>written</b> lesson, example problems only</span>
+    <span><i class="dot" style="background:var(--line)"></i><b>listed</b> lesson coming</span>
+  </div>
+
+  <nav class="jump" aria-label="Techniques by group">
+    <div class="jg"><span>1 · TRAVERSAL</span><div class="chips"><a href="#dfs"><i></i>DFS</a><a href="#bfs"><i></i>BFS</a><a href="#flood"><i></i>Flood fill</a><a href="#bidir" class="ex"><i></i>Bidirectional BFS</a></div></div>
+    <div class="jg"><span>3 · TOPOLOGICAL SORT</span><div class="chips"><a href="#topo"><i></i>Topological sort</a><a href="#layers" class="soon"><i></i>Topological layers</a></div></div>
+    <div class="jg"><span>5 · SHORTEST PATHS</span><div class="chips"><a href="#dijkstra"><i></i>Dijkstra</a><a href="#zo" class="ex"><i></i>0-1 BFS</a><a href="#bell"><i></i>Bellman-Ford</a><a href="#johnson" class="soon"><i></i>Johnson's</a></div></div>
+    <div class="jg"><span>7 · CONNECTIVITY</span><div class="chips"><a href="#scc" class="soon"><i></i>SCC (Kosaraju / Tarjan)</a><a href="#art"><i></i>Bridges and articulation points</a></div></div>
+  </nav>
+
+  <div class="grp"><h2>1 · Traversal</h2><small>4 patterns · 3 with problems in the lists</small></div>
+
+  <article class="pat" id="dfs">
+    <div class="lft">
+      <h3>Depth-first search <span class="tag var">2 VARIANTS</span><small>2 / 3</small></h3>
+      <span class="lab">USE IT WHEN</span>
+      <div class="when"><span>you need to reach, mark or count everything connected to a start</span><span>the answer is built on the way back up (subtree sizes, paths, cycle checks)</span><span>the structure is a maze, a tree, a dependency graph</span></div>
+      <div class="tabs" role="tablist" data-for="dfs">
+        <button role="tab" aria-selected="true" data-p="dfs-r">RECURSIVE</button>
+        <button role="tab" aria-selected="false" data-p="dfs-i">ITERATIVE (EXPLICIT STACK)</button>
+      </div>
+      <div class="pane" id="dfs-r"><p class="tabnote">Shortest to write, and the call stack does the bookkeeping. Depth is limited by the language: about 1000 frames in Python.</p><pre><span class="kw">def</span> dfs_recursive(graph, start):
+    seen = set()
+
+    <span class="kw">def</span> visit(u):
+        seen.add(u)
+        <span class="kw">for</span> v <span class="kw">in</span> graph[u]:
+            <span class="kw">if</span> v <span class="kw">not</span> <span class="kw">in</span> seen:
+                visit(v)
+
+    visit(start)
+    <span class="kw">return</span> seen</pre></div>
+      <div class="pane" id="dfs-i" hidden><p class="tabnote">The same visit order is not guaranteed (a stack reverses neighbour order), but the reachable set is. Use it for deep graphs and long chains.</p><pre><span class="kw">def</span> dfs_iterative(graph, start):
+    seen = {start}
+    stack = [start]
+    <span class="kw">while</span> stack:
+        u = stack.pop()
+        <span class="kw">for</span> v <span class="kw">in</span> graph[u]:
+            <span class="kw">if</span> v <span class="kw">not</span> <span class="kw">in</span> seen:
+                seen.add(v)  <span class="cm"># mark when pushed, so a node <span class="kw">is</span> never on the stack twice</span>
+                stack.append(v)
+    <span class="kw">return</span> seen</pre></div>
+    </div>
+    <div class="rgt">
+      <span class="lab">PITFALLS</span>
+      <ul class="pit"><li>Mark a node when you first see it, not when you pop it, or one node enters the stack many times.</li><li>Recursion depth: a 10^5 node chain overflows Python's stack. Switch to the iterative tab.</li><li>An undirected edge appears twice: skip the parent, or use the visited set.</li></ul>
+      <span class="lab">PROBLEMS · MUST LEARN FIRST</span>
+      <div class="plist">
+        <div class="prow"><span class="t">Clone Graph</span><span class="bdg ml">MUST</span><span class="lv m">MED</span></div>
+        <div class="prow"><span class="t">Pacific Atlantic Water Flow</span><span class="bdg ml">MUST</span><span class="lv m">MED</span></div>
+        <div class="prow"><span class="t">Count Sub Islands</span><span class="lv m">MED</span></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="pat" id="bidir">
+    <div class="lft">
+      <h3>Bidirectional BFS <span class="tag ex">EXAMPLES</span><small>0 / 2</small></h3>
+      <span class="lab">USE IT WHEN</span>
+      <div class="when"><span>one start, one known goal, and the number of states fans out quickly</span><span>fewest steps in an implicit graph (words, lock combinations, puzzle boards)</span></div>
+      <span class="lab">TEMPLATE · PYTHON</span>
+      <pre><span class="cm"># Grow the smaller frontier by one level, stop when the two sides touch.
+# (template to be written with the lesson)</span></pre>
+    </div>
+    <div class="rgt">
+      <span class="lab">PITFALLS</span>
+      <ul class="pit"><li>Always expand the smaller frontier; alternating blindly loses the benefit.</li><li>Count a level only after finishing it, or the answer is off by one.</li></ul>
+      <p class="exnote"><b>No must-learn problem in your lists belongs here.</b> These are LeetCode problems that use the idea; each one is checked against the site before it is listed.</p>
+      <span class="lab">EXAMPLES · NOT IN YOUR LISTS' MUST-LEARN SET</span>
+      <div class="plist">
+        <div class="prow"><span class="t">Word Ladder</span><span class="bdg ex">EXAMPLE</span><span class="lv h">HARD</span></div>
+        <div class="prow"><span class="t">Open the Lock</span><span class="bdg ex">EXAMPLE</span><span class="lv m">MED</span></div>
+      </div>
+    </div>
+  </article>
+
+  <div class="grp"><h2>5 · Shortest paths</h2><small>4 patterns · 2 with problems in the lists</small></div>
+
+  <article class="pat" id="zo">
+    <div class="lft">
+      <h3>0-1 BFS <span class="tag ex">EXAMPLES</span><small>0 / 1</small></h3>
+      <span class="lab">USE IT WHEN</span>
+      <div class="when"><span>every edge costs 0 or 1 (turn or no turn, flip or keep, free or paid)</span><span>Dijkstra works but a heap is more machinery than needed</span></div>
+      <span class="lab">TEMPLATE · PYTHON</span>
+      <pre><span class="kw">from</span> collections <span class="kw">import</span> deque
+
+<span class="kw">def</span> zero_one_bfs(graph, src):
+    &quot;&quot;&quot;graph[u] = [(v, w)] with w <span class="kw">in</span> {0, 1}.&quot;&quot;&quot;
+    INF = float(&quot;inf&quot;)
+    dist = {u: INF <span class="kw">for</span> u <span class="kw">in</span> graph}
+    dist[src] = 0
+    q = deque([src])
+    <span class="kw">while</span> q:
+        u = q.popleft()
+        <span class="kw">for</span> v, w <span class="kw">in</span> graph[u]:
+            <span class="kw">if</span> dist[u] + w &lt; dist[v]:
+                dist[v] = dist[u] + w
+                <span class="cm"># a free edge goes to the front, a paid edge to the back</span>
+                q.appendleft(v) <span class="kw">if</span> w == 0 <span class="kw">else</span> q.append(v)
+    <span class="kw">return</span> dist</pre>
+    </div>
+    <div class="rgt">
+      <span class="lab">PITFALLS</span>
+      <ul class="pit"><li>A node can be pushed more than once; the distance check discards the stale entries.</li><li>Free edges go to the <i>front</i> of the deque. Both to the back is plain BFS and gives wrong answers.</li></ul>
+      <p class="exnote"><b>Today</b> its example sits under Dijkstra in the lists; here it is the example that teaches this idea.</p>
+      <span class="lab">EXAMPLES</span>
+      <div class="plist">
+        <div class="prow"><span class="t">Minimum Cost to Make at Least One Valid Path in a Grid</span><span class="bdg ex">EXAMPLE</span><span class="lv h">HARD</span></div>
+      </div>
+    </div>
+  </article>
+
+  <div class="listed" id="scc">
+    <h3>SCC (Kosaraju / Tarjan)</h3><span class="tag">LISTED</span>
+    <p>Strongly connected components, the condensation DAG. The lesson is not written yet. It shows in the page and in the jump list as soon as it is listed, so the whole map is visible.</p>
+  </div>
+  <div class="listed" id="layers">
+    <h3>Topological layers</h3><span class="tag">LISTED</span>
+    <p>Process a DAG level by level (Kahn's with a frontier per round). Lesson coming.</p>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.tabs').forEach(function(t){
+  t.addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    t.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-selected', x===b ? 'true':'false')});
+    var card=t.closest('.lft');
+    card.querySelectorAll('.pane').forEach(function(p){p.hidden = p.id!==b.dataset.p});
+  });
+});
+</script>
+</body>
+</html>

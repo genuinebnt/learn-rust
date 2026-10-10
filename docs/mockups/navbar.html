@@ -141,6 +141,29 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .nav[data-ls=dot] .ink{height:5px;width:5px!important;border-radius:50%;bottom:1px;margin-left:calc(var(--iw,0px)/2 - 2.5px);box-shadow:0 0 0 3px color-mix(in oklab,var(--ic,var(--acc)) 25%,transparent)}
 .nav[data-ls=dot] .glow{opacity:0!important}
 
+
+/* ---------- extras ---------- */
+/* magnetic: a hovered button leans a few pixels toward the pointer */
+.nav[data-ls=btn] a:hover{transform:translate(var(--mx,0px),calc(var(--my,0px) - 1px))}
+.nav[data-ls=btn] a:active{transform:translate(var(--mx,0px),var(--my,0px)) scale(.95)}
+/* a wash in the section's colour runs along the header's lower edge from the button you pressed */
+.hdr .wash{position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--wc,var(--acc));transform-origin:var(--wo,50%) 50%;transform:scaleX(0);opacity:0;pointer-events:none}
+.hdr .wash.go{animation:wash .85s var(--ease) both}
+@keyframes wash{0%{transform:scaleX(0);opacity:1}55%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+/* breadcrumb: once the bar condenses, the domain gives way to where you are */
+.crumb{display:inline-flex;align-items:center;gap:7px;max-width:0;overflow:hidden;white-space:nowrap;opacity:0;font:500 12px var(--mono);color:var(--mut);transition:max-width .45s var(--ease),opacity .3s}
+.crumb i{font-style:normal;color:var(--line)}.crumb b{color:var(--fg);font-weight:500}
+.hdr.small .crumb{max-width:240px;opacity:1;flex:none}
+.hdr.small .logo b i{max-width:0;opacity:0;overflow:hidden;display:inline-block;vertical-align:bottom;white-space:nowrap}
+.logo b i{max-width:200px;transition:max-width .4s var(--ease),opacity .25s}
+/* chords: press g, then a letter. The letters appear inside the buttons for a moment */
+.nav a,.nav .later{flex:none}
+.nav a .kb{flex:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:0;height:16px;overflow:hidden;opacity:0;margin-left:0;font:600 10px var(--mono);border:0 solid currentColor;border-radius:4px;padding:0;transition:width .3s var(--ease),opacity .2s,margin .3s var(--ease),border-width .2s}
+body.chord .nav a .kb{width:17px;border-width:1px;opacity:.85;margin-left:7px}
+.chordbar{position:absolute;left:50%;top:calc(100% + 8px);transform:translate(-50%,-4px);padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font:500 11px var(--mono);color:var(--mut);opacity:0;pointer-events:none;transition:opacity .2s,transform .3s var(--ease);white-space:nowrap}
+body.chord .chordbar{opacity:1;transform:translate(-50%,0)}
+@container (max-width:1300px){.crumb{display:none}}
+
 /* the right side */
 .r{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
 .pill{height:32px;display:inline-flex;align-items:center;gap:8px;padding:0 11px;border:1px solid var(--line2);border-radius:8px;font:500 11.5px var(--mono);color:var(--mut);transition:border-color .2s,color .2s,background .2s,transform .18s var(--ease)}
@@ -225,7 +248,7 @@ body.nomark .isnew::before{display:none}
 <body>
 <div class="lab">
   <b>NAVBAR MOCKUP</b>
-  <span>Try it: hover the logo and the nav, scroll the page, open the menu, press <kbd style="font:inherit;border:1px solid oklch(0.35 0.014 255);border-radius:4px;padding:0 5px">⌘K</kbd> or <kbd style="font:inherit;border:1px solid oklch(0.35 0.014 255);border-radius:4px;padding:0 5px">/</kbd></span>
+  <span>Try it: hover the logo and the nav, scroll the page, open the menu, press <kbd style="font:inherit;border:1px solid oklch(0.35 0.014 255);border-radius:4px;padding:0 5px">g</kbd> then d / r / c, <kbd style="font:inherit;border:1px solid oklch(0.35 0.014 255);border-radius:4px;padding:0 5px">⌘K</kbd> or <kbd style="font:inherit;border:1px solid oklch(0.35 0.014 255);border-radius:4px;padding:0 5px">/</kbd></span>
   <span class="sp"></span>
   <span id="ls" style="display:inline-flex;gap:4px"><button data-ls="btn" class="on">BUTTONS</button><button data-ls="ink">UNDERLINE</button><button data-ls="pill">PILLS</button><button data-ls="seg">SEGMENTED</button><button data-ls="brk">BRACKETS</button><button data-ls="dot">DOT RAIL</button></span>
   <button id="bTheme">THEME</button>
@@ -249,6 +272,7 @@ body.nomark .isnew::before{display:none}
   <div class="scroller" id="scroller">
     <header class="hdr" id="hdr">
       <a class="logo" href="#" aria-label="anneal home"><span class="mk"><span style="background:var(--acc)"></span><span style="background:var(--vio)"></span><span style="background:var(--grn)"></span><span style="box-shadow:inset 0 0 0 1px var(--line)"></span></span><b>anneal<i>.genuinebasil.dev</i></b></a>
+      <span class="crumb" id="crumb"><b>Courses</b><i>/</i><b>3i-04 LIKE</b></span>
       <nav class="nav" id="nav" data-ls="btn" aria-label="Sections">
         <span class="glow" id="glow"></span><span class="ink" id="ink"></span>
         <a class="area" style="--c:var(--acc)" data-c="var(--acc)" href="#"><span class="dot"></span>DSA</a>
@@ -281,7 +305,7 @@ body.nomark .isnew::before{display:none}
           </div>
         </div>
       </div>
-      <span class="prog" id="prog"></span>
+      <span class="prog" id="prog"></span><span class="wash" id="wash"></span><span class="chordbar">go to: press the letter in the button</span>
     </header>
     <div class="page">
       <h2>A page to scroll</h2>
@@ -302,6 +326,7 @@ body.nomark .isnew::before{display:none}
     <li><b>Account menu:</b> opens with a short pop; the accent choices slide in one after the other; the chosen one gets a tick that pops. Sign out stays where it was.</li>
     <li><b>On scroll:</b> the bar condenses, blurs what is under it, and shows page progress on its lower edge.</li>
     <li><b>Phones:</b> the same row, scrolling with its edge fade as today; the extra buttons become icons.</li>
+    <li><b>Extras:</b> buttons lean a few pixels toward the pointer; switching section runs a wash in its colour along the header's lower edge from the button you pressed; the condensed header shows a breadcrumb where the domain was; <kbd>g</kbd> then a letter jumps to a section, with the letters shown inside the buttons for a moment (never while typing in a field, so it cannot collide with Vim mode).</li>
     <li><b>Motion rules:</b> everything is off under <i>reduced motion</i> (the app already turns animations off globally); no animation takes longer than about 0.5 s; nothing moves while you read.</li>
   </ul>
   <h3>NEW BUTTONS I SUGGEST (each is independent; say which to keep: the NEW BUTTONS toggle above hides them)</h3>
@@ -382,6 +407,33 @@ const av = $('#av'), menu = $('#menu');
 av.onclick = () => { const o = menu.classList.toggle('open'); av.setAttribute('aria-expanded', o); };
 document.addEventListener('mousedown', (e) => { if (!e.target.closest('.acct')) { menu.classList.remove('open'); av.setAttribute('aria-expanded', 'false'); } });
 document.querySelectorAll('#sw button').forEach(b => b.onclick = () => { document.querySelectorAll('#sw button').forEach(x => x.classList.remove('on')); b.classList.add('on'); root.style.setProperty('--acc', getComputedStyle(b).getPropertyValue('--s')); });
+
+// chord keys: g then a letter
+const keys = { DSA: 'd', Rust: 'r', Courses: 'c', Calendar: 'a', 'Mock interview': 'm', Progress: 'p' };
+nav.querySelectorAll('a').forEach(a => { const k = keys[a.textContent.trim()]; if (k) { a.dataset.k = k; const kb = document.createElement('span'); kb.className = 'kb'; kb.textContent = k; a.appendChild(kb); } });
+let chordTimer = 0;
+function chord(on) { document.body.classList.toggle('chord', on); clearTimeout(chordTimer); if (on) chordTimer = setTimeout(() => chord(false), 1600); }
+addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('input,textarea')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (document.body.classList.contains('chord')) { const a = nav.querySelector(`a[data-k="${e.key.toLowerCase()}"]`); if (a) { a.click(); e.preventDefault(); } chord(false); }
+  else if (e.key === 'g' && !wrap.classList.contains('open')) chord(true);
+});
+// magnetic buttons
+nav.addEventListener('mousemove', (e) => { const a = e.target.closest('a'); if (!a) return; const r = a.getBoundingClientRect(); a.style.setProperty('--mx', ((e.clientX - r.left) / r.width - .5) * 5 + 'px'); a.style.setProperty('--my', ((e.clientY - r.top) / r.height - .5) * 3 + 'px'); });
+nav.addEventListener('mouseout', (e) => { const a = e.target.closest('a'); if (a) { a.style.removeProperty('--mx'); a.style.removeProperty('--my'); } });
+// wash on section change
+const wash = $('#wash');
+nav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+  const hb = hdr.getBoundingClientRect(), ab = a.getBoundingClientRect();
+  wash.style.setProperty('--wo', ((ab.left + ab.width / 2 - hb.left) / hb.width * 100) + '%');
+  wash.style.setProperty('--wc', a.dataset.c === 'var(--fg)' ? 'var(--fg)' : a.dataset.c);
+  wash.classList.remove('go'); void wash.offsetWidth; wash.classList.add('go');
+  const names = { DSA: 'DSA / Arrays and hashing', Rust: 'Rust / L2 Borrowing', Courses: 'Courses / 3i-04 LIKE' };
+  const t = a.textContent.replace(a.dataset.k || '', '').trim();
+  $('#crumb').innerHTML = (names[t] || t).split(' / ').map((x, i, arr) => i === arr.length - 1 ? `<b>${x}</b>` : x).join('<i>/</i>');
+}));
+
 // command palette
 const items = [
   ['DSA', 'Arrays and hashing · track', 'var(--acc)'], ['DSA', 'Graphs · pattern lessons', 'var(--acc)'], ['Rust', 'L2 Borrowing · track', 'var(--vio)'],

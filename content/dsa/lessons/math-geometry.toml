@@ -384,6 +384,658 @@ pitfalls = [
     "This is a pre-order walk of a tree whose children of k are 10k to 10k + 9.",
 ]
 
+[[extra]]
+id = "Math & Geometry:long-division"
+name = "Long division with a remainder map"
+group = "Number ranges"
+signals = [
+    "write a fraction as a decimal, with the repeating part in parentheses",
+    "the digits come from long division: remainder * 10 divided by the denominator",
+    "a repeated remainder means the digits repeat from where that remainder first appeared",
+]
+template_name = "Fraction to recurring decimal"
+template = '''
+def fraction_to_decimal(numerator, denominator):
+    if numerator == 0:
+        return "0"
+    sign = "-" if (numerator < 0) != (denominator < 0) else ""
+    n, d = abs(numerator), abs(denominator)
+    whole, rem = divmod(n, d)
+    if rem == 0:
+        return sign + str(whole)
+    digits, seen = [], {}  # seen: remainder -> where its digit sits
+    while rem and rem not in seen:
+        seen[rem] = len(digits)
+        rem *= 10
+        digits.append(str(rem // d))
+        rem %= d
+    if rem:  # the remainder came back: the digits from there repeat
+        i = seen[rem]
+        head, cycle = "".join(digits[:i]), "".join(digits[i:])
+        return f"{sign}{whole}.{head}({cycle})"
+    return f"{sign}{whole}." + "".join(digits)
+'''
+pitfalls = [
+    "Handle the sign separately and work with absolute values.",
+    "Record the position of each remainder: the first time it repeats marks the start of the cycle.",
+    "A remainder of 0 means the decimal terminates.",
+]
+examples = ["fraction-to-recurring-decimal", "add-digits"]
+
+[[extra]]
+id = "Math & Geometry:count-factors"
+name = "Count by place value and by prime factors"
+group = "Counting and number properties"
+signals = [
+    "trailing zeroes of n!: count the factors of 5, since there are always enough 2s",
+    "how many times a digit appears in 1..n: count by place value (units, tens, hundreds)",
+    "a count over a huge range is a sum over powers: n // 5 + n // 25 + n // 125 + ...",
+]
+template_name = "Trailing zeroes of a factorial"
+template = '''
+def trailing_zeroes(n):
+    count = 0
+    while n:
+        n //= 5  # multiples of 5, then of 25, then of 125, ...
+        count += n
+    return count
+'''
+pitfalls = [
+    "Every multiple of 25 has two factors of 5: the loop adds n // 25 as well as n // 5.",
+    "Factors of 2 are plentiful, so only the 5s decide the number of zeroes.",
+    "Digit counts: split n into the part above, the digit, and the part below the place being counted.",
+]
+examples = ["factorial-trailing-zeroes", "number-of-digit-one"]
+
+[[extra.variant]]
+name = "Number of digit one"
+note = "For each place, count how many numbers up to n have a 1 there from the high part, the digit and the low part."
+template = '''
+def count_digit_one(n):
+    total, place = 0, 1
+    while place <= n:
+        high, cur, low = n // (place * 10), n // place % 10, n % place
+        if cur == 0:
+            total += high * place
+        elif cur == 1:
+            total += high * place + low + 1
+        else:
+            total += (high + 1) * place
+        place *= 10
+    return total
+'''
+
+[[extra]]
+id = "Math & Geometry:pow-count"
+name = "Counting with fast exponentiation"
+group = "Exponentiation and roots"
+signals = [
+    "the number of strings, choices or states is a product of independent choices: c ** n with a modulus",
+    "n is up to 10^15: use pow(c, n, mod) or square-and-multiply",
+    "subtract the cases that are not allowed from the total",
+]
+template_name = "Count good numbers"
+template = '''
+def count_good_numbers(n):
+    mod = 10**9 + 7
+    evens, odds = (n + 1) // 2, n // 2  # even and odd positions
+    # even positions: 5 digits (0, 2, 4, 6, 8); odd positions: 4 primes
+    return pow(5, evens, mod) * pow(4, odds, mod) % mod
+'''
+pitfalls = [
+    "Count positions of each kind first, then raise the number of choices to that power.",
+    "pow(base, exp, mod) is fast modular exponentiation; do not compute the huge power first.",
+    "Reduce modulo after each multiplication when working by hand.",
+]
+examples = ["count-good-numbers", "count-collisions-of-monkeys-on-a-polygon", "super-pow"]
+
+[[extra.variant]]
+name = "Monkeys on a polygon"
+note = "Each monkey picks a direction: 2^n ways, minus the two ways where all go the same way."
+template = '''
+def monkey_move(n):
+    mod = 10**9 + 7
+    return (pow(2, n, mod) - 2) % mod
+'''
+
+[[extra.variant]]
+name = "Super pow"
+note = "a ^ [d1 d2 ...]: process the digits from the left, raising to 10 each time."
+template = '''
+def super_pow(a, b):
+    mod, result = 1337, 1
+    a %= mod
+    for digit in b:
+        # result ^ 10 * a ^ digit
+        result = pow(result, 10, mod) * pow(a, digit, mod) % mod
+    return result
+'''
+
+[[extra]]
+id = "Math & Geometry:slopes"
+name = "Slopes in a hash map: lines through points"
+group = "Geometry"
+signals = [
+    "the most points on one line, or counting pairs of points at the same distance",
+    "fix one point and group the others by direction or by distance in a hash map",
+    "a slope as a reduced fraction (dy / g, dx / g) avoids float errors",
+]
+template_name = "Maximum points on a line"
+template = '''
+from collections import Counter
+from math import gcd
+
+
+def max_points(points):
+    best = min(len(points), 2)
+    for i, (x1, y1) in enumerate(points):
+        slopes = Counter()
+        for x2, y2 in points[i + 1:]:
+            dx, dy = x2 - x1, y2 - y1
+            g = gcd(dx, dy)
+            dx, dy = dx // g, dy // g
+            if dx < 0 or (dx == 0 and dy < 0):
+                dx, dy = -dx, -dy  # one name for each direction
+            slopes[(dx, dy)] += 1
+        if slopes:
+            best = max(best, max(slopes.values()) + 1)  # + the point
+    return best
+'''
+pitfalls = [
+    "Reduce the slope by the gcd and fix the sign: (1, 2) and (-1, -2) are the same direction.",
+    "Never use floating-point slopes: they can collide or differ by rounding.",
+    "Only look at points after i: lines through earlier points were counted already.",
+]
+examples = ["max-points-on-a-line", "number-of-boomerangs", "minimum-area-rectangle", "valid-square"]
+
+[[extra.variant]]
+name = "Number of boomerangs"
+note = "For each point count the others by squared distance; k points at the same distance make k * (k - 1) boomerangs."
+template = '''
+from collections import Counter
+
+
+def number_of_boomerangs(points):
+    total = 0
+    for x1, y1 in points:
+        dist = Counter((x2 - x1) ** 2 + (y2 - y1) ** 2 for x2, y2 in points)
+        total += sum(k * (k - 1) for k in dist.values())  # ordered pairs
+    return total
+'''
+
+[[extra.variant]]
+name = "Minimum area rectangle"
+note = "Remember seen pairs of points in a column; two columns that share two rows form a rectangle."
+template = '''
+def min_area_rect(points):
+    cols, last, best = {}, {}, float("inf")
+    for x, y in sorted(points):
+        cols.setdefault(x, []).append(y)
+    for x in sorted(cols):
+        ys = cols[x]
+        for i in range(len(ys)):
+            for j in range(i):
+                pair = (ys[j], ys[i])
+                if pair in last:  # the same two rows in an earlier column
+                    best = min(best, (x - last[pair]) * (ys[i] - ys[j]))
+                last[pair] = x
+    return best if best != float("inf") else 0
+'''
+
+[[extra]]
+id = "Math & Geometry:divisors"
+name = "Divisors, squares and the greatest common divisor"
+group = "GCD, LCM and divisibility"
+signals = [
+    "only perfect squares have an odd number of divisors: bulb switcher, who is toggled last",
+    "the k-th factor of n: enumerate divisors up to the square root, in pairs",
+    "can two jugs measure an amount? exactly when it is a multiple of their gcd (and fits in the sum)",
+]
+template_name = "Bulb switcher"
+template = '''
+from math import isqrt
+
+
+def bulb_switch(n):
+    return isqrt(n)  # the perfect squares up to n stay on
+'''
+pitfalls = [
+    "A bulb is toggled once per divisor of its number: odd count means on, and divisors come in pairs except for the square root.",
+    "Use integer square root, not float sqrt, for large n.",
+    "A pair (d, n // d) of divisors needs only d up to sqrt(n).",
+]
+examples = ["bulb-switcher", "the-kth-factor-of-n", "water-and-jug-problem", "power-of-three", "number-of-common-factors"]
+
+[[extra.variant]]
+name = "The k-th factor"
+note = "Collect the small divisors up to sqrt(n); the large ones are n divided by those, in reverse."
+template = '''
+def kth_factor(n, k):
+    small, large = [], []
+    d = 1
+    while d * d <= n:
+        if n % d == 0:
+            small.append(d)
+            if d * d != n:
+                large.append(n // d)
+        d += 1
+    factors = small + large[::-1]  # all divisors in increasing order
+    return factors[k - 1] if k <= len(factors) else -1
+'''
+
+[[extra.variant]]
+name = "Water and jug"
+note = "The amounts that can be measured are the multiples of gcd(x, y) up to x + y."
+template = '''
+from math import gcd
+
+
+def can_measure_water(x, y, target):
+    if target > x + y:
+        return False
+    return target % gcd(x, y) == 0  # gcd(0, 0) = 0 needs target == 0
+'''
+
+[[extra.variant]]
+name = "Power of three"
+note = "The largest power of three in 32 bits is 3^19: every power of three divides it."
+template = '''
+def is_power_of_three(n):
+    return n > 0 and 3**19 % n == 0
+'''
+
+[[extra]]
+id = "Math & Geometry:diagonals"
+name = "Diagonals of a matrix"
+group = "Matrix on grids"
+signals = [
+    "traverse the matrix along diagonals, or sort or compare each diagonal",
+    "cells on one diagonal share i - j; cells on one anti-diagonal share i + j",
+    "group by that key in a dictionary and process each group",
+]
+template_name = "Diagonal traverse"
+template = '''
+def find_diagonal_order(mat):
+    rows, cols = len(mat), len(mat[0])
+    out = []
+    for d in range(rows + cols - 1):  # d = i + j
+        cells = [(i, d - i) for i in range(rows) if 0 <= d - i < cols]
+        if d % 2 == 0:
+            cells.reverse()  # even diagonals go up and to the right
+        out.extend(mat[i][j] for i, j in cells)
+    return out
+'''
+pitfalls = [
+    "Cells on an anti-diagonal share i + j; cells on a diagonal share i - j.",
+    "Alternate the direction by the parity of the diagonal number.",
+    "Use a dict from i - j to the list of values to sort or compare each diagonal.",
+]
+examples = ["diagonal-traverse", "sort-matrix-by-diagonals", "toeplitz-matrix", "spiral-matrix-iii"]
+
+[[extra.variant]]
+name = "Sort matrix by diagonals"
+note = "Top-right diagonals ascend, the others descend; collect each diagonal by i - j, sort, write back."
+template = '''
+from collections import defaultdict, deque
+
+
+def sort_matrix(grid):
+    n = len(grid)
+    diag = defaultdict(list)
+    for i in range(n):
+        for j in range(n):
+            diag[i - j].append(grid[i][j])
+    for key, vals in diag.items():
+        vals.sort(reverse=key >= 0)  # below the main diagonal: descending
+        diag[key] = deque(vals)
+    for i in range(n):
+        for j in range(n):
+            grid[i][j] = diag[i - j].popleft()  # along the diagonal
+    return grid
+'''
+
+[[extra.variant]]
+name = "Toeplitz matrix"
+note = "Every cell equals its upper-left neighbour."
+template = '''
+def is_toeplitz_matrix(matrix):
+    return all(matrix[i][j] == matrix[i - 1][j - 1]
+               for i in range(1, len(matrix))
+               for j in range(1, len(matrix[0])))
+'''
+
+[[extra]]
+id = "Math & Geometry:encode-state"
+name = "Old and new state in one cell"
+group = "Matrix on grids"
+signals = [
+    "update every cell of a grid at once from its neighbours, in place",
+    "write the next state into spare bits of the same cell so that the old state is still readable",
+    "a second pass drops the old bit",
+]
+template_name = "Game of life"
+template = '''
+def game_of_life(board):
+    rows, cols = len(board), len(board[0])
+    for i in range(rows):
+        for j in range(cols):
+            live = sum(board[a][b] & 1  # the old state is bit 0
+                       for a in range(max(0, i - 1), min(rows, i + 2))
+                       for b in range(max(0, j - 1), min(cols, j + 2))
+                       if (a, b) != (i, j))
+            if live == 3 or (board[i][j] & 1 and live == 2):
+                board[i][j] |= 2  # the new state is bit 1
+    for i in range(rows):
+        for j in range(cols):
+            board[i][j] >>= 1  # keep only the new state
+'''
+pitfalls = [
+    "Read neighbours with & 1 (the old state) while writing into bit 1.",
+    "A final pass shifts every cell right by one to drop the old state.",
+    "Without bits you can copy the board: simpler, but O(rows * cols) extra memory.",
+]
+examples = ["game-of-life", "rotating-the-box"]
+
+[[extra.variant]]
+name = "Rotating the box"
+note = "Gravity per row: stones fall right until an obstacle; then rotate the grid a quarter turn."
+template = '''
+def rotate_the_box(box):
+    for row in box:
+        free = len(row) - 1  # the rightmost free cell
+        for j in range(len(row) - 1, -1, -1):
+            if row[j] == "*":
+                free = j - 1  # an obstacle: stones stop before it
+            elif row[j] == "#":
+                row[j], row[free] = ".", "#"  # the stone falls
+                free -= 1
+    return [list(col) for col in zip(*box[::-1])]  # rotate clockwise
+'''
+
+[[extra]]
+id = "Math & Geometry:robot"
+name = "Simulate a robot with directions"
+group = "Simulation and sequences"
+signals = [
+    "a robot follows instructions on a plane: where does it end, does it loop, does it hit obstacles",
+    "directions as an index into a list of (dx, dy): turning is index +- 1 modulo 4",
+    "repeating the instructions: after at most four rounds the position and direction cycle",
+]
+template_name = "Robot bounded in a circle"
+template = '''
+def is_robot_bounded(instructions):
+    dirs = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # north, east, south, west
+    x = y = d = 0
+    for ch in instructions:
+        if ch == "G":
+            x, y = x + dirs[d][0], y + dirs[d][1]
+        elif ch == "L":
+            d = (d + 3) % 4
+        else:
+            d = (d + 1) % 4
+    # back at the start, or not facing north: the path repeats in a cycle
+    return (x, y) == (0, 0) or d != 0
+'''
+pitfalls = [
+    "After one round the robot is either back at the origin or facing a different way: in the second case four rounds return it.",
+    "Facing north away from the origin means it drifts forever.",
+    "Keep turning as arithmetic on an index, not as if-chains.",
+]
+examples = ["robot-bounded-in-circle", "walking-robot-simulation"]
+
+[[extra.variant]]
+name = "Walking robot simulation"
+note = "A set of obstacles; the answer is the farthest squared distance seen on the way."
+template = '''
+def robot_sim(commands, obstacles):
+    blocked = {tuple(o) for o in obstacles}
+    dirs = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+    x = y = d = best = 0
+    for c in commands:
+        if c == -2:
+            d = (d + 3) % 4
+        elif c == -1:
+            d = (d + 1) % 4
+        else:
+            for _ in range(c):
+                nx, ny = x + dirs[d][0], y + dirs[d][1]
+                if (nx, ny) in blocked:
+                    break  # stop in front of the obstacle
+                x, y = nx, ny
+                best = max(best, x * x + y * y)
+    return best
+'''
+
+[[extra]]
+id = "Math & Geometry:dates"
+name = "Dates, clocks and Chebyshev distance"
+group = "Simulation and sequences"
+signals = [
+    "the number of days between two dates, or the angle between clock hands",
+    "convert a date to a day number (days since a fixed date), then subtract",
+    "moving diagonally costs the same as one step: the distance is max(|dx|, |dy|)",
+]
+template_name = "Days between two dates"
+template = '''
+def days_between_dates(date1, date2):
+    def to_days(date):
+        y, m, d = map(int, date.split("-"))
+        leap = lambda yr: yr % 4 == 0 and (yr % 100 != 0 or yr % 400 == 0)
+        days = 365 * (y - 1970) + sum(leap(v) for v in range(1970, y))
+        feb = 29 if leap(y) else 28
+        month = [31, feb, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        return days + sum(month[:m - 1]) + d
+    return abs(to_days(date1) - to_days(date2))
+'''
+pitfalls = [
+    "Count leap years by the rule: divisible by 4, except by 100 unless also by 400.",
+    "Convert both dates to a day count from the same origin and subtract.",
+    "Python's datetime.date does this in one line; the exercise is to do it by hand.",
+]
+examples = ["number-of-days-between-two-dates", "angle-between-hands-of-a-clock", "minimum-time-visiting-all-points"]
+
+[[extra.variant]]
+name = "Angle between clock hands"
+note = "The hour hand moves 30 degrees per hour plus half a degree per minute; the minute hand 6 per minute."
+template = '''
+def angle_clock(hour, minutes):
+    h = (hour % 12) * 30 + minutes * 0.5  # degrees of the hour hand
+    m = minutes * 6  # degrees of the minute hand
+    diff = abs(h - m)
+    return min(diff, 360 - diff)  # the smaller of the two angles
+'''
+
+[[extra.variant]]
+name = "Minimum time visiting all points"
+note = "A diagonal step covers one unit in both directions: each leg costs max(|dx|, |dy|)."
+template = '''
+def min_time_to_visit_all_points(points):
+    return sum(max(abs(x2 - x1), abs(y2 - y1))
+               for (x1, y1), (x2, y2) in zip(points, points[1:]))
+'''
+
+[[extra]]
+id = "Math & Geometry:square-sums"
+name = "Sums of squares and powers: two pointers and base digits"
+group = "Counting and number properties"
+signals = [
+    "is n the sum of two squares: two pointers from 0 and sqrt(n)",
+    "is n a sum of distinct powers of three: its base-3 digits are all 0 or 1",
+    "a number written in another base answers 'sum of distinct powers' questions",
+]
+template_name = "Sum of square numbers"
+template = '''
+from math import isqrt
+
+
+def judge_square_sum(c):
+    lo, hi = 0, isqrt(c)
+    while lo <= hi:
+        s = lo * lo + hi * hi
+        if s == c:
+            return True
+        if s < c:
+            lo += 1
+        else:
+            hi -= 1
+    return False
+'''
+pitfalls = [
+    "lo may equal hi: c = 2 * a * a is a sum of two equal squares.",
+    "Start hi at the integer square root, never a float.",
+    "Both pointers move monotonically, so the loop is O(sqrt(c)).",
+]
+examples = ["sum-of-square-numbers", "check-if-number-is-a-sum-of-powers-of-three", "armstrong-number"]
+
+[[extra.variant]]
+name = "Sum of distinct powers of three"
+note = "Write n in base three: a digit 2 means a power is needed twice."
+template = '''
+def check_powers_of_three(n):
+    while n:
+        if n % 3 == 2:
+            return False
+        n //= 3
+    return True
+'''
+
+[[extra]]
+id = "Math & Geometry:josephus"
+name = "Josephus: the last one standing"
+group = "Simulation and sequences"
+signals = [
+    "people in a circle, every k-th is removed: who survives?",
+    "a recurrence over the number of people: the winner for n comes from the winner for n - 1",
+    "simulating with a queue is O(n k); the recurrence is O(n)",
+]
+template_name = "Find the winner of the circular game"
+template = '''
+def find_the_winner(n, k):
+    winner = 0  # zero-based position of the winner when only one remains
+    for people in range(2, n + 1):
+        winner = (winner + k) % people  # shift by k in a smaller circle
+    return winner + 1
+'''
+pitfalls = [
+    "Work with zero-based positions and add 1 at the end.",
+    "After the first removal the circle starts k positions later: the recurrence adds k and takes the modulus.",
+    "A queue simulation (rotate k - 1, pop) is the safest way to test the formula.",
+]
+examples = ["find-the-winner-of-the-circular-game", "elimination-game"]
+
+[[extra.variant]]
+name = "Elimination game"
+note = "Remove every other number alternately from the left and the right: track the first number and the step."
+template = '''
+def last_remaining(n):
+    head, step, left, remaining = 1, 1, True, n
+    while remaining > 1:
+        if left or remaining % 2:  # the head is removed: it moves on
+            head += step
+        remaining //= 2
+        step *= 2
+        left = not left
+    return head
+'''
+
+[[extra]]
+id = "Math & Geometry:int-to-text"
+name = "Integers to Roman numerals and English words"
+group = "Digit manipulation"
+signals = [
+    "write a number with a table of values and symbols, greedily from the largest",
+    "split into groups of three digits (thousand, million, billion) and name each group",
+    "special forms such as 4 = IV and 9 = IX are extra entries in the table",
+]
+template_name = "Integer to Roman"
+template = '''
+def int_to_roman(num):
+    table = [(1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"),
+             (90, "XC"), (50, "L"), (40, "XL"), (10, "X"), (9, "IX"),
+             (5, "V"), (4, "IV"), (1, "I")]
+    out = []
+    for value, symbol in table:  # greedy: biggest value first
+        count, num = divmod(num, value)
+        out.append(symbol * count)
+    return "".join(out)
+'''
+pitfalls = [
+    "Put the subtractive forms (900, 400, 90, 40, 9, 4) in the table in order: then plain greedy works.",
+    "divmod gives how many times a value fits and what is left.",
+    "For English words, name groups of three digits and add Thousand, Million, Billion.",
+]
+examples = ["integer-to-roman", "integer-to-english-words", "roman-to-integer"]
+
+[[extra.variant]]
+name = "Integer to English words"
+note = "Name each three-digit group and append its scale word."
+template = '''
+def number_to_words(num):
+    if num == 0:
+        return "Zero"
+    ones = ("One Two Three Four Five Six Seven Eight Nine Ten Eleven "
+            "Twelve Thirteen Fourteen Fifteen Sixteen Seventeen Eighteen "
+            "Nineteen").split()
+    tens = "Twenty Thirty Forty Fifty Sixty Seventy Eighty Ninety".split()
+
+    def below_1000(n):
+        words = []
+        if n >= 100:
+            words += [ones[n // 100 - 1], "Hundred"]
+            n %= 100
+        if n >= 20:
+            words.append(tens[n // 10 - 2])
+            n %= 10
+        if n:
+            words.append(ones[n - 1])
+        return words
+
+    out = []
+    scales = [(10**9, "Billion"), (10**6, "Million"), (1000, "Thousand"),
+              (1, "")]
+    for unit, scale in scales:
+        group, num = divmod(num, unit)
+        if group:
+            out += below_1000(group) + ([scale] if scale else [])
+    return " ".join(out)
+'''
+
+[[extra]]
+id = "Math & Geometry:shuffle"
+name = "Random shuffle: Fisher-Yates"
+group = "Probability and random"
+signals = [
+    "return a uniformly random permutation of an array, and reset it to the original",
+    "for each position i pick a random index j in [i, n) and swap",
+    "every permutation then has probability 1 / n!",
+]
+template = '''
+import random
+
+
+class Solution:
+    def __init__(self, nums):
+        self.original = nums[:]
+        self.nums = nums[:]
+
+    def reset(self):
+        self.nums = self.original[:]
+        return self.nums
+
+    def shuffle(self):
+        a = self.nums
+        for i in range(len(a)):
+            j = random.randrange(i, len(a))  # a later (or the same) spot
+            a[i], a[j] = a[j], a[i]
+        return a
+'''
+pitfalls = [
+    "Choose j from [i, n), not from the whole array: choosing from everything gives a biased result.",
+    "Keep a copy of the original to reset.",
+    "Python's random.shuffle does exactly this.",
+]
+examples = ["shuffle-an-array"]
+
 [[listed]]
 name = "Extract digits with % 10 and // 10 (right to left) / convert to a string and index"
 group = "Digit manipulation"

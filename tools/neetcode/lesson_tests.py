@@ -9522,3 +9522,442 @@ def _(ns):
                     typed += ch
                     cand = sorted((s for s in count if s.startswith(typed)), key=lambda s: (-count[s], s))[:3]
                     assert out == cand, (typed, out, cand)
+
+
+# ---- math & geometry (extras) ---------------------------------------------------------------------------------------
+
+MG = "Math & Geometry"
+
+
+@test(f"{MG}:long-division")
+def _(ns):
+    from fractions import Fraction
+    f = ns["fraction_to_decimal"]
+    assert f(1, 2) == "0.5" and f(2, 1) == "2" and f(4, 333) == "0.(012)" and f(1, 6) == "0.1(6)" and f(-50, 8) == "-6.25" and f(0, -5) == "0"
+    r = random.Random(1200)
+    for _ in range(400):
+        n, d = r.randint(-200, 200), r.choice([x for x in range(-60, 61) if x])
+        out = f(n, d)
+        neg = out.startswith("-")
+        body = out.lstrip("-")
+        whole, _, frac = body.partition(".")
+        if "(" in frac:
+            pre, cyc = frac.rstrip(")").split("(")
+            value = Fraction(int(whole)) + (Fraction(int(pre or "0"), 10 ** len(pre)) if pre else 0) + Fraction(int(cyc), 10 ** len(pre) * (10 ** len(cyc) - 1))
+        else:
+            value = Fraction(int(whole)) + (Fraction(int(frac), 10 ** len(frac)) if frac else 0)
+        assert (-value if neg else value) == Fraction(n, d), (n, d, out)
+        assert n == 0 or neg == ((n < 0) != (d < 0))
+
+
+@test(f"{MG}:count-factors")
+def _(ns):
+    import math
+    f = ns["trailing_zeroes"]
+    for n in list(range(0, 300)) + [1500]:
+        s = str(math.factorial(n))
+        assert f(n) == len(s) - len(s.rstrip("0"))
+
+
+@test(f"{MG}:count-factors#Number of digit one")
+def _(ns):
+    f = ns["count_digit_one"]
+    assert f(13) == 6 and f(0) == 0
+    for n in list(range(0, 400)) + [1234, 99999]:
+        assert f(n) == sum(str(i).count("1") for i in range(1, n + 1)), n
+
+
+@test(f"{MG}:pow-count")
+def _(ns):
+    f = ns["count_good_numbers"]
+    assert f(1) == 5 and f(4) == 400 and f(50) == 564908303
+    for n in range(1, 6):
+        count = sum(1 for digits in _it.product(range(10), repeat=n) if all((d % 2 == 0) if i % 2 == 0 else d in (2, 3, 5, 7) for i, d in enumerate(digits)))
+        assert f(n) == count
+
+
+@test(f"{MG}:pow-count#Monkeys on a polygon")
+def _(ns):
+    f = ns["monkey_move"]
+    assert f(3) == 6 and f(4) == 14
+    for n in range(3, 10):
+        assert f(n) == 2**n - 2
+
+
+@test(f"{MG}:pow-count#Super pow")
+def _(ns):
+    f = ns["super_pow"]
+    assert f(2, [3]) == 8 and f(2, [1, 0]) == 1024 and f(1, [4, 3, 3, 8, 5, 2]) == 1
+    r = random.Random(1201)
+    for _ in range(200):
+        a, b = r.randint(1, 50), [r.randint(0, 9) for _ in range(r.randint(1, 4))]
+        assert f(a, b[:]) == pow(a, int("".join(map(str, b))), 1337)
+
+
+@test(f"{MG}:slopes")
+def _(ns):
+    f = ns["max_points"]
+    assert f([[1, 1], [2, 2], [3, 3]]) == 3 and f([[1, 1], [3, 2], [5, 3], [4, 1], [2, 3], [1, 4]]) == 4 and f([[0, 0]]) == 1
+    r = random.Random(1202)
+    for _ in range(200):
+        pts = list({(r.randint(-3, 3), r.randint(-3, 3)) for _ in range(r.randint(1, 8))})
+        best = min(len(pts), 2)
+        for a, b in _it.combinations(pts, 2):
+            n = sum(1 for c in pts if (b[0] - a[0]) * (c[1] - a[1]) == (b[1] - a[1]) * (c[0] - a[0]))
+            best = max(best, n)
+        assert f([list(p) for p in pts]) == best
+
+
+@test(f"{MG}:slopes#Number of boomerangs")
+def _(ns):
+    f = ns["number_of_boomerangs"]
+    assert f([[0, 0], [1, 0], [2, 0]]) == 2 and f([[1, 1]]) == 0
+    r = random.Random(1203)
+    for _ in range(200):
+        pts = list({(r.randint(-3, 3), r.randint(-3, 3)) for _ in range(r.randint(1, 7))})
+        d = lambda a, b: (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+        want = sum(1 for i in pts for j in pts for k in pts if i != j and i != k and j != k and d(i, j) == d(i, k))
+        assert f([list(p) for p in pts]) == want
+
+
+@test(f"{MG}:slopes#Minimum area rectangle")
+def _(ns):
+    f = ns["min_area_rect"]
+    assert f([[1, 1], [1, 3], [3, 1], [3, 3], [2, 2]]) == 4 and f([[1, 1], [1, 3], [3, 1], [3, 3], [4, 1], [4, 3]]) == 2 and f([[1, 1], [2, 2]]) == 0
+    r = random.Random(1204)
+    for _ in range(200):
+        pts = list({(r.randint(0, 4), r.randint(0, 4)) for _ in range(r.randint(1, 9))})
+        s = set(pts)
+        best = min([abs(a[0] - b[0]) * abs(a[1] - b[1]) for a in pts for b in pts if a[0] != b[0] and a[1] != b[1] and (a[0], b[1]) in s and (b[0], a[1]) in s] or [0])
+        assert f([list(p) for p in pts]) == best
+
+
+@test(f"{MG}:divisors")
+def _(ns):
+    f = ns["bulb_switch"]
+    for n in range(0, 200):
+        assert f(n) == sum(1 for i in range(1, n + 1) if sum(1 for d in range(1, i + 1) if i % d == 0) % 2)
+
+
+@test(f"{MG}:divisors#The k-th factor")
+def _(ns):
+    f = ns["kth_factor"]
+    assert f(12, 3) == 3 and f(7, 2) == 7 and f(4, 4) == -1
+    for n in range(1, 120):
+        divs = [d for d in range(1, n + 1) if n % d == 0]
+        for k in range(1, len(divs) + 2):
+            assert f(n, k) == (divs[k - 1] if k <= len(divs) else -1)
+
+
+@test(f"{MG}:divisors#Water and jug")
+def _(ns):
+    f = ns["can_measure_water"]
+    assert f(3, 5, 4) is True and f(2, 6, 5) is False and f(1, 2, 3) is True
+    for x in range(1, 9):
+        for y in range(1, 9):
+            reach, stack = set(), [(0, 0)]
+            while stack:
+                a, b = stack.pop()
+                if (a, b) in reach:
+                    continue
+                reach.add((a, b))
+                stack += [(x, b), (a, y), (0, b), (a, 0), (a - min(a, y - b), b + min(a, y - b)), (a + min(b, x - a), b - min(b, x - a))]
+            for t in range(0, x + y + 2):
+                assert f(x, y, t) is any(a + b == t for a, b in reach), (x, y, t)
+
+
+@test(f"{MG}:divisors#Power of three")
+def _(ns):
+    f = ns["is_power_of_three"]
+    for n in range(-5, 3000):
+        assert f(n) is (n > 0 and any(3**k == n for k in range(0, 10)))
+
+
+@test(f"{MG}:diagonals")
+def _(ns):
+    f = ns["find_diagonal_order"]
+    assert f([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == [1, 2, 4, 7, 5, 3, 6, 8, 9]
+    r = random.Random(1205)
+    for _ in range(100):
+        R, C = r.randint(1, 5), r.randint(1, 5)
+        m = [[r.randint(0, 99) for _ in range(C)] for _ in range(R)]
+        # LeetCode order: up-right first, then down-left, and so on
+        want, i, j, up = [], 0, 0, True
+        for _ in range(R * C):
+            want.append(m[i][j])
+            if up:
+                if j == C - 1:
+                    i, up = i + 1, False
+                elif i == 0:
+                    j, up = j + 1, False
+                else:
+                    i, j = i - 1, j + 1
+            else:
+                if i == R - 1:
+                    j, up = j + 1, True
+                elif j == 0:
+                    i, up = i + 1, True
+                else:
+                    i, j = i + 1, j - 1
+        assert f([row[:] for row in m]) == want
+
+
+@test(f"{MG}:diagonals#Sort matrix by diagonals")
+def _(ns):
+    f = ns["sort_matrix"]
+    assert f([[1, 7, 3], [9, 8, 2], [4, 5, 6]]) == [[8, 2, 3], [9, 6, 7], [4, 5, 1]]
+    r = random.Random(1206)
+    for _ in range(100):
+        n = r.randint(1, 5)
+        g = [[r.randint(0, 20) for _ in range(n)] for _ in range(n)]
+        out = f([row[:] for row in g])
+        for k in range(-(n - 1), n):
+            cells = [out[i][i - k] for i in range(n) if 0 <= i - k < n]
+            src = sorted(g[i][i - k] for i in range(n) if 0 <= i - k < n)
+            assert sorted(cells) == src
+            assert cells == (sorted(cells, reverse=True) if k >= 0 else sorted(cells))
+
+
+@test(f"{MG}:diagonals#Toeplitz matrix")
+def _(ns):
+    f = ns["is_toeplitz_matrix"]
+    assert f([[1, 2, 3, 4], [5, 1, 2, 3], [9, 5, 1, 2]]) is True and f([[1, 2], [2, 2]]) is False
+    r = random.Random(1207)
+    for _ in range(100):
+        R, C = r.randint(1, 4), r.randint(1, 4)
+        top = [r.randint(0, 2) for _ in range(R + C - 1)]
+        m = [[top[C - 1 - j + i] for j in range(C)] for i in range(R)]
+        assert f(m) is True
+        if R > 1 and C > 1:
+            m[R - 1][C - 1] += 1
+            assert f(m) is False
+
+
+@test(f"{MG}:encode-state")
+def _(ns):
+    f = ns["game_of_life"]
+    r = random.Random(1208)
+    for _ in range(100):
+        R, C = r.randint(1, 5), r.randint(1, 5)
+        b = [[r.randint(0, 1) for _ in range(C)] for _ in range(R)]
+        want = [[0] * C for _ in range(R)]
+        for i in range(R):
+            for j in range(C):
+                live = sum(b[a][c] for a in range(max(0, i - 1), min(R, i + 2)) for c in range(max(0, j - 1), min(C, j + 2)) if (a, c) != (i, j))
+                want[i][j] = 1 if live == 3 or (b[i][j] and live == 2) else 0
+        got = [row[:] for row in b]
+        f(got)
+        assert got == want
+
+
+@test(f"{MG}:encode-state#Rotating the box")
+def _(ns):
+    f = ns["rotate_the_box"]
+    assert f([["#", ".", "#"]]) == [["."], ["#"], ["#"]]
+    r = random.Random(1209)
+    for _ in range(100):
+        R, C = r.randint(1, 4), r.randint(1, 6)
+        box = [[r.choice("#.*") for _ in range(C)] for _ in range(R)]
+        fallen = []
+        for row in box:
+            out, stones = [], 0
+            seg = []
+            for ch in row + ["*"]:
+                if ch == "#":
+                    stones += 1
+                elif ch == ".":
+                    seg.append(".")
+                else:
+                    out += ["."] * (len(seg)) + ["#"] * stones + ([] if ch == "*" and False else [])
+                    out.append("*")
+                    seg, stones = [], 0
+            out = out[:-1]
+            fallen.append(out)
+        want = [list(col) for col in zip(*fallen[::-1])]
+        assert f([row[:] for row in box]) == want, box
+
+
+@test(f"{MG}:robot")
+def _(ns):
+    f = ns["is_robot_bounded"]
+    assert f("GGLLGG") is True and f("GG") is False and f("GL") is True
+    r = random.Random(1210)
+    for _ in range(200):
+        ins = "".join(r.choice("GLR") for _ in range(r.randint(1, 8)))
+        dirs = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        x = y = d = 0
+        for _ in range(4):
+            for ch in ins:
+                if ch == "G":
+                    x, y = x + dirs[d][0], y + dirs[d][1]
+                else:
+                    d = (d + (3 if ch == "L" else 1)) % 4
+        assert f(ins) is ((x, y) == (0, 0))
+
+
+@test(f"{MG}:robot#Walking robot simulation")
+def _(ns):
+    f = ns["robot_sim"]
+    assert f([4, -1, 3], []) == 25 and f([4, -1, 4, -2, 4], [[2, 4]]) == 65
+    r = random.Random(1211)
+    for _ in range(100):
+        cmds = [r.choice([-2, -1, 1, 2, 3, 4]) for _ in range(r.randint(1, 8))]
+        obs = [[r.randint(-3, 3), r.randint(-3, 3)] for _ in range(r.randint(0, 4))]
+        blocked = {tuple(o) for o in obs}
+        x = y = d = best = 0
+        dirs = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        for c in cmds:
+            if c < 0:
+                d = (d + (3 if c == -2 else 1)) % 4
+            else:
+                for _ in range(c):
+                    nx, ny = x + dirs[d][0], y + dirs[d][1]
+                    if (nx, ny) in blocked:
+                        break
+                    x, y = nx, ny
+                    best = max(best, x * x + y * y)
+        assert f(cmds[:], [o[:] for o in obs]) == best
+
+
+@test(f"{MG}:dates")
+def _(ns):
+    import datetime
+    f = ns["days_between_dates"]
+    assert f("2019-06-29", "2019-06-30") == 1 and f("2020-01-15", "2019-12-31") == 15
+    r = random.Random(1212)
+    for _ in range(200):
+        a = datetime.date(1971, 1, 1) + datetime.timedelta(days=r.randint(0, 40000))
+        b = datetime.date(1971, 1, 1) + datetime.timedelta(days=r.randint(0, 40000))
+        assert f(a.isoformat(), b.isoformat()) == abs((a - b).days)
+
+
+@test(f"{MG}:dates#Angle between clock hands")
+def _(ns):
+    f = ns["angle_clock"]
+    assert f(12, 30) == 165 and f(3, 30) == 75 and f(3, 15) == 7.5
+    for h in range(1, 13):
+        for m in range(60):
+            hh = (h % 12) * 30 + m * 0.5
+            mm = m * 6
+            diff = abs(hh - mm)
+            assert abs(f(h, m) - min(diff, 360 - diff)) < 1e-9 and 0 <= f(h, m) <= 180
+
+
+@test(f"{MG}:dates#Minimum time visiting all points")
+def _(ns):
+    f = ns["min_time_to_visit_all_points"]
+    assert f([[1, 1], [3, 4], [-1, 0]]) == 7 and f([[3, 2], [-2, 2]]) == 5
+    r = random.Random(1213)
+    for _ in range(100):
+        pts = [[r.randint(-5, 5), r.randint(-5, 5)] for _ in range(r.randint(2, 5))]
+        total = 0
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+            x, y, t = x1, y1, 0
+            while (x, y) != (x2, y2):
+                x += (x2 > x) - (x2 < x)
+                y += (y2 > y) - (y2 < y)
+                t += 1
+            total += t
+        assert f([p[:] for p in pts]) == total
+
+
+@test(f"{MG}:square-sums")
+def _(ns):
+    f = ns["judge_square_sum"]
+    assert f(5) is True and f(3) is False and f(0) is True and f(2) is True
+    for c in range(0, 300):
+        assert f(c) is any(a * a + b * b == c for a in range(0, 18) for b in range(0, 18))
+
+
+@test(f"{MG}:square-sums#Sum of distinct powers of three")
+def _(ns):
+    f = ns["check_powers_of_three"]
+    assert f(12) is True and f(91) is True and f(21) is False
+    for n in range(1, 600):
+        assert f(n) is any(sum(3**i for i in range(8) if mask >> i & 1) == n for mask in range(256))
+
+
+@test(f"{MG}:josephus")
+def _(ns):
+    from collections import deque
+    f = ns["find_the_winner"]
+    assert f(5, 2) == 3 and f(6, 5) == 1
+    for n in range(1, 30):
+        for k in range(1, 8):
+            q = deque(range(1, n + 1))
+            while len(q) > 1:
+                q.rotate(-(k - 1))
+                q.popleft()
+            assert f(n, k) == q[0]
+
+
+@test(f"{MG}:josephus#Elimination game")
+def _(ns):
+    f = ns["last_remaining"]
+    assert f(9) == 6 and f(1) == 1
+    for n in range(1, 120):
+        a, left = list(range(1, n + 1)), True
+        while len(a) > 1:
+            a = a[1::2] if left else a[::-1][1::2][::-1]
+            left = not left
+        assert f(n) == a[0], n
+
+
+@test(f"{MG}:int-to-text")
+def _(ns):
+    f = ns["int_to_roman"]
+    vals = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+
+    def back(s):
+        total = 0
+        for i, c in enumerate(s):
+            v = vals[c]
+            total += -v if i + 1 < len(s) and vals[s[i + 1]] > v else v
+        return total
+
+    assert f(3749) == "MMMDCCXLIX" and f(58) == "LVIII" and f(1994) == "MCMXCIV"
+    for n in range(1, 4000):
+        assert back(f(n)) == n
+
+
+@test(f"{MG}:int-to-text#Integer to English words")
+def _(ns):
+    f = ns["number_to_words"]
+    assert f(0) == "Zero" and f(123) == "One Hundred Twenty Three" and f(12345) == "Twelve Thousand Three Hundred Forty Five"
+    assert f(1234567) == "One Million Two Hundred Thirty Four Thousand Five Hundred Sixty Seven" and f(1000000) == "One Million" and f(2**31 - 1).startswith("Two Billion One Hundred Forty Seven")
+    names = {w: i + 1 for i, w in enumerate("One Two Three Four Five Six Seven Eight Nine Ten Eleven Twelve Thirteen Fourteen Fifteen Sixteen Seventeen Eighteen Nineteen".split())}
+    names.update({w: 10 * (i + 2) for i, w in enumerate("Twenty Thirty Forty Fifty Sixty Seventy Eighty Ninety".split())})
+    scale = {"Thousand": 10**3, "Million": 10**6, "Billion": 10**9}
+
+    def parse(s):
+        total = cur = 0
+        for w in s.split():
+            if w in names:
+                cur += names[w]
+            elif w == "Hundred":
+                cur *= 100
+            else:
+                total += cur * scale[w]
+                cur = 0
+        return total + cur
+
+    r = random.Random(1214)
+    for _ in range(300):
+        n = r.choice([r.randint(1, 999), r.randint(1, 99999), r.randint(1, 10**9), r.randint(1, 2**31 - 1)])
+        assert parse(f(n)) == n, n
+
+
+@test(f"{MG}:shuffle")
+def _(ns):
+    import random as _random
+    cls = ns["Solution"]
+    _random.seed(7)
+    s = cls([1, 2, 3])
+    counts = {}
+    for _ in range(6000):
+        out = tuple(s.shuffle())
+        counts[out] = counts.get(out, 0) + 1
+        assert sorted(out) == [1, 2, 3]
+        s.reset()
+    assert len(counts) == 6 and all(abs(c - 1000) < 150 for c in counts.values()), counts
+    assert s.reset() == [1, 2, 3]

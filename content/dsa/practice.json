@@ -36596,6 +36596,96 @@
    "role": "practice",
    "practice_of": null,
    "priority": "practice"
+  },
+  {
+   "id": "lc-valid-square",
+   "slug": "valid-square",
+   "number": 593,
+   "title": "Valid Square",
+   "difficulty": "medium",
+   "pattern": "Math & Geometry",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Math",
+    "Geometry"
+   ],
+   "companies": [
+    {
+     "name": "Pure Storage",
+     "group": "Databases & infra",
+     "frequency": 100.0,
+     "recent": true
+    },
+    {
+     "name": "TikTok",
+     "group": "Top tech",
+     "frequency": 24.6,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 12.6,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Math & Geometry:slopes",
+   "order": 101750,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-elimination-game",
+   "slug": "elimination-game",
+   "number": 390,
+   "title": "Elimination Game",
+   "difficulty": "medium",
+   "pattern": "Math & Geometry",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Math",
+    "Recursion"
+   ],
+   "companies": [
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 29.7,
+     "recent": true
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 18.0,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 10.5,
+     "recent": false
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 7.3,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Math & Geometry:josephus",
+   "order": 101751,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
   }
  ]
 }

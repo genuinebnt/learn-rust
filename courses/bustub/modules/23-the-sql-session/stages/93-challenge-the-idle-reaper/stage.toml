@@ -1,0 +1,8 @@
+id = "4e-c4"
+title = "Challenge: the idle reaper"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4e::s4e_c4"]
+learn = ["deciding which sessions to abort for sitting idle in a transaction", "computing when to look again instead of polling"]
+concepts = []
+concepts_optional = ["watermarks-and-garbage-collection", "sessions-and-the-transaction-state-machine", "performance-tests-and-measuring"]

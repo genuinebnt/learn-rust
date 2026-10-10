@@ -59,6 +59,9 @@ struct ModuleToml {
     lectures: Vec<String>,
     #[serde(default)]
     bustub: Vec<String>,
+    /// Beyond BusTub: nothing of the module is in BusTub's own projects. Defaults to "the module ports no BusTub file".
+    #[serde(default)]
+    beyond: Option<bool>,
     #[serde(default)]
     resources: Vec<Resource>,
 }
@@ -103,6 +106,9 @@ struct StageToml {
     /// What the learner takes away: short phrases shown as "You'll learn" under the stage title.
     #[serde(default)]
     learn: Vec<String>,
+    /// Not part of BusTub: an extra the course adds (a challenge is always beyond BusTub).
+    #[serde(default)]
+    beyond: bool,
 }
 
 /// One `## Heading` of a stage's markdown, with its body.
@@ -127,6 +133,8 @@ pub struct Stage {
     /// Concepts that are good to read but not needed for the stage.
     pub concepts_optional: Vec<String>,
     pub learn: Vec<String>,
+    /// Not part of BusTub's own projects: a challenge, or a stage the course adds (`beyond = true` in stage.toml).
+    pub beyond: bool,
     pub id: String,
     pub title: String,
     /// learn · build · boss
@@ -159,6 +167,8 @@ pub struct Module {
     pub lectures: Vec<Lecture>,
     /// BusTub's own files this module ports, as GitHub URLs.
     pub bustub: Vec<String>,
+    /// Not part of BusTub: the module ports none of its files (or says `beyond = true`). The web app tags it.
+    pub beyond: bool,
     pub resources: Vec<Resource>,
     pub stages: Vec<Stage>,
 }
@@ -250,6 +260,7 @@ impl Course {
                     concepts: def.concepts,
                     concepts_optional: def.concepts_optional,
                     learn: def.learn,
+                    beyond: def.beyond || def.kind == "challenge",
                     id: def.id,
                     title: def.title,
                     kind: def.kind,
@@ -266,6 +277,7 @@ impl Course {
             modules.push(Module {
                 planned: meta.planned_modules.contains(&mt.code),
                 optional: mt.optional,
+                beyond: mt.beyond.unwrap_or(mt.bustub.is_empty()),
                 code: mt.code,
                 title: mt.title,
                 summary: mt.summary,

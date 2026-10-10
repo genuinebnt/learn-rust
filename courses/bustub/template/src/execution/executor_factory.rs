@@ -25,7 +25,12 @@ use super::check_options::CheckOption;
 use super::plans::plan_node::{PlanRef, PlanType};
 use crate::common::exception::{Exception, ExceptionType, Result};
 
+/// The executor for `plan`, measured when the execution is an `EXPLAIN ANALYZE`.
 pub fn create_executor<'e>(ctx: &'e ExecutorContext<'e>, plan: &PlanRef) -> Result<ExecutorBox<'e>> {
+    create_plain_executor(ctx, plan)
+}
+
+fn create_plain_executor<'e>(ctx: &'e ExecutorContext<'e>, plan: &PlanRef) -> Result<ExecutorBox<'e>> {
     match plan.plan_type() {
         PlanType::MockScan => Ok(Box::new(MockScanExecutor::new(plan.clone()))),
         PlanType::Projection => {
@@ -77,6 +82,9 @@ pub fn create_executor<'e>(ctx: &'e ExecutorContext<'e>, plan: &PlanRef) -> Resu
         PlanType::Limit => {
             let child = create_executor(ctx, &plan.children[0])?;
             Ok(Box::new(LimitExecutor::new(plan.clone(), child)))
+        }
+        PlanType::Offset => {
+            Err(Exception::new(ExceptionType::NotImplemented, "an Offset plan has no executor yet"))
         }
         PlanType::TopN => {
             let mut child = create_executor(ctx, &plan.children[0])?;

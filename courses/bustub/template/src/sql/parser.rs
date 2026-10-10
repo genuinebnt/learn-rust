@@ -13,7 +13,7 @@ const RESERVED: &[&str] = &[
 ];
 
 pub fn parse(sql: &str) -> Result<Vec<Statement>> {
-    let mut parser = Parser { tokens: tokenize(sql)?, pos: 0 };
+    let mut parser = Parser { tokens: tokenize(sql)?, pos: 0, params: 0 };
     let mut statements = vec![];
     loop {
         while parser.eat_symbol(";") {}
@@ -30,7 +30,7 @@ pub fn parse(sql: &str) -> Result<Vec<Statement>> {
 
 /// Parses one expression and nothing else: `1 + 2 * 3`, `lower(name) = 'x' and not b`.
 pub fn parse_expr(sql: &str) -> Result<Expr> {
-    let mut parser = Parser { tokens: tokenize(sql)?, pos: 0 };
+    let mut parser = Parser { tokens: tokenize(sql)?, pos: 0, params: 0 };
     let e = parser.expr()?;
     if parser.peek().is_some() {
         return Err(parser.unexpected());
@@ -41,6 +41,8 @@ pub fn parse_expr(sql: &str) -> Result<Expr> {
 struct Parser {
     tokens: Vec<Token>,
     pos: usize,
+    /// How many `?` placeholders were read so far (module 3i).
+    params: usize,
 }
 
 type P<T> = Result<T>;
@@ -181,7 +183,7 @@ impl Parser {
             "begin" | "start" => {
                 self.pos += 1;
                 self.eat_word("transaction");
-                Ok(Statement::Begin)
+                Ok(Statement::Begin { isolation: None })
             }
             "commit" | "end" => {
                 self.pos += 1;
@@ -198,6 +200,9 @@ impl Parser {
     fn explain(&mut self) -> P<Statement> {
         self.expect_word("explain")?;
         let mut options = vec![];
+        if self.eat_word("analyze") {
+            options.push("analyze".to_string());
+        }
         if self.eat_symbol("(") {
             loop {
                 match self.next() {
@@ -599,6 +604,7 @@ impl Parser {
             }
         }
     }
+
 
     fn column_or_call(&mut self, first: String, quoted: bool) -> P<Expr> {
         if !quoted && self.at_symbol("(") {

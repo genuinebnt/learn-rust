@@ -11,6 +11,8 @@ pub mod limit_executor;
 pub mod mock_scan_executor;
 pub mod nested_index_join_executor;
 pub mod nested_loop_join_executor;
+pub mod offset_executor;
+pub mod profiling_executor;
 pub mod projection_executor;
 pub mod seq_scan_executor;
 pub mod topn_executor;

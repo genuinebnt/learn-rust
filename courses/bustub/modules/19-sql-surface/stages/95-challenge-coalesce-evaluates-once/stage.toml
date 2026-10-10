@@ -1,0 +1,8 @@
+id = "3i-c6"
+title = "Challenge: COALESCE that evaluates each argument once"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3i::s3i_c6"]
+learn = ["an expression node of your own in the planner's tree", "evaluating arguments lazily and exactly once"]
+concepts = []
+concepts_optional = ["case-expressions-and-lazy-evaluation", "expression-trees", "sql-types-and-three-valued-logic"]

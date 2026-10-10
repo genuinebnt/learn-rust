@@ -1,0 +1,8 @@
+id = "4e-c5"
+title = "Challenge: a session pool"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4e::s4e_c5"]
+learn = ["handing sessions out and taking them back with their state cleaned", "bounding the number of concurrent sessions"]
+concepts = []
+concepts_optional = ["sessions-and-the-transaction-state-machine", "condvars-and-blocking-queues", "raii-guards-and-lifetimes"]

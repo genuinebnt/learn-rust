@@ -1,0 +1,26 @@
+code = "3i"
+title = "The SQL surface"
+summary = "The everyday SQL that BusTub's engine does not run, added to your engine in six steps: the operators it left out (`*`, `/`, `%`, `||`, `NOT`, unary minus, `IS NULL`), `BETWEEN` and `IN` with their NULL traps, `CASE`, `COALESCE` and `NULLIF`, `LIKE` without exponential backtracking, `OFFSET` and `DISTINCT` aggregates, and then two tools: `EXPLAIN ANALYZE` and prepared statements. The boss checks the whole surface against a model of three-valued logic. New in this course: none of it is in BusTub's projects."
+lectures = ["modernsql", "queryexecution1"]
+bustub = []
+files = []
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: conditional expressions (CASE, COALESCE, NULLIF)"
+url = "https://www.postgresql.org/docs/current/functions-conditional.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: pattern matching (LIKE)"
+url = "https://www.postgresql.org/docs/current/functions-matching.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: using EXPLAIN (ANALYZE)"
+url = "https://www.postgresql.org/docs/current/using-explain.html"
+
+[[resources]]
+kind = "docs"
+title = "PostgreSQL: PREPARE"
+url = "https://www.postgresql.org/docs/current/sql-prepare.html"

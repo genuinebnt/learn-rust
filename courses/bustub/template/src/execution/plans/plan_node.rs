@@ -99,6 +99,7 @@ pub enum PlanType {
     Delete,
     Aggregation,
     Limit,
+    Offset,
     NestedLoopJoin,
     NestedIndexJoin,
     HashJoin,
@@ -128,6 +129,8 @@ pub enum PlanKind {
     /// `GROUP BY group_bys` computing `aggregates` (an expression and a type for each).
     Aggregation { group_bys: Vec<ExprRef>, aggregates: Vec<ExprRef>, agg_types: Vec<AggregationType> },
     Limit { limit: usize },
+    /// Drops the first `offset` rows of its one child.
+    Offset { offset: usize },
     /// Two children (left, right) and a predicate over a pair of tuples.
     NestedLoopJoin { predicate: ExprRef, join_type: JoinType },
     /// One child (the outer side); the inner side is looked up in `index_oid` with `key_predicate`.
@@ -181,6 +184,7 @@ impl PlanNode {
             PlanKind::Delete { .. } => PlanType::Delete,
             PlanKind::Aggregation { .. } => PlanType::Aggregation,
             PlanKind::Limit { .. } => PlanType::Limit,
+            PlanKind::Offset { .. } => PlanType::Offset,
             PlanKind::NestedLoopJoin { .. } => PlanType::NestedLoopJoin,
             PlanKind::NestedIndexJoin { .. } => PlanType::NestedIndexJoin,
             PlanKind::HashJoin { .. } => PlanType::HashJoin,
@@ -214,6 +218,11 @@ impl PlanNode {
         Arc::new(PlanNode { output_schema, ..self.clone() })
     }
 
+    /// The one-line description of this operator (without its children), as `EXPLAIN` prints it.
+    pub fn node_to_string(&self) -> String {
+        self.plan_node_to_string()
+    }
+
     /// The one-line description of this operator, as `EXPLAIN` prints it.
     fn plan_node_to_string(&self) -> String {
         match &self.kind {
@@ -234,6 +243,7 @@ impl PlanNode {
                 format!("Agg {{ types={}, aggregates={}, group_by={} }}", list(agg_types), list(aggregates), list(group_bys))
             }
             PlanKind::Limit { limit } => format!("Limit {{ limit={limit} }}"),
+            PlanKind::Offset { offset } => format!("Offset {{ offset={offset} }}"),
             PlanKind::NestedLoopJoin { predicate, join_type } => format!("NestedLoopJoin {{ type={join_type}, predicate={predicate} }}"),
             PlanKind::NestedIndexJoin { key_predicate, index_name, index_table_name, join_type, .. } => {
                 format!("NestedIndexJoin {{ type={join_type}, key_predicate={key_predicate}, index={index_name}, index_table={index_table_name} }}")

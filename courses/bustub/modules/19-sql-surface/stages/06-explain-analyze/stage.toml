@@ -1,0 +1,8 @@
+id = "3i-06"
+title = "EXPLAIN ANALYZE"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3i::s3i_06"]
+learn = ["a decorator that measures an executor without changing it", "rows, batches, loops and inclusive time per operator", "reading a measured plan"]
+concepts = ["explain-analyze-and-operator-statistics", "the-iterator-model"]
+concepts_optional = ["performance-tests-and-measuring", "testing-with-fakes", "trait-objects-and-the-disk-seam", "errors-3d"]

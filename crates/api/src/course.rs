@@ -85,11 +85,11 @@ pub async fn overview(State(s): State<AppState>, Path(course): Path<String>) -> 
                             } else if state != "todo" {
                                 done += 1;
                             }
-                            json!({ "id": x.id, "title": x.title, "kind": x.kind, "difficulty": x.difficulty, "rank": x.rank,
+                            json!({ "id": x.id, "title": x.title, "kind": x.kind, "difficulty": x.difficulty, "rank": x.rank, "beyond": x.beyond,
                                     "state": state, "runs": runs.get(&x.id).copied().unwrap_or(0) })
                         })
                         .collect();
-                    json!({ "code": m.code, "title": m.title, "summary": m.summary, "planned": m.planned, "optional": m.optional, "stages": stages })
+                    json!({ "code": m.code, "title": m.title, "summary": m.summary, "planned": m.planned, "optional": m.optional, "beyond": m.beyond, "stages": stages })
                 })
                 .collect();
             json!({ "number": p.number, "title": p.title, "planned": p.planned, "modules": modules })

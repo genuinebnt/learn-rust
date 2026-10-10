@@ -39,6 +39,17 @@ test("the optional Rust on-ramp is listed first and tagged OPTIONAL, not PLANNED
     expect(first).toBe("mod-r");
 });
 
+test("modules and extras that are not part of BusTub carry a BEYOND tag", async ({ page }) => {
+    await page.goto("/courses/bustub");
+    await expect(page.locator("#mod-4d .k-mh .k-beyond")).toHaveText("BEYOND BUSTUB");
+    await expect(page.locator("#mod-1a .k-mh .k-beyond")).toHaveCount(0);
+    await page.getByRole("button", { name: "EXPAND ALL" }).click();
+    const challenge = page.locator("#mod-1a .k-row", { hasText: "CHALLENGE" }).first();
+    await expect(challenge.locator(".k-beyond")).toHaveText("BEYOND");
+    // inside a module that is beyond BusTub as a whole, the rows do not repeat the tag
+    await expect(page.locator("#mod-4d .k-row .k-beyond")).toHaveCount(0);
+});
+
 test("Reset progress forgets one module after you type reset, and leaves the others", async ({ page, request }) => {
     const pass = (id: string) => request.post("/api/courses/bustub/runs", { data: { stage_id: id, tests: [{ name: "a", ok: true, detail: "" }] } });
     await pass("4c-01");

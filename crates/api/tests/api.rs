@@ -1547,6 +1547,13 @@ async fn course_tree_stage_page_runs_and_solutions(db: PgPool) {
     assert_eq!(tree["current"], "1a-01");
     let projects = tree["projects"].as_array().unwrap();
     assert!(!projects.is_empty() && projects.iter().all(|p| p["planned"].is_boolean()), "every project says whether it is only planned");
+    // beyond BusTub: a module that ports none of BusTub's files, and every challenge; BusTub's own modules and stages are not
+    let module = |code: &str| projects.iter().flat_map(|p| p["modules"].as_array().unwrap()).find(|m| m["code"] == code).cloned().unwrap_or_else(|| panic!("module {code}"));
+    assert_eq!(module("4d")["beyond"], true, "the lock manager is not part of BusTub");
+    assert_eq!(module("1a")["beyond"], false, "the disk manager is");
+    let stages = |code: &str| module(code)["stages"].as_array().unwrap().clone();
+    assert!(stages("1a").iter().filter(|x| x["kind"] == "challenge").all(|x| x["beyond"] == true), "every challenge is beyond BusTub");
+    assert!(stages("1a").iter().filter(|x| x["kind"] != "challenge").all(|x| x["beyond"] == false), "BusTub's own stages are not");
 
     // a stage page: markdown parts, no hints written yet, no solution uploaded yet
     let (status, st) = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await;

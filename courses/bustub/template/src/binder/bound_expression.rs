@@ -40,6 +40,8 @@ pub enum BoundExpression {
     UnaryOp { op: String, arg: Box<BoundExpression> },
     FuncCall { func_name: String, args: Vec<BoundExpression> },
     AggCall { func_name: String, is_distinct: bool, args: Vec<BoundExpression> },
+    /// `CASE WHEN c THEN r ... [ELSE e] END`.
+    Case { branches: Vec<(BoundExpression, BoundExpression)>, otherwise: Option<Box<BoundExpression>> },
     Alias { alias: String, child: Box<BoundExpression> },
     Window(Box<BoundWindow>),
     Star,
@@ -56,6 +58,9 @@ impl BoundExpression {
             BoundExpression::Alias { child, .. } => child.has_aggregation(),
             BoundExpression::BinaryOp { left, right, .. } => left.has_aggregation() || right.has_aggregation(),
             BoundExpression::UnaryOp { arg, .. } => arg.has_aggregation(),
+            BoundExpression::Case { branches, otherwise } => {
+                branches.iter().any(|(c, r)| c.has_aggregation() || r.has_aggregation()) || otherwise.as_ref().is_some_and(|e| e.has_aggregation())
+            }
             _ => false,
         }
     }
@@ -80,7 +85,19 @@ impl fmt::Display for BoundExpression {
             BoundExpression::Constant(v) => write!(f, "{v}"),
             BoundExpression::ColumnRef(name) => write!(f, "{}", name.join(".")),
             BoundExpression::BinaryOp { op, left, right } => write!(f, "({left}{op}{right})"),
+            // an operator written in words (`not`, `is null`) needs a space before its operand
+            BoundExpression::UnaryOp { op, arg } if op.chars().all(|c| c.is_alphabetic() || c == ' ') => write!(f, "({op} {arg})"),
             BoundExpression::UnaryOp { op, arg } => write!(f, "({op}{arg})"),
+            BoundExpression::Case { branches, otherwise } => {
+                write!(f, "(case")?;
+                for (c, r) in branches {
+                    write!(f, " when {c} then {r}")?;
+                }
+                if let Some(e) = otherwise {
+                    write!(f, " else {e}")?;
+                }
+                write!(f, " end)")
+            }
             BoundExpression::FuncCall { func_name, args } => write!(f, "{func_name}({})", join(args)),
             BoundExpression::AggCall { func_name, is_distinct, args } => {
                 write!(f, "{func_name}({}{})", if *is_distinct { "distinct " } else { "" }, join(args))

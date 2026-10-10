@@ -1,0 +1,8 @@
+id = "3i-c3"
+title = "Challenge: simplifying a CASE"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3i::s3i_c3"]
+learn = ["constant folding that must not change meaning", "finding the branches of a CASE that can never be taken"]
+concepts = []
+concepts_optional = ["case-expressions-and-lazy-evaluation", "rule-based-query-optimization", "property-testing-and-fuzzing"]

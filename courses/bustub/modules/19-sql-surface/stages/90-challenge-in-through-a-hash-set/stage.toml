@@ -1,0 +1,8 @@
+id = "3i-c1"
+title = "Challenge: IN through a hash set"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3i::s3i_c1"]
+learn = ["answering `x IN (constants)` in constant time per row", "keeping SQL's third answer when the list contains a NULL"]
+concepts = []
+concepts_optional = ["sql-types-and-three-valued-logic", "hash-aggregation", "property-testing-and-fuzzing"]

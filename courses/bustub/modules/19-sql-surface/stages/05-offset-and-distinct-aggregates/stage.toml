@@ -1,0 +1,8 @@
+id = "3i-05"
+title = "OFFSET and DISTINCT aggregates"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_3i::s3i_05"]
+learn = ["adding an operator and a plan node end to end", "rewriting count(distinct x) into two aggregations", "what OFFSET does to batching and to top-N"]
+concepts = ["the-iterator-model", "hash-aggregation"]
+concepts_optional = ["sort-keys-and-null-ordering", "top-n-with-a-bounded-heap", "the-sql-pipeline", "errors-3d"]

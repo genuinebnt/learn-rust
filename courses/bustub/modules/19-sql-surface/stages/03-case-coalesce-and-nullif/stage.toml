@@ -1,0 +1,8 @@
+id = "3i-03"
+title = "CASE, COALESCE and NULLIF"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_3i::s3i_03"]
+learn = ["an expression that must not evaluate all of its operands", "typing branches, and the one allowance for a bare NULL", "lowering COALESCE and NULLIF to a CASE in the binder"]
+concepts = ["case-expressions-and-lazy-evaluation", "expression-trees"]
+concepts_optional = ["sql-types-and-three-valued-logic", "name-resolution-and-the-binder", "the-sql-pipeline", "errors-3d"]

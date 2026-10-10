@@ -1,0 +1,8 @@
+id = "4e-c3"
+title = "Challenge: the commit that kept a failed transaction"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4e::s4e_c3"]
+learn = ["reading a state machine for the transition that is wrong", "what COMMIT must say about a transaction that failed"]
+concepts = []
+concepts_optional = ["sessions-and-the-transaction-state-machine", "property-testing-and-fuzzing", "errors-4b"]

@@ -606,7 +606,7 @@ fn s3d_04_comments_are_skipped() {
 
 #[test]
 fn s3d_04_bad_input_is_an_error_not_a_panic() {
-    for bad in ["'open", "\"open", "a @ b", "#", "select ~ 1", "a ? b"] {
+    for bad in ["'open", "\"open", "a @ b", "#", "select ~ 1", "a $ b"] {
         let e = tokenize(bad).unwrap_err();
         assert_eq!(e.kind, ExceptionType::Invalid, "{bad:?} is a parse error");
         assert!(e.to_string().contains("Query failed to parse"), "{bad:?}: {e}");
@@ -772,6 +772,7 @@ fn show(e: &Expr) -> String {
         Expr::Unary { op, expr } if op == "not" => format!("not {}", paren(expr, prec(expr) < 3)),
         Expr::Unary { expr, .. } => format!("-({})", show(expr)),
         Expr::IsNull { expr, negated } => format!("{} is {}null", paren(expr, prec(expr) < 4), if *negated { "not " } else { "" }),
+        Expr::Case { .. } | Expr::Param(_) => unreachable!("module 3d's generator makes no CASE and no placeholders (module 3i adds them)"),
     }
 }
 

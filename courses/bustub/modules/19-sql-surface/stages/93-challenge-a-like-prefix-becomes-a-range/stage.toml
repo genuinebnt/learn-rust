@@ -1,0 +1,8 @@
+id = "3i-c4"
+title = "Challenge: a LIKE prefix becomes a range"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3i::s3i_c4"]
+learn = ["the literal prefix of a LIKE pattern as an index range", "computing the smallest string above every string with a given prefix"]
+concepts = []
+concepts_optional = ["like-matching-without-backtracking", "range-scans-and-the-leaf-chain", "unicode-and-case-mapping"]

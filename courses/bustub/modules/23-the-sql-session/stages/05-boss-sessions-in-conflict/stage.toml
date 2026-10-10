@@ -1,0 +1,9 @@
+id = "4e-05"
+title = "Boss: sessions in conflict"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_4e::s4e_05"]
+learn = ["checking transactional guarantees from the SQL side", "retrying conflicted transactions", "the anomalies of the lab observed on a real engine"]
+concepts = ["snapshot-isolation", "serializable-validation-by-predicates"]
+concepts_optional = ["sessions-and-the-transaction-state-machine", "multi-version-concurrency-control", "model-based-testing", "errors-4b"]
+retest = true

@@ -4,6 +4,7 @@
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
 
+use super::analyze_stats::AnalyzeStats;
 use super::check_options::CheckOptions;
 use crate::buffer::buffer_pool_manager::BufferPoolManager;
 use crate::catalog::catalog::Catalog;
@@ -27,11 +28,13 @@ pub struct ExecutorContext<'e> {
     /// The transaction the statement runs in (module 4); `None` runs it without versions, as modules 3e to 3h do.
     txn: Option<Arc<Transaction>>,
     txn_mgr: Option<&'e TransactionManager>,
+    /// Set for `EXPLAIN ANALYZE`: every executor is measured into it (module 3i).
+    analyze: Option<Arc<AnalyzeStats>>,
 }
 
 impl<'e> ExecutorContext<'e> {
     pub fn new(catalog: &'e Catalog<'e>, bpm: &'e BufferPoolManager, is_delete: bool) -> ExecutorContext<'e> {
-        ExecutorContext { catalog, bpm, nlj_check_exec_set: Mutex::new(vec![]), check_options: CheckOptions::default(), is_delete, txn: None, txn_mgr: None }
+        ExecutorContext { catalog, bpm, nlj_check_exec_set: Mutex::new(vec![]), check_options: CheckOptions::default(), is_delete, txn: None, txn_mgr: None, analyze: None }
     }
 
     pub fn with_check_options(mut self, check_options: CheckOptions) -> ExecutorContext<'e> {
@@ -44,6 +47,17 @@ impl<'e> ExecutorContext<'e> {
         self.txn = Some(txn);
         self.txn_mgr = Some(txn_mgr);
         self
+    }
+
+    /// Measures every executor of this execution into `stats` (`EXPLAIN ANALYZE`).
+    pub fn with_analyze(mut self, stats: Arc<AnalyzeStats>) -> ExecutorContext<'e> {
+        self.analyze = Some(stats);
+        self
+    }
+
+    /// Where to record measurements, when this execution is being analysed.
+    pub fn analyze_stats(&self) -> Option<&Arc<AnalyzeStats>> {
+        self.analyze.as_ref()
     }
 
     pub fn txn(&self) -> Option<&Arc<Transaction>> {

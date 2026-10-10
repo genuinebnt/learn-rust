@@ -331,6 +331,8 @@ impl<'c, 'a> Planner<'c, 'a> {
                 Ok((alias.clone(), e))
             }
             BoundExpression::Window(_) => Err(exception("should not parse window expressions here")),
+            // TODO(3i-01): unary `-`, `not`, `is null` and `is not null` become an OperatorExpression over the planned operand
+            // TODO(3i-03): a Case becomes a CaseExpression over its planned conditions, results and else
             other => Err(exception(format!("expression type {other} not supported in planner yet"))),
         }
     }
@@ -370,6 +372,8 @@ impl<'c, 'a> Planner<'c, 'a> {
     }
 
     pub fn get_binary_expression_from_factory(op_name: &str, left: ExprRef, right: ExprRef) -> Result<ExprRef> {
+        // TODO(3i-01): `*`, `/`, `%`, `||`, and `+` and `-` on non-integers: build an OperatorExpression
+        // TODO(3i-04): `like` becomes a LikeExpression
         let cmp = |t| -> Result<ExprRef> { Ok(Arc::new(ComparisonExpression::new(left.clone(), right.clone(), t))) };
         match op_name {
             "=" | "==" => cmp(ComparisonType::Equal),
@@ -401,6 +405,16 @@ impl<'c, 'a> Planner<'c, 'a> {
             BoundExpression::BinaryOp { left, right, .. } => {
                 Self::collect_aggregates(left, out)?;
                 Self::collect_aggregates(right, out)?;
+            }
+            BoundExpression::UnaryOp { arg, .. } => Self::collect_aggregates(arg, out)?,
+            BoundExpression::Case { branches, otherwise } => {
+                for (c, r) in branches {
+                    Self::collect_aggregates(c, out)?;
+                    Self::collect_aggregates(r, out)?;
+                }
+                if let Some(e) = otherwise {
+                    Self::collect_aggregates(e, out)?;
+                }
             }
             BoundExpression::FuncCall { args, .. } => {
                 for a in args {
@@ -494,11 +508,19 @@ impl<'c, 'a> Planner<'c, 'a> {
                 Self::collect_aggregates(item, &mut aggregations)?;
             }
 
+            let distinct_input: Option<ExprRef> = None;
+
             let mut input_exprs: Vec<ExprRef> = vec![];
             let mut agg_types = vec![];
             let agg_begin_idx = group_by_exprs.len();
             for (term_idx, agg_call) in aggregations.iter().enumerate() {
-                let (agg_type, mut exprs) = p.plan_agg_call(agg_call, &[child.clone()])?;
+                let (agg_type, mut exprs) = match &distinct_input {
+                    Some(column) => {
+                        let BoundExpression::AggCall { func_name, .. } = agg_call else { unreachable!() };
+                        Self::get_agg_call_from_factory(func_name, vec![column.clone()])?
+                    }
+                    None => p.plan_agg_call(agg_call, &[child.clone()])?,
+                };
                 if exprs.len() > 1 {
                     return Err(not_implemented("only agg call of zero/one arg is supported"));
                 }

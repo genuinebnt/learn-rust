@@ -1,0 +1,8 @@
+id = "4e-04"
+title = "When a statement fails inside a transaction"
+kind = "build"
+difficulty = "hard"
+tests = ["stages_4e::s4e_04"]
+learn = ["a transaction that cannot continue: the failed state", "what COMMIT means for a failed transaction", "write conflicts and syntax errors as the same kind of failure"]
+concepts = ["sessions-and-the-transaction-state-machine", "rolling-back-with-undo-logs"]
+concepts_optional = ["snapshot-isolation", "watermarks-and-garbage-collection", "designing-error-types", "errors-4b"]

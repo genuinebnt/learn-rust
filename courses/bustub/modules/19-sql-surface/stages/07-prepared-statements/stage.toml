@@ -1,0 +1,8 @@
+id = "3i-07"
+title = "Prepared statements"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3i::s3i_07"]
+learn = ["parsing once and executing many times", "binding values into the syntax tree instead of the text", "validating the number and type of parameters"]
+concepts = ["prepared-statements-and-parameter-binding", "lexers-and-precedence-climbing"]
+concepts_optional = ["the-sql-pipeline", "name-resolution-and-the-binder", "property-testing-and-fuzzing", "errors-3d"]

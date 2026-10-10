@@ -105,6 +105,7 @@ impl<'c, 'a> Binder<'c, 'a> {
                             "binder" | "b" => flags |= explain_options::BINDER,
                             "optimizer" | "o" => flags |= explain_options::OPTIMIZER,
                             "schema" | "s" => flags |= explain_options::SCHEMA,
+                            "analyze" | "a" => flags |= explain_options::ANALYZE,
                             _ => {}
                         }
                     }
@@ -119,7 +120,7 @@ impl<'c, 'a> Binder<'c, 'a> {
                 }
             }
             Statement::Show { name } => Ok(BoundStatement::VariableShow { variable: name.clone() }),
-            Statement::Begin => Ok(BoundStatement::Transaction("begin".into())),
+            Statement::Begin { .. } => Ok(BoundStatement::Transaction("begin".into())),
             Statement::Commit => Ok(BoundStatement::Transaction("commit".into())),
             Statement::Rollback => Ok(BoundStatement::Transaction("abort".into())),
         }
@@ -486,13 +487,22 @@ impl<'c, 'a> Binder<'c, 'a> {
                 let arg = self.bind_expression_no_star(expr, scope)?;
                 Ok(BoundExpression::UnaryOp { op: op.clone(), arg: Box::new(arg) })
             }
-            Expr::IsNull { .. } => Err(exception("Expr of type PGNullTest not implemented")),
+            Expr::Param(i) => Err(exception(format!("there is no value for parameter ${}: prepare the statement and execute it with values", i + 1))),
+            Expr::Case { branches, otherwise } => {
+                let _ = (branches, otherwise);
+                Err(not_implemented("CASE is not supported yet"))
+            }
+            Expr::IsNull { expr, negated } => {
+                let _ = (expr, negated);
+                Err(exception("Expr of type PGNullTest not implemented"))
+            }
             Expr::Function { name, args, distinct, over } => {
                 let mut children = vec![];
                 for a in args {
                     children.push(self.bind_expression(a, scope)?);
                 }
                 let mut function_name = lower(name);
+                // TODO(3i-03): `coalesce(a, b, ...)` and `nullif(a, b)` rewritten to a Case
                 if ["min", "max", "first", "last", "sum", "count", "rank", "row_number"].contains(&function_name.as_str()) {
                     if (function_name == "count" && children.is_empty()) || function_name == "row_number" {
                         function_name = "count_star".into();

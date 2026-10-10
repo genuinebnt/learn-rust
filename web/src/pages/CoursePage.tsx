@@ -113,7 +113,7 @@ const FILTERS: [Filter, string][] = [
     ["boss", "boss"],
 ];
 
-function StageRow({ course, s, current, index }: { course: string; s: CourseStageRow; current: boolean; index: number }) {
+function StageRow({ course, s, current, index, moduleBeyond }: { course: string; s: CourseStageRow; current: boolean; index: number; moduleBeyond?: boolean }) {
     return (
         <Link className={`k-row${current ? " k-cur" : ""}`} style={{ "--k": index } as CSSProperties} to="/courses/$course/$stage" params={{ course, stage: s.id }}>
             <span className={`k-ck${s.state !== "todo" ? " k-ok" : ""}`} aria-label={s.state === "todo" ? "not passed" : s.state === "assisted" ? "passed with help" : "passed"}>
@@ -124,6 +124,7 @@ function StageRow({ course, s, current, index }: { course: string; s: CourseStag
                 {s.title}
                 {s.kind === "boss" && <span className="k-boss">BUSTUB TEST</span>}
                 {s.kind === "challenge" && <span className="k-boss k-challenge" title="Extra practice: not part of the course, no solution">CHALLENGE</span>}
+                {s.beyond && !moduleBeyond && <span className="k-boss k-beyond" title="Not part of BusTub: an extra this course adds">BEYOND</span>}
             </span>
             {current ? <span className="k-next">UP NEXT</span> : <span />}
             <span className={`k-dif k-${DIF_CLASS[s.difficulty]}`}>
@@ -329,6 +330,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                             <b>
                                                                 {m.code.toUpperCase()} · {m.title}
                                                                 {m.optional && !m.planned && <span className="k-planned k-optional" title="Not on the main path: the next stage never comes from here. Do it when you want it.">OPTIONAL</span>}
+                                                                {m.beyond && !m.planned && <span className="k-btag k-beyond" title="Not part of BusTub: this module is an extra the course adds">BEYOND BUSTUB</span>}
                                                                 {m.planned && <span className="k-planned" title="This module is being rewritten. Its stages are the old ones and will change.">PLANNED</span>}
                                                             </b>
                                                             {m.summary && <p>{m.summary}</p>}
@@ -344,7 +346,7 @@ export function CoursePage({ course = COURSE_ID }: { course?: string }) {
                                                         <div inert={!isOpen}>
                                                             <div className="k-rows">
                                                                 {rows.map((x, i) => (
-                                                                    <StageRow key={x.id} course={c.id} s={x} current={x.id === c.current} index={i} />
+                                                                    <StageRow key={x.id} course={c.id} s={x} current={x.id === c.current} index={i} moduleBeyond={m.beyond} />
                                                                 ))}
                                                             </div>
                                                         </div>

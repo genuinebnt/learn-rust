@@ -1,0 +1,8 @@
+id = "3i-04"
+title = "LIKE"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3i::s3i_04"]
+learn = ["a wildcard matcher whose cost is polynomial, not exponential", "characters versus bytes in a pattern language", "NULL, NOT LIKE and escapes"]
+concepts = ["like-matching-without-backtracking", "unicode-and-case-mapping"]
+concepts_optional = ["performance-tests-and-measuring", "property-testing-and-fuzzing", "expression-trees", "errors-3d"]

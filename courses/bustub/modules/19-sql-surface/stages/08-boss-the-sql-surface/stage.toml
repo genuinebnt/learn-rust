@@ -1,0 +1,9 @@
+id = "3i-08"
+title = "Boss: the whole SQL surface"
+kind = "boss"
+difficulty = "hard"
+tests = ["stages_3i::s3i_08"]
+learn = ["checking an engine against a model written as a match", "composing features that were built one at a time", "three-valued logic through every layer"]
+concepts = ["sql-types-and-three-valued-logic", "case-expressions-and-lazy-evaluation"]
+concepts_optional = ["model-based-testing", "property-testing-and-fuzzing", "the-sql-pipeline", "errors-3d"]
+retest = true

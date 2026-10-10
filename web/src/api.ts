@@ -773,6 +773,8 @@ export interface CourseStageRow {
   rank: number;
   state: StageState;
   runs?: number;
+  /** Not part of BusTub: a challenge, or a stage the course adds. */
+  beyond?: boolean;
 }
 
 export interface CourseModuleRow {
@@ -781,6 +783,8 @@ export interface CourseModuleRow {
   planned?: boolean;
   /** Not on the main path: the next stage is never picked from it. */
   optional?: boolean;
+  /** Not part of BusTub: the module ports none of BusTub's own files. */
+  beyond?: boolean;
   title: string;
   summary: string;
   stages: CourseStageRow[];

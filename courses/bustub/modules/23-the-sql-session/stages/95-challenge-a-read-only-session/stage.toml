@@ -1,0 +1,8 @@
+id = "4e-c6"
+title = "Challenge: a read-only session"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_4e::s4e_c6"]
+learn = ["refusing writes before any of the text runs", "walking a parsed statement, including the ones that hide a statement inside"]
+concepts = []
+concepts_optional = ["sessions-and-the-transaction-state-machine", "the-sql-pipeline", "property-testing-and-fuzzing"]

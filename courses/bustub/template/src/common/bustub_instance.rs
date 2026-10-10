@@ -21,6 +21,7 @@ use crate::concurrency::transaction::Transaction;
 use crate::concurrency::transaction_manager::TransactionManager;
 use crate::common::exception::{Exception, ExceptionType, Result};
 use crate::common::result_writer::ResultWriter;
+use crate::execution::analyze_stats::AnalyzeStats;
 use crate::execution::check_options::CheckOptions;
 use crate::execution::execution_engine::ExecutionEngine;
 use crate::execution::executor_context::ExecutorContext;
@@ -99,8 +100,19 @@ impl BusTubInstance {
             return self.execute_command(sql, writer);
         }
         let statements = parser::parse(sql)?;
+        self.execute_statements(&statements, writer, check_options, txn)
+    }
+
+    /// Runs already parsed statements (what `execute_sql` does after the parser; prepared statements start here).
+    pub fn execute_statements(
+        &self,
+        statements: &[crate::sql::ast::Statement],
+        writer: &mut dyn ResultWriter,
+        check_options: Option<&CheckOptions>,
+        txn: Option<&Arc<Transaction>>,
+    ) -> Result<bool> {
         let mut is_successful = true;
-        for stmt in &statements {
+        for stmt in statements {
             let bound = {
                 let catalog = self.catalog.read().unwrap();
                 Binder::new(&catalog).bind_statement(stmt)?
@@ -274,6 +286,7 @@ impl BusTubInstance {
         planner.plan_query(statement)?;
         let plan = planner.plan.clone().expect("plan_query sets the plan");
         let show_schema = options & explain_options::SCHEMA != 0;
+        let analyze = options & explain_options::ANALYZE != 0;
         if options & explain_options::PLANNER != 0 {
             output.push_str("=== PLANNER ===\n");
             output.push_str(&plan.to_string_with(show_schema));
@@ -284,6 +297,9 @@ impl BusTubInstance {
             output.push_str("=== OPTIMIZER ===\n");
             output.push_str(&optimized.to_string_with(show_schema));
             output.push('\n');
+        }
+        if analyze {
+            return Err(Exception::new(ExceptionType::NotImplemented, "EXPLAIN ANALYZE is not supported yet"));
         }
         writer.one_cell(&output);
         Ok(())

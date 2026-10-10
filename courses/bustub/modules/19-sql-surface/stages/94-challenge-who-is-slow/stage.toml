@@ -1,0 +1,8 @@
+id = "3i-c5"
+title = "Challenge: who is slow"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_3i::s3i_c5"]
+learn = ["exclusive time from inclusive time in a tree", "reading the output of your own EXPLAIN ANALYZE"]
+concepts = []
+concepts_optional = ["explain-analyze-and-operator-statistics", "performance-tests-and-measuring", "the-iterator-model"]

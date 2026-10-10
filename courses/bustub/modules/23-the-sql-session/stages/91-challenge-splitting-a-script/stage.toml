@@ -1,0 +1,8 @@
+id = "4e-c2"
+title = "Challenge: splitting a script"
+kind = "challenge"
+difficulty = "medium"
+tests = ["stages_4e::s4e_c2"]
+learn = ["finding statement boundaries in SQL text", "why a semicolon inside a string or a comment is not a boundary"]
+concepts = []
+concepts_optional = ["lexers-and-precedence-climbing", "property-testing-and-fuzzing", "parsing-numbers-from-text"]

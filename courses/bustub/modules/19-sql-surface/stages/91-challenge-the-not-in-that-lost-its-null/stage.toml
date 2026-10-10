@@ -1,0 +1,8 @@
+id = "3i-c2"
+title = "Challenge: the NOT IN that lost its NULL"
+kind = "challenge"
+difficulty = "easy"
+tests = ["stages_3i::s3i_c2"]
+learn = ["spotting an optimisation that changes the answer", "what a NULL in a list does to NOT IN, and why `NOT EXISTS` is the safe spelling"]
+concepts = []
+concepts_optional = ["sql-types-and-three-valued-logic", "property-testing-and-fuzzing", "errors-3d"]

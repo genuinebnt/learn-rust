@@ -47,6 +47,7 @@ pub mod explain_options {
     pub const PLANNER: u8 = 2;
     pub const OPTIMIZER: u8 = 4;
     pub const SCHEMA: u8 = 8;
+    pub const ANALYZE: u8 = 16;
 }
 
 #[derive(Clone, Debug)]

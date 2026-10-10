@@ -1,0 +1,8 @@
+id = "3i-02"
+title = "BETWEEN and IN"
+kind = "build"
+difficulty = "medium"
+tests = ["stages_3i::s3i_02"]
+learn = ["rewriting syntactic sugar in the parser so nothing downstream changes", "why NOT IN with a NULL in the list selects nothing", "precedence: the AND inside BETWEEN"]
+concepts = ["sql-types-and-three-valued-logic", "lexers-and-precedence-climbing"]
+concepts_optional = ["conjunctive-predicates", "expression-trees", "property-testing-and-fuzzing", "errors-3d"]

@@ -7522,9 +7522,6 @@ def _(ns):
         return op + "(" + ",".join(gen(d - 1) for _ in range(k)) + ")"
 
     def ev(e):
-        return eval(e.replace("t", "True").replace("f", "False").replace("!", "not ").replace("&(", "all([").replace("|(", "any([").replace(")", "])" if False else ")")) if False else None
-
-    def ev2(e):
         def go(i):
             if e[i] in "tf":
                 return e[i] == "t", i + 1
@@ -7544,7 +7541,7 @@ def _(ns):
 
     for _ in range(300):
         e = gen(3)
-        assert f(e) is ev2(e), e
+        assert f(e) is ev(e), e
 
 
 @test("Stack:parser#Mini parser (nested integers)")
@@ -9289,3 +9286,239 @@ def _(ns):
     for n in range(1, 600):
         ones = [i for i, c in enumerate(reversed(bin(n)[2:])) if c == "1"]
         assert f(n) == max([b - a for a, b in zip(ones, ones[1:])] or [0])
+
+
+# ---- tries (extras) -------------------------------------------------------------------------------------------------
+
+TR = "Tries"
+
+
+@test(f"{TR}:xor-trie")
+def _(ns):
+    f = ns["find_maximum_xor"]
+    assert f([3, 10, 5, 25, 2, 8]) == 28
+    r = random.Random(1100)
+    for _ in range(200):
+        a = [r.randint(0, 100) for _ in range(r.randint(1, 8))]
+        assert f(a[:]) == max(x ^ y for x in a for y in a)
+
+
+@test(f"{TR}:xor-trie#Maximum XOR with an element not above a limit")
+def _(ns):
+    f = ns["maximize_xor"]
+    assert f([0, 1, 2, 3, 4], [[3, 1], [1, 3], [5, 6]]) == [3, 3, 7]
+    r = random.Random(1101)
+    for _ in range(200):
+        a = [r.randint(0, 50) for _ in range(r.randint(1, 7))]
+        qs = [[r.randint(0, 50), r.randint(0, 60)] for _ in range(5)]
+        want = [max([x ^ v for v in a if v <= m] or [-1]) for x, m in qs]
+        assert f(a[:], [q[:] for q in qs]) == want
+
+
+@test(f"{TR}:prefix-counts")
+def _(ns):
+    f = ns["sum_prefix_scores"]
+    assert f(["abc", "ab", "bc", "b"]) == [5, 4, 3, 2] and f(["abcd"]) == [4]
+    r = random.Random(1102)
+    for _ in range(150):
+        w = ["".join(r.choice("ab") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 6))]
+        want = [sum(sum(1 for u in w if u.startswith(x[:i])) for i in range(1, len(x) + 1)) for x in w]
+        assert f(w[:]) == want
+
+
+@test(f"{TR}:prefix-counts#Map sum pairs")
+def _(ns):
+    cls = ns["MapSum"]
+    r = random.Random(1103)
+    for _ in range(100):
+        m, ref = cls(), {}
+        for _ in range(20):
+            if r.random() < 0.5:
+                k = "".join(r.choice("ab") for _ in range(r.randint(1, 3)))
+                v = r.randint(1, 9)
+                m.insert(k, v)
+                ref[k] = v
+            else:
+                p = "".join(r.choice("ab") for _ in range(r.randint(0, 3)))
+                assert m.sum(p) == sum(v for k, v in ref.items() if k.startswith(p))
+
+
+@test(f"{TR}:prefix-counts#Count prefix and suffix pairs")
+def _(ns):
+    f = ns["count_prefix_suffix_pairs"]
+    assert f(["a", "aba", "ababa", "aa"]) == 4 and f(["pa", "papa", "ma", "mama"]) == 2 and f(["abab", "ab"]) == 0
+    r = random.Random(1104)
+    for _ in range(200):
+        w = ["".join(r.choice("ab") for _ in range(r.randint(1, 5))) for _ in range(r.randint(1, 6))]
+        want = sum(1 for i in range(len(w)) for j in range(i + 1, len(w)) if w[j].startswith(w[i]) and w[j].endswith(w[i]))
+        assert f(w[:]) == want
+
+
+@test(f"{TR}:shortest-root")
+def _(ns):
+    f = ns["replace_words"]
+    assert f(["cat", "bat", "rat"], "the cattle was rattled by the battery") == "the cat was rat by the bat"
+    r = random.Random(1105)
+    for _ in range(150):
+        d = ["".join(r.choice("ab") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 4))]
+        sent = " ".join("".join(r.choice("abc") for _ in range(r.randint(1, 5))) for _ in range(r.randint(1, 5)))
+        want = []
+        for word in sent.split():
+            roots = [x for x in d if word.startswith(x)]
+            want.append(min(roots, key=len) if roots else word)
+        assert f(d[:], sent) == " ".join(want)
+
+
+@test(f"{TR}:shortest-root#Longest word in the dictionary")
+def _(ns):
+    f = ns["longest_word"]
+    assert f(["w", "wo", "wor", "worl", "world"]) == "world" and f(["a", "banana", "app", "appl", "ap", "apply", "apple"]) == "apple"
+    r = random.Random(1106)
+    for _ in range(200):
+        w = list({"".join(r.choice("ab") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 8))})
+        ws = set(w)
+        ok = [x for x in w if all(x[:i] in ws for i in range(1, len(x) + 1))]
+        want = min(ok, key=lambda x: (-len(x), x)) if ok else ""
+        assert f(w[:]) == want
+
+
+@test(f"{TR}:shortest-root#Short encoding of words (reversed trie)")
+def _(ns):
+    f = ns["minimum_length_encoding"]
+    assert f(["time", "me", "bell"]) == 10 and f(["t"]) == 2
+    r = random.Random(1107)
+    for _ in range(200):
+        w = ["".join(r.choice("ab") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 6))]
+        u = set(w)
+        keep = [x for x in u if not any(y != x and y.endswith(x) for y in u)]
+        assert f(w[:]) == sum(len(x) + 1 for x in keep)
+
+
+@test(f"{TR}:folders")
+def _(ns):
+    f = ns["remove_subfolders"]
+    assert sorted(f(["/a", "/a/b", "/c/d", "/c/d/e", "/c/f"])) == ["/a", "/c/d", "/c/f"]
+    r = random.Random(1108)
+    for _ in range(150):
+        paths = list({"/" + "/".join(r.choice("abc") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 8))})
+        want = [p for p in paths if not any(q != p and p.startswith(q + "/") for q in paths)]
+        assert sorted(f(paths[:])) == sorted(want)
+
+
+@test(f"{TR}:folders#Design file system")
+def _(ns):
+    cls = ns["FileSystem"]
+    fs = cls()
+    assert fs.createPath("/a", 1) is True and fs.get("/a") == 1 and fs.createPath("/leet/code", 2) is False
+    assert fs.createPath("/leet", 1) is True and fs.createPath("/leet/code", 2) is True and fs.get("/leet/code") == 2 and fs.createPath("/a", 5) is False and fs.get("/x") == -1
+
+
+@test(f"{TR}:prefix-suffix")
+def _(ns):
+    cls = ns["WordFilter"]
+    wf = cls(["apple"])
+    assert wf.f("a", "e") == 0 and wf.f("b", "") == -1
+    r = random.Random(1109)
+    for _ in range(100):
+        words = ["".join(r.choice("ab") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 5))]
+        wf = cls(words[:])
+        for _ in range(8):
+            p = "".join(r.choice("ab") for _ in range(r.randint(0, 3)))
+            s = "".join(r.choice("ab") for _ in range(r.randint(0, 3)))
+            want = max([i for i, w in enumerate(words) if w.startswith(p) and w.endswith(s)] or [-1])
+            assert wf.f(p, s) == want
+
+
+@test(f"{TR}:fuzzy")
+def _(ns):
+    cls = ns["MagicDictionary"]
+    r = random.Random(1110)
+    for _ in range(100):
+        d = ["".join(r.choice("ab") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 5))]
+        m = cls()
+        m.buildDict(d)
+        for _ in range(8):
+            q = "".join(r.choice("ab") for _ in range(r.randint(1, 3)))
+            want = any(len(w) == len(q) and sum(a != b for a, b in zip(w, q)) == 1 for w in d)
+            assert m.search(q) is want
+
+
+@test(f"{TR}:fuzzy#Words within two edits")
+def _(ns):
+    f = ns["two_edit_words"]
+    assert f(["word", "note", "ants", "wood"], ["wood", "joke", "moat"]) == ["word", "note", "wood"]
+
+
+@test(f"{TR}:segment-dp")
+def _(ns):
+    f = ns["min_extra_char"]
+    assert f("leetscode", ["leet", "code", "leetcode"]) == 1 and f("sayhelloworld", ["hello", "world"]) == 3
+    r = random.Random(1111)
+    for _ in range(200):
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 9)))
+        d = list({"".join(r.choice("ab") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 4))})
+        best = [0] * (len(s) + 1)
+        for i in range(len(s) - 1, -1, -1):
+            best[i] = best[i + 1] + 1
+            for w in d:
+                if s.startswith(w, i):
+                    best[i] = min(best[i], best[i + len(w)])
+        assert f(s, d[:]) == best[0]
+
+
+@test(f"{TR}:segment-dp#Greedy segmentation (partition string)")
+def _(ns):
+    f = ns["partition_string"]
+    assert f("abbccccd") == ["a", "b", "bc", "c", "cc", "d"]
+    r = random.Random(1112)
+    for _ in range(100):
+        s = "".join(r.choice("ab") for _ in range(r.randint(1, 12)))
+        parts = f(s)
+        assert "".join(parts) in (s, s[:len("".join(parts))]) and len(parts) == len(set(parts))
+
+
+@test(f"{TR}:palindrome-pairs")
+def _(ns):
+    f = ns["palindrome_pairs"]
+    assert sorted(f(["abcd", "dcba", "lls", "s", "sssll"])) == [[0, 1], [1, 0], [2, 4], [3, 2]] and sorted(f(["a", ""])) == [[0, 1], [1, 0]]
+    r = random.Random(1113)
+    for _ in range(200):
+        words = list({"".join(r.choice("ab") for _ in range(r.randint(0, 4))) for _ in range(r.randint(1, 6))})
+        want = sorted([i, j] for i in range(len(words)) for j in range(len(words)) if i != j and (words[i] + words[j]) == (words[i] + words[j])[::-1])
+        assert sorted(f(words[:])) == want
+
+
+@test(f"{TR}:palindrome-pairs#Shortest palindrome")
+def _(ns):
+    f = ns["shortest_palindrome"]
+    assert f("aacecaaa") == "aaacecaaa" and f("abcd") == "dcbabcd" and f("") == ""
+    r = random.Random(1114)
+    for _ in range(300):
+        s = "".join(r.choice("ab") for _ in range(r.randint(0, 8)))
+        out = f(s)
+        assert out == out[::-1] and out.endswith(s)
+        best = min((p + s for k in range(len(s) + 1) for p in [s[::-1][:k]] if (p + s) == (p + s)[::-1]), key=len)
+        assert out == best
+
+
+@test(f"{TR}:autocomplete")
+def _(ns):
+    cls = ns["AutocompleteSystem"]
+    t = cls(["i love you", "island", "iroman", "i love leetcode"], [5, 3, 2, 2])
+    assert t.input("i") == ["i love you", "island", "i love leetcode"] and t.input(" ") == ["i love you", "i love leetcode"] and t.input("a") == [] and t.input("#") == []
+    r = random.Random(1115)
+    for _ in range(60):
+        sents = list({"".join(r.choice("ab ") for _ in range(r.randint(1, 4))) for _ in range(r.randint(1, 4))})
+        times = [r.randint(1, 5) for _ in sents]
+        sys_, count = cls(sents[:], times[:]), dict(zip(sents, times))
+        for _ in range(3):
+            typed = ""
+            for ch in "".join(r.choice("ab ") for _ in range(r.randint(1, 3))) + "#":
+                out = sys_.input(ch)
+                if ch == "#":
+                    count[typed] = count.get(typed, 0) + 1
+                    assert out == []
+                else:
+                    typed += ch
+                    cand = sorted((s for s in count if s.startswith(typed)), key=lambda s: (-count[s], s))[:3]
+                    assert out == cand, (typed, out, cand)

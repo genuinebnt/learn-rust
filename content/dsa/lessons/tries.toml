@@ -135,6 +135,531 @@ pitfalls = [
     "Delete exhausted branches of the trie. Later searches then skip them.",
 ]
 
+[[extra]]
+id = "Tries:xor-trie"
+name = "Binary trie for the maximum XOR"
+group = "XOR with a binary trie"
+signals = [
+    "the largest XOR of two numbers in a set, or of a number with any element not above a bound",
+    "insert the numbers bit by bit from the highest; for a query take the opposite bit when that branch exists",
+    "with a bound on the partner, sort the queries and insert numbers as the bound grows",
+]
+template_name = "Maximum XOR of two numbers"
+template = '''
+def find_maximum_xor(nums):
+    root = {}
+    for x in nums:
+        node = root
+        for bit in range(31, -1, -1):
+            node = node.setdefault(x >> bit & 1, {})
+    best = 0
+    for x in nums:
+        node, value = root, 0
+        for bit in range(31, -1, -1):
+            want = 1 - (x >> bit & 1)  # the opposite bit: a bigger XOR
+            if want in node:
+                value |= 1 << bit
+                node = node[want]
+            else:
+                node = node[1 - want]
+        best = max(best, value)
+    return best
+'''
+pitfalls = [
+    "Use the same width (32 bits) for every number so all paths have the same length.",
+    "Greedy per bit is right: a higher bit is worth more than all lower bits together.",
+    "A hash set of prefixes does the same job without building a trie.",
+]
+examples = ["maximum-xor-of-two-numbers-in-an-array", "maximum-xor-with-an-element-from-array"]
+
+[[extra.variant]]
+name = "Maximum XOR with an element not above a limit"
+note = "Sort the queries by limit and insert numbers up to it before answering each query."
+template = '''
+def maximize_xor(nums, queries):
+    nums.sort()
+    order = sorted(range(len(queries)), key=lambda i: queries[i][1])
+    out, root, j = [-1] * len(queries), {}, 0
+    for qi in order:
+        x, limit = queries[qi]
+        while j < len(nums) and nums[j] <= limit:
+            node = root
+            for bit in range(31, -1, -1):
+                node = node.setdefault(nums[j] >> bit & 1, {})
+            j += 1
+        if not root:
+            continue  # no element is small enough: -1
+        node, value = root, 0
+        for bit in range(31, -1, -1):
+            want = 1 - (x >> bit & 1)
+            if want in node:
+                value |= 1 << bit
+                node = node[want]
+            else:
+                node = node[1 - want]
+        out[qi] = value
+    return out
+'''
+
+[[extra]]
+id = "Tries:prefix-counts"
+name = "Counts on trie nodes"
+group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
+signals = [
+    "how many words start with a prefix, or the sum of scores of all prefixes of each word",
+    "store on each node how many words pass through it",
+    "a prefix score of a word is the sum of the pass counts along its path",
+]
+template_name = "Sum of prefix scores"
+template = '''
+def sum_prefix_scores(words):
+    root = {}
+    for w in words:
+        node = root
+        for ch in w:
+            node = node.setdefault(ch, {"#": 0})
+            node["#"] += 1  # one more word passes through this node
+    out = []
+    for w in words:
+        node, total = root, 0
+        for ch in w:
+            node = node[ch]
+            total += node["#"]  # words that share this prefix
+        out.append(total)
+    return out
+'''
+pitfalls = [
+    "Increment the counter when entering a node, so it counts the words that have this exact prefix.",
+    "Keep the counter under a key that is not a letter, such as '#'.",
+    "The total work is the total number of characters, not the number of pairs of words.",
+]
+examples = ["sum-of-prefix-scores-of-strings", "counting-words-with-a-given-prefix", "map-sum-pairs", "count-prefix-and-suffix-pairs-i", "count-prefix-and-suffix-pairs-ii"]
+
+[[extra.variant]]
+name = "Map sum pairs"
+note = "Store the value at the end node and add the difference along the path on every overwrite."
+template = '''
+class MapSum:
+    def __init__(self):
+        self.root = {"#": 0}  # the root counts everything
+        self.value = {}  # the current value of each key
+
+    def insert(self, key, val):
+        delta = val - self.value.get(key, 0)  # only the change is added
+        self.value[key] = val
+        node = self.root
+        node["#"] += delta
+        for ch in key:
+            node = node.setdefault(ch, {"#": 0})
+            node["#"] += delta
+
+    def sum(self, prefix):
+        node = self.root
+        for ch in prefix:
+            if ch not in node:
+                return 0
+            node = node[ch]
+        return node["#"]
+'''
+
+[[extra.variant]]
+name = "Count prefix and suffix pairs"
+note = "A trie over pairs (w[i], w[-1 - i]): a word is both a prefix and a suffix of another when its pair path exists."
+template = '''
+def count_prefix_suffix_pairs(words):
+    root, total = {}, 0
+    for w in words:
+        node = root
+        for pair in zip(w, reversed(w)):  # (i-th from each end)
+            node = node.setdefault(pair, {"#": 0})
+            total += node["#"]  # earlier words that end here fit w twice
+        node["#"] += 1  # w ends here
+    return total
+'''
+
+[[extra]]
+id = "Tries:shortest-root"
+name = "Shortest root, longest word, reversed trie"
+group = "Longest word, shortest root and common prefixes"
+signals = [
+    "replace each word by its shortest dictionary prefix",
+    "the longest word that can be built one letter at a time from other dictionary words",
+    "questions about suffixes: insert the words reversed",
+]
+template_name = "Replace words"
+template = '''
+def replace_words(dictionary, sentence):
+    root = {}
+    for w in dictionary:
+        node = root
+        for ch in w:
+            node = node.setdefault(ch, {})
+        node["$"] = w  # the word that ends here
+    out = []
+    for word in sentence.split():
+        node, root_word = root, word
+        for ch in word:
+            if ch not in node:
+                break
+            node = node[ch]
+            if "$" in node:
+                root_word = node["$"]  # the first (shortest) root wins
+                break
+        out.append(root_word)
+    return " ".join(out)
+'''
+pitfalls = [
+    "Stop at the first end marker on the walk: that is the shortest root.",
+    "Store the word at its end node: no need to rebuild it from the path.",
+    "Keep the end marker under a key that is not a letter.",
+]
+examples = ["replace-words", "longest-word-in-dictionary", "short-encoding-of-words", "longest-common-suffix-queries"]
+
+[[extra.variant]]
+name = "Longest word in the dictionary"
+note = "Walk only through end nodes: a word counts when every prefix of it is also a word."
+template = '''
+def longest_word(words):
+    root = {}
+    for w in words:
+        node = root
+        for ch in w:
+            node = node.setdefault(ch, {})
+        node["$"] = w
+    best = ""
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        for ch, child in node.items():
+            if ch != "$" and "$" in child:  # this prefix is a word too
+                w = child["$"]
+                if len(w) > len(best) or (len(w) == len(best) and w < best):
+                    best = w
+                stack.append(child)
+    return best
+'''
+
+[[extra.variant]]
+name = "Short encoding of words (reversed trie)"
+note = "A word that is a suffix of another costs nothing: insert reversed words, and count leaves."
+template = '''
+def minimum_length_encoding(words):
+    root, leaves = {}, {}
+    for w in set(words):
+        node = root
+        for ch in reversed(w):
+            node = node.setdefault(ch, {})
+        leaves[id(node)] = (node, len(w) + 1)  # the word plus its '#'
+    total = 0
+    for node, size in leaves.values():
+        if not node:  # no longer word continues it: a leaf
+            total += size
+    return total
+'''
+
+[[extra]]
+id = "Tries:folders"
+name = "Folders as a trie"
+group = "Longest word, shortest root and common prefixes"
+signals = [
+    "paths made of folder names: remove folders inside others, create a path only if its parent exists",
+    "a trie where each node is one folder name and a node can be marked as given",
+    "stop descending as soon as a marked ancestor is found",
+]
+template_name = "Remove sub-folders"
+template = '''
+def remove_subfolders(folder):
+    root = {}
+    for path in folder:
+        node = root
+        for name in path.split("/")[1:]:
+            node = node.setdefault(name, {})
+        node["$"] = path  # this folder was given
+    out = []
+
+    def walk(node):
+        for name, child in node.items():
+            if name == "$":
+                out.append(child)  # keep it, and do not look inside
+                return
+        for name, child in node.items():
+            walk(child)
+
+    walk(root)
+    return out
+'''
+pitfalls = [
+    "A node that is marked as given hides everything below it: return as soon as it is found.",
+    "Split the path on '/' and skip the empty first part.",
+    "Sorting the paths and keeping those that do not start with the last kept path + '/' also works.",
+]
+examples = ["remove-sub-folders-from-the-filesystem", "design-file-system", "design-in-memory-file-system"]
+
+[[extra.variant]]
+name = "Design file system"
+note = "A dict from full path to value; a path can be created only when its parent exists."
+template = '''
+class FileSystem:
+    def __init__(self):
+        self.value = {"": 0}  # the root, so that "/a" has a parent
+
+    def createPath(self, path, value):
+        parent = path[:path.rindex("/")]
+        if path in self.value or parent not in self.value:
+            return False
+        self.value[path] = value
+        return True
+
+    def get(self, path):
+        return self.value.get(path, -1)
+'''
+
+[[extra]]
+id = "Tries:prefix-suffix"
+name = "Prefix and suffix search"
+group = "Design problems"
+signals = [
+    "find the word with the largest weight that has a given prefix and a given suffix",
+    "store every suffix + '#' + word in one trie, so a single walk checks both",
+    "or precompute every (prefix, suffix) pair in a dictionary when the words are short",
+]
+template_name = "Word filter"
+template = '''
+class WordFilter:
+    def __init__(self, words):
+        self.best = {}  # (prefix, suffix) -> the largest index
+        for index, w in enumerate(words):
+            for i in range(len(w) + 1):
+                for j in range(len(w) + 1):
+                    # later words overwrite earlier ones
+                    self.best[(w[:i], w[j:])] = index
+
+    def f(self, pref, suff):
+        return self.best.get((pref, suff), -1)
+'''
+pitfalls = [
+    "Words are processed in order, so a later word overwrites an earlier one: the stored index is the largest.",
+    "The dictionary has up to len(w)^2 entries per word: fine for words up to 7 letters.",
+    "A trie of suffix + '{' + word answers the same query in O(len(pref) + len(suff)) with less memory per entry.",
+]
+examples = ["prefix-and-suffix-search", "longest-common-suffix-queries"]
+
+[[extra]]
+id = "Tries:fuzzy"
+name = "One wrong letter, or at most k edits"
+group = "Wildcards and approximate matching (DFS through the trie)"
+signals = [
+    "does a dictionary word differ from the query in exactly one letter",
+    "words within two edits of a query: carry an edit budget down the walk",
+    "branch to every child with the budget reduced by one when the letter differs",
+]
+template_name = "Magic dictionary"
+template = '''
+class MagicDictionary:
+    def __init__(self):
+        self.root = {}
+
+    def buildDict(self, dictionary):
+        for w in dictionary:
+            node = self.root
+            for ch in w:
+                node = node.setdefault(ch, {})
+            node["$"] = True
+
+    def search(self, word):
+        def go(node, i, edits):
+            if i == len(word):
+                return "$" in node and edits == 1
+            for ch, child in node.items():
+                if ch == "$":
+                    continue
+                if ch == word[i]:
+                    if go(child, i + 1, edits):
+                        return True
+                elif edits == 0 and go(child, i + 1, 1):
+                    return True  # use the one change here
+            return False
+
+        return go(self.root, 0, 0)
+'''
+pitfalls = [
+    "Spend the single change only when the letters differ, and finish with exactly one change used.",
+    "A word of another length can never match: the walk must reach the end at the same index.",
+    "For k edits pass the remaining budget and prune when it goes below zero.",
+]
+examples = ["implement-magic-dictionary", "words-within-two-edits-of-dictionary"]
+
+[[extra.variant]]
+name = "Words within two edits"
+note = "For each query count the positions that differ with each dictionary word of the same length."
+template = '''
+def two_edit_words(queries, dictionary):
+    out = []
+    for q in queries:
+        for w in dictionary:
+            if len(w) == len(q) and sum(a != b for a, b in zip(q, w)) <= 2:
+                out.append(q)  # one close word is enough
+                break
+    return out
+'''
+
+[[extra]]
+id = "Tries:segment-dp"
+name = "A trie inside a DP over positions"
+group = "Trie with DP (word break and its cousins)"
+signals = [
+    "split a string into dictionary words and minimise the leftover letters",
+    "dp[i] is the best for the first i letters: skip a letter, or take a word that ends at i",
+    "a trie finds all dictionary words that start at a position in one walk",
+]
+template_name = "Extra characters in a string"
+template = '''
+def min_extra_char(s, dictionary):
+    root = {}
+    for w in dictionary:
+        node = root
+        for ch in w:
+            node = node.setdefault(ch, {})
+        node["$"] = True
+    n = len(s)
+    dp = [0] * (n + 1)  # dp[i]: fewest leftover letters in s[i:]
+    for i in range(n - 1, -1, -1):
+        dp[i] = dp[i + 1] + 1  # skip the letter s[i]
+        node = root
+        for j in range(i, n):
+            if s[j] not in node:
+                break
+            node = node[s[j]]
+            if "$" in node:
+                dp[i] = min(dp[i], dp[j + 1])  # take the word s[i..j]
+    return dp[0]
+'''
+pitfalls = [
+    "Fill dp from the right so that dp[j + 1] is ready.",
+    "Every word that starts at i is found by one walk down the trie from i.",
+    "The default choice is to skip the letter at a cost of one.",
+]
+examples = ["extra-characters-in-a-string", "partition-string", "word-break"]
+
+[[extra.variant]]
+name = "Greedy segmentation (partition string)"
+note = "Cut a new segment as soon as the current one has been seen before."
+template = '''
+def partition_string(s):
+    seen, cur, out = set(), "", []
+    for ch in s:
+        cur += ch
+        if cur not in seen:  # the shortest segment not seen yet
+            seen.add(cur)
+            out.append(cur)
+            cur = ""
+    return out
+'''
+
+[[extra]]
+id = "Tries:palindrome-pairs"
+name = "Palindrome pairs"
+group = "Palindrome pairs and pairs of words"
+template_name = "Palindrome pairs"
+signals = [
+    "pairs of words whose concatenation is a palindrome",
+    "split each word at every position: if one side is a palindrome, the reverse of the other side must be a word",
+    "a hash map of reversed words answers each lookup in O(length)",
+]
+template = '''
+def palindrome_pairs(words):
+    index = {w: i for i, w in enumerate(words)}
+    out = []
+
+    def is_pal(t):
+        return t == t[::-1]
+
+    for i, w in enumerate(words):
+        for cut in range(len(w) + 1):
+            left, right = w[:cut], w[cut:]
+            if is_pal(left):  # a reverse of the right part goes before w
+                j = index.get(right[::-1])
+                if j is not None and j != i:
+                    out.append([j, i])
+            if cut != len(w) and is_pal(right):  # reverse of left: after w
+                j = index.get(left[::-1])
+                if j is not None and j != i:
+                    out.append([i, j])
+    return out
+'''
+pitfalls = [
+    "Consider every split, including the empty prefix and the empty suffix.",
+    "Skip the empty right part in the second check, or the pair (i, j) is found twice.",
+    "Never pair a word with itself.",
+]
+examples = ["palindrome-pairs", "shortest-palindrome"]
+
+[[extra.variant]]
+name = "Shortest palindrome"
+note = "Find the longest palindromic prefix with a rolling comparison; the rest, reversed, goes in front."
+template = '''
+def shortest_palindrome(s):
+    rev = s[::-1]
+    for i in range(len(s) + 1):
+        if s.startswith(rev[i:]):  # the longest palindromic prefix of s
+            return rev[:i] + s
+    return s
+'''
+
+[[extra]]
+id = "Tries:autocomplete"
+name = "Autocomplete: counts on a sentence trie"
+group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
+signals = [
+    "suggest the most frequent sentences that start with what has been typed so far",
+    "each node keeps the sentences below it with their counts, or the walk collects them with a DFS",
+    "ties are broken by the smaller string (ASCII order)",
+]
+template = '''
+import heapq
+
+
+class AutocompleteSystem:
+    def __init__(self, sentences, times):
+        self.root, self.cur, self.node = {}, "", None
+        self.node = self.root
+        for s, t in zip(sentences, times):
+            self._add(s, t)
+
+    def _add(self, s, count):
+        node = self.root
+        for ch in s:
+            node = node.setdefault(ch, {})
+        node["#"] = node.get("#", 0) + count  # how often s was typed
+
+    def input(self, c):
+        if c == "#":
+            self._add(self.cur, 1)
+            self.cur, self.node = "", self.root
+            return []
+        self.cur += c
+        if self.node is not None:
+            self.node = self.node.get(c)
+        if self.node is None:
+            return []
+        found = []  # collect (-count, sentence) under the prefix
+        stack = [(self.node, self.cur)]
+        while stack:
+            node, text = stack.pop()
+            for ch, child in node.items():
+                if ch == "#":
+                    found.append((-child, text))
+                else:
+                    stack.append((child, text + ch))
+        return [s for _, s in heapq.nsmallest(3, found)]
+'''
+pitfalls = [
+    "Remember the node of the current prefix so that each typed character costs one step.",
+    "A '#' ends the sentence: add it to the trie and reset the walk.",
+    "Sort by (-count, sentence): the highest count first, then the smaller string.",
+]
+examples = ["design-search-autocomplete-system"]
+
 [[listed]]
 name = "(a) Insert / search / startsWith with one node per letter, and one walk helper that search and startsWith share"
 group = "Basic trie"
@@ -156,10 +681,6 @@ group = "Wildcards and approximate matching (DFS through the trie)"
 note = "Related lesson: Trie with a wildcard DFS"
 
 [[listed]]
-name = "(b) One wrong letter / at most k edits: carry an edit budget down the walk"
-group = "Wildcards and approximate matching (DFS through the trie)"
-
-[[listed]]
 name = "(c) Glob patterns ('*' for any run, '?' for one letter): a skip-or-consume branch at each star"
 group = "Wildcards and approximate matching (DFS through the trie)"
 
@@ -169,47 +690,12 @@ group = "Wildcards and approximate matching (DFS through the trie)"
 note = "e.g. trie with a Levenshtein DP"
 
 [[listed]]
-name = "(a) Words passing through a node / words ending at a node, kept as counts"
-group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
-
-[[listed]]
-name = "(b) Sum of the counts along each word's path"
-group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
-note = "e.g. prefix scores of every word"
-
-[[listed]]
-name = "(c) Key-value sums by prefix: the value sits on the end node, an overwrite applies the difference along the path"
-group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
-
-[[listed]]
-name = "(d) Autocomplete: collect every word under the prefix node (DFS) / keep the best k at each node / sorted array with binary search"
-group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
-note = "e.g. search suggestions"
-
-[[listed]]
 name = "(e) Lexicographic order: DFS in letter order / k-th word by subtree counts / an implicit trie over numbers"
 group = "Prefix counting, sums and autocomplete (counts on nodes, top-k at nodes)"
 
 [[listed]]
 name = "(d) Dictionary-driven backtracking: word squares, crosswords, boggle, where each next row must match a prefix"
 group = "Word search on a grid with a trie (pruning)"
-
-[[listed]]
-name = "(a) Shortest root replacement: stop at the first end marker on the walk"
-group = "Longest word, shortest root and common prefixes"
-
-[[listed]]
-name = "(b) Longest word built one letter at a time: DFS only through end nodes / sort and keep a set of built words"
-group = "Longest word, shortest root and common prefixes"
-
-[[listed]]
-name = "(c) Suffix questions with a reversed trie: short encoding of words / longest common suffix with a best answer stored per node"
-group = "Longest word, shortest root and common prefixes"
-
-[[listed]]
-name = "(d) Sub-folders and sub-paths: keep only paths with no marked ancestor"
-group = "Longest word, shortest root and common prefixes"
-note = "e.g. trie / sort and compare neighbours"
 
 [[listed]]
 name = "(e) Longest common prefix of a whole set: walk while a node has one child and no word ends"
@@ -225,37 +711,8 @@ name = "(g) Shortest substring found in no other word: insert the substrings of 
 group = "Longest word, shortest root and common prefixes"
 
 [[listed]]
-name = "(h) Greedy segmentation by a trie of segments seen so far"
-group = "Longest word, shortest root and common prefixes"
-note = "e.g. cut when the segment is new"
-
-[[listed]]
-name = "(a) Maximum XOR of a pair: for each number take the opposite bit at every level when it exists"
-group = "XOR with a binary trie"
-problems = [
-    { slug = "maximum-xor-of-two-numbers-in-an-array", title = "Maximum XOR of Two Numbers in an Array", number = 421, difficulty = "medium", premium = false },
-    { slug = "maximum-xor-with-an-element-from-array", title = "Maximum XOR With an Element From Array", number = 1707, difficulty = "hard", premium = false },
-]
-
-[[listed]]
-name = "(b) Maximum XOR with an element not above a bound: queries sorted by bound, insert while sweeping / keep the smallest value at each node"
-group = "XOR with a binary trie"
-problems = [
-    { slug = "maximum-xor-of-two-numbers-in-an-array", title = "Maximum XOR of Two Numbers in an Array", number = 421, difficulty = "medium", premium = false },
-    { slug = "maximum-xor-with-an-element-from-array", title = "Maximum XOR With an Element From Array", number = 1707, difficulty = "hard", premium = false },
-]
-
-[[listed]]
 name = "(c) Count pairs with XOR below a limit: pass counts on nodes and a walk against the limit's bits"
 group = "XOR with a binary trie"
-
-[[listed]]
-name = "(d) Maximum XOR subarray: insert the prefix XORs as you go"
-group = "XOR with a binary trie"
-problems = [
-    { slug = "maximum-xor-of-two-numbers-in-an-array", title = "Maximum XOR of Two Numbers in an Array", number = 421, difficulty = "medium", premium = false },
-    { slug = "maximum-xor-with-an-element-from-array", title = "Maximum XOR With an Element From Array", number = 1707, difficulty = "hard", premium = false },
-]
 
 [[listed]]
 name = "(a) Delete a word: unmark it, then prune childless nodes on the way back"
@@ -271,10 +728,6 @@ note = "e.g. erase in a multiset trie"
 name = "(d) Prune exhausted nodes during a search so that later searches skip them"
 group = "Deleting from a trie and trie updates"
 note = "Related lesson: Trie to prune a grid search"
-
-[[listed]]
-name = "(e) Overwrite a key's value: apply the difference along the path"
-group = "Deleting from a trie and trie updates"
 
 [[listed]]
 name = "(a) Radix tree: edges labelled with strings, split an edge on insert, merge on delete"
@@ -325,29 +778,8 @@ problems = [
 ]
 
 [[listed]]
-name = "(b) Fewest leftover characters: dp[i] is the best of skipping a letter or taking a word"
-group = "Trie with DP (word break and its cousins)"
-
-[[listed]]
 name = "(e) Ways to form a target from a dictionary: counts per column / per position over the words"
 group = "Trie with DP (word break and its cousins)"
-
-[[listed]]
-name = "(b) Palindrome pairs: split every word at each position and look the halves up in a hash map"
-group = "Palindrome pairs and pairs of words"
-
-[[listed]]
-name = "(d) Palindromic prefix of a word (shortest palindrome): KMP failure table / rolling hash"
-group = "Palindrome pairs and pairs of words"
-
-[[listed]]
-name = "(e) Key-value map with prefix sums"
-group = "Design problems"
-note = "Related lesson: Trie insert and search"
-
-[[listed]]
-name = "(f) Word filter by prefix and suffix, with a weight per word"
-group = "Design problems"
 
 [[listed]]
 name = "(g) Dictionary classes: add a word, then query"

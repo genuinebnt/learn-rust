@@ -9,6 +9,8 @@ groups = ["Merge and combine", "Intersection and subtraction", "Selection by ear
 
 
 
+
+
 [group_tags]
 "Meeting rooms" = ["sweep-line"]
 "Line sweep" = ["sweep-line"]
@@ -199,6 +201,38 @@ difficulty = "hard"
 premium = true
 
 [[group_problem]]
+group = "Line sweep"
+slug = "my-calendar-iii"
+title = "My Calendar III"
+number = 732
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Line sweep"
+slug = "corporate-flight-bookings"
+title = "Corporate Flight Bookings"
+number = 1109
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Line sweep"
+slug = "maximum-population-year"
+title = "Maximum Population Year"
+number = 1854
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Line sweep"
+slug = "describe-the-painting"
+title = "Describe the Painting"
+number = 1943
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Range updates with difference arrays"
 slug = "max-sum-of-rectangle-no-larger-than-k"
 title = "Max Sum of Rectangle No Larger Than K"
@@ -212,14 +246,6 @@ slug = "random-point-in-non-overlapping-rectangles"
 title = "Random Point in Non-overlapping Rectangles"
 number = 497
 difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Range updates with difference arrays"
-slug = "my-calendar-iii"
-title = "My Calendar III"
-number = 732
-difficulty = "hard"
 premium = false
 
 [[group_problem]]
@@ -260,6 +286,14 @@ slug = "minimum-cost-to-merge-stones"
 title = "Minimum Cost to Merge Stones"
 number = 1000
 difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Range updates with difference arrays"
+slug = "longest-well-performing-interval"
+title = "Longest Well-Performing Interval"
+number = 1124
+difficulty = "medium"
 premium = false
 
 [[group_problem]]
@@ -523,14 +557,6 @@ group = "Circular intervals"
 slug = "circular-array-loop"
 title = "Circular Array Loop"
 number = 457
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Circular intervals"
-slug = "corporate-flight-bookings"
-title = "Corporate Flight Bookings"
-number = 1109
 difficulty = "medium"
 premium = false
 

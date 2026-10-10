@@ -9,6 +9,8 @@ groups = ["Subsets, combinations and permutations", "Constraint satisfaction", "
 
 
 
+
+
 [group_tags]
 "Subsets, combinations and permutations" = ["backtracking"]
 "Grid and word search with visited state" = ["backtracking", "matrix"]
@@ -323,6 +325,30 @@ pitfalls = [
 ]
 
 [[group_problem]]
+group = "Subsets, combinations and permutations"
+slug = "combination-sum-iii"
+title = "Combination Sum III"
+number = 216
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Subsets, combinations and permutations"
+slug = "letter-case-permutation"
+title = "Letter Case Permutation"
+number = 784
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Subsets, combinations and permutations"
+slug = "beautiful-arrangement"
+title = "Beautiful Arrangement"
+number = 526
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Constraint satisfaction"
 slug = "sudoku-solver"
 title = "Sudoku Solver"
@@ -380,14 +406,6 @@ premium = false
 
 [[group_problem]]
 group = "String generation"
-slug = "letter-case-permutation"
-title = "Letter Case Permutation"
-number = 784
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "String generation"
 slug = "expression-add-operators"
 title = "Expression Add Operators"
 number = 282
@@ -419,6 +437,14 @@ difficulty = "hard"
 premium = false
 
 [[group_problem]]
+group = "Grid and word search with visited state"
+slug = "unique-paths-iii"
+title = "Unique Paths III"
+number = 980
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
 group = "Path enumeration in graphs and trees"
 slug = "binary-tree-paths"
 title = "Binary Tree Paths"
@@ -444,25 +470,9 @@ premium = false
 
 [[group_problem]]
 group = "Path enumeration in graphs and trees"
-slug = "unique-paths-iii"
-title = "Unique Paths III"
-number = 980
-difficulty = "hard"
-premium = false
-
-[[group_problem]]
-group = "Path enumeration in graphs and trees"
 slug = "path-sum-iii"
 title = "Path Sum III"
 number = 437
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Pruning techniques"
-slug = "beautiful-arrangement"
-title = "Beautiful Arrangement"
-number = 526
 difficulty = "medium"
 premium = false
 
@@ -583,6 +593,14 @@ group = "Meet in the middle"
 slug = "partition-array-into-two-arrays-to-minimize-sum-difference"
 title = "Partition Array Into Two Arrays to Minimize Sum Difference"
 number = 2035
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Iterative generation"
+slug = "permutation-sequence"
+title = "Permutation Sequence"
+number = 60
 difficulty = "hard"
 premium = false
 

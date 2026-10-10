@@ -9,6 +9,8 @@ groups = ["LCS and edit distance", "Interval DP", "Grid and path DP", "Tree DP",
 
 
 
+
+
 [group_tags]
 "Grid and path DP" = ["matrix"]
 "Tree DP" = ["binary-tree"]
@@ -230,6 +232,54 @@ slug = "maximum-length-of-repeated-subarray"
 title = "Maximum Length of Repeated Subarray"
 number = 718
 difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Grid and path DP"
+slug = "paths-in-matrix-whose-sum-is-divisible-by-k"
+title = "Paths in Matrix Whose Sum Is Divisible by K"
+number = 2435
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Grid and path DP"
+slug = "maximum-non-negative-product-in-a-matrix"
+title = "Maximum Non Negative Product in a Matrix"
+number = 1594
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Tree DP"
+slug = "binary-tree-cameras"
+title = "Binary Tree Cameras"
+number = 968
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Tree DP"
+slug = "longest-univalue-path"
+title = "Longest Univalue Path"
+number = 687
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Tree DP"
+slug = "maximum-sum-bst-in-binary-tree"
+title = "Maximum Sum BST in Binary Tree"
+number = 1373
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Tree DP"
+slug = "sum-of-distances-in-tree"
+title = "Sum of Distances in Tree"
+number = 834
+difficulty = "hard"
 premium = false
 
 [[group_problem]]

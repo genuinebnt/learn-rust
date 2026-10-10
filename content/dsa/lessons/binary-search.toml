@@ -9,6 +9,8 @@ groups = ["Classic boundaries", "Rotated arrays", "Peaks and turning points", "2
 
 
 
+
+
 [group_tags]
 "Classic boundaries" = ["binary-search"]
 "Rotated arrays" = ["binary-search"]
@@ -279,6 +281,70 @@ pitfalls = [
 ]
 
 [[group_problem]]
+group = "Classic boundaries"
+slug = "find-smallest-letter-greater-than-target"
+title = "Find Smallest Letter Greater Than Target"
+number = 744
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Classic boundaries"
+slug = "h-index-ii"
+title = "H-Index II"
+number = 275
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Classic boundaries"
+slug = "count-negative-numbers-in-a-sorted-matrix"
+title = "Count Negative Numbers in a Sorted Matrix"
+number = 1351
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Rotated arrays"
+slug = "find-minimum-in-rotated-sorted-array-ii"
+title = "Find Minimum in Rotated Sorted Array II"
+number = 154
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Peaks and turning points"
+slug = "peak-index-in-a-mountain-array"
+title = "Peak Index in a Mountain Array"
+number = 852
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Peaks and turning points"
+slug = "find-a-peak-element-ii"
+title = "Find a Peak Element II"
+number = 1901
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Peaks and turning points"
+slug = "longest-mountain-in-array"
+title = "Longest Mountain in Array"
+number = 845
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "2-D matrices"
+slug = "search-a-2d-matrix-ii"
+title = "Search a 2D Matrix II"
+number = 240
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Search on the answer (minimise the max / maximise the min)"
 slug = "minimum-number-of-days-to-make-m-bouquets"
 title = "Minimum Number of Days to Make m Bouquets"
@@ -372,6 +438,22 @@ slug = "count-elements-with-at-least-k-greater-values"
 title = "Count Elements With at Least K Greater Values"
 number = 3759
 difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Counting-based search"
+slug = "kth-smallest-number-in-multiplication-table"
+title = "Kth Smallest Number in Multiplication Table"
+number = 668
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Counting-based search"
+slug = "kth-missing-positive-number"
+title = "Kth Missing Positive Number"
+number = 1539
+difficulty = "easy"
 premium = false
 
 [[group_problem]]
@@ -503,10 +585,10 @@ difficulty = "hard"
 premium = false
 
 [[group_problem]]
-group = "Ternary search"
-slug = "peak-index-in-a-mountain-array"
-title = "Peak Index in a Mountain Array"
-number = 852
+group = "Binary search + two pointers"
+slug = "3sum-closest"
+title = "3Sum Closest"
+number = 16
 difficulty = "medium"
 premium = false
 
@@ -620,14 +702,6 @@ slug = "range-sum-query-mutable"
 title = "Range Sum Query - Mutable"
 number = 307
 difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Inside data structures and offline"
-slug = "kth-smallest-number-in-multiplication-table"
-title = "Kth Smallest Number in Multiplication Table"
-number = 668
-difficulty = "hard"
 premium = false
 
 [[group_problem]]

@@ -9,6 +9,8 @@ groups = ["Top-k selection", "Two heaps and the median", "K-way merge", "Schedul
 
 
 
+
+
 [group_tags]
 "Top-k selection" = ["quickselect", "heap-priority-queue"]
 "Two heaps and the median" = ["data-stream", "heap-priority-queue"]
@@ -409,6 +411,54 @@ difficulty = "hard"
 premium = false
 
 [[group_problem]]
+group = "Scheduling with heaps"
+slug = "course-schedule-iii"
+title = "Course Schedule III"
+number = 630
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Scheduling with heaps"
+slug = "maximum-number-of-events-that-can-be-attended"
+title = "Maximum Number of Events That Can Be Attended"
+number = 1353
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Scheduling with heaps"
+slug = "minimum-number-of-refueling-stops"
+title = "Minimum Number of Refueling Stops"
+number = 871
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Scheduling with heaps"
+slug = "find-servers-that-handled-most-number-of-requests"
+title = "Find Servers That Handled Most Number of Requests"
+number = 1606
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Greedy with a heap"
+slug = "remove-stones-to-minimize-the-total"
+title = "Remove Stones to Minimize the Total"
+number = 1962
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Greedy with a heap"
+slug = "maximum-average-pass-ratio"
+title = "Maximum Average Pass Ratio"
+number = 1792
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Heaps in graph algorithms"
 slug = "reachable-nodes-in-subdivided-graph"
 title = "Reachable Nodes In Subdivided Graph"
@@ -473,7 +523,15 @@ difficulty = "hard"
 premium = false
 
 [[group_problem]]
-group = "Comparators and tie-breaking"
+group = "Lazy deletion and indexed heaps"
+slug = "design-a-number-container-system"
+title = "Design a Number Container System"
+number = 2349
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Lazy deletion and indexed heaps"
 slug = "top-k-frequent-words"
 title = "Top K Frequent Words"
 number = 692
@@ -486,6 +544,62 @@ slug = "the-k-weakest-rows-in-a-matrix"
 title = "The K Weakest Rows in a Matrix"
 number = 1337
 difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Heapify and heap sort"
+slug = "relative-ranks"
+title = "Relative Ranks"
+number = 506
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Heapify and heap sort"
+slug = "find-k-pairs-with-smallest-sums"
+title = "Find K Pairs with Smallest Sums"
+number = 373
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Heap plus hash map"
+slug = "all-oone-data-structure"
+title = "All O`one Data Structure"
+number = 432
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Heaps on grids"
+slug = "cut-off-trees-for-golf-event"
+title = "Cut Off Trees for Golf Event"
+number = 675
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Heaps on grids"
+slug = "k-th-smallest-prime-fraction"
+title = "K-th Smallest Prime Fraction"
+number = 786
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Huffman coding and merge costs"
+slug = "minimum-cost-to-merge-stones"
+title = "Minimum Cost to Merge Stones"
+number = 1000
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Huffman coding and merge costs"
+slug = "construct-target-array-with-multiple-sums"
+title = "Construct Target Array With Multiple Sums"
+number = 1354
+difficulty = "hard"
 premium = false
 
 [[group_problem]]

@@ -9,6 +9,8 @@ groups = ["Single-number tricks", "XOR tricks", "Masks, shifts and fields", "Bit
 
 
 
+
+
 [group_tags]
 "Single-number tricks" = ["bit-manipulation"]
 "XOR tricks" = ["bit-manipulation"]
@@ -170,6 +172,78 @@ pitfalls = [
 ]
 
 [[group_problem]]
+group = "Single-number tricks"
+slug = "single-number-ii"
+title = "Single Number II"
+number = 137
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "XOR tricks"
+slug = "xor-operation-in-an-array"
+title = "XOR Operation in an Array"
+number = 1486
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "XOR tricks"
+slug = "find-the-original-array-of-prefix-xor"
+title = "Find The Original Array of Prefix Xor"
+number = 2433
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "XOR tricks"
+slug = "decode-xored-array"
+title = "Decode XORed Array"
+number = 1720
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Masks, shifts and fields"
+slug = "utf-8-validation"
+title = "UTF-8 Validation"
+number = 393
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Masks, shifts and fields"
+slug = "binary-watch"
+title = "Binary Watch"
+number = 401
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Masks, shifts and fields"
+slug = "convert-a-number-to-hexadecimal"
+title = "Convert a Number to Hexadecimal"
+number = 405
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Masks, shifts and fields"
+slug = "bitwise-ors-of-subarrays"
+title = "Bitwise ORs of Subarrays"
+number = 898
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Masks, shifts and fields"
+slug = "maximum-product-of-word-lengths"
+title = "Maximum Product of Word Lengths"
+number = 318
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Bitmask subsets and bitmask DP"
 slug = "can-i-win"
 title = "Can I Win"
@@ -246,6 +320,30 @@ group = "Arithmetic with bits"
 slug = "divide-two-integers"
 title = "Divide Two Integers"
 number = 29
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Range AND / OR"
+slug = "smallest-subarrays-with-maximum-bitwise-or"
+title = "Smallest Subarrays With Maximum Bitwise OR"
+number = 2411
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Range AND / OR"
+slug = "number-of-subarrays-with-and-value-of-k"
+title = "Number of Subarrays With AND Value of K"
+number = 3209
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Gray code"
+slug = "circular-permutation-in-binary-representation"
+title = "Circular Permutation in Binary Representation"
+number = 1238
 difficulty = "medium"
 premium = false
 
@@ -382,14 +480,6 @@ group = "Hamming distance and total Hamming"
 slug = "minimum-flips-to-make-a-or-b-equal-to-c"
 title = "Minimum Flips to Make a OR b Equal to c"
 number = 1318
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Bit tricks for strings"
-slug = "maximum-product-of-word-lengths"
-title = "Maximum Product of Word Lengths"
-number = 318
 difficulty = "medium"
 premium = false
 

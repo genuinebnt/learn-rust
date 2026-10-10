@@ -9,6 +9,8 @@ groups = ["Digit manipulation", "Counting and number properties", "Exponentiatio
 
 
 
+
+
 [group_tags]
 "Digit manipulation" = ["math"]
 "Counting and number properties" = ["number-theory", "counting"]
@@ -396,10 +398,26 @@ pitfalls = [
 ]
 
 [[group_problem]]
-group = "Counting and number properties"
+group = "Digit manipulation"
 slug = "add-digits"
 title = "Add Digits"
 number = 258
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Digit manipulation"
+slug = "sum-of-digits-of-string-after-convert"
+title = "Sum of Digits of String After Convert"
+number = 1945
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Digit manipulation"
+slug = "find-numbers-with-even-number-of-digits"
+title = "Find Numbers with Even Number of Digits"
+number = 1295
 difficulty = "easy"
 premium = false
 
@@ -460,11 +478,27 @@ difficulty = "medium"
 premium = false
 
 [[group_problem]]
-group = "GCD, LCM and divisibility"
+group = "Counting and number properties"
 slug = "the-kth-factor-of-n"
 title = "The kth Factor of n"
 number = 1492
 difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Exponentiation and roots"
+slug = "super-pow"
+title = "Super Pow"
+number = 372
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Exponentiation and roots"
+slug = "power-of-three"
+title = "Power of Three"
+number = 326
+difficulty = "easy"
 premium = false
 
 [[group_problem]]
@@ -524,6 +558,14 @@ difficulty = "easy"
 premium = false
 
 [[group_problem]]
+group = "GCD, LCM and divisibility"
+slug = "find-greatest-common-divisor-of-array"
+title = "Find Greatest Common Divisor of Array"
+number = 1979
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
 group = "Base conversion and representation"
 slug = "convert-a-number-to-hexadecimal"
 title = "Convert a Number to Hexadecimal"
@@ -561,6 +603,70 @@ slug = "fraction-to-recurring-decimal"
 title = "Fraction to Recurring Decimal"
 number = 166
 difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Simulation and sequences"
+slug = "count-and-say"
+title = "Count and Say"
+number = 38
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Simulation and sequences"
+slug = "robot-return-to-origin"
+title = "Robot Return to Origin"
+number = 657
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Simulation and sequences"
+slug = "angle-between-hands-of-a-clock"
+title = "Angle Between Hands of a Clock"
+number = 1344
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Simulation and sequences"
+slug = "day-of-the-week"
+title = "Day of the Week"
+number = 1185
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Matrix on grids"
+slug = "diagonal-traverse"
+title = "Diagonal Traverse"
+number = 498
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Matrix on grids"
+slug = "toeplitz-matrix"
+title = "Toeplitz Matrix"
+number = 766
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Matrix on grids"
+slug = "reshape-the-matrix"
+title = "Reshape the Matrix"
+number = 566
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Matrix on grids"
+slug = "flipping-an-image"
+title = "Flipping an Image"
+number = 832
+difficulty = "easy"
 premium = false
 
 [[group_problem]]
@@ -756,6 +862,46 @@ difficulty = "hard"
 premium = false
 
 [[group_problem]]
+group = "Math plus greedy"
+slug = "minimum-moves-to-equal-array-elements"
+title = "Minimum Moves to Equal Array Elements"
+number = 453
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Math plus greedy"
+slug = "minimum-moves-to-equal-array-elements-ii"
+title = "Minimum Moves to Equal Array Elements II"
+number = 462
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Math plus greedy"
+slug = "integer-replacement"
+title = "Integer Replacement"
+number = 397
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Math plus greedy"
+slug = "broken-calculator"
+title = "Broken Calculator"
+number = 991
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Math plus greedy"
+slug = "maximum-69-number"
+title = "Maximum 69 Number"
+number = 1323
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
 group = "Number ranges"
 slug = "summary-ranges"
 title = "Summary Ranges"
@@ -801,6 +947,14 @@ slug = "rotated-digits"
 title = "Rotated Digits"
 number = 788
 difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit tricks (cross-reference)"
+slug = "hamming-distance"
+title = "Hamming Distance"
+number = 461
+difficulty = "easy"
 premium = false
 
 [[group_problem]]

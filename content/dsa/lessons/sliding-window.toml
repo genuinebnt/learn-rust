@@ -9,6 +9,8 @@ groups = ["Fixed-size window", "Variable window, longest valid", "Variable windo
 
 
 
+
+
 [group_tags]
 "Fixed-size window" = ["sliding-window"]
 "Variable window, longest valid" = ["sliding-window"]
@@ -277,7 +279,39 @@ pitfalls = [
 ]
 
 [[group_problem]]
-group = "Windows over two sequences"
+group = "Fixed-size window"
+slug = "maximum-average-subarray-i"
+title = "Maximum Average Subarray I"
+number = 643
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Fixed-size window"
+slug = "k-radius-subarray-averages"
+title = "K Radius Subarray Averages"
+number = 2090
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Variable window, longest valid"
+slug = "longest-subarray-of-1s-after-deleting-one-element"
+title = "Longest Subarray of 1's After Deleting One Element"
+number = 1493
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Variable window, longest valid"
+slug = "maximum-erasure-value"
+title = "Maximum Erasure Value"
+number = 1695
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Variable window, shortest valid"
 slug = "minimum-window-subsequence"
 title = "Minimum Window Subsequence"
 number = 727
@@ -285,18 +319,34 @@ difficulty = "hard"
 premium = true
 
 [[group_problem]]
-group = "Windows over two sequences"
-slug = "longest-common-subpath"
-title = "Longest Common Subpath"
-number = 1923
+group = "Counting windows (atMost(k) - atMost(k-1))"
+slug = "count-subarrays-with-fixed-bounds"
+title = "Count Subarrays With Fixed Bounds"
+number = 2444
 difficulty = "hard"
 premium = false
 
 [[group_problem]]
-group = "Windows over two sequences"
+group = "Frequency (need / have) windows"
 slug = "substring-with-concatenation-of-all-words"
 title = "Substring with Concatenation of All Words"
 number = 30
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Frequency (need / have) windows"
+slug = "longest-substring-with-at-least-k-repeating-characters"
+title = "Longest Substring with At Least K Repeating Characters"
+number = 395
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Windows over two sequences"
+slug = "longest-common-subpath"
+title = "Longest Common Subpath"
+number = 1923
 difficulty = "hard"
 premium = false
 
@@ -350,17 +400,17 @@ premium = false
 
 [[group_problem]]
 group = "Monotonic-queue windows"
-slug = "count-subarrays-with-fixed-bounds"
-title = "Count Subarrays With Fixed Bounds"
-number = 2444
-difficulty = "hard"
+slug = "continuous-subarrays"
+title = "Continuous Subarrays"
+number = 2762
+difficulty = "medium"
 premium = false
 
 [[group_problem]]
 group = "Monotonic-queue windows"
-slug = "continuous-subarrays"
-title = "Continuous Subarrays"
-number = 2762
+slug = "minimum-number-of-coins-for-fruits"
+title = "Minimum Number of Coins for Fruits"
+number = 2944
 difficulty = "medium"
 premium = false
 
@@ -489,6 +539,22 @@ group = "Negative numbers (when windows fail: prefix sums)"
 slug = "longest-well-performing-interval"
 title = "Longest Well-Performing Interval"
 number = 1124
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Binary search on window size"
+slug = "longest-duplicate-substring"
+title = "Longest Duplicate Substring"
+number = 1044
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Binary search on window size"
+slug = "maximum-length-of-repeated-subarray"
+title = "Maximum Length of Repeated Subarray"
+number = 718
 difficulty = "medium"
 premium = false
 

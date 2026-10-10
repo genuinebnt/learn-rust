@@ -9,6 +9,8 @@ groups = ["Traversal", "Cycle detection and graph properties", "Topological sort
 
 
 
+
+
 [group_tags]
 "Traversal" = ["breadth-first-search", "depth-first-search"]
 "Cycle detection and graph properties" = ["graph"]
@@ -586,6 +588,62 @@ pitfalls = [
 examples = ["parallel-courses", "parallel-courses-iii"]
 
 [[group_problem]]
+group = "Traversal"
+slug = "find-if-path-exists-in-graph"
+title = "Find if Path Exists in Graph"
+number = 1971
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Traversal"
+slug = "keys-and-rooms"
+title = "Keys and Rooms"
+number = 841
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Traversal"
+slug = "all-paths-from-source-to-target"
+title = "All Paths From Source to Target"
+number = 797
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Traversal"
+slug = "01-matrix"
+title = "01 Matrix"
+number = 542
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Cycle detection and graph properties"
+slug = "redundant-connection-ii"
+title = "Redundant Connection II"
+number = 685
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Cycle detection and graph properties"
+slug = "detect-cycles-in-2d-grid"
+title = "Detect Cycles in 2D Grid"
+number = 1559
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Cycle detection and graph properties"
+slug = "longest-cycle-in-a-graph"
+title = "Longest Cycle in a Graph"
+number = 2360
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
 group = "Topological sort and dependencies"
 slug = "loud-and-rich"
 title = "Loud and Rich"
@@ -651,14 +709,6 @@ premium = false
 
 [[group_problem]]
 group = "Union-find (DSU)"
-slug = "redundant-connection-ii"
-title = "Redundant Connection II"
-number = 685
-difficulty = "hard"
-premium = false
-
-[[group_problem]]
-group = "Union-find (DSU)"
 slug = "couples-holding-hands"
 title = "Couples Holding Hands"
 number = 765
@@ -710,6 +760,78 @@ group = "Union-find (DSU)"
 slug = "most-stones-removed-with-same-row-or-column"
 title = "Most Stones Removed with Same Row or Column"
 number = 947
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Union-find (DSU)"
+slug = "largest-component-size-by-common-factor"
+title = "Largest Component Size by Common Factor"
+number = 952
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Tree algorithms"
+slug = "sum-of-distances-in-tree"
+title = "Sum of Distances in Tree"
+number = 834
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Tree algorithms"
+slug = "all-nodes-distance-k-in-binary-tree"
+title = "All Nodes Distance K in Binary Tree"
+number = 863
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Tree algorithms"
+slug = "number-of-nodes-in-the-sub-tree-with-the-same-label"
+title = "Number of Nodes in the Sub-Tree With the Same Label"
+number = 1519
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Tree algorithms"
+slug = "count-nodes-with-the-highest-score"
+title = "Count Nodes With the Highest Score"
+number = 2049
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Graph modeling and state-space search"
+slug = "jump-game-iii"
+title = "Jump Game III"
+number = 1306
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Graph modeling and state-space search"
+slug = "jump-game-iv"
+title = "Jump Game IV"
+number = 1345
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Graph modeling and state-space search"
+slug = "minimum-genetic-mutation"
+title = "Minimum Genetic Mutation"
+number = 433
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Graph modeling and state-space search"
+slug = "get-watched-videos-by-your-friends"
+title = "Get Watched Videos by Your Friends"
+number = 1311
 difficulty = "medium"
 premium = false
 

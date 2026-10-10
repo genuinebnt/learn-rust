@@ -9,6 +9,8 @@ groups = ["Traversals", "Level-order family", "Subtree aggregation", "Path probl
 
 
 
+
+
 [group_tags]
 "Traversals" = ["binary-tree", "depth-first-search"]
 "Level-order family" = ["binary-tree", "breadth-first-search"]
@@ -404,6 +406,142 @@ pitfalls = [
 ]
 
 [[group_problem]]
+group = "Traversals"
+slug = "vertical-order-traversal-of-a-binary-tree"
+title = "Vertical Order Traversal of a Binary Tree"
+number = 987
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Traversals"
+slug = "n-ary-tree-preorder-traversal"
+title = "N-ary Tree Preorder Traversal"
+number = 589
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Level-order family"
+slug = "binary-tree-level-order-traversal-ii"
+title = "Binary Tree Level Order Traversal II"
+number = 107
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Level-order family"
+slug = "average-of-levels-in-binary-tree"
+title = "Average of Levels in Binary Tree"
+number = 637
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Level-order family"
+slug = "cousins-in-binary-tree"
+title = "Cousins in Binary Tree"
+number = 993
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Level-order family"
+slug = "n-ary-tree-level-order-traversal"
+title = "N-ary Tree Level Order Traversal"
+number = 429
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Level-order family"
+slug = "deepest-leaves-sum"
+title = "Deepest Leaves Sum"
+number = 1302
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Subtree aggregation"
+slug = "sum-of-root-to-leaf-binary-numbers"
+title = "Sum of Root To Leaf Binary Numbers"
+number = 1022
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Subtree aggregation"
+slug = "binary-tree-tilt"
+title = "Binary Tree Tilt"
+number = 563
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Subtree aggregation"
+slug = "most-frequent-subtree-sum"
+title = "Most Frequent Subtree Sum"
+number = 508
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Subtree aggregation"
+slug = "smallest-subtree-with-all-the-deepest-nodes"
+title = "Smallest Subtree with all the Deepest Nodes"
+number = 865
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Path problems"
+slug = "path-sum-ii"
+title = "Path Sum II"
+number = 113
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Path problems"
+slug = "path-sum-iii"
+title = "Path Sum III"
+number = 437
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Path problems"
+slug = "binary-tree-paths"
+title = "Binary Tree Paths"
+number = 257
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Path problems"
+slug = "longest-univalue-path"
+title = "Longest Univalue Path"
+number = 687
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Path problems"
+slug = "longest-zigzag-path-in-a-binary-tree"
+title = "Longest ZigZag Path in a Binary Tree"
+number = 1372
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Path problems"
+slug = "maximum-difference-between-node-and-ancestor"
+title = "Maximum Difference Between Node and Ancestor"
+number = 1026
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Construction"
 slug = "convert-sorted-list-to-binary-search-tree"
 title = "Convert Sorted List to Binary Search Tree"
@@ -468,6 +606,126 @@ difficulty = "medium"
 premium = false
 
 [[group_problem]]
+group = "BST operations"
+slug = "search-in-a-binary-search-tree"
+title = "Search in a Binary Search Tree"
+number = 700
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "BST operations"
+slug = "minimum-absolute-difference-in-bst"
+title = "Minimum Absolute Difference in BST"
+number = 530
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "BST operations"
+slug = "inorder-successor-in-bst"
+title = "Inorder Successor in BST"
+number = 285
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "BST operations"
+slug = "two-sum-iv-input-is-a-bst"
+title = "Two Sum IV - Input is a BST"
+number = 653
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "BST operations"
+slug = "balance-a-binary-search-tree"
+title = "Balance a Binary Search Tree"
+number = 1382
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Lowest common ancestor"
+slug = "lowest-common-ancestor-of-a-binary-tree-ii"
+title = "Lowest Common Ancestor of a Binary Tree II"
+number = 1644
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Lowest common ancestor"
+slug = "lowest-common-ancestor-of-a-binary-tree-iv"
+title = "Lowest Common Ancestor of a Binary Tree IV"
+number = 1676
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Lowest common ancestor"
+slug = "lowest-common-ancestor-of-deepest-leaves"
+title = "Lowest Common Ancestor of Deepest Leaves"
+number = 1123
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Transformations"
+slug = "flatten-binary-tree-to-linked-list"
+title = "Flatten Binary Tree to Linked List"
+number = 114
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Transformations"
+slug = "increasing-order-search-tree"
+title = "Increasing Order Search Tree"
+number = 897
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Transformations"
+slug = "add-one-row-to-tree"
+title = "Add One Row to Tree"
+number = 623
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Transformations"
+slug = "flip-binary-tree-to-match-preorder-traversal"
+title = "Flip Binary Tree To Match Preorder Traversal"
+number = 971
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Tree DP"
+slug = "binary-tree-cameras"
+title = "Binary Tree Cameras"
+number = 968
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Tree DP"
+slug = "maximum-sum-bst-in-binary-tree"
+title = "Maximum Sum BST in Binary Tree"
+number = 1373
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Tree DP"
+slug = "sum-of-distances-in-tree"
+title = "Sum of Distances in Tree"
+number = 834
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
 group = "Parent pointers and tree-to-graph"
 slug = "all-nodes-distance-k-in-binary-tree"
 title = "All Nodes Distance K in Binary Tree"
@@ -485,14 +743,6 @@ premium = false
 
 [[group_problem]]
 group = "Parent pointers and tree-to-graph"
-slug = "binary-tree-cameras"
-title = "Binary Tree Cameras"
-number = 968
-difficulty = "hard"
-premium = false
-
-[[group_problem]]
-group = "Parent pointers and tree-to-graph"
 slug = "closest-leaf-in-a-binary-tree"
 title = "Closest Leaf in a Binary Tree"
 number = 742
@@ -500,11 +750,19 @@ difficulty = "medium"
 premium = true
 
 [[group_problem]]
-group = "Parent pointers and tree-to-graph"
-slug = "sum-of-distances-in-tree"
-title = "Sum of Distances in Tree"
-number = 834
+group = "Count and enumerate trees"
+slug = "number-of-ways-to-reorder-array-to-get-same-bst"
+title = "Number of Ways to Reorder Array to Get Same BST"
+number = 1569
 difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "N-ary trees"
+slug = "maximum-depth-of-n-ary-tree"
+title = "Maximum Depth of N-ary Tree"
+number = 559
+difficulty = "easy"
 premium = false
 
 [[group_problem]]

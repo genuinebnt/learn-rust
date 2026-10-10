@@ -374,13 +374,11 @@ def main():
         for g, _ in groups:
             take = []
             # the curated ones for this section first (checked against the index), then the section's topic tags
-            for key, slugs in curated_groups.items():
-                if g.lower().startswith(key.lower()):
-                    for sl in slugs:
-                        pr = lc_by_slug.get(sl)
-                        if pr and sl not in list_by_slug and sl not in attached and sl not in used and pr not in take:
-                            take.append(pr)
-                    break
+            keys = sorted((k for k in curated_groups if g.lower().startswith(k.lower())), key=len, reverse=True)
+            for sl in (curated_groups[keys[0]] if keys else []):
+                pr = lc_by_slug.get(sl)
+                if pr and sl not in list_by_slug and sl not in attached and sl not in used and pr not in take:
+                    take.append(pr)
             spec = group_tag_set(g, lc_tags) - GENERIC
             if spec and len(take) < GROUP_PROBLEMS:
                 pool = [p for p in lc if spec & set(p["tags"]) and p["slug"] not in list_by_slug and p["slug"] not in attached

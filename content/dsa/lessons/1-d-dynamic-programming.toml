@@ -9,6 +9,8 @@ groups = ["Linear and sequence DP", "Knapsack family", "Coin change", "Longest i
 
 
 
+
+
 [group_tags]
 "Counting DP" = ["combinatorics"]
 "Game and minimax DP" = ["game-theory", "minimax-algorithm"]
@@ -888,6 +890,46 @@ slug = "maximize-grid-happiness"
 title = "Maximize Grid Happiness"
 number = 1659
 difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Digit DP"
+slug = "numbers-at-most-n-given-digit-set"
+title = "Numbers At Most N Given Digit Set"
+number = 902
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Digit DP"
+slug = "number-of-digit-one"
+title = "Number of Digit One"
+number = 233
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Digit DP"
+slug = "non-negative-integers-without-consecutive-ones"
+title = "Non-negative Integers without Consecutive Ones"
+number = 600
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Digit DP"
+slug = "numbers-with-repeated-digits"
+title = "Numbers With Repeated Digits"
+number = 1012
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Digit DP"
+slug = "rotated-digits"
+title = "Rotated Digits"
+number = 788
+difficulty = "medium"
 premium = false
 
 [[group_problem]]

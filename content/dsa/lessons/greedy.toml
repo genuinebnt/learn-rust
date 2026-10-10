@@ -9,6 +9,8 @@ groups = ["Sorting-based greedy", "Interval scheduling and covering", "Jump game
 
 
 
+
+
 [group_tags]
 "Sorting-based greedy" = ["sorting"]
 "Two-pointer greedy" = ["two-pointers"]
@@ -345,6 +347,38 @@ pitfalls = [
 ]
 
 [[group_problem]]
+group = "Sorting-based greedy"
+slug = "queue-reconstruction-by-height"
+title = "Queue Reconstruction by Height"
+number = 406
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Sorting-based greedy"
+slug = "maximum-units-on-a-truck"
+title = "Maximum Units on a Truck"
+number = 1710
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Sorting-based greedy"
+slug = "minimum-cost-to-move-chips-to-the-same-position"
+title = "Minimum Cost to Move Chips to The Same Position"
+number = 1217
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Sorting-based greedy"
+slug = "reduce-array-size-to-the-half"
+title = "Reduce Array Size to The Half"
+number = 1338
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Interval scheduling and covering"
 slug = "video-stitching"
 title = "Video Stitching"
@@ -401,34 +435,18 @@ difficulty = "hard"
 premium = false
 
 [[group_problem]]
-group = "Exchange arguments"
-slug = "reorder-data-in-log-files"
-title = "Reorder Data in Log Files"
-number = 937
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Exchange arguments"
-slug = "queue-reconstruction-by-height"
-title = "Queue Reconstruction by Height"
-number = 406
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Exchange arguments"
-slug = "maximum-units-on-a-truck"
-title = "Maximum Units on a Truck"
-number = 1710
+group = "Two-pointer greedy"
+slug = "array-partition"
+title = "Array Partition"
+number = 561
 difficulty = "easy"
 premium = false
 
 [[group_problem]]
 group = "Exchange arguments"
-slug = "reduce-array-size-to-the-half"
-title = "Reduce Array Size to The Half"
-number = 1338
+slug = "reorder-data-in-log-files"
+title = "Reorder Data in Log Files"
+number = 937
 difficulty = "medium"
 premium = false
 
@@ -598,6 +616,54 @@ slug = "course-schedule-iii"
 title = "Course Schedule III"
 number = 630
 difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Huffman"
+slug = "minimum-cost-to-merge-stones"
+title = "Minimum Cost to Merge Stones"
+number = 1000
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Huffman"
+slug = "construct-target-array-with-multiple-sums"
+title = "Construct Target Array With Multiple Sums"
+number = 1354
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Greedy on graphs"
+slug = "find-center-of-star-graph"
+title = "Find Center of Star Graph"
+number = 1791
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Bit greedy"
+slug = "maximum-or"
+title = "Maximum OR"
+number = 2680
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit greedy"
+slug = "minimum-flips-to-make-a-or-b-equal-to-c"
+title = "Minimum Flips to Make a OR b Equal to c"
+number = 1318
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Bit greedy"
+slug = "maximum-xor-after-operations"
+title = "Maximum XOR After Operations "
+number = 2317
+difficulty = "medium"
 premium = false
 
 [[group_problem]]

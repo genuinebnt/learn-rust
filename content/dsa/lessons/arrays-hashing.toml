@@ -9,6 +9,8 @@ groups = ["Frequency counting", "Two-sum family", "Grouping by canonical key", "
 
 
 
+
+
 [group_tags]
 "Frequency counting" = ["counting"]
 "Prefix sums with a map" = ["prefix-sum"]
@@ -431,6 +433,14 @@ pitfalls = [
 ]
 
 [[group_problem]]
+group = "Frequency counting"
+slug = "unique-number-of-occurrences"
+title = "Unique Number of Occurrences"
+number = 1207
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
 group = "Two-sum family"
 slug = "two-sum-iii-data-structure-design"
 title = "Two Sum III - Data structure design"
@@ -655,6 +665,38 @@ difficulty = "easy"
 premium = false
 
 [[group_problem]]
+group = "Matrix traversal and transform"
+slug = "diagonal-traverse"
+title = "Diagonal Traverse"
+number = 498
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Simulation"
+slug = "count-and-say"
+title = "Count and Say"
+number = 38
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Simulation"
+slug = "find-winner-on-a-tic-tac-toe-game"
+title = "Find Winner on a Tic Tac Toe Game"
+number = 1275
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Majority element"
+slug = "online-majority-element-in-subarray"
+title = "Online Majority Element In Subarray"
+number = 1157
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
 group = "Prefix / suffix products and aggregates"
 slug = "number-of-ways-of-cutting-a-pizza"
 title = "Number of Ways of Cutting a Pizza"
@@ -836,6 +878,22 @@ slug = "kth-missing-positive-number"
 title = "Kth Missing Positive Number"
 number = 1539
 difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Design with hash maps"
+slug = "insert-delete-getrandom-o1-duplicates-allowed"
+title = "Insert Delete GetRandom O(1) - Duplicates allowed"
+number = 381
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Design with hash maps"
+slug = "all-oone-data-structure"
+title = "All O`one Data Structure"
+number = 432
+difficulty = "hard"
 premium = false
 
 [[group_problem]]

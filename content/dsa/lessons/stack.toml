@@ -9,6 +9,8 @@ groups = ["Matching and nesting", "Monotonic stack", "Expression evaluation", "S
 
 
 
+
+
 [group_tags]
 "Matching and nesting" = ["stack", "string"]
 "Monotonic stack" = ["monotonic-stack"]
@@ -305,6 +307,38 @@ pitfalls = [
 ]
 
 [[group_problem]]
+group = "Matching and nesting"
+slug = "longest-valid-parentheses"
+title = "Longest Valid Parentheses"
+number = 32
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Matching and nesting"
+slug = "remove-all-adjacent-duplicates-in-string"
+title = "Remove All Adjacent Duplicates In String"
+number = 1047
+difficulty = "easy"
+premium = false
+
+[[group_problem]]
+group = "Matching and nesting"
+slug = "score-of-parentheses"
+title = "Score of Parentheses"
+number = 856
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Matching and nesting"
+slug = "check-if-word-is-valid-after-substitutions"
+title = "Check If Word Is Valid After Substitutions"
+number = 1003
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Monotonic stack"
 slug = "remove-duplicate-letters"
 title = "Remove Duplicate Letters"
@@ -369,6 +403,70 @@ difficulty = "medium"
 premium = false
 
 [[group_problem]]
+group = "Expression evaluation"
+slug = "basic-calculator"
+title = "Basic Calculator"
+number = 224
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Expression evaluation"
+slug = "parse-lisp-expression"
+title = "Parse Lisp Expression"
+number = 736
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Expression evaluation"
+slug = "build-binary-expression-tree-from-infix-expression"
+title = "Build Binary Expression Tree From Infix Expression"
+number = 1597
+difficulty = "hard"
+premium = true
+
+[[group_problem]]
+group = "Expression evaluation"
+slug = "design-an-expression-tree-with-evaluate-function"
+title = "Design an Expression Tree With Evaluate Function"
+number = 1628
+difficulty = "medium"
+premium = true
+
+[[group_problem]]
+group = "Stack and queue design"
+slug = "design-a-stack-with-increment-operation"
+title = "Design a Stack With Increment Operation"
+number = 1381
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stack and queue design"
+slug = "design-circular-deque"
+title = "Design Circular Deque"
+number = 641
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Iterative DFS and tree traversal"
+slug = "flatten-binary-tree-to-linked-list"
+title = "Flatten Binary Tree to Linked List"
+number = 114
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Iterative DFS and tree traversal"
+slug = "verify-preorder-serialization-of-a-binary-tree"
+title = "Verify Preorder Serialization of a Binary Tree"
+number = 331
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Monotonic queue (cross-reference: Sliding Window)"
 slug = "max-value-of-equation"
 title = "Max Value of Equation"
@@ -429,6 +527,70 @@ group = "Monotonic queue (cross-reference: Sliding Window)"
 slug = "continuous-subarrays"
 title = "Continuous Subarrays"
 number = 2762
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stack and greedy"
+slug = "smallest-subsequence-of-distinct-characters"
+title = "Smallest Subsequence of Distinct Characters"
+number = 1081
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stack and greedy"
+slug = "find-the-most-competitive-subsequence"
+title = "Find the Most Competitive Subsequence"
+number = 1673
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Stack and DP"
+slug = "count-submatrices-with-all-ones"
+title = "Count Submatrices With All Ones"
+number = 1504
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Parsing"
+slug = "tag-validator"
+title = "Tag Validator"
+number = 591
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Parsing"
+slug = "mini-parser"
+title = "Mini Parser"
+number = 385
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Parsing"
+slug = "brace-expansion-ii"
+title = "Brace Expansion II"
+number = 1096
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Parsing"
+slug = "valid-number"
+title = "Valid Number"
+number = 65
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Parsing"
+slug = "string-to-integer-atoi"
+title = "String to Integer (atoi)"
+number = 8
 difficulty = "medium"
 premium = false
 

@@ -1,99 +1,1691 @@
 {
   "_comment": "section title (prefix match) -> LeetCode problem slugs for that section. pattern_pages.py verifies each slug against LeetCode's index, drops what is already in the lists, and fills the rest from the section's topic tags.",
-  "Linear and sequence DP": ["ugly-number-ii", "integer-break", "maximum-subarray-sum-with-one-deletion", "count-sorted-vowel-strings", "paint-fence", "maximum-sum-circular-subarray", "arithmetic-slices", "decode-ways-ii", "solving-questions-with-brainpower", "house-robber-iv", "super-ugly-number", "best-sightseeing-pair"],
-  "Knapsack family": ["profitable-schemes", "tallest-billboard", "maximum-value-of-k-coins-from-piles", "form-largest-integer-with-digits-that-add-up-to-target", "shopping-offers", "split-array-with-same-average", "partition-array-into-two-arrays-to-minimize-sum-difference", "minimum-number-of-work-sessions-to-finish-the-tasks"],
-  "Coin change": ["count-ways-to-build-good-strings", "least-operators-to-express-number", "minimum-cost-for-tickets", "number-of-ways-to-reach-a-position-after-exactly-k-steps", "dice-roll-simulation", "coin-path", "domino-and-tromino-tiling"],
-  "Longest increasing subsequence": ["longest-increasing-subsequence-ii", "maximum-height-by-stacking-cuboids", "find-the-longest-valid-obstacle-course-at-each-position", "longest-ideal-subsequence", "minimum-number-of-removals-to-make-mountain-array", "longest-arithmetic-subsequence", "length-of-longest-fibonacci-subsequence", "best-team-with-no-conflicts", "make-array-strictly-increasing"],
-  "Palindromic DP": ["palindrome-partitioning-ii", "minimum-insertion-steps-to-make-a-string-palindrome", "count-different-palindromic-subsequences", "valid-palindrome-iii", "maximum-product-of-the-length-of-two-palindromic-subsequences", "palindrome-partitioning-iii", "longest-palindromic-subsequence-ii", "count-palindromic-subsequences"],
-  "Matrix exponentiation": ["student-attendance-record-ii", "count-vowels-permutation", "fibonacci-number", "domino-and-tromino-tiling", "knight-dialer", "number-of-ways-to-stay-in-the-same-place-after-some-steps"],
-  "Space optimisation": ["pascals-triangle-ii", "unique-paths-ii", "minimum-path-sum", "triangle", "best-time-to-buy-and-sell-stock-iv", "longest-common-subsequence"],
-  "Reconstruction": ["largest-divisible-subset", "shortest-common-supersequence", "word-break-ii", "unique-binary-search-trees-ii", "palindrome-partitioning", "russian-doll-envelopes", "maximum-length-of-repeated-subarray"],
-  "LCS and edit distance": ["delete-operation-for-two-strings", "minimum-ascii-delete-sum-for-two-strings", "shortest-common-supersequence", "maximum-length-of-repeated-subarray", "uncrossed-lines", "one-edit-distance", "wildcard-matching", "distinct-subsequences"],
-  "Interval DP": ["minimum-cost-to-cut-a-stick", "minimum-cost-to-merge-stones", "strange-printer", "remove-boxes", "guess-number-higher-or-lower-ii", "minimum-score-triangulation-of-polygon", "zuma-game", "different-ways-to-add-parentheses", "valid-parenthesis-string", "minimum-cost-tree-from-leaf-values", "burst-balloons"],
-  "DAG and graph DP": ["longest-increasing-path-in-a-matrix", "largest-color-value-in-a-directed-graph", "number-of-ways-to-arrive-at-destination", "minimum-cost-to-reach-destination-in-time", "count-all-possible-routes", "number-of-restricted-paths-from-first-to-last-node", "longest-cycle-in-a-graph", "parallel-courses-iii"],
-  "State machine DP": ["best-time-to-buy-and-sell-stock-iii", "best-time-to-buy-and-sell-stock-iv", "flip-string-to-monotone-increasing", "paint-house", "maximum-alternating-subsequence-sum", "paint-fence", "student-attendance-record-ii", "dice-roll-simulation", "wiggle-subsequence"],
-  "Constrained subsequences": ["constrained-subsequence-sum", "longest-arithmetic-subsequence-of-given-difference", "longest-arithmetic-subsequence", "longest-ideal-subsequence", "length-of-longest-fibonacci-subsequence", "number-of-matching-subsequences", "is-subsequence", "jump-game-vi", "longest-subsequence-with-decreasing-adjacent-difference"],
-  "Broken profile and tiling DP": ["domino-and-tromino-tiling", "maximum-students-taking-exam", "number-of-ways-to-paint-n-3-grid", "tiling-a-rectangle-with-the-fewest-squares", "number-of-ways-to-wear-different-hats-to-each-other", "painting-a-grid-with-three-different-colors"],
-  "Matching and bipartite graphs": ["maximum-number-of-accepted-invitations", "maximum-students-taking-exam", "possible-bipartition", "divide-nodes-into-the-maximum-number-of-groups"],
-  "Network flow": ["maximum-number-of-accepted-invitations", "minimum-cost-to-connect-two-groups-of-points"],
-  "Graph dynamic programming": ["longest-increasing-path-in-a-matrix", "largest-color-value-in-a-directed-graph", "number-of-ways-to-arrive-at-destination", "count-all-possible-routes", "parallel-courses-iii"],
-  "Specialized graph algorithms": ["find-eventual-safe-states", "find-the-celebrity", "all-ancestors-of-a-node-in-a-directed-acyclic-graph", "find-center-of-star-graph", "maximal-network-rank", "minimum-height-trees"],
-  "Two-sum family": ["two-sum-iii-data-structure-design", "two-sum-iv-input-is-a-bst", "subarray-sum-equals-k", "count-number-of-pairs-with-absolute-difference-k", "brick-wall", "4sum-ii", "max-number-of-k-sum-pairs", "k-diff-pairs-in-an-array"],
-  "Grouping by canonical key": ["group-shifted-strings", "find-duplicate-file-in-system", "find-and-replace-pattern", "isomorphic-strings", "word-pattern", "number-of-equivalent-domino-pairs", "sort-characters-by-frequency", "find-duplicate-subtrees"],
-  "In-place manipulation": ["find-all-numbers-disappeared-in-an-array", "find-all-duplicates-in-an-array", "set-mismatch", "move-zeroes", "remove-duplicates-from-sorted-array", "game-of-life", "set-matrix-zeroes"],
-  "Partition and rearrangement": ["partition-array-according-to-given-pivot", "wiggle-sort", "wiggle-sort-ii", "rearrange-array-elements-by-sign", "sort-array-by-parity", "sort-array-by-parity-ii", "relative-sort-array", "custom-sort-string"],
-  "Coordinate compression": ["rank-transform-of-an-array", "rank-transform-of-a-matrix", "count-of-smaller-numbers-after-self", "reverse-pairs", "count-of-range-sum", "create-sorted-array-through-instructions"],
-  "Duplicate detection": ["contains-duplicate-ii", "contains-duplicate-iii", "find-the-duplicate-number", "find-all-duplicates-in-an-array", "valid-sudoku"],
-  "Missing and extra number": ["missing-number", "find-all-numbers-disappeared-in-an-array", "set-mismatch", "missing-element-in-sorted-array", "find-missing-and-repeated-values", "kth-missing-positive-number", "missing-ranges"],
-  "Constraint satisfaction": ["n-queens-ii", "sudoku-solver", "maximum-number-of-achievable-transfer-requests", "matchsticks-to-square", "tiling-a-rectangle-with-the-fewest-squares", "verbal-arithmetic-puzzle", "word-squares", "the-number-of-beautiful-subsets"],
-  "Partitioning": ["partition-to-k-equal-sum-subsets", "matchsticks-to-square", "split-array-into-fibonacci-sequence", "additive-number", "splitting-a-string-into-descending-consecutive-values", "palindrome-partitioning"],
-  "String generation": ["remove-invalid-parentheses", "letter-case-permutation", "restore-ip-addresses", "expression-add-operators", "strobogrammatic-number-ii", "numbers-with-same-consecutive-differences", "the-k-th-lexicographical-string-of-all-happy-strings-of-length-n", "brace-expansion", "brace-expansion-ii", "cracking-the-safe"],
-  "Path enumeration in graphs and trees": ["binary-tree-paths", "path-sum-ii", "all-paths-from-source-to-target", "unique-paths-iii", "all-possible-full-binary-trees", "path-sum-iii"],
-  "Pruning techniques": ["combination-sum-ii", "permutations-ii", "subsets-ii", "beautiful-arrangement", "number-of-squareful-arrays", "fair-distribution-of-cookies", "find-minimum-time-to-finish-all-jobs", "minimum-number-of-work-sessions-to-finish-the-tasks"],
-  "Branch and bound and search order": ["sliding-puzzle", "24-game", "word-ladder-ii", "shortest-path-visiting-all-nodes", "minimum-moves-to-spread-stones-over-grid"],
-  "Search on the answer": ["koko-eating-bananas", "capacity-to-ship-packages-within-d-days", "split-array-largest-sum", "minimum-number-of-days-to-make-m-bouquets", "magnetic-force-between-two-balls", "minimum-time-to-complete-trips", "minimized-maximum-of-products-distributed-to-any-store", "find-the-smallest-divisor-given-a-threshold", "maximum-candies-allocated-to-k-children", "minimum-limit-of-balls-in-a-bag"],
-  "Real numbers": ["sqrtx", "powx-n", "minimize-max-distance-to-gas-station", "maximum-average-subarray-ii", "valid-perfect-square"],
-  "Indices of other structures": ["time-based-key-value-store", "snapshot-array", "random-pick-with-weight", "my-calendar-i", "find-k-closest-elements", "successful-pairs-of-spells-and-potions", "number-of-matching-subsequences", "online-election", "find-right-interval"],
-  "Binary lifting": ["kth-ancestor-of-a-tree-node"],
-  "Parametric search": ["path-with-minimum-effort", "swim-in-rising-water", "path-with-maximum-minimum-value", "find-the-safest-path-in-a-grid", "minimize-the-maximum-difference-of-pairs", "maximum-candies-allocated-to-k-children"],
-  "Ternary search": ["peak-index-in-a-mountain-array", "find-peak-element", "minimum-cost-to-make-array-equal"],
-  "Bisect on tails": ["longest-increasing-subsequence", "russian-doll-envelopes", "find-the-longest-valid-obstacle-course-at-each-position", "maximum-profit-in-job-scheduling", "longest-increasing-subsequence-ii"],
-  "Length, hashing and halves": ["longest-duplicate-substring", "longest-common-subpath"],
-  "Inside data structures and offline": ["count-of-smaller-numbers-after-self", "range-sum-query-mutable", "kth-smallest-number-in-multiplication-table", "find-k-th-smallest-pair-distance", "maximum-xor-with-an-element-from-array"],
-  "Counting bits across numbers": ["counting-bits", "total-hamming-distance", "sum-of-all-subset-xor-totals", "count-triplets-that-can-form-two-arrays-of-equal-xor", "count-numbers-with-unique-digits"],
-  "Arithmetic with bits": ["sum-of-two-integers", "divide-two-integers", "add-binary", "add-to-array-form-of-integer", "reverse-bits", "bitwise-and-of-numbers-range"],
-  "Hamming distance and total Hamming": ["hamming-distance", "total-hamming-distance", "minimum-flips-to-make-a-or-b-equal-to-c", "minimum-one-bit-operations-to-make-integers-zero", "minimum-bit-flips-to-convert-number"],
-  "Bit tricks for strings": ["maximum-product-of-word-lengths", "find-the-longest-substring-containing-vowels-in-even-counts", "repeated-dna-sequences", "check-if-a-string-contains-all-binary-codes-of-size-k", "number-of-wonderful-substrings", "substring-xor-queries"],
-  "Binary representation problems": ["number-complement", "complement-of-base-10-integer", "binary-gap", "binary-number-with-alternating-bits", "concatenation-of-consecutive-binary-numbers", "number-of-steps-to-reduce-a-number-in-binary-representation-to-one", "find-kth-bit-in-nth-binary-string"],
-  "Flip operations on binary arrays": ["minimum-number-of-k-consecutive-bit-flips", "minimum-operations-to-make-binary-array-elements-equal-to-one-i", "flip-columns-for-maximum-number-of-equal-rows", "score-after-flipping-matrix", "bulb-switcher", "bulb-switcher-ii"],
-  "Algebraic properties and invariants": ["minimum-xor-sum-of-two-arrays", "find-xor-sum-of-all-pairs-bitwise-and", "maximum-xor-after-operations", "bitwise-xor-of-all-pairings", "count-pairs-with-xor-in-a-range"],
-  "Advanced bit techniques": ["maximum-xor-of-two-numbers-in-an-array", "maximum-xor-with-an-element-from-array", "count-pairs-with-xor-in-a-range", "maximum-genetic-difference-query", "partition-array-into-two-arrays-to-minimize-sum-difference"],
-  "Interval scheduling and covering": ["non-overlapping-intervals", "minimum-number-of-arrows-to-burst-balloons", "video-stitching", "minimum-number-of-taps-to-open-to-water-a-garden", "meeting-rooms-ii", "maximum-length-of-pair-chain", "remove-covered-intervals"],
-  "Jump game family": ["jump-game", "jump-game-ii", "jump-game-iii", "jump-game-iv", "jump-game-v", "jump-game-vi", "jump-game-vii"],
-  "Gas station": ["gas-station", "minimum-number-of-refueling-stops", "car-fleet", "boats-to-save-people"],
-  "Exchange arguments": ["largest-number", "reorder-data-in-log-files", "queue-reconstruction-by-height", "task-scheduler", "minimum-number-of-increments-on-subarrays-to-form-a-target-array", "maximum-units-on-a-truck", "reduce-array-size-to-the-half", "minimum-deletions-to-make-character-frequencies-unique"],
-  "Number construction": ["remove-k-digits", "create-maximum-number", "maximum-swap", "monotone-increasing-digits", "smallest-string-with-a-given-numeric-value", "largest-multiple-of-three", "maximum-69-number", "remove-duplicate-letters"],
-  "Partition labels": ["partition-labels", "split-a-string-in-balanced-strings", "maximum-number-of-non-overlapping-substrings", "divide-array-in-sets-of-k-consecutive-numbers", "split-array-into-consecutive-subsequences", "hand-of-straights"],
-  "Candy two-pass": ["candy", "trapping-rain-water", "product-of-array-except-self", "maximum-sum-circular-subarray"],
-  "Stock problems": ["best-time-to-buy-and-sell-stock", "best-time-to-buy-and-sell-stock-ii", "best-time-to-buy-and-sell-stock-iii", "best-time-to-buy-and-sell-stock-iv", "best-time-to-buy-and-sell-stock-with-cooldown", "best-time-to-buy-and-sell-stock-with-transaction-fee"],
-  "Activity selection": ["non-overlapping-intervals", "maximum-number-of-events-that-can-be-attended", "meeting-rooms", "course-schedule-iii"],
-  "When greedy fails": ["coin-change", "longest-increasing-subsequence", "maximum-profit-in-job-scheduling", "partition-equal-subset-sum", "house-robber"],
-  "Running-state scans": ["maximum-subarray", "maximum-sum-circular-subarray", "longest-turbulent-subarray", "best-sightseeing-pair", "max-consecutive-ones-ii", "longest-mountain-in-array", "increasing-triplet-subsequence", "maximum-ascending-subarray-sum"],
-  "Window flips and grouping": ["minimum-number-of-k-consecutive-bit-flips", "minimum-operations-to-make-binary-array-elements-equal-to-one-i", "grumpy-bookstore-owner", "max-consecutive-ones-iii", "minimum-adjacent-swaps-for-k-consecutive-ones"],
-  "Greedy simulation": ["task-scheduler", "reorganize-string", "rearrange-string-k-distance-apart", "dota2-senate", "bag-of-tokens", "boats-to-save-people", "assign-cookies", "lemonade-change"],
-  "Comparators and tie-breaking": ["reorganize-string", "task-scheduler", "top-k-frequent-words", "sort-characters-by-frequency", "the-k-weakest-rows-in-a-matrix", "k-closest-points-to-origin"],
-  "Merge and combine": ["merge-intervals", "insert-interval", "summary-ranges", "data-stream-as-disjoint-intervals", "range-module", "count-integers-in-intervals"],
-  "Intersection and subtraction": ["interval-list-intersections", "remove-interval", "employee-free-time", "remove-covered-intervals", "find-right-interval"],
-  "Selection by earliest end": ["non-overlapping-intervals", "minimum-number-of-arrows-to-burst-balloons", "maximum-length-of-pair-chain", "meeting-rooms", "remove-covered-intervals"],
-  "Covering points and ranges": ["video-stitching", "minimum-number-of-taps-to-open-to-water-a-garden", "minimum-number-of-arrows-to-burst-balloons", "minimum-interval-to-include-each-query"],
-  "Interval scheduling: weighted": ["maximum-profit-in-job-scheduling", "two-best-non-overlapping-events", "maximum-earnings-from-taxi", "maximum-number-of-events-that-can-be-attended", "maximum-number-of-events-that-can-be-attended-ii", "course-schedule-iii"],
-  "Gaps and free time": ["employee-free-time", "meeting-rooms", "maximum-gap", "car-pooling"],
-  "Interval DP": ["minimum-cost-to-cut-a-stick", "burst-balloons"],
-  "Union length and area": ["rectangle-area", "rectangle-area-ii", "perfect-rectangle", "amount-of-new-area-painted-each-day", "falling-squares", "range-module"],
-  "Circular intervals": ["maximum-sum-circular-subarray", "circular-array-loop", "car-pooling", "minimum-number-of-taps-to-open-to-water-a-garden", "corporate-flight-bookings"],
-  "Interval graphs and matching": ["meeting-rooms-ii", "minimum-number-of-arrows-to-burst-balloons", "car-pooling", "maximum-number-of-events-that-can-be-attended"],
-  "Intervals built from other data": ["summary-ranges", "missing-ranges", "data-stream-as-disjoint-intervals", "count-days-without-meetings", "the-latest-time-to-catch-a-bus", "count-ways-to-group-overlapping-ranges", "car-pooling"],
-  "Partition and reorder": ["partition-list", "reorder-list", "odd-even-linked-list", "swap-nodes-in-pairs", "rotate-list", "reverse-nodes-in-k-group", "sort-list", "split-linked-list-in-parts"],
-  "Arithmetic on lists": ["add-two-numbers", "add-two-numbers-ii", "plus-one-linked-list", "double-a-number-represented-as-a-linked-list", "convert-binary-number-in-a-linked-list-to-integer"],
-  "Flattening and linking structure": ["flatten-a-multilevel-doubly-linked-list", "flatten-binary-tree-to-linked-list", "populating-next-right-pointers-in-each-node", "populating-next-right-pointers-in-each-node-ii", "convert-binary-search-tree-to-sorted-doubly-linked-list", "copy-list-with-random-pointer"],
-  "List and structure conversion": ["convert-sorted-list-to-binary-search-tree", "linked-list-in-binary-tree", "next-greater-node-in-linked-list", "split-linked-list-in-parts", "merge-in-between-linked-lists", "insert-into-a-sorted-circular-linked-list"],
-  "Splitting": ["split-linked-list-in-parts", "partition-list", "odd-even-linked-list", "reorder-list", "middle-of-the-linked-list", "delete-the-middle-node-of-a-linked-list"],
-  "Cycles in functional graphs": ["linked-list-cycle-ii", "find-the-duplicate-number", "happy-number", "circular-array-loop", "longest-cycle-in-a-graph"],
-  "O(1)-space variants": ["palindrome-linked-list", "reorder-list", "intersection-of-two-linked-lists", "linked-list-cycle-ii", "sort-list", "remove-nth-node-from-end-of-list"],
-  "Base conversion and representation": ["convert-a-number-to-hexadecimal", "excel-sheet-column-title", "excel-sheet-column-number", "base-7", "add-binary", "encode-number", "fraction-to-recurring-decimal"],
-  "Number ranges": ["missing-ranges", "summary-ranges", "count-numbers-with-unique-digits", "count-integers-with-even-digit-sum", "count-the-digits-that-divide-a-number", "find-the-closest-palindrome", "rotated-digits", "count-primes"],
-  "Overflow and precision pitfalls": ["reverse-integer", "string-to-integer-atoi", "divide-two-integers", "powx-n", "sqrtx", "integer-to-english-words", "palindrome-number", "fraction-to-recurring-decimal"],
-  "Observation problems": ["bulb-switcher", "nim-game", "water-and-jug-problem", "poor-pigs", "find-the-winner-of-the-circular-game", "egg-drop-with-2-eggs-and-n-floors", "stone-game"],
-  "Windows over two sequences": ["minimum-window-substring", "permutation-in-string", "find-all-anagrams-in-a-string", "minimum-window-subsequence", "longest-common-subpath", "substring-with-concatenation-of-all-words"],
-  "Character-budget windows": ["longest-repeating-character-replacement", "maximum-number-of-vowels-in-a-substring-of-given-length", "get-equal-substrings-within-budget", "maximize-the-confusion-of-an-exam", "longest-substring-with-at-most-two-distinct-characters"],
-  "Sorted-input windows": ["minimum-difference-between-highest-and-lowest-of-k-scores", "frequency-of-the-most-frequent-element", "max-consecutive-ones-iii"],
-  "Window as a helper for DP and greedy": ["maximum-points-you-can-obtain-from-cards", "minimum-swaps-to-group-all-1s-together", "minimum-adjacent-swaps-for-k-consecutive-ones", "maximum-white-tiles-covered-by-a-carpet", "max-consecutive-ones-iii"],
-  "Parent pointers and tree-to-graph": ["all-nodes-distance-k-in-binary-tree", "amount-of-time-for-binary-tree-to-be-infected", "step-by-step-directions-from-a-binary-tree-node-to-another", "lowest-common-ancestor-of-a-binary-tree-iii", "binary-tree-cameras", "closest-leaf-in-a-binary-tree", "minimum-height-trees", "sum-of-distances-in-tree"],
-  "Prefix counting, sums and autocomplete": ["map-sum-pairs", "implement-trie-prefix-tree", "search-suggestions-system", "design-search-autocomplete-system", "count-prefix-and-suffix-pairs-i", "sum-of-prefix-scores-of-strings"],
-  "Longest word, shortest root and common prefixes": ["longest-word-in-dictionary", "replace-words", "longest-common-prefix", "longest-word-in-dictionary-through-deleting", "short-encoding-of-words"],
-  "Merge-like walks": ["merge-sorted-array", "interval-list-intersections", "intersection-of-two-arrays-ii", "is-subsequence", "backspace-string-compare", "long-pressed-name", "merge-two-sorted-lists"],
-  "Rotation and reversal": ["rotate-array", "reverse-string", "reverse-words-in-a-string", "reverse-vowels-of-a-string", "reverse-string-ii", "rotate-string"],
-  "In-place dedupe and compaction": ["remove-duplicates-from-sorted-array", "remove-duplicates-from-sorted-array-ii", "move-zeroes", "remove-element", "string-compression", "remove-all-adjacent-duplicates-in-string"],
-  "Center expansion": ["longest-palindromic-substring", "palindromic-substrings", "valid-palindrome-ii", "longest-palindromic-subsequence"],
-  "Linked-list pointers": ["linked-list-cycle", "middle-of-the-linked-list", "remove-nth-node-from-end-of-list", "intersection-of-two-linked-lists"]
+  "Linear and sequence DP": [
+    "ugly-number-ii",
+    "integer-break",
+    "maximum-subarray-sum-with-one-deletion",
+    "count-sorted-vowel-strings",
+    "paint-fence",
+    "maximum-sum-circular-subarray",
+    "arithmetic-slices",
+    "decode-ways-ii",
+    "solving-questions-with-brainpower",
+    "house-robber-iv",
+    "super-ugly-number",
+    "best-sightseeing-pair"
+  ],
+  "Knapsack family": [
+    "profitable-schemes",
+    "tallest-billboard",
+    "maximum-value-of-k-coins-from-piles",
+    "form-largest-integer-with-digits-that-add-up-to-target",
+    "shopping-offers",
+    "split-array-with-same-average",
+    "partition-array-into-two-arrays-to-minimize-sum-difference",
+    "minimum-number-of-work-sessions-to-finish-the-tasks"
+  ],
+  "Coin change": [
+    "count-ways-to-build-good-strings",
+    "least-operators-to-express-number",
+    "minimum-cost-for-tickets",
+    "number-of-ways-to-reach-a-position-after-exactly-k-steps",
+    "dice-roll-simulation",
+    "coin-path",
+    "domino-and-tromino-tiling"
+  ],
+  "Longest increasing subsequence": [
+    "longest-increasing-subsequence-ii",
+    "maximum-height-by-stacking-cuboids",
+    "find-the-longest-valid-obstacle-course-at-each-position",
+    "longest-ideal-subsequence",
+    "minimum-number-of-removals-to-make-mountain-array",
+    "longest-arithmetic-subsequence",
+    "length-of-longest-fibonacci-subsequence",
+    "best-team-with-no-conflicts",
+    "make-array-strictly-increasing"
+  ],
+  "Palindromic DP": [
+    "palindrome-partitioning-ii",
+    "minimum-insertion-steps-to-make-a-string-palindrome",
+    "count-different-palindromic-subsequences",
+    "valid-palindrome-iii",
+    "maximum-product-of-the-length-of-two-palindromic-subsequences",
+    "palindrome-partitioning-iii",
+    "longest-palindromic-subsequence-ii",
+    "count-palindromic-subsequences"
+  ],
+  "Matrix exponentiation": [
+    "student-attendance-record-ii",
+    "count-vowels-permutation",
+    "fibonacci-number",
+    "domino-and-tromino-tiling",
+    "knight-dialer",
+    "number-of-ways-to-stay-in-the-same-place-after-some-steps"
+  ],
+  "Space optimisation": [
+    "pascals-triangle-ii",
+    "unique-paths-ii",
+    "minimum-path-sum",
+    "triangle",
+    "best-time-to-buy-and-sell-stock-iv",
+    "longest-common-subsequence"
+  ],
+  "Reconstruction": [
+    "largest-divisible-subset",
+    "shortest-common-supersequence",
+    "word-break-ii",
+    "unique-binary-search-trees-ii",
+    "palindrome-partitioning",
+    "russian-doll-envelopes",
+    "maximum-length-of-repeated-subarray"
+  ],
+  "LCS and edit distance": [
+    "delete-operation-for-two-strings",
+    "minimum-ascii-delete-sum-for-two-strings",
+    "shortest-common-supersequence",
+    "maximum-length-of-repeated-subarray",
+    "uncrossed-lines",
+    "one-edit-distance",
+    "wildcard-matching",
+    "distinct-subsequences"
+  ],
+  "Interval DP": [
+    "minimum-cost-to-cut-a-stick",
+    "burst-balloons"
+  ],
+  "DAG and graph DP": [
+    "longest-increasing-path-in-a-matrix",
+    "largest-color-value-in-a-directed-graph",
+    "number-of-ways-to-arrive-at-destination",
+    "minimum-cost-to-reach-destination-in-time",
+    "count-all-possible-routes",
+    "number-of-restricted-paths-from-first-to-last-node",
+    "longest-cycle-in-a-graph",
+    "parallel-courses-iii"
+  ],
+  "State machine DP": [
+    "best-time-to-buy-and-sell-stock-iii",
+    "best-time-to-buy-and-sell-stock-iv",
+    "flip-string-to-monotone-increasing",
+    "paint-house",
+    "maximum-alternating-subsequence-sum",
+    "paint-fence",
+    "student-attendance-record-ii",
+    "dice-roll-simulation",
+    "wiggle-subsequence"
+  ],
+  "Constrained subsequences": [
+    "constrained-subsequence-sum",
+    "longest-arithmetic-subsequence-of-given-difference",
+    "longest-arithmetic-subsequence",
+    "longest-ideal-subsequence",
+    "length-of-longest-fibonacci-subsequence",
+    "number-of-matching-subsequences",
+    "is-subsequence",
+    "jump-game-vi",
+    "longest-subsequence-with-decreasing-adjacent-difference"
+  ],
+  "Broken profile and tiling DP": [
+    "domino-and-tromino-tiling",
+    "maximum-students-taking-exam",
+    "number-of-ways-to-paint-n-3-grid",
+    "tiling-a-rectangle-with-the-fewest-squares",
+    "number-of-ways-to-wear-different-hats-to-each-other",
+    "painting-a-grid-with-three-different-colors"
+  ],
+  "Matching and bipartite graphs": [
+    "maximum-number-of-accepted-invitations",
+    "maximum-students-taking-exam",
+    "possible-bipartition",
+    "divide-nodes-into-the-maximum-number-of-groups"
+  ],
+  "Network flow": [
+    "maximum-number-of-accepted-invitations",
+    "minimum-cost-to-connect-two-groups-of-points"
+  ],
+  "Graph dynamic programming": [
+    "longest-increasing-path-in-a-matrix",
+    "largest-color-value-in-a-directed-graph",
+    "number-of-ways-to-arrive-at-destination",
+    "count-all-possible-routes",
+    "parallel-courses-iii"
+  ],
+  "Specialized graph algorithms": [
+    "find-eventual-safe-states",
+    "find-the-celebrity",
+    "all-ancestors-of-a-node-in-a-directed-acyclic-graph",
+    "find-center-of-star-graph",
+    "maximal-network-rank",
+    "minimum-height-trees"
+  ],
+  "Two-sum family": [
+    "two-sum-iii-data-structure-design",
+    "two-sum-iv-input-is-a-bst",
+    "subarray-sum-equals-k",
+    "count-number-of-pairs-with-absolute-difference-k",
+    "brick-wall",
+    "4sum-ii",
+    "max-number-of-k-sum-pairs",
+    "k-diff-pairs-in-an-array"
+  ],
+  "Grouping by canonical key": [
+    "group-shifted-strings",
+    "find-duplicate-file-in-system",
+    "find-and-replace-pattern",
+    "isomorphic-strings",
+    "word-pattern",
+    "number-of-equivalent-domino-pairs",
+    "sort-characters-by-frequency",
+    "find-duplicate-subtrees"
+  ],
+  "In-place manipulation": [
+    "find-all-numbers-disappeared-in-an-array",
+    "find-all-duplicates-in-an-array",
+    "set-mismatch",
+    "move-zeroes",
+    "remove-duplicates-from-sorted-array",
+    "game-of-life",
+    "set-matrix-zeroes"
+  ],
+  "Partition and rearrangement": [
+    "partition-array-according-to-given-pivot",
+    "wiggle-sort",
+    "wiggle-sort-ii",
+    "rearrange-array-elements-by-sign",
+    "sort-array-by-parity",
+    "sort-array-by-parity-ii",
+    "relative-sort-array",
+    "custom-sort-string"
+  ],
+  "Coordinate compression": [
+    "rank-transform-of-an-array",
+    "rank-transform-of-a-matrix",
+    "count-of-smaller-numbers-after-self",
+    "reverse-pairs",
+    "count-of-range-sum",
+    "create-sorted-array-through-instructions"
+  ],
+  "Duplicate detection": [
+    "contains-duplicate-ii",
+    "contains-duplicate-iii",
+    "find-the-duplicate-number",
+    "find-all-duplicates-in-an-array",
+    "valid-sudoku"
+  ],
+  "Missing and extra number": [
+    "missing-number",
+    "find-all-numbers-disappeared-in-an-array",
+    "set-mismatch",
+    "missing-element-in-sorted-array",
+    "find-missing-and-repeated-values",
+    "kth-missing-positive-number",
+    "missing-ranges"
+  ],
+  "Constraint satisfaction": [
+    "n-queens-ii",
+    "sudoku-solver",
+    "maximum-number-of-achievable-transfer-requests",
+    "matchsticks-to-square",
+    "tiling-a-rectangle-with-the-fewest-squares",
+    "verbal-arithmetic-puzzle",
+    "word-squares",
+    "the-number-of-beautiful-subsets"
+  ],
+  "Partitioning": [
+    "partition-to-k-equal-sum-subsets",
+    "matchsticks-to-square",
+    "split-array-into-fibonacci-sequence",
+    "additive-number",
+    "splitting-a-string-into-descending-consecutive-values",
+    "palindrome-partitioning"
+  ],
+  "String generation": [
+    "remove-invalid-parentheses",
+    "letter-case-permutation",
+    "restore-ip-addresses",
+    "expression-add-operators",
+    "strobogrammatic-number-ii",
+    "numbers-with-same-consecutive-differences",
+    "the-k-th-lexicographical-string-of-all-happy-strings-of-length-n",
+    "brace-expansion",
+    "brace-expansion-ii",
+    "cracking-the-safe"
+  ],
+  "Path enumeration in graphs and trees": [
+    "binary-tree-paths",
+    "path-sum-ii",
+    "all-paths-from-source-to-target",
+    "unique-paths-iii",
+    "all-possible-full-binary-trees",
+    "path-sum-iii"
+  ],
+  "Pruning techniques": [
+    "combination-sum-ii",
+    "permutations-ii",
+    "subsets-ii",
+    "beautiful-arrangement",
+    "number-of-squareful-arrays",
+    "fair-distribution-of-cookies",
+    "find-minimum-time-to-finish-all-jobs",
+    "minimum-number-of-work-sessions-to-finish-the-tasks"
+  ],
+  "Branch and bound and search order": [
+    "sliding-puzzle",
+    "24-game",
+    "word-ladder-ii",
+    "shortest-path-visiting-all-nodes",
+    "minimum-moves-to-spread-stones-over-grid"
+  ],
+  "Search on the answer": [
+    "koko-eating-bananas",
+    "capacity-to-ship-packages-within-d-days",
+    "split-array-largest-sum",
+    "minimum-number-of-days-to-make-m-bouquets",
+    "magnetic-force-between-two-balls",
+    "minimum-time-to-complete-trips",
+    "minimized-maximum-of-products-distributed-to-any-store",
+    "find-the-smallest-divisor-given-a-threshold",
+    "maximum-candies-allocated-to-k-children",
+    "minimum-limit-of-balls-in-a-bag"
+  ],
+  "Real numbers": [
+    "sqrtx",
+    "powx-n",
+    "minimize-max-distance-to-gas-station",
+    "maximum-average-subarray-ii",
+    "valid-perfect-square"
+  ],
+  "Indices of other structures": [
+    "time-based-key-value-store",
+    "snapshot-array",
+    "random-pick-with-weight",
+    "my-calendar-i",
+    "find-k-closest-elements",
+    "successful-pairs-of-spells-and-potions",
+    "number-of-matching-subsequences",
+    "online-election",
+    "find-right-interval"
+  ],
+  "Binary lifting": [
+    "kth-ancestor-of-a-tree-node"
+  ],
+  "Parametric search": [
+    "path-with-minimum-effort",
+    "swim-in-rising-water",
+    "path-with-maximum-minimum-value",
+    "find-the-safest-path-in-a-grid",
+    "minimize-the-maximum-difference-of-pairs",
+    "maximum-candies-allocated-to-k-children"
+  ],
+  "Ternary search": [
+    "peak-index-in-a-mountain-array",
+    "find-peak-element",
+    "minimum-cost-to-make-array-equal"
+  ],
+  "Bisect on tails": [
+    "longest-increasing-subsequence",
+    "russian-doll-envelopes",
+    "find-the-longest-valid-obstacle-course-at-each-position",
+    "maximum-profit-in-job-scheduling",
+    "longest-increasing-subsequence-ii"
+  ],
+  "Length, hashing and halves": [
+    "longest-duplicate-substring",
+    "longest-common-subpath"
+  ],
+  "Inside data structures and offline": [
+    "count-of-smaller-numbers-after-self",
+    "range-sum-query-mutable",
+    "kth-smallest-number-in-multiplication-table",
+    "find-k-th-smallest-pair-distance",
+    "maximum-xor-with-an-element-from-array"
+  ],
+  "Counting bits across numbers": [
+    "counting-bits",
+    "total-hamming-distance",
+    "sum-of-all-subset-xor-totals",
+    "count-triplets-that-can-form-two-arrays-of-equal-xor",
+    "count-numbers-with-unique-digits"
+  ],
+  "Arithmetic with bits": [
+    "sum-of-two-integers",
+    "divide-two-integers",
+    "add-binary",
+    "add-to-array-form-of-integer",
+    "reverse-bits",
+    "bitwise-and-of-numbers-range"
+  ],
+  "Hamming distance and total Hamming": [
+    "hamming-distance",
+    "total-hamming-distance",
+    "minimum-flips-to-make-a-or-b-equal-to-c",
+    "minimum-one-bit-operations-to-make-integers-zero",
+    "minimum-bit-flips-to-convert-number"
+  ],
+  "Bit tricks for strings": [
+    "maximum-product-of-word-lengths",
+    "find-the-longest-substring-containing-vowels-in-even-counts",
+    "repeated-dna-sequences",
+    "check-if-a-string-contains-all-binary-codes-of-size-k",
+    "number-of-wonderful-substrings",
+    "substring-xor-queries"
+  ],
+  "Binary representation problems": [
+    "number-complement",
+    "complement-of-base-10-integer",
+    "binary-gap",
+    "binary-number-with-alternating-bits",
+    "concatenation-of-consecutive-binary-numbers",
+    "number-of-steps-to-reduce-a-number-in-binary-representation-to-one",
+    "find-kth-bit-in-nth-binary-string"
+  ],
+  "Flip operations on binary arrays": [
+    "minimum-number-of-k-consecutive-bit-flips",
+    "minimum-operations-to-make-binary-array-elements-equal-to-one-i",
+    "flip-columns-for-maximum-number-of-equal-rows",
+    "score-after-flipping-matrix",
+    "bulb-switcher",
+    "bulb-switcher-ii"
+  ],
+  "Algebraic properties and invariants": [
+    "minimum-xor-sum-of-two-arrays",
+    "find-xor-sum-of-all-pairs-bitwise-and",
+    "maximum-xor-after-operations",
+    "bitwise-xor-of-all-pairings",
+    "count-pairs-with-xor-in-a-range"
+  ],
+  "Advanced bit techniques": [
+    "maximum-xor-of-two-numbers-in-an-array",
+    "maximum-xor-with-an-element-from-array",
+    "count-pairs-with-xor-in-a-range",
+    "maximum-genetic-difference-query",
+    "partition-array-into-two-arrays-to-minimize-sum-difference"
+  ],
+  "Interval scheduling and covering": [
+    "non-overlapping-intervals",
+    "minimum-number-of-arrows-to-burst-balloons",
+    "video-stitching",
+    "minimum-number-of-taps-to-open-to-water-a-garden",
+    "meeting-rooms-ii",
+    "maximum-length-of-pair-chain",
+    "remove-covered-intervals"
+  ],
+  "Jump game family": [
+    "jump-game",
+    "jump-game-ii",
+    "jump-game-iii",
+    "jump-game-iv",
+    "jump-game-v",
+    "jump-game-vi",
+    "jump-game-vii"
+  ],
+  "Gas station": [
+    "gas-station",
+    "minimum-number-of-refueling-stops",
+    "car-fleet",
+    "boats-to-save-people"
+  ],
+  "Exchange arguments": [
+    "largest-number",
+    "reorder-data-in-log-files",
+    "queue-reconstruction-by-height",
+    "task-scheduler",
+    "minimum-number-of-increments-on-subarrays-to-form-a-target-array",
+    "maximum-units-on-a-truck",
+    "reduce-array-size-to-the-half",
+    "minimum-deletions-to-make-character-frequencies-unique"
+  ],
+  "Number construction": [
+    "remove-k-digits",
+    "create-maximum-number",
+    "maximum-swap",
+    "monotone-increasing-digits",
+    "smallest-string-with-a-given-numeric-value",
+    "largest-multiple-of-three",
+    "maximum-69-number",
+    "remove-duplicate-letters"
+  ],
+  "Partition labels": [
+    "partition-labels",
+    "split-a-string-in-balanced-strings",
+    "maximum-number-of-non-overlapping-substrings",
+    "divide-array-in-sets-of-k-consecutive-numbers",
+    "split-array-into-consecutive-subsequences",
+    "hand-of-straights"
+  ],
+  "Candy two-pass": [
+    "candy",
+    "trapping-rain-water",
+    "product-of-array-except-self",
+    "maximum-sum-circular-subarray"
+  ],
+  "Stock problems": [
+    "best-time-to-buy-and-sell-stock",
+    "best-time-to-buy-and-sell-stock-ii",
+    "best-time-to-buy-and-sell-stock-iii",
+    "best-time-to-buy-and-sell-stock-iv",
+    "best-time-to-buy-and-sell-stock-with-cooldown",
+    "best-time-to-buy-and-sell-stock-with-transaction-fee"
+  ],
+  "Activity selection": [
+    "non-overlapping-intervals",
+    "maximum-number-of-events-that-can-be-attended",
+    "meeting-rooms",
+    "course-schedule-iii"
+  ],
+  "When greedy fails": [
+    "coin-change",
+    "longest-increasing-subsequence",
+    "maximum-profit-in-job-scheduling",
+    "partition-equal-subset-sum",
+    "house-robber"
+  ],
+  "Running-state scans": [
+    "maximum-subarray",
+    "maximum-sum-circular-subarray",
+    "longest-turbulent-subarray",
+    "best-sightseeing-pair",
+    "max-consecutive-ones-ii",
+    "longest-mountain-in-array",
+    "increasing-triplet-subsequence",
+    "maximum-ascending-subarray-sum"
+  ],
+  "Window flips and grouping": [
+    "minimum-number-of-k-consecutive-bit-flips",
+    "minimum-operations-to-make-binary-array-elements-equal-to-one-i",
+    "grumpy-bookstore-owner",
+    "max-consecutive-ones-iii",
+    "minimum-adjacent-swaps-for-k-consecutive-ones"
+  ],
+  "Greedy simulation": [
+    "task-scheduler",
+    "reorganize-string",
+    "rearrange-string-k-distance-apart",
+    "dota2-senate",
+    "bag-of-tokens",
+    "boats-to-save-people",
+    "assign-cookies",
+    "lemonade-change"
+  ],
+  "Comparators and tie-breaking": [
+    "reorganize-string",
+    "task-scheduler",
+    "top-k-frequent-words",
+    "sort-characters-by-frequency",
+    "the-k-weakest-rows-in-a-matrix",
+    "k-closest-points-to-origin"
+  ],
+  "Merge and combine": [
+    "merge-intervals",
+    "insert-interval",
+    "summary-ranges",
+    "data-stream-as-disjoint-intervals",
+    "range-module",
+    "count-integers-in-intervals"
+  ],
+  "Intersection and subtraction": [
+    "interval-list-intersections",
+    "remove-interval",
+    "employee-free-time",
+    "remove-covered-intervals",
+    "find-right-interval"
+  ],
+  "Selection by earliest end": [
+    "non-overlapping-intervals",
+    "minimum-number-of-arrows-to-burst-balloons",
+    "maximum-length-of-pair-chain",
+    "meeting-rooms",
+    "remove-covered-intervals"
+  ],
+  "Covering points and ranges": [
+    "video-stitching",
+    "minimum-number-of-taps-to-open-to-water-a-garden",
+    "minimum-number-of-arrows-to-burst-balloons",
+    "minimum-interval-to-include-each-query"
+  ],
+  "Interval scheduling: weighted": [
+    "maximum-profit-in-job-scheduling",
+    "two-best-non-overlapping-events",
+    "maximum-earnings-from-taxi",
+    "maximum-number-of-events-that-can-be-attended",
+    "maximum-number-of-events-that-can-be-attended-ii",
+    "course-schedule-iii"
+  ],
+  "Gaps and free time": [
+    "employee-free-time",
+    "meeting-rooms",
+    "maximum-gap",
+    "car-pooling"
+  ],
+  "Union length and area": [
+    "rectangle-area",
+    "rectangle-area-ii",
+    "perfect-rectangle",
+    "amount-of-new-area-painted-each-day",
+    "falling-squares",
+    "range-module"
+  ],
+  "Circular intervals": [
+    "maximum-sum-circular-subarray",
+    "circular-array-loop",
+    "car-pooling",
+    "minimum-number-of-taps-to-open-to-water-a-garden",
+    "corporate-flight-bookings"
+  ],
+  "Interval graphs and matching": [
+    "meeting-rooms-ii",
+    "minimum-number-of-arrows-to-burst-balloons",
+    "car-pooling",
+    "maximum-number-of-events-that-can-be-attended"
+  ],
+  "Intervals built from other data": [
+    "summary-ranges",
+    "missing-ranges",
+    "data-stream-as-disjoint-intervals",
+    "count-days-without-meetings",
+    "the-latest-time-to-catch-a-bus",
+    "count-ways-to-group-overlapping-ranges",
+    "car-pooling"
+  ],
+  "Partition and reorder": [
+    "partition-list",
+    "reorder-list",
+    "odd-even-linked-list",
+    "swap-nodes-in-pairs",
+    "rotate-list",
+    "reverse-nodes-in-k-group",
+    "sort-list",
+    "split-linked-list-in-parts"
+  ],
+  "Arithmetic on lists": [
+    "add-two-numbers",
+    "add-two-numbers-ii",
+    "plus-one-linked-list",
+    "double-a-number-represented-as-a-linked-list",
+    "convert-binary-number-in-a-linked-list-to-integer"
+  ],
+  "Flattening and linking structure": [
+    "flatten-a-multilevel-doubly-linked-list",
+    "flatten-binary-tree-to-linked-list",
+    "populating-next-right-pointers-in-each-node",
+    "populating-next-right-pointers-in-each-node-ii",
+    "convert-binary-search-tree-to-sorted-doubly-linked-list",
+    "copy-list-with-random-pointer"
+  ],
+  "List and structure conversion": [
+    "convert-sorted-list-to-binary-search-tree",
+    "linked-list-in-binary-tree",
+    "next-greater-node-in-linked-list",
+    "split-linked-list-in-parts",
+    "merge-in-between-linked-lists",
+    "insert-into-a-sorted-circular-linked-list"
+  ],
+  "Splitting": [
+    "split-linked-list-in-parts",
+    "partition-list",
+    "odd-even-linked-list",
+    "reorder-list",
+    "middle-of-the-linked-list",
+    "delete-the-middle-node-of-a-linked-list"
+  ],
+  "Cycles in functional graphs": [
+    "linked-list-cycle-ii",
+    "find-the-duplicate-number",
+    "happy-number",
+    "circular-array-loop",
+    "longest-cycle-in-a-graph"
+  ],
+  "O(1)-space variants": [
+    "palindrome-linked-list",
+    "reorder-list",
+    "intersection-of-two-linked-lists",
+    "linked-list-cycle-ii",
+    "sort-list",
+    "remove-nth-node-from-end-of-list"
+  ],
+  "Base conversion and representation": [
+    "convert-a-number-to-hexadecimal",
+    "excel-sheet-column-title",
+    "excel-sheet-column-number",
+    "base-7",
+    "add-binary",
+    "encode-number",
+    "fraction-to-recurring-decimal"
+  ],
+  "Number ranges": [
+    "missing-ranges",
+    "summary-ranges",
+    "count-numbers-with-unique-digits",
+    "count-integers-with-even-digit-sum",
+    "count-the-digits-that-divide-a-number",
+    "find-the-closest-palindrome",
+    "rotated-digits",
+    "count-primes"
+  ],
+  "Overflow and precision pitfalls": [
+    "reverse-integer",
+    "string-to-integer-atoi",
+    "divide-two-integers",
+    "powx-n",
+    "sqrtx",
+    "integer-to-english-words",
+    "palindrome-number",
+    "fraction-to-recurring-decimal"
+  ],
+  "Observation problems": [
+    "bulb-switcher",
+    "nim-game",
+    "water-and-jug-problem",
+    "poor-pigs",
+    "find-the-winner-of-the-circular-game",
+    "egg-drop-with-2-eggs-and-n-floors",
+    "stone-game"
+  ],
+  "Windows over two sequences": [
+    "minimum-window-substring",
+    "permutation-in-string",
+    "find-all-anagrams-in-a-string",
+    "minimum-window-subsequence",
+    "longest-common-subpath",
+    "substring-with-concatenation-of-all-words"
+  ],
+  "Character-budget windows": [
+    "longest-repeating-character-replacement",
+    "maximum-number-of-vowels-in-a-substring-of-given-length",
+    "get-equal-substrings-within-budget",
+    "maximize-the-confusion-of-an-exam",
+    "longest-substring-with-at-most-two-distinct-characters"
+  ],
+  "Sorted-input windows": [
+    "minimum-difference-between-highest-and-lowest-of-k-scores",
+    "frequency-of-the-most-frequent-element",
+    "max-consecutive-ones-iii"
+  ],
+  "Window as a helper for DP and greedy": [
+    "maximum-points-you-can-obtain-from-cards",
+    "minimum-swaps-to-group-all-1s-together",
+    "minimum-adjacent-swaps-for-k-consecutive-ones",
+    "maximum-white-tiles-covered-by-a-carpet",
+    "max-consecutive-ones-iii"
+  ],
+  "Parent pointers and tree-to-graph": [
+    "all-nodes-distance-k-in-binary-tree",
+    "amount-of-time-for-binary-tree-to-be-infected",
+    "step-by-step-directions-from-a-binary-tree-node-to-another",
+    "lowest-common-ancestor-of-a-binary-tree-iii",
+    "binary-tree-cameras",
+    "closest-leaf-in-a-binary-tree",
+    "minimum-height-trees",
+    "sum-of-distances-in-tree"
+  ],
+  "Prefix counting, sums and autocomplete": [
+    "map-sum-pairs",
+    "implement-trie-prefix-tree",
+    "search-suggestions-system",
+    "design-search-autocomplete-system",
+    "count-prefix-and-suffix-pairs-i",
+    "sum-of-prefix-scores-of-strings"
+  ],
+  "Longest word, shortest root and common prefixes": [
+    "longest-word-in-dictionary",
+    "replace-words",
+    "longest-common-prefix",
+    "longest-word-in-dictionary-through-deleting",
+    "short-encoding-of-words"
+  ],
+  "Merge-like walks": [
+    "merge-sorted-array",
+    "interval-list-intersections",
+    "intersection-of-two-arrays-ii",
+    "is-subsequence",
+    "backspace-string-compare",
+    "long-pressed-name",
+    "merge-two-sorted-lists"
+  ],
+  "Rotation and reversal": [
+    "rotate-array",
+    "reverse-string",
+    "reverse-words-in-a-string",
+    "reverse-vowels-of-a-string",
+    "reverse-string-ii",
+    "rotate-string"
+  ],
+  "In-place dedupe and compaction": [
+    "remove-duplicates-from-sorted-array",
+    "remove-duplicates-from-sorted-array-ii",
+    "move-zeroes",
+    "remove-element",
+    "string-compression",
+    "remove-all-adjacent-duplicates-in-string"
+  ],
+  "Center expansion": [
+    "longest-palindromic-substring",
+    "palindromic-substrings",
+    "valid-palindrome-ii",
+    "longest-palindromic-subsequence"
+  ],
+  "Linked-list pointers": [
+    "linked-list-cycle",
+    "middle-of-the-linked-list",
+    "remove-nth-node-from-end-of-list",
+    "intersection-of-two-linked-lists"
+  ],
+  "Traversals": [
+    "binary-tree-preorder-traversal",
+    "binary-tree-inorder-traversal",
+    "binary-tree-postorder-traversal",
+    "binary-tree-zigzag-level-order-traversal",
+    "vertical-order-traversal-of-a-binary-tree",
+    "boundary-of-binary-tree",
+    "binary-tree-vertical-order-traversal",
+    "n-ary-tree-preorder-traversal",
+    "n-ary-tree-postorder-traversal"
+  ],
+  "Level-order family": [
+    "binary-tree-level-order-traversal-ii",
+    "binary-tree-zigzag-level-order-traversal",
+    "average-of-levels-in-binary-tree",
+    "find-largest-value-in-each-tree-row",
+    "populating-next-right-pointers-in-each-node",
+    "maximum-width-of-binary-tree",
+    "cousins-in-binary-tree",
+    "check-completeness-of-a-binary-tree",
+    "n-ary-tree-level-order-traversal",
+    "deepest-leaves-sum"
+  ],
+  "Subtree aggregation": [
+    "sum-of-root-to-leaf-binary-numbers",
+    "binary-tree-tilt",
+    "most-frequent-subtree-sum",
+    "count-nodes-equal-to-average-of-subtree",
+    "maximum-average-subtree",
+    "sum-root-to-leaf-numbers",
+    "find-duplicate-subtrees",
+    "delete-nodes-and-return-forest",
+    "smallest-subtree-with-all-the-deepest-nodes"
+  ],
+  "Path problems": [
+    "path-sum",
+    "path-sum-ii",
+    "path-sum-iii",
+    "binary-tree-paths",
+    "longest-univalue-path",
+    "binary-tree-longest-consecutive-sequence",
+    "longest-zigzag-path-in-a-binary-tree",
+    "sum-root-to-leaf-numbers",
+    "maximum-difference-between-node-and-ancestor"
+  ],
+  "BST operations": [
+    "insert-into-a-binary-search-tree",
+    "delete-node-in-a-bst",
+    "search-in-a-binary-search-tree",
+    "trim-a-binary-search-tree",
+    "convert-sorted-array-to-binary-search-tree",
+    "range-sum-of-bst",
+    "minimum-absolute-difference-in-bst",
+    "inorder-successor-in-bst",
+    "recover-binary-search-tree",
+    "two-sum-iv-input-is-a-bst",
+    "closest-binary-search-tree-value",
+    "balance-a-binary-search-tree"
+  ],
+  "Lowest common ancestor": [
+    "lowest-common-ancestor-of-a-binary-search-tree",
+    "lowest-common-ancestor-of-a-binary-tree",
+    "lowest-common-ancestor-of-a-binary-tree-ii",
+    "lowest-common-ancestor-of-a-binary-tree-iii",
+    "lowest-common-ancestor-of-a-binary-tree-iv",
+    "lowest-common-ancestor-of-deepest-leaves",
+    "step-by-step-directions-from-a-binary-tree-node-to-another"
+  ],
+  "Tree comparison": [
+    "same-tree",
+    "symmetric-tree",
+    "subtree-of-another-tree",
+    "flip-equivalent-binary-trees",
+    "leaf-similar-trees",
+    "merge-two-binary-trees"
+  ],
+  "Transformations": [
+    "invert-binary-tree",
+    "flatten-binary-tree-to-linked-list",
+    "binary-tree-upside-down",
+    "convert-bst-to-greater-tree",
+    "increasing-order-search-tree",
+    "add-one-row-to-tree",
+    "construct-string-from-binary-tree",
+    "flip-binary-tree-to-match-preorder-traversal"
+  ],
+  "Tree DP": [
+    "house-robber-iii",
+    "binary-tree-cameras",
+    "binary-tree-maximum-path-sum",
+    "longest-univalue-path",
+    "diameter-of-binary-tree",
+    "largest-bst-subtree",
+    "maximum-sum-bst-in-binary-tree",
+    "distribute-coins-in-binary-tree",
+    "unique-binary-search-trees",
+    "sum-of-distances-in-tree"
+  ],
+  "Views": [
+    "binary-tree-right-side-view",
+    "binary-tree-vertical-order-traversal",
+    "vertical-order-traversal-of-a-binary-tree",
+    "boundary-of-binary-tree",
+    "find-bottom-left-tree-value"
+  ],
+  "Count and enumerate trees": [
+    "unique-binary-search-trees",
+    "unique-binary-search-trees-ii",
+    "all-possible-full-binary-trees",
+    "count-complete-tree-nodes",
+    "number-of-ways-to-reorder-array-to-get-same-bst",
+    "count-good-nodes-in-binary-tree",
+    "count-univalue-subtrees"
+  ],
+  "N-ary trees": [
+    "n-ary-tree-preorder-traversal",
+    "n-ary-tree-postorder-traversal",
+    "n-ary-tree-level-order-traversal",
+    "maximum-depth-of-n-ary-tree",
+    "diameter-of-n-ary-tree",
+    "encode-n-ary-tree-to-binary-tree",
+    "serialize-and-deserialize-n-ary-tree",
+    "clone-n-ary-tree",
+    "find-root-of-n-ary-tree"
+  ],
+  "Matching and nesting": [
+    "valid-parentheses",
+    "longest-valid-parentheses",
+    "minimum-remove-to-make-valid-parentheses",
+    "remove-all-adjacent-duplicates-in-string",
+    "remove-all-adjacent-duplicates-in-string-ii",
+    "score-of-parentheses",
+    "valid-parenthesis-string",
+    "check-if-word-is-valid-after-substitutions",
+    "minimum-add-to-make-parentheses-valid",
+    "reverse-substrings-between-each-pair-of-parentheses",
+    "make-the-string-great",
+    "maximum-nesting-depth-of-the-parentheses"
+  ],
+  "Expression evaluation": [
+    "evaluate-reverse-polish-notation",
+    "basic-calculator",
+    "basic-calculator-ii",
+    "basic-calculator-iii",
+    "decode-string",
+    "parse-lisp-expression",
+    "number-of-atoms",
+    "different-ways-to-add-parentheses",
+    "build-binary-expression-tree-from-infix-expression",
+    "design-an-expression-tree-with-evaluate-function"
+  ],
+  "Stack and queue design": [
+    "min-stack",
+    "implement-queue-using-stacks",
+    "implement-stack-using-queues",
+    "design-a-stack-with-increment-operation",
+    "max-stack",
+    "maximum-frequency-stack",
+    "design-browser-history",
+    "design-circular-queue",
+    "design-circular-deque",
+    "online-stock-span",
+    "design-hit-counter",
+    "moving-average-from-data-stream"
+  ],
+  "Simulation with a stack": [
+    "asteroid-collision",
+    "remove-k-digits",
+    "simplify-path",
+    "validate-stack-sequences",
+    "baseball-game",
+    "exclusive-time-of-functions",
+    "car-fleet",
+    "crawler-log-folder",
+    "backspace-string-compare",
+    "removing-stars-from-a-string"
+  ],
+  "Iterative DFS and tree traversal": [
+    "binary-tree-inorder-traversal",
+    "binary-tree-preorder-traversal",
+    "binary-tree-postorder-traversal",
+    "binary-search-tree-iterator",
+    "flatten-nested-list-iterator",
+    "kth-smallest-element-in-a-bst",
+    "flatten-binary-tree-to-linked-list",
+    "verify-preorder-serialization-of-a-binary-tree",
+    "verify-preorder-sequence-in-binary-search-tree"
+  ],
+  "Stack and greedy": [
+    "remove-k-digits",
+    "remove-duplicate-letters",
+    "smallest-subsequence-of-distinct-characters",
+    "create-maximum-number",
+    "maximum-width-ramp",
+    "132-pattern",
+    "find-the-most-competitive-subsequence",
+    "make-the-string-great"
+  ],
+  "Stack and DP": [
+    "largest-rectangle-in-histogram",
+    "maximal-rectangle",
+    "number-of-visible-people-in-a-queue",
+    "longest-valid-parentheses",
+    "sum-of-subarray-minimums",
+    "maximum-width-ramp",
+    "count-submatrices-with-all-ones",
+    "online-stock-span"
+  ],
+  "Parsing": [
+    "decode-string",
+    "number-of-atoms",
+    "parse-lisp-expression",
+    "tag-validator",
+    "mini-parser",
+    "ternary-expression-parser",
+    "basic-calculator-iii",
+    "brace-expansion-ii",
+    "valid-number",
+    "string-to-integer-atoi"
+  ],
+  "Recursion to iteration": [
+    "binary-tree-inorder-traversal",
+    "binary-tree-postorder-traversal",
+    "flatten-nested-list-iterator",
+    "clone-graph",
+    "validate-binary-search-tree",
+    "permutations",
+    "decode-string",
+    "kth-smallest-element-in-a-bst"
+  ],
+  "Sorting-based greedy": [
+    "assign-cookies",
+    "largest-number",
+    "queue-reconstruction-by-height",
+    "two-city-scheduling",
+    "maximum-units-on-a-truck",
+    "minimum-cost-to-move-chips-to-the-same-position",
+    "boats-to-save-people",
+    "reduce-array-size-to-the-half",
+    "bag-of-tokens"
+  ],
+  "Two-pointer greedy": [
+    "boats-to-save-people",
+    "bag-of-tokens",
+    "assign-cookies",
+    "container-with-most-water",
+    "valid-palindrome-ii",
+    "minimum-size-subarray-sum",
+    "two-city-scheduling",
+    "array-partition"
+  ],
+  "Heap-assisted greedy": [
+    "ipo",
+    "task-scheduler",
+    "reorganize-string",
+    "last-stone-weight",
+    "minimum-cost-to-connect-sticks",
+    "furthest-building-you-can-reach",
+    "maximum-performance-of-a-team",
+    "car-pooling",
+    "meeting-rooms-ii",
+    "seat-reservation-manager"
+  ],
+  "Huffman": [
+    "minimum-cost-to-connect-sticks",
+    "last-stone-weight",
+    "minimum-cost-to-merge-stones",
+    "construct-target-array-with-multiple-sums"
+  ],
+  "Greedy on graphs": [
+    "minimum-number-of-vertices-to-reach-all-nodes",
+    "min-cost-to-connect-all-points",
+    "minimum-height-trees",
+    "find-center-of-star-graph",
+    "network-delay-time",
+    "path-with-maximum-probability"
+  ],
+  "Counting greedy": [
+    "task-scheduler",
+    "reorganize-string",
+    "maximum-number-of-balloons",
+    "minimum-deletions-to-make-character-frequencies-unique",
+    "hand-of-straights",
+    "divide-array-in-sets-of-k-consecutive-numbers",
+    "split-array-into-consecutive-subsequences",
+    "rearrange-string-k-distance-apart"
+  ],
+  "Bit greedy": [
+    "maximum-xor-of-two-numbers-in-an-array",
+    "maximum-or",
+    "minimum-flips-to-make-a-or-b-equal-to-c",
+    "bitwise-and-of-numbers-range",
+    "maximum-xor-after-operations",
+    "minimum-one-bit-operations-to-make-integers-zero"
+  ],
+  "Scheduling with heaps": [
+    "task-scheduler",
+    "meeting-rooms-ii",
+    "single-threaded-cpu",
+    "process-tasks-using-servers",
+    "course-schedule-iii",
+    "maximum-number-of-events-that-can-be-attended",
+    "minimum-number-of-refueling-stops",
+    "car-pooling",
+    "find-servers-that-handled-most-number-of-requests"
+  ],
+  "Greedy with a heap": [
+    "ipo",
+    "furthest-building-you-can-reach",
+    "minimum-number-of-refueling-stops",
+    "maximum-performance-of-a-team",
+    "reorganize-string",
+    "longest-happy-string",
+    "kth-largest-element-in-a-stream",
+    "remove-stones-to-minimize-the-total",
+    "maximum-average-pass-ratio"
+  ],
+  "Lazy deletion and indexed heaps": [
+    "sliding-window-median",
+    "the-skyline-problem",
+    "design-a-number-container-system",
+    "finding-mk-average",
+    "stock-price-fluctuation",
+    "design-twitter",
+    "top-k-frequent-words",
+    "maximum-frequency-stack"
+  ],
+  "Heapify and heap sort": [
+    "sort-an-array",
+    "kth-largest-element-in-an-array",
+    "last-stone-weight",
+    "relative-ranks",
+    "sort-characters-by-frequency",
+    "kth-smallest-element-in-a-sorted-matrix",
+    "find-k-pairs-with-smallest-sums"
+  ],
+  "Design problems with heaps": [
+    "find-median-from-data-stream",
+    "design-twitter",
+    "kth-largest-element-in-a-stream",
+    "seat-reservation-manager",
+    "design-a-leaderboard",
+    "design-a-number-container-system",
+    "stock-price-fluctuation",
+    "finding-mk-average"
+  ],
+  "Heap plus hash map": [
+    "top-k-frequent-elements",
+    "top-k-frequent-words",
+    "design-twitter",
+    "all-oone-data-structure",
+    "lfu-cache",
+    "maximum-frequency-stack",
+    "least-number-of-unique-integers-after-k-removals"
+  ],
+  "Heaps on grids": [
+    "trapping-rain-water-ii",
+    "swim-in-rising-water",
+    "the-maze-ii",
+    "path-with-minimum-effort",
+    "kth-smallest-element-in-a-sorted-matrix",
+    "cut-off-trees-for-golf-event",
+    "minimum-cost-to-make-at-least-one-valid-path-in-a-grid",
+    "k-th-smallest-prime-fraction"
+  ],
+  "Huffman coding and merge costs": [
+    "minimum-cost-to-connect-sticks",
+    "minimum-cost-to-merge-stones",
+    "last-stone-weight",
+    "construct-target-array-with-multiple-sums"
+  ],
+  "Line sweep": [
+    "the-skyline-problem",
+    "meeting-rooms-ii",
+    "my-calendar-iii",
+    "car-pooling",
+    "corporate-flight-bookings",
+    "employee-free-time",
+    "rectangle-area-ii",
+    "maximum-population-year",
+    "brightest-position-on-street",
+    "describe-the-painting"
+  ],
+  "Queries on intervals": [
+    "minimum-interval-to-include-each-query",
+    "maximum-number-of-events-that-can-be-attended",
+    "find-right-interval",
+    "meeting-rooms-iii",
+    "count-days-without-meetings"
+  ],
+  "Reversal": [
+    "reverse-linked-list-ii",
+    "reverse-nodes-in-k-group",
+    "swap-nodes-in-pairs",
+    "reverse-nodes-in-even-length-groups",
+    "swapping-nodes-in-a-linked-list",
+    "palindrome-linked-list",
+    "add-two-numbers-ii",
+    "maximum-twin-sum-of-a-linked-list"
+  ],
+  "Fast and slow pointers": [
+    "middle-of-the-linked-list",
+    "linked-list-cycle",
+    "linked-list-cycle-ii",
+    "happy-number",
+    "find-the-duplicate-number",
+    "palindrome-linked-list",
+    "delete-the-middle-node-of-a-linked-list",
+    "remove-nth-node-from-end-of-list"
+  ],
+  "Dummy head and in-place surgery": [
+    "remove-linked-list-elements",
+    "remove-duplicates-from-sorted-list-ii",
+    "remove-duplicates-from-sorted-list",
+    "merge-two-sorted-lists",
+    "partition-list",
+    "insertion-sort-list",
+    "delete-node-in-a-linked-list",
+    "remove-zero-sum-consecutive-nodes-from-linked-list"
+  ],
+  "Intersection and comparison": [
+    "intersection-of-two-linked-lists",
+    "palindrome-linked-list",
+    "add-two-numbers",
+    "merge-two-sorted-lists",
+    "linked-list-components"
+  ],
+  "Copy with a random pointer": [
+    "copy-list-with-random-pointer",
+    "clone-graph",
+    "clone-n-ary-tree",
+    "clone-binary-tree-with-random-pointer"
+  ],
+  "Digit manipulation": [
+    "reverse-integer",
+    "palindrome-number",
+    "add-digits",
+    "happy-number",
+    "sum-of-digits-of-string-after-convert",
+    "self-dividing-numbers",
+    "nth-digit",
+    "find-numbers-with-even-number-of-digits",
+    "armstrong-number"
+  ],
+  "Exponentiation and roots": [
+    "powx-n",
+    "sqrtx",
+    "super-pow",
+    "valid-perfect-square",
+    "integer-break",
+    "power-of-two",
+    "power-of-three",
+    "power-of-four"
+  ],
+  "Simulation and sequences": [
+    "fizz-buzz",
+    "count-and-say",
+    "spiral-matrix",
+    "pascals-triangle",
+    "game-of-life",
+    "robot-bounded-in-circle",
+    "robot-return-to-origin",
+    "angle-between-hands-of-a-clock",
+    "day-of-the-week",
+    "day-of-the-year"
+  ],
+  "Matrix on grids": [
+    "rotate-image",
+    "spiral-matrix",
+    "set-matrix-zeroes",
+    "transpose-matrix",
+    "diagonal-traverse",
+    "toeplitz-matrix",
+    "reshape-the-matrix",
+    "flipping-an-image",
+    "image-smoother"
+  ],
+  "Math plus greedy": [
+    "maximum-swap",
+    "largest-number",
+    "minimum-moves-to-equal-array-elements",
+    "minimum-moves-to-equal-array-elements-ii",
+    "integer-replacement",
+    "broken-calculator",
+    "bulb-switcher",
+    "maximum-69-number"
+  ],
+  "Bit tricks (cross-reference)": [
+    "single-number",
+    "number-of-1-bits",
+    "power-of-two",
+    "counting-bits",
+    "reverse-bits",
+    "hamming-distance"
+  ],
+  "Fixed-size window": [
+    "maximum-average-subarray-i",
+    "maximum-number-of-vowels-in-a-substring-of-given-length",
+    "find-all-anagrams-in-a-string",
+    "permutation-in-string",
+    "sliding-window-maximum",
+    "contains-duplicate-ii",
+    "k-radius-subarray-averages",
+    "number-of-sub-arrays-of-size-k-and-average-greater-than-or-equal-to-threshold",
+    "grumpy-bookstore-owner"
+  ],
+  "Variable window, longest valid": [
+    "longest-substring-without-repeating-characters",
+    "longest-repeating-character-replacement",
+    "max-consecutive-ones-iii",
+    "longest-subarray-of-1s-after-deleting-one-element",
+    "fruit-into-baskets",
+    "longest-substring-with-at-most-k-distinct-characters",
+    "longest-continuous-subarray-with-absolute-diff-less-than-or-equal-to-limit",
+    "maximum-erasure-value",
+    "get-equal-substrings-within-budget"
+  ],
+  "Variable window, shortest valid": [
+    "minimum-size-subarray-sum",
+    "minimum-window-substring",
+    "shortest-subarray-with-sum-at-least-k",
+    "minimum-operations-to-reduce-x-to-zero",
+    "smallest-range-covering-elements-from-k-lists",
+    "minimum-window-subsequence"
+  ],
+  "Counting windows": [
+    "subarrays-with-k-different-integers",
+    "count-number-of-nice-subarrays",
+    "binary-subarrays-with-sum",
+    "subarray-product-less-than-k",
+    "count-subarrays-with-fixed-bounds",
+    "number-of-substrings-containing-all-three-characters",
+    "count-subarrays-where-max-element-appears-at-least-k-times"
+  ],
+  "Frequency (need / have) windows": [
+    "minimum-window-substring",
+    "find-all-anagrams-in-a-string",
+    "permutation-in-string",
+    "substring-with-concatenation-of-all-words",
+    "longest-substring-with-at-least-k-repeating-characters"
+  ],
+  "Circular arrays": [
+    "maximum-points-you-can-obtain-from-cards",
+    "minimum-swaps-to-group-all-1s-together-ii",
+    "maximum-sum-circular-subarray"
+  ],
+  "Binary search on window size": [
+    "longest-duplicate-substring",
+    "maximum-length-of-repeated-subarray",
+    "minimum-size-subarray-sum"
+  ],
+  "Classic boundaries": [
+    "binary-search",
+    "search-insert-position",
+    "find-first-and-last-position-of-element-in-sorted-array",
+    "first-bad-version",
+    "guess-number-higher-or-lower",
+    "sqrtx",
+    "valid-perfect-square",
+    "arranging-coins",
+    "find-smallest-letter-greater-than-target",
+    "h-index-ii",
+    "count-negative-numbers-in-a-sorted-matrix"
+  ],
+  "Rotated arrays": [
+    "search-in-rotated-sorted-array",
+    "search-in-rotated-sorted-array-ii",
+    "find-minimum-in-rotated-sorted-array",
+    "find-minimum-in-rotated-sorted-array-ii",
+    "check-if-array-is-sorted-and-rotated"
+  ],
+  "Peaks and turning points": [
+    "find-peak-element",
+    "peak-index-in-a-mountain-array",
+    "find-in-mountain-array",
+    "find-a-peak-element-ii",
+    "longest-mountain-in-array"
+  ],
+  "2-D matrices": [
+    "search-a-2d-matrix",
+    "search-a-2d-matrix-ii",
+    "kth-smallest-element-in-a-sorted-matrix",
+    "count-negative-numbers-in-a-sorted-matrix",
+    "find-the-kth-smallest-sum-of-a-matrix-with-sorted-rows",
+    "find-a-peak-element-ii"
+  ],
+  "Counting-based search": [
+    "kth-smallest-number-in-multiplication-table",
+    "find-k-th-smallest-pair-distance",
+    "kth-smallest-element-in-a-sorted-matrix",
+    "missing-element-in-sorted-array",
+    "kth-missing-positive-number",
+    "count-complete-tree-nodes"
+  ],
+  "Binary search + two pointers": [
+    "find-k-closest-elements",
+    "two-sum-ii-input-array-is-sorted",
+    "3sum-closest",
+    "successful-pairs-of-spells-and-potions",
+    "count-the-number-of-fair-pairs",
+    "frequency-of-the-most-frequent-element"
+  ],
+  "Single-number tricks": [
+    "single-number",
+    "single-number-ii",
+    "single-number-iii",
+    "power-of-two",
+    "power-of-four",
+    "number-of-1-bits",
+    "reverse-bits",
+    "counting-bits"
+  ],
+  "XOR tricks": [
+    "single-number",
+    "missing-number",
+    "find-the-difference",
+    "xor-operation-in-an-array",
+    "find-the-original-array-of-prefix-xor",
+    "decode-xored-array",
+    "xor-queries-of-a-subarray",
+    "find-the-duplicate-number"
+  ],
+  "Masks, shifts and fields": [
+    "utf-8-validation",
+    "number-of-1-bits",
+    "reverse-bits",
+    "binary-watch",
+    "convert-a-number-to-hexadecimal",
+    "bitwise-ors-of-subarrays",
+    "maximum-product-of-word-lengths"
+  ],
+  "Range AND / OR": [
+    "bitwise-and-of-numbers-range",
+    "bitwise-ors-of-subarrays",
+    "longest-subarray-with-maximum-bitwise-and",
+    "smallest-subarrays-with-maximum-bitwise-or",
+    "number-of-subarrays-with-and-value-of-k",
+    "count-number-of-maximum-bitwise-or-subsets"
+  ],
+  "Gray code": [
+    "gray-code",
+    "circular-permutation-in-binary-representation",
+    "minimum-one-bit-operations-to-make-integers-zero"
+  ],
+  "Subsets, combinations and permutations": [
+    "subsets",
+    "subsets-ii",
+    "combinations",
+    "combination-sum",
+    "combination-sum-ii",
+    "combination-sum-iii",
+    "permutations",
+    "permutations-ii",
+    "letter-case-permutation",
+    "beautiful-arrangement"
+  ],
+  "Grid and word search with visited state": [
+    "word-search",
+    "word-search-ii",
+    "path-with-maximum-gold",
+    "unique-paths-iii",
+    "robot-room-cleaner",
+    "android-unlock-patterns"
+  ],
+  "Iterative generation": [
+    "next-permutation",
+    "permutation-sequence",
+    "gray-code",
+    "subsets",
+    "letter-combinations-of-a-phone-number",
+    "lexicographical-numbers",
+    "k-th-smallest-in-lexicographical-order"
+  ],
+  "Traversal": [
+    "number-of-islands",
+    "max-area-of-island",
+    "clone-graph",
+    "flood-fill",
+    "find-if-path-exists-in-graph",
+    "keys-and-rooms",
+    "number-of-provinces",
+    "surrounded-regions",
+    "all-paths-from-source-to-target",
+    "number-of-closed-islands",
+    "rotting-oranges",
+    "01-matrix"
+  ],
+  "Cycle detection and graph properties": [
+    "course-schedule",
+    "course-schedule-ii",
+    "find-eventual-safe-states",
+    "redundant-connection",
+    "redundant-connection-ii",
+    "graph-valid-tree",
+    "is-graph-bipartite",
+    "detect-cycles-in-2d-grid",
+    "longest-cycle-in-a-graph",
+    "maximum-employees-to-be-invited-to-a-meeting"
+  ],
+  "Tree algorithms": [
+    "minimum-height-trees",
+    "sum-of-distances-in-tree",
+    "tree-diameter",
+    "all-nodes-distance-k-in-binary-tree",
+    "reorder-routes-to-make-all-paths-lead-to-the-city-zero",
+    "time-needed-to-inform-all-employees",
+    "number-of-nodes-in-the-sub-tree-with-the-same-label",
+    "count-nodes-with-the-highest-score"
+  ],
+  "Graph modeling and state-space search": [
+    "word-ladder",
+    "open-the-lock",
+    "sliding-puzzle",
+    "bus-routes",
+    "jump-game-iii",
+    "jump-game-iv",
+    "shortest-path-in-binary-matrix",
+    "evaluate-division",
+    "minimum-genetic-mutation",
+    "get-watched-videos-by-your-friends",
+    "the-maze"
+  ],
+  "Backtracking and enumeration": [
+    "all-paths-from-source-to-target",
+    "unique-paths-iii",
+    "path-with-maximum-gold",
+    "reconstruct-itinerary"
+  ],
+  "Frequency counting": [
+    "valid-anagram",
+    "top-k-frequent-elements",
+    "find-all-anagrams-in-a-string",
+    "ransom-note",
+    "sort-characters-by-frequency",
+    "first-unique-character-in-a-string",
+    "unique-number-of-occurrences",
+    "find-the-difference",
+    "maximum-number-of-balloons"
+  ],
+  "Matrix traversal and transform": [
+    "spiral-matrix",
+    "rotate-image",
+    "diagonal-traverse",
+    "set-matrix-zeroes",
+    "transpose-matrix",
+    "valid-sudoku",
+    "search-a-2d-matrix",
+    "game-of-life"
+  ],
+  "Simulation": [
+    "game-of-life",
+    "robot-bounded-in-circle",
+    "spiral-matrix-ii",
+    "text-justification",
+    "zigzag-conversion",
+    "count-and-say",
+    "happy-number",
+    "find-winner-on-a-tic-tac-toe-game",
+    "design-tic-tac-toe"
+  ],
+  "Majority element": [
+    "majority-element",
+    "majority-element-ii",
+    "check-if-a-number-is-majority-element-in-a-sorted-array",
+    "online-majority-element-in-subarray"
+  ],
+  "Design with hash maps": [
+    "lru-cache",
+    "insert-delete-getrandom-o1",
+    "insert-delete-getrandom-o1-duplicates-allowed",
+    "design-hashmap",
+    "design-hashset",
+    "time-based-key-value-store",
+    "logger-rate-limiter",
+    "design-twitter",
+    "all-oone-data-structure",
+    "design-underground-system"
+  ],
+  "Sorting-based approaches": [
+    "merge-intervals",
+    "largest-number",
+    "meeting-rooms",
+    "non-overlapping-intervals",
+    "sort-the-people",
+    "relative-sort-array",
+    "sort-colors",
+    "h-index",
+    "maximum-gap"
+  ],
+  "Opposite-end pointers": [
+    "two-sum-ii-input-array-is-sorted",
+    "container-with-most-water",
+    "valid-palindrome",
+    "3sum",
+    "3sum-closest",
+    "trapping-rain-water",
+    "reverse-string",
+    "sort-array-by-parity",
+    "squares-of-a-sorted-array",
+    "boats-to-save-people"
+  ],
+  "Same-direction pointers": [
+    "move-zeroes",
+    "remove-duplicates-from-sorted-array",
+    "remove-element",
+    "linked-list-cycle",
+    "is-subsequence",
+    "backspace-string-compare",
+    "string-compression",
+    "merge-sorted-array"
+  ],
+  "K-sum on sorted arrays": [
+    "3sum",
+    "3sum-closest",
+    "4sum",
+    "3sum-smaller",
+    "valid-triangle-number",
+    "two-sum-less-than-k",
+    "sum-of-square-numbers",
+    "count-the-number-of-fair-pairs"
+  ],
+  "String pointers": [
+    "valid-palindrome",
+    "valid-palindrome-ii",
+    "reverse-vowels-of-a-string",
+    "reverse-words-in-a-string-ii",
+    "is-subsequence",
+    "backspace-string-compare",
+    "long-pressed-name",
+    "compare-version-numbers",
+    "strobogrammatic-number"
+  ],
+  "Partition pointers": [
+    "sort-colors",
+    "partition-array-according-to-given-pivot",
+    "sort-array-by-parity",
+    "move-zeroes",
+    "partition-list",
+    "wiggle-sort"
+  ],
+  "Pointer + binary search": [
+    "find-k-closest-elements",
+    "3sum-closest",
+    "successful-pairs-of-spells-and-potions",
+    "count-the-number-of-fair-pairs",
+    "two-sum-ii-input-array-is-sorted"
+  ],
+  "Pointers and greedy": [
+    "container-with-most-water",
+    "boats-to-save-people",
+    "bag-of-tokens",
+    "assign-cookies",
+    "valid-palindrome-ii",
+    "minimum-size-subarray-sum",
+    "trapping-rain-water"
+  ],
+  "Digit DP": [
+    "count-numbers-with-unique-digits",
+    "numbers-at-most-n-given-digit-set",
+    "number-of-digit-one",
+    "non-negative-integers-without-consecutive-ones",
+    "numbers-with-repeated-digits",
+    "count-special-integers",
+    "rotated-digits",
+    "stepping-numbers"
+  ],
+  "Grid and path DP": [
+    "unique-paths-ii",
+    "minimum-path-sum",
+    "triangle",
+    "maximal-square",
+    "dungeon-game",
+    "cherry-pickup",
+    "cherry-pickup-ii",
+    "minimum-falling-path-sum",
+    "count-square-submatrices-with-all-ones",
+    "maximal-rectangle",
+    "largest-plus-sign",
+    "out-of-boundary-paths",
+    "paths-in-matrix-whose-sum-is-divisible-by-k",
+    "maximum-non-negative-product-in-a-matrix"
+  ],
+  "Compressed trie, radix tree and relatives": [
+    "design-file-system",
+    "design-in-memory-file-system",
+    "implement-trie-ii-prefix-tree",
+    "longest-common-prefix"
+  ],
+  "Trie with DP": [
+    "word-break",
+    "word-break-ii",
+    "concatenated-words",
+    "stream-of-characters",
+    "extra-characters-in-a-string"
+  ],
+  "Palindrome pairs and pairs of words": [
+    "palindrome-pairs",
+    "stream-of-characters",
+    "prefix-and-suffix-search",
+    "maximum-xor-of-two-numbers-in-an-array"
+  ],
+  "Design problems": [
+    "design-add-and-search-words-data-structure",
+    "implement-trie-prefix-tree",
+    "design-search-autocomplete-system",
+    "design-file-system",
+    "design-in-memory-file-system",
+    "replace-words",
+    "map-sum-pairs",
+    "prefix-and-suffix-search"
+  ],
+  "Trie versus hash set": [
+    "longest-word-in-dictionary",
+    "replace-words",
+    "implement-trie-prefix-tree",
+    "sum-of-prefix-scores-of-strings",
+    "longest-common-prefix"
+  ]
 }

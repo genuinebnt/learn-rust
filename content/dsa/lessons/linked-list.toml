@@ -9,6 +9,8 @@ groups = ["Reversal", "Fast and slow pointers", "Merging and sorting", "Partitio
 
 
 
+
+
 [group_tags]
 "Reversal" = ["linked-list"]
 "Fast and slow pointers" = ["linked-list", "two-pointers"]
@@ -330,6 +332,22 @@ pitfalls = [
 ]
 
 [[group_problem]]
+group = "Reversal"
+slug = "reverse-nodes-in-even-length-groups"
+title = "Reverse Nodes in Even Length Groups"
+number = 2074
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Fast and slow pointers"
+slug = "linked-list-cycle-ii"
+title = "Linked List Cycle II"
+number = 142
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Merging and sorting"
 slug = "count-of-smaller-numbers-after-self"
 title = "Count of Smaller Numbers After Self"
@@ -402,12 +420,52 @@ difficulty = "medium"
 premium = false
 
 [[group_problem]]
+group = "Dummy head and in-place surgery"
+slug = "remove-duplicates-from-sorted-list-ii"
+title = "Remove Duplicates from Sorted List II"
+number = 82
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Dummy head and in-place surgery"
+slug = "delete-node-in-a-linked-list"
+title = "Delete Node in a Linked List"
+number = 237
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Dummy head and in-place surgery"
+slug = "remove-zero-sum-consecutive-nodes-from-linked-list"
+title = "Remove Zero Sum Consecutive Nodes from Linked List"
+number = 1171
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
 group = "Arithmetic on lists"
 slug = "double-a-number-represented-as-a-linked-list"
 title = "Double a Number Represented as a Linked List"
 number = 2816
 difficulty = "medium"
 premium = false
+
+[[group_problem]]
+group = "Intersection and comparison"
+slug = "linked-list-components"
+title = "Linked List Components"
+number = 817
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Copy with a random pointer"
+slug = "clone-binary-tree-with-random-pointer"
+title = "Clone Binary Tree With Random Pointer"
+number = 1485
+difficulty = "medium"
+premium = true
 
 [[group_problem]]
 group = "Flattening and linking structure"
@@ -494,14 +552,6 @@ group = "List and structure conversion"
 slug = "next-greater-node-in-linked-list"
 title = "Next Greater Node In Linked List"
 number = 1019
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Cycles in functional graphs"
-slug = "linked-list-cycle-ii"
-title = "Linked List Cycle II"
-number = 142
 difficulty = "medium"
 premium = false
 

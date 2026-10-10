@@ -9,6 +9,8 @@ groups = ["Shortest paths", "Minimum spanning trees", "Connectivity and graph de
 
 
 
+
+
 [group_tags]
 "Shortest paths" = ["shortest-path"]
 "Minimum spanning trees" = ["minimum-spanning-tree"]
@@ -436,10 +438,10 @@ difficulty = "hard"
 premium = false
 
 [[group_problem]]
-group = "Advanced connectivity and offline algorithms"
-slug = "largest-component-size-by-common-factor"
-title = "Largest Component Size by Common Factor"
-number = 952
+group = "Backtracking and enumeration"
+slug = "unique-paths-iii"
+title = "Unique Paths III"
+number = 980
 difficulty = "hard"
 premium = false
 
@@ -485,17 +487,25 @@ premium = false
 
 [[group_problem]]
 group = "Advanced connectivity and offline algorithms"
-slug = "detect-cycles-in-2d-grid"
-title = "Detect Cycles in 2D Grid"
-number = 1559
-difficulty = "medium"
+slug = "number-of-ways-to-reorder-array-to-get-same-bst"
+title = "Number of Ways to Reorder Array to Get Same BST"
+number = 1569
+difficulty = "hard"
 premium = false
 
 [[group_problem]]
 group = "Advanced connectivity and offline algorithms"
-slug = "number-of-ways-to-reorder-array-to-get-same-bst"
-title = "Number of Ways to Reorder Array to Get Same BST"
-number = 1569
+slug = "graph-connectivity-with-threshold"
+title = "Graph Connectivity With Threshold"
+number = 1627
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Advanced connectivity and offline algorithms"
+slug = "checking-existence-of-edge-length-limited-paths"
+title = "Checking Existence of Edge Length Limited Paths"
+number = 1697
 difficulty = "hard"
 premium = false
 
@@ -521,6 +531,30 @@ slug = "maximal-network-rank"
 title = "Maximal Network Rank"
 number = 1615
 difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Cycle detection and graph properties"
+slug = "redundant-connection-ii"
+title = "Redundant Connection II"
+number = 685
+difficulty = "hard"
+premium = false
+
+[[group_problem]]
+group = "Cycle detection and graph properties"
+slug = "detect-cycles-in-2d-grid"
+title = "Detect Cycles in 2D Grid"
+number = 1559
+difficulty = "medium"
+premium = false
+
+[[group_problem]]
+group = "Cycle detection and graph properties"
+slug = "longest-cycle-in-a-graph"
+title = "Longest Cycle in a Graph"
+number = 2360
+difficulty = "hard"
 premium = false
 
 [[listed]]

@@ -160,6 +160,612 @@ pitfalls = [
     "Combine with a dictionary of prefix values to count subarrays whose XOR equals k.",
 ]
 
+[[extra]]
+id = "Bit Manipulation:single-number-ii"
+name = "Single number when the others appear three times"
+group = "Single-number tricks"
+signals = [
+    "every value appears k times except one that appears once (or twice)",
+    "XOR cancels pairs only; for threes count each bit position modulo 3",
+    "two different singles: XOR them all, then split the numbers by one bit where the two differ",
+]
+template_name = "Single number II"
+template = '''
+def single_number(nums):
+    result = 0
+    for bit in range(32):
+        ones = sum(x >> bit & 1 for x in nums)
+        if ones % 3:  # the bits of the single number are what is left over
+            result |= 1 << bit
+    if result >= 1 << 31:
+        result -= 1 << 32  # the sign bit: back to a negative number
+    return result
+'''
+pitfalls = [
+    "Count each bit across all numbers and take it modulo 3: numbers that appear three times add 0 or 3.",
+    "Python integers are unbounded: restore the sign yourself when bit 31 is set.",
+    "A bit-state machine with two variables (ones, twos) does the same in one pass without a loop over bits.",
+]
+examples = ["single-number-ii", "single-number-iii", "find-the-xor-of-numbers-which-appear-twice"]
+
+[[extra.variant]]
+name = "Single number III (two singles)"
+note = "XOR everything: the result is a ^ b. Any set bit of it tells a and b apart: split the numbers by that bit."
+template = '''
+def single_number_iii(nums):
+    xor = 0
+    for x in nums:
+        xor ^= x  # a ^ b, because every pair cancels
+    low = xor & -xor  # a bit where a and b differ
+    a = 0
+    for x in nums:
+        if x & low:
+            a ^= x  # the group with the bit set holds only a
+    return [a, xor ^ a]
+'''
+
+[[extra]]
+id = "Bit Manipulation:range-bits"
+name = "Range AND, and building numbers bit by bit"
+group = "Range AND / OR"
+signals = [
+    "the AND of every number in a range: only the common binary prefix of the endpoints survives",
+    "build the smallest number that has a given set of bits, or the one that minimises an XOR",
+    "decide bits from the highest down, using the structure of the range",
+]
+template_name = "Bitwise AND of a range"
+template = '''
+def range_bitwise_and(left, right):
+    shift = 0
+    while left != right:
+        left >>= 1  # drop the differing low bits
+        right >>= 1
+        shift += 1
+    return left << shift  # the common prefix, with zeros after it
+'''
+pitfalls = [
+    "Any bit position where the endpoints differ has both a 0 and a 1 in the range: the AND is 0 there and below.",
+    "Brian Kernighan's version: right &= right - 1 until right <= left.",
+    "A range of two or more consecutive numbers always has bit 0 equal to 0 in the AND.",
+]
+examples = ["bitwise-and-of-numbers-range", "minimum-array-end", "minimize-xor"]
+
+[[extra.variant]]
+name = "Minimum array end"
+note = "The elements must have all bits of x set; the n-th one fills the zero bits of x with the bits of n - 1."
+template = '''
+def min_end(n, x):
+    result, rest = x, n - 1  # rest: the rank of the number, zero-based
+    bit = 1
+    while rest:
+        if not x & bit:  # a free position: take the next bit of rest
+            if rest & 1:
+                result |= bit
+            rest >>= 1
+        bit <<= 1
+    return result
+'''
+
+[[extra.variant]]
+name = "Minimize XOR"
+note = "Match the set-bit count of num2: set the highest bits of num1 first, then fill the lowest free bits."
+template = '''
+def minimize_xor(num1, num2):
+    want = bin(num2).count("1")
+    x = 0
+    for bit in range(31, -1, -1):  # highest bits of num1 first
+        if want and num1 >> bit & 1:
+            x |= 1 << bit
+            want -= 1
+    bit = 0
+    while want:  # still bits to place: the lowest free ones
+        if not x >> bit & 1:
+            x |= 1 << bit
+            want -= 1
+        bit += 1
+    return x
+'''
+
+[[extra]]
+id = "Bit Manipulation:hamming"
+name = "Hamming distance: per bit, ones times zeros"
+group = "Hamming distance and total Hamming"
+signals = [
+    "the number of differing bits between two numbers is the popcount of their XOR",
+    "the total over all pairs: for each bit, (numbers with the bit) times (numbers without it)",
+    "flips to turn one number into another is the same distance",
+]
+template_name = "Total Hamming distance"
+template = '''
+def total_hamming_distance(nums):
+    total, n = 0, len(nums)
+    for bit in range(32):
+        ones = sum(x >> bit & 1 for x in nums)
+        total += ones * (n - ones)  # every pair with different bits here
+    return total
+'''
+pitfalls = [
+    "Count pairs per bit, not per pair of numbers: O(32 n) instead of O(n^2).",
+    "A pair differs at a bit exactly when one has a 1 and the other a 0.",
+    "bin(a ^ b).count('1') is the distance of one pair.",
+]
+examples = ["total-hamming-distance", "hamming-distance", "minimum-bit-flips-to-convert-number", "complement-of-base-10-integer"]
+
+[[extra.variant]]
+name = "Hamming distance of two numbers"
+note = "Differing bits are the set bits of the XOR; Kernighan's loop clears one per step."
+template = '''
+def hamming_distance(x, y):
+    diff, count = x ^ y, 0
+    while diff:
+        diff &= diff - 1  # clear the lowest set bit
+        count += 1
+    return count
+'''
+
+[[extra.variant]]
+name = "Complement of a number"
+note = "XOR with a mask of ones as long as the number."
+template = '''
+def find_complement(num):
+    mask = (1 << num.bit_length()) - 1  # all ones, same length
+    return num ^ mask if num else 1
+'''
+
+[[extra]]
+id = "Bit Manipulation:xor-decode"
+name = "Decode with XOR"
+group = "XOR tricks"
+signals = [
+    "restore an array from its prefix XORs or from the XORs of neighbours",
+    "x ^ x = 0, so a ^ (a ^ b) = b: XOR is its own inverse",
+    "check if an original binary array could exist: the XOR of all the neighbour XORs must be zero",
+]
+template_name = "Original array from prefix XOR"
+template = '''
+def find_array(pref):
+    out = [pref[0]]
+    for i in range(1, len(pref)):
+        out.append(pref[i] ^ pref[i - 1])  # undo the running XOR
+    return out
+'''
+pitfalls = [
+    "pref[i] = pref[i - 1] ^ arr[i], so arr[i] = pref[i] ^ pref[i - 1].",
+    "A circular array of neighbour XORs is consistent only when the XOR of all of them is 0.",
+    "The same idea gives range XOR queries: XOR of prefixes at the two ends.",
+]
+examples = ["find-the-original-array-of-prefix-xor", "neighboring-bitwise-xor", "maximum-xor-for-each-query"]
+
+[[extra.variant]]
+name = "Neighbouring bitwise XOR"
+note = "derived[i] = original[i] ^ original[i + 1 (circular)]: a valid original exists iff the XOR of derived is 0."
+template = '''
+def does_valid_array_exist(derived):
+    xor = 0
+    for x in derived:
+        xor ^= x
+    return xor == 0
+'''
+
+[[extra.variant]]
+name = "Maximum XOR for each query"
+note = "The best k below 2^m is the complement of the total XOR; remove elements from the end one by one."
+template = '''
+def get_maximum_xor(nums, maximum_bit):
+    mask = (1 << maximum_bit) - 1
+    total, out = 0, []
+    for x in nums:
+        total ^= x
+    for x in reversed(nums):  # each query drops the last element
+        out.append(total ^ mask)  # flip every bit of total within the width
+        total ^= x
+    return out
+'''
+
+[[extra]]
+id = "Bit Manipulation:parity-mask"
+name = "Parity state as a mask"
+group = "Bit manipulation for sets"
+signals = [
+    "a substring where every vowel (or letter) appears an even number of times, or can be rearranged into a palindrome",
+    "one bit per symbol holds its parity so far; the whole state fits in an integer",
+    "two prefixes with the same mask bound a substring with all-even counts: remember the first index of each mask",
+]
+template_name = "Vowels in even counts"
+template = '''
+def find_the_longest_substring(s):
+    bit = {"a": 1, "e": 2, "i": 4, "o": 8, "u": 16}
+    first = {0: -1}  # the first index at which each mask was seen
+    mask = best = 0
+    for i, ch in enumerate(s):
+        mask ^= bit.get(ch, 0)  # flip the parity of this vowel
+        if mask in first:
+            best = max(best, i - first[mask])
+        else:
+            first[mask] = i
+    return best
+'''
+pitfalls = [
+    "Store the first index of a mask only once: the earliest start gives the longest substring.",
+    "Seed the map with {0: -1}: the empty prefix has all counts even.",
+    "For palindromes the mask of a substring may have at most one bit set.",
+]
+examples = ["find-the-longest-substring-containing-vowels-in-even-counts", "can-make-palindrome-from-substring", "number-of-wonderful-substrings"]
+
+[[extra.variant]]
+name = "Palindrome queries (prefix masks)"
+note = "A substring can be rearranged into a palindrome with k changes when its odd-count letters are at most 2k + 1."
+template = '''
+def can_make_pali_queries(s, queries):
+    prefix = [0]
+    for ch in s:
+        prefix.append(prefix[-1] ^ (1 << (ord(ch) - 97)))  # parity so far
+    out = []
+    for left, right, k in queries:
+        mask = prefix[right + 1] ^ prefix[left]
+        odd = bin(mask).count("1")  # letters with an odd count
+        out.append(odd // 2 <= k)
+    return out
+'''
+
+[[extra.variant]]
+name = "Wonderful substrings"
+note = "Count substrings with at most one odd letter: for each prefix mask count equal masks and masks one bit away."
+template = '''
+def wonderful_substrings(word):
+    count = [0] * 1024  # masks of the letters a..j
+    count[0] = 1
+    mask = total = 0
+    for ch in word:
+        mask ^= 1 << (ord(ch) - 97)
+        total += count[mask]  # no odd letter in between
+        for b in range(10):
+            total += count[mask ^ (1 << b)]  # exactly one odd letter
+        count[mask] += 1
+    return total
+'''
+
+[[extra]]
+id = "Bit Manipulation:fields"
+name = "Fields with shifts and masks: hex, UTF-8, IPs"
+group = "Masks, shifts and fields"
+signals = [
+    "convert a number to hexadecimal or binary text, including negatives (two's complement)",
+    "validate or pack a byte format: UTF-8 headers, IP addresses, CIDR blocks",
+    "extract a field with (x >> shift) & mask and build one with (value & mask) << shift",
+]
+template_name = "Number to hexadecimal"
+template = '''
+def to_hex(num):
+    if num == 0:
+        return "0"
+    num &= 0xFFFFFFFF  # two's complement for negatives
+    digits = "0123456789abcdef"
+    out = []
+    while num:
+        out.append(digits[num & 15])  # the lowest four bits
+        num >>= 4
+    return "".join(reversed(out))
+'''
+pitfalls = [
+    "Mask a negative number with 0xFFFFFFFF first: Python has no fixed width.",
+    "Four bits make one hex digit: num & 15 then num >>= 4.",
+    "The digits come out lowest first: reverse them at the end.",
+]
+examples = ["convert-a-number-to-hexadecimal", "utf-8-validation", "ip-to-cidr"]
+
+[[extra.variant]]
+name = "UTF-8 validation"
+note = "The top bits of the first byte give the number of bytes; each continuation byte starts with 10."
+template = '''
+def valid_utf8(data):
+    need = 0  # continuation bytes still expected
+    for byte in data:
+        byte &= 0xFF
+        if need:
+            if byte >> 6 != 0b10:
+                return False
+            need -= 1
+        elif byte >> 7 == 0:
+            continue  # a one-byte character
+        elif byte >> 5 == 0b110:
+            need = 1
+        elif byte >> 4 == 0b1110:
+            need = 2
+        elif byte >> 3 == 0b11110:
+            need = 3
+        else:
+            return False
+    return need == 0
+'''
+
+[[extra]]
+id = "Bit Manipulation:binary-arith"
+name = "Arithmetic on binary strings and with shifts"
+group = "Arithmetic with bits"
+signals = [
+    "add or process numbers given as binary strings, longer than any integer type",
+    "reduce a binary number to 1 by halving and adding, counting the steps",
+    "divide or multiply without the operator, using shifts",
+]
+template_name = "Add binary"
+template = '''
+def add_binary(a, b):
+    i, j, carry, out = len(a) - 1, len(b) - 1, 0, []
+    while i >= 0 or j >= 0 or carry:
+        total = carry
+        if i >= 0:
+            total += int(a[i])
+            i -= 1
+        if j >= 0:
+            total += int(b[j])
+            j -= 1
+        out.append(str(total & 1))  # the digit
+        carry = total >> 1  # the carry into the next position
+    return "".join(reversed(out))
+'''
+pitfalls = [
+    "Walk from the ends of both strings and keep going while a carry remains.",
+    "total & 1 is the digit and total >> 1 the carry: the same as % 2 and // 2.",
+    "Digits come out lowest first; reverse them at the end.",
+]
+examples = ["add-binary", "number-of-steps-to-reduce-a-number-in-binary-representation-to-one", "concatenation-of-consecutive-binary-numbers", "divide-two-integers"]
+
+[[extra.variant]]
+name = "Steps to reduce a binary number to one"
+note = "Even: shift (1 step). Odd: add 1, which carries (1 step) and then shifts. Walk from the least significant bit with a carry."
+template = '''
+def num_steps(s):
+    steps, carry = 0, 0
+    for ch in reversed(s[1:]):  # every bit except the leading 1
+        bit = int(ch) + carry
+        if bit == 1:
+            steps += 2  # odd: add one, then halve
+            carry = 1
+        else:
+            steps += 1  # even: halve
+    return steps + carry  # a final carry makes one more step
+'''
+
+[[extra.variant]]
+name = "Concatenate consecutive binary numbers"
+note = "Shift the result by the bit length of i and add i; the length grows at each power of two."
+template = '''
+def concatenated_binary(n):
+    mod, result = 10**9 + 7, 0
+    for i in range(1, n + 1):
+        result = ((result << i.bit_length()) | i) % mod
+    return result
+'''
+
+[[extra.variant]]
+name = "Divide two integers (shifts)"
+note = "Subtract the largest shifted copy of the divisor that fits, add its multiple to the quotient, repeat."
+template = '''
+def divide(dividend, divisor):
+    if dividend == -(2**31) and divisor == -1:
+        return 2**31 - 1  # overflow
+    negative = (dividend < 0) != (divisor < 0)
+    a, b, quotient = abs(dividend), abs(divisor), 0
+    while a >= b:
+        shift = 0
+        while a >= (b << (shift + 1)):
+            shift += 1  # the largest b * 2^shift that fits
+        a -= b << shift
+        quotient += 1 << shift
+    return -quotient if negative else quotient
+'''
+
+[[extra]]
+id = "Bit Manipulation:bit-window"
+name = "AND and OR over windows"
+group = "Range AND / OR"
+signals = [
+    "the longest window where no two numbers share a bit, or the shortest with OR at least k",
+    "OR only grows when you add a number and AND only shrinks: windows are monotone",
+    "a plain OR cannot remove a number: keep per-bit counts, or shrink while a bit is shared",
+]
+template_name = "Longest nice subarray"
+template = '''
+def longest_nice_subarray(nums):
+    left = used = best = 0  # used: the OR of the current window
+    for right, x in enumerate(nums):
+        while used & x:  # x shares a bit with the window
+            used ^= nums[left]  # disjoint bits: XOR removes it
+            left += 1
+        used |= x
+        best = max(best, right - left + 1)
+    return best
+'''
+pitfalls = [
+    "In a nice window all numbers have disjoint bits, so the OR equals the XOR and removing a number is a XOR.",
+    "Shrink while x collides with the window, then add it.",
+    "For general OR conditions keep a counter per bit and rebuild the OR from the counters.",
+]
+examples = ["longest-nice-subarray", "shortest-subarray-with-or-at-least-k-ii", "longest-subarray-with-maximum-bitwise-and"]
+
+[[extra.variant]]
+name = "Shortest subarray with OR at least k"
+note = "Per-bit counts of the window: add a number, then shrink while the OR is still at least k."
+template = '''
+def minimum_subarray_length(nums, k):
+    count = [0] * 32  # how many numbers in the window have each bit
+    best, left, value = float("inf"), 0, 0
+
+    def update(x, delta):
+        nonlocal value
+        for b in range(32):
+            if x >> b & 1:
+                count[b] += delta
+                if delta > 0 and count[b] == 1:
+                    value |= 1 << b  # the bit appeared
+                elif delta < 0 and count[b] == 0:
+                    value &= ~(1 << b)  # the last number with it left
+
+    for right, x in enumerate(nums):
+        update(x, 1)
+        while left <= right and value >= k:
+            best = min(best, right - left + 1)
+            update(nums[left], -1)
+            left += 1
+    return best if best != float("inf") else -1
+'''
+
+[[extra.variant]]
+name = "Longest subarray with the maximum AND"
+note = "The maximum AND is the maximum element: the answer is the longest run of it."
+template = '''
+def longest_subarray(nums):
+    top = max(nums)  # an AND can not exceed its largest member
+    best = run = 0
+    for x in nums:
+        run = run + 1 if x == top else 0
+        best = max(best, run)
+    return best
+'''
+
+[[extra]]
+id = "Bit Manipulation:kth-bit"
+name = "The k-th bit of a recursive string"
+group = "Binary representation problems"
+signals = [
+    "a string built by S_n = S_(n-1) + 1 + reverse(invert(S_(n-1))), asked for its k-th bit without building it",
+    "the length is 2^n - 1, so k is before, at, or after the middle",
+    "after the middle, map k to its mirror position and flip the answer",
+]
+template_name = "K-th bit in the n-th binary string"
+template = '''
+def find_kth_bit(n, k):
+    flips = 0
+    length = (1 << n) - 1
+    while length > 1:
+        mid = (length + 1) // 2
+        if k == mid:
+            return str((1 ^ flips) & 1)  # the middle is always 1
+        if k > mid:
+            k = length + 1 - k  # mirror into the first half
+            flips ^= 1  # the second half is inverted
+        length = mid - 1
+    return str(flips)  # S_1 = "0"
+'''
+pitfalls = [
+    "The second half is the reverse and inversion of the first: mirror the index and flip the answer.",
+    "Track the number of flips as a parity, not by recursing.",
+    "The middle bit is 1 before any flip.",
+]
+examples = ["find-kth-bit-in-nth-binary-string", "find-the-k-th-character-in-string-game-i", "k-th-symbol-in-grammar"]
+
+[[extra.variant]]
+name = "K-th symbol in grammar"
+note = "Row n is row n - 1 with 0 -> 01 and 1 -> 10: the k-th symbol is the parent's, flipped when k is even."
+template = '''
+def kth_grammar(n, k):
+    k -= 1  # zero-based position in row n
+    return bin(k).count("1") & 1  # each right-child step flips the value
+'''
+
+[[extra]]
+id = "Bit Manipulation:column-count"
+name = "Per-bit column counting"
+group = "Counting bits across numbers"
+signals = [
+    "choose numbers so that their AND (or OR) has a property, or compute a k-OR",
+    "for each bit position count how many numbers have it; the answer is decided by those 32 counts",
+    "the largest set whose AND is above zero is the largest count for any single bit",
+]
+template_name = "Largest combination with AND above zero"
+template = '''
+def largest_combination(candidates):
+    best = 0
+    for bit in range(32):
+        # numbers that all share this bit have a non-zero AND
+        best = max(best, sum(x >> bit & 1 for x in candidates))
+    return best
+'''
+pitfalls = [
+    "A group has AND > 0 exactly when some bit is set in every member: the best group per bit is all numbers with that bit.",
+    "Check each of the 32 bits independently.",
+    "A k-OR sets a bit when at least k numbers have it: the same count, a different comparison.",
+]
+examples = ["largest-combination-with-bitwise-and-greater-than-zero", "find-the-k-or-of-an-array", "sort-integers-by-the-number-of-1-bits", "find-if-array-can-be-sorted"]
+
+[[extra.variant]]
+name = "K-or of an array"
+note = "A bit is in the answer when at least k numbers have it."
+template = '''
+def find_k_or(nums, k):
+    result = 0
+    for bit in range(32):
+        if sum(x >> bit & 1 for x in nums) >= k:
+            result |= 1 << bit
+    return result
+'''
+
+[[extra.variant]]
+name = "Sort by number of one bits"
+note = "A tuple key (popcount, value) sorts by the number of ones and breaks ties by value."
+template = '''
+def sort_by_bits(arr):
+    return sorted(arr, key=lambda x: (bin(x).count("1"), x))
+'''
+
+[[extra.variant]]
+name = "Can the array be sorted (equal popcount swaps)"
+note = "Only numbers with the same popcount can swap: split into runs of equal popcount and compare run bounds."
+template = '''
+def can_sort_array(nums):
+    prev_max = float("-inf")
+    i = 0
+    while i < len(nums):
+        pop = bin(nums[i]).count("1")
+        lo = hi = nums[i]
+        while i < len(nums) and bin(nums[i]).count("1") == pop:
+            lo, hi = min(lo, nums[i]), max(hi, nums[i])
+            i += 1
+        if lo < prev_max:
+            return False  # smaller than the previous run's maximum
+        prev_max = hi
+    return True
+'''
+
+[[extra]]
+id = "Bit Manipulation:binary-shape"
+name = "Shape tests on a binary number"
+group = "Binary representation problems"
+signals = [
+    "are the bits alternating, what is the longest gap between ones, is it a power of two or of four",
+    "x & (x - 1) clears the lowest set bit; x ^ (x >> 1) is 1 where neighbouring bits differ",
+    "a number of the form 2^k - 1 (all ones) satisfies y & (y + 1) == 0",
+]
+template_name = "Alternating bits"
+template = '''
+def has_alternating_bits(n):
+    y = n ^ (n >> 1)  # all ones exactly when the bits alternate
+    return y & (y + 1) == 0
+'''
+pitfalls = [
+    "x ^ (x >> 1) turns alternating bits into a run of ones.",
+    "A run of ones 2^k - 1 plus one is a power of two: AND with it is 0.",
+    "Binary gap: remember the position of the previous 1 while shifting.",
+]
+examples = ["binary-number-with-alternating-bits", "binary-gap", "power-of-two"]
+
+[[extra.variant]]
+name = "Binary gap"
+note = "The longest distance between two adjacent ones."
+template = '''
+def binary_gap(n):
+    last, best, pos = -1, 0, 0
+    while n:
+        if n & 1:
+            if last != -1:
+                best = max(best, pos - last)
+            last = pos
+        n >>= 1
+        pos += 1
+    return best
+'''
+
 [[listed]]
 name = "Lowest set bit (x & -x) / clear the lowest set bit"
 group = "Single-number tricks"
@@ -168,11 +774,6 @@ note = "Related lesson: Counting bits"
 [[listed]]
 name = "Highest set bit and bit length / round up to a power of two"
 group = "Single-number tricks"
-
-[[listed]]
-name = "Count set bits: Kernighan / shift and test / lookup table / popcount"
-group = "Single-number tricks"
-note = "Related lesson: Shifting bit by bit"
 
 [[listed]]
 name = "Parity of the set bits"
@@ -188,33 +789,7 @@ name = "XOR of the range 0..n (period-4 formula) / XOR of a range of consecutive
 group = "XOR tricks"
 
 [[listed]]
-name = "XOR prefix and range XOR queries"
-group = "XOR tricks"
-note = "Related lesson: Prefix XOR"
-
-[[listed]]
-name = "Subarray with a target XOR: prefix XOR with a hash map of counts"
-group = "XOR tricks"
-
-[[listed]]
-name = "XOR contribution by count parity"
-group = "XOR tricks"
-note = "e.g. all pairings, all subarrays"
-
-[[listed]]
-name = "All counts even: toggle one flag per value"
-group = "XOR tricks"
-
-[[listed]]
-name = "Decode with XOR: restore the array from prefix or neighbour XORs"
-group = "XOR tricks"
-
-[[listed]]
 name = "Set / clear / toggle / test a bit, and the low-k-bits mask"
-group = "Masks, shifts and fields"
-
-[[listed]]
-name = "Extract and pack fields with shift and mask: IP and CIDR, UTF-8 headers, hexadecimal digits"
 group = "Masks, shifts and fields"
 
 [[listed]]
@@ -262,11 +837,6 @@ name = "Brute force over every mask with a validity check"
 group = "Bitmask subsets and bitmask DP"
 
 [[listed]]
-name = "Per-bit column counting: for each bit, count the numbers that have it"
-group = "Counting bits across numbers"
-note = "Related lesson: Counting bits"
-
-[[listed]]
 name = "DP on bits: bits[i] = bits[i >> 1] + (i & 1) / bits[i & (i - 1)] + 1"
 group = "Counting bits across numbers"
 note = "Related lesson: Counting bits"
@@ -280,10 +850,6 @@ name = "Counting numbers up to n by bit pattern: digit DP on binary digits"
 group = "Counting bits across numbers"
 
 [[listed]]
-name = "Add without +: XOR for the sum, AND shifted for the carry / add binary strings or digit arrays"
-group = "Arithmetic with bits"
-
-[[listed]]
 name = "Subtract and negate with two's complement"
 group = "Arithmetic with bits"
 note = "e.g. -x = ~x + 1"
@@ -294,21 +860,8 @@ group = "Arithmetic with bits"
 note = "e.g. square and multiply on the exponent's bits"
 
 [[listed]]
-name = "Divide by shift-and-subtract"
-group = "Arithmetic with bits"
-note = "e.g. doubling the divisor"
-
-[[listed]]
-name = "Sign handling and overflow: 32-bit masks in Python, INT_MIN edge cases"
-group = "Arithmetic with bits"
-
-[[listed]]
 name = "Digit-wise arithmetic: reverse digits / change of base"
 group = "Arithmetic with bits"
-
-[[listed]]
-name = "AND of a range: the common binary prefix of the endpoints"
-group = "Range AND / OR"
 
 [[listed]]
 name = "OR / XOR of a range of consecutive numbers, bit by bit"
@@ -322,15 +875,6 @@ note = "Related lesson: Prefix XOR"
 
 [[listed]]
 name = "AND over a connected component: union-find with an AND aggregate"
-group = "Range AND / OR"
-
-[[listed]]
-name = "Sliding window with per-bit counters"
-group = "Range AND / OR"
-note = "e.g. AND and OR cannot be undone"
-
-[[listed]]
-name = "AND never grows, OR never shrinks: longest run of the maximum, largest group with AND above zero"
 group = "Range AND / OR"
 
 [[listed]]
@@ -373,14 +917,6 @@ name = "Visited and used masks: a set of items as one integer"
 group = "Bit manipulation for sets"
 
 [[listed]]
-name = "Letters as 26-bit masks: a word or substring as a set of letters"
-group = "Bit manipulation for sets"
-
-[[listed]]
-name = "Parity state as a mask: prefix or path state, one bit per symbol"
-group = "Bit manipulation for sets"
-
-[[listed]]
 name = "Set operations (|, &, & ~, subset test (a & b) == a) and masks as dictionary keys"
 group = "Bit manipulation for sets"
 
@@ -391,24 +927,6 @@ group = "Bit manipulation for sets"
 [[listed]]
 name = "Allowed-option sets as masks: one mask per key in a lookup table"
 group = "Bit manipulation for sets"
-
-[[listed]]
-name = "Hamming distance: popcount of the XOR"
-group = "Hamming distance and total Hamming"
-problems = [
-    { slug = "hamming-distance", title = "Hamming Distance", number = 461, difficulty = "easy", premium = false },
-]
-
-[[listed]]
-name = "Total Hamming distance over all pairs: ones times zeros per bit"
-group = "Hamming distance and total Hamming"
-problems = [
-    { slug = "total-hamming-distance", title = "Total Hamming Distance", number = 477, difficulty = "medium", premium = false },
-]
-
-[[listed]]
-name = "Flips needed to reach a target: per-bit case analysis of a | b == c"
-group = "Hamming distance and total Hamming"
 
 [[listed]]
 name = "Pairs by number of differing bits, or by XOR range"
@@ -454,41 +972,6 @@ name = "Bit-parallel reachability and transitive closure"
 group = "Sieve and bitset algorithms"
 
 [[listed]]
-name = "Number complement: XOR with an all-ones mask of the same length"
-group = "Binary representation problems"
-problems = [
-    { slug = "number-complement", title = "Number Complement", number = 476, difficulty = "easy", premium = false },
-]
-
-[[listed]]
-name = "Binary gap / adjacent and alternating bits"
-group = "Binary representation problems"
-note = "e.g. x & (x >> 1), x ^ (x >> 1)"
-problems = [
-    { slug = "binary-gap", title = "Binary Gap", number = 868, difficulty = "easy", premium = false },
-]
-
-[[listed]]
-name = "Change of base: hexadecimal, base -2, negative bases"
-group = "Binary representation problems"
-
-[[listed]]
-name = "Read a binary sequence as a number (value = 2 * value + bit): list, tree path, string"
-group = "Binary representation problems"
-
-[[listed]]
-name = "Steps to reduce a number: halve when even, step when odd"
-group = "Binary representation problems"
-
-[[listed]]
-name = "Recursive structure of the index bits: k-th symbol, k-th bit of a built string"
-group = "Binary representation problems"
-
-[[listed]]
-name = "Concatenate binary numbers: shift by the bit length"
-group = "Binary representation problems"
-
-[[listed]]
 name = "Heap-style indexing: the bits of a node index spell its path from the root"
 group = "Binary representation problems"
 
@@ -516,10 +999,6 @@ note = "e.g. a & b"
 
 [[listed]]
 name = "Invariants of the operation: what AND / OR / XOR cannot change"
-group = "Algebraic properties and invariants"
-
-[[listed]]
-name = "Operations that keep the popcount: only equal-popcount values may swap"
 group = "Algebraic properties and invariants"
 
 [[listed]]

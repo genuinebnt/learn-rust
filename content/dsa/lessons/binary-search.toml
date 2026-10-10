@@ -377,7 +377,7 @@ pitfalls = [
     "A count of exactly k is not needed: use >= k and keep the smaller half.",
     "The count must be monotone in the guess: more allowed distance, more pairs.",
 ]
-examples = ["find-k-th-smallest-pair-distance", "kth-smallest-product-of-two-sorted-arrays", "k-th-smallest-prime-fraction"]
+examples = ["find-k-th-smallest-pair-distance", "kth-smallest-product-of-two-sorted-arrays"]
 
 [[extra.variant]]
 name = "K-th smallest prime fraction"

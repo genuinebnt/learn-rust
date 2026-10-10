@@ -8888,3 +8888,404 @@ def _(ns):
     for _ in range(200):
         a = [r.randint(-6, 6) for _ in range(r.randint(1, 10))]
         assert f(a[:]) == [sum(1 for y in a[i + 1:] if y < a[i]) for i in range(len(a))]
+
+
+# ---- bit manipulation (extras) --------------------------------------------------------------------------------------
+
+BM = "Bit Manipulation"
+
+
+@test(f"{BM}:single-number-ii")
+def _(ns):
+    f = ns["single_number"]
+    assert f([2, 2, 3, 2]) == 3 and f([0, 1, 0, 1, 0, 1, 99]) == 99 and f([-2, -2, 1, 1, 4, 1, 4, 4, -4, -2]) == -4
+    r = random.Random(1000)
+    for _ in range(200):
+        vals = r.sample(range(-20, 20), r.randint(1, 5))
+        single = r.choice(vals)
+        nums = [v for v in vals if v != single] * 3 + [single]
+        r.shuffle(nums)
+        assert f(nums[:]) == single
+
+
+@test(f"{BM}:single-number-ii#Single number III (two singles)")
+def _(ns):
+    f = ns["single_number_iii"]
+    r = random.Random(1001)
+    for _ in range(200):
+        vals = r.sample(range(-30, 30), r.randint(2, 7))
+        a, b = vals[0], vals[1]
+        nums = [v for v in vals[2:]] * 2 + [a, b]
+        r.shuffle(nums)
+        assert sorted(f(nums[:])) == sorted([a, b])
+
+
+@test(f"{BM}:range-bits")
+def _(ns):
+    f = ns["range_bitwise_and"]
+    assert f(5, 7) == 4 and f(0, 0) == 0 and f(1, 2147483647) == 0
+    for lo in range(0, 40):
+        for hi in range(lo, 60):
+            want = lo
+            for x in range(lo, hi + 1):
+                want &= x
+            assert f(lo, hi) == want
+
+
+@test(f"{BM}:range-bits#Minimum array end")
+def _(ns):
+    f = ns["min_end"]
+    assert f(3, 4) == 6 and f(2, 7) == 15
+    for n in range(1, 8):
+        for x in range(1, 20):
+            arr = [x]
+            while len(arr) < n:
+                v = arr[-1] + 1
+                while v & x != x:
+                    v += 1
+                arr.append(v)
+            assert f(n, x) == arr[-1], (n, x)
+
+
+@test(f"{BM}:range-bits#Minimize XOR")
+def _(ns):
+    f = ns["minimize_xor"]
+    assert f(3, 5) == 3 and f(1, 12) == 3
+    for n1 in range(1, 64):
+        for n2 in range(1, 32):
+            c = bin(n2).count("1")
+            want = min((x for x in range(0, 256) if bin(x).count("1") == c), key=lambda x: x ^ n1)
+            assert f(n1, n2) == want
+
+
+@test(f"{BM}:hamming")
+def _(ns):
+    f = ns["total_hamming_distance"]
+    assert f([4, 14, 2]) == 6 and f([4, 14, 4]) == 4
+    r = random.Random(1002)
+    for _ in range(100):
+        a = [r.randint(0, 255) for _ in range(r.randint(1, 8))]
+        assert f(a[:]) == sum(bin(x ^ y).count("1") for x, y in _it.combinations(a, 2))
+
+
+@test(f"{BM}:hamming#Hamming distance of two numbers")
+def _(ns):
+    f = ns["hamming_distance"]
+    for x in range(0, 40):
+        for y in range(0, 40):
+            assert f(x, y) == bin(x ^ y).count("1")
+
+
+@test(f"{BM}:hamming#Complement of a number")
+def _(ns):
+    f = ns["find_complement"]
+    assert f(5) == 2 and f(1) == 0 and f(0) == 1
+    for n in range(1, 300):
+        assert f(n) == int("".join("1" if c == "0" else "0" for c in bin(n)[2:]), 2)
+
+
+@test(f"{BM}:xor-decode")
+def _(ns):
+    f = ns["find_array"]
+    r = random.Random(1003)
+    for _ in range(100):
+        a = [r.randint(0, 99) for _ in range(r.randint(1, 8))]
+        pref = []
+        run = 0
+        for x in a:
+            run ^= x
+            pref.append(run)
+        assert f(pref) == a
+
+
+@test(f"{BM}:xor-decode#Neighbouring bitwise XOR")
+def _(ns):
+    f = ns["does_valid_array_exist"]
+    assert f([1, 1, 0]) is True and f([1, 1]) is True and f([1, 0]) is False
+    for n in range(1, 6):
+        for derived in _it.product([0, 1], repeat=n):
+            exists = any(all(o[i] ^ o[(i + 1) % n] == derived[i] for i in range(n)) for o in _it.product([0, 1], repeat=n))
+            assert f(list(derived)) is exists
+
+
+@test(f"{BM}:xor-decode#Maximum XOR for each query")
+def _(ns):
+    f = ns["get_maximum_xor"]
+    assert f([0, 1, 1, 3], 2) == [0, 3, 2, 3]
+    r = random.Random(1004)
+    for _ in range(100):
+        mb = r.randint(1, 5)
+        nums = sorted(r.randint(0, (1 << mb) - 1) for _ in range(r.randint(1, 7)))
+        want, cur = [], nums[:]
+        while cur:
+            tot = 0
+            for x in cur:
+                tot ^= x
+            want.append(max(range(1 << mb), key=lambda k: tot ^ k))
+            cur.pop()
+        assert f(nums[:], mb) == want
+
+
+@test(f"{BM}:parity-mask")
+def _(ns):
+    f = ns["find_the_longest_substring"]
+    assert f("eleetminicoworoep") == 13 and f("leetcodeisgreat") == 5 and f("bcbcbc") == 6
+    r = random.Random(1005)
+    for _ in range(200):
+        s = "".join(r.choice("aeiouxy") for _ in range(r.randint(1, 12)))
+        best = max(j - i for i in range(len(s) + 1) for j in range(i, len(s) + 1) if all(s[i:j].count(v) % 2 == 0 for v in "aeiou"))
+        assert f(s) == best
+
+
+@test(f"{BM}:parity-mask#Palindrome queries (prefix masks)")
+def _(ns):
+    f = ns["can_make_pali_queries"]
+    assert f("abcda", [[3, 3, 0], [1, 2, 0], [0, 3, 1], [0, 3, 2], [0, 4, 1]]) == [True, False, False, True, True]
+    r = random.Random(1006)
+    for _ in range(200):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 9)))
+        qs = []
+        for _ in range(4):
+            a = r.randrange(len(s))
+            qs.append([a, r.randint(a, len(s) - 1), r.randint(0, 3)])
+        want = []
+        for a, b, k in qs:
+            seg = s[a:b + 1]
+            odd = sum(1 for c in set(seg) if seg.count(c) % 2)
+            want.append(odd // 2 <= k)
+        assert f(s, [q[:] for q in qs]) == want
+
+
+@test(f"{BM}:parity-mask#Wonderful substrings")
+def _(ns):
+    f = ns["wonderful_substrings"]
+    assert f("aba") == 4 and f("aabb") == 9 and f("he") == 2
+    r = random.Random(1007)
+    for _ in range(200):
+        s = "".join(r.choice("abcj") for _ in range(r.randint(1, 10)))
+        want = sum(1 for i in range(len(s)) for j in range(i + 1, len(s) + 1) if sum(1 for c in set(s[i:j]) if s[i:j].count(c) % 2) <= 1)
+        assert f(s) == want
+
+
+@test(f"{BM}:fields")
+def _(ns):
+    f = ns["to_hex"]
+    assert f(26) == "1a" and f(-1) == "ffffffff" and f(0) == "0"
+    for n in list(range(-300, 300)) + [2**31 - 1, -(2**31)]:
+        assert f(n) == format(n & 0xFFFFFFFF, "x")
+
+
+@test(f"{BM}:fields#UTF-8 validation")
+def _(ns):
+    f = ns["valid_utf8"]
+    assert f([197, 130, 1]) is True and f([235, 140, 4]) is False
+    r = random.Random(1008)
+    for _ in range(300):
+        s = "".join(r.choice(["a", "é", "€", "😀", "z"]) for _ in range(r.randint(0, 4)))
+        data = list(s.encode("utf-8"))
+        assert f(data[:]) is True
+        if data:
+            bad = data[:]
+            bad[r.randrange(len(bad))] = r.randint(0, 255)
+            try:
+                bytes(bad).decode("utf-8")
+                ok = True
+            except UnicodeDecodeError:
+                ok = False
+            # the problem's rules are stricter in no way that matters for our generated bytes, except overlong forms
+            if ok:
+                assert f(bad[:]) is True or any(b in (192, 193) for b in bad)
+
+
+@test(f"{BM}:binary-arith")
+def _(ns):
+    f = ns["add_binary"]
+    assert f("11", "1") == "100" and f("1010", "1011") == "10101"
+    r = random.Random(1009)
+    for _ in range(200):
+        a, b = r.randint(0, 500), r.randint(0, 500)
+        assert f(bin(a)[2:], bin(b)[2:]) == bin(a + b)[2:]
+
+
+@test(f"{BM}:binary-arith#Steps to reduce a binary number to one")
+def _(ns):
+    f = ns["num_steps"]
+    assert f("1101") == 6 and f("10") == 1 and f("1") == 0
+    for n in range(1, 600):
+        steps, x = 0, n
+        while x != 1:
+            x = x // 2 if x % 2 == 0 else x + 1
+            steps += 1
+        assert f(bin(n)[2:]) == steps, n
+
+
+@test(f"{BM}:binary-arith#Concatenate consecutive binary numbers")
+def _(ns):
+    f = ns["concatenated_binary"]
+    assert f(1) == 1 and f(3) == 27 and f(12) == 505379714
+    for n in range(1, 40):
+        assert f(n) == int("".join(bin(i)[2:] for i in range(1, n + 1)), 2) % (10**9 + 7)
+
+
+@test(f"{BM}:binary-arith#Divide two integers (shifts)")
+def _(ns):
+    f = ns["divide"]
+    assert f(10, 3) == 3 and f(7, -3) == -2 and f(-2**31, -1) == 2**31 - 1
+    r = random.Random(1010)
+    for _ in range(300):
+        a, b = r.randint(-500, 500), r.choice([x for x in range(-20, 21) if x])
+        q = abs(a) // abs(b)
+        assert f(a, b) == (-q if (a < 0) != (b < 0) else q)
+
+
+@test(f"{BM}:bit-window")
+def _(ns):
+    f = ns["longest_nice_subarray"]
+    assert f([1, 3, 8, 48, 10]) == 3 and f([3, 1, 5, 11, 13]) == 1
+    r = random.Random(1011)
+    for _ in range(200):
+        a = [r.randint(1, 31) for _ in range(r.randint(1, 9))]
+        best = 0
+        for i in range(len(a)):
+            for j in range(i + 1, len(a) + 1):
+                if all(x & y == 0 for x, y in _it.combinations(a[i:j], 2)):
+                    best = max(best, j - i)
+        assert f(a[:]) == best
+
+
+@test(f"{BM}:bit-window#Shortest subarray with OR at least k")
+def _(ns):
+    f = ns["minimum_subarray_length"]
+    assert f([1, 2, 3], 2) == 1 and f([2, 1, 8], 10) == 3 and f([1, 2], 0) == 1
+    r = random.Random(1012)
+    for _ in range(200):
+        a = [r.randint(0, 15) for _ in range(r.randint(1, 8))]
+        k = r.randint(0, 20)
+        best = -1
+        for i in range(len(a)):
+            v = 0
+            for j in range(i, len(a)):
+                v |= a[j]
+                if v >= k:
+                    best = j - i + 1 if best == -1 else min(best, j - i + 1)
+                    break
+        assert f(a[:], k) == best, (a, k)
+
+
+@test(f"{BM}:bit-window#Longest subarray with the maximum AND")
+def _(ns):
+    f = ns["longest_subarray"]
+    assert f([1, 2, 3, 3, 2, 2]) == 2 and f([1, 2, 3, 4]) == 1
+    r = random.Random(1013)
+    for _ in range(200):
+        a = [r.randint(1, 7) for _ in range(r.randint(1, 8))]
+
+        def and_(x):
+            v = x[0]
+            for y in x[1:]:
+                v &= y
+            return v
+
+        subs = [(and_(a[i:j]), j - i) for i in range(len(a)) for j in range(i + 1, len(a) + 1)]
+        mx = max(v for v, _ in subs)
+        assert f(a[:]) == max(l for v, l in subs if v == mx)
+
+
+@test(f"{BM}:kth-bit")
+def _(ns):
+    f = ns["find_kth_bit"]
+    assert f(3, 1) == "0" and f(4, 11) == "1"
+    def build(n):
+        s = "0"
+        for _ in range(n - 1):
+            s = s + "1" + "".join("1" if c == "0" else "0" for c in reversed(s))
+        return s
+    for n in range(1, 8):
+        s = build(n)
+        for k in range(1, len(s) + 1):
+            assert f(n, k) == s[k - 1], (n, k)
+
+
+@test(f"{BM}:kth-bit#K-th symbol in grammar")
+def _(ns):
+    f = ns["kth_grammar"]
+    rows = ["0"]
+    for _ in range(8):
+        rows.append("".join("01" if c == "0" else "10" for c in rows[-1]))
+    for n in range(1, 9):
+        for k in range(1, 2 ** (n - 1) + 1):
+            assert f(n, k) == int(rows[n - 1][k - 1])
+
+
+@test(f"{BM}:column-count")
+def _(ns):
+    f = ns["largest_combination"]
+    assert f([16, 17, 71, 62, 12, 24, 14]) == 4 and f([8, 8]) == 2
+    r = random.Random(1014)
+    for _ in range(200):
+        a = [r.randint(1, 31) for _ in range(r.randint(1, 8))]
+        best = 0
+        for mask in range(1, 1 << len(a)):
+            v = 31
+            cnt = 0
+            for i in range(len(a)):
+                if mask >> i & 1:
+                    v &= a[i]
+                    cnt += 1
+            if v > 0:
+                best = max(best, cnt)
+        assert f(a[:]) == best
+
+
+@test(f"{BM}:column-count#K-or of an array")
+def _(ns):
+    f = ns["find_k_or"]
+    assert f([7, 12, 9, 8, 9, 15], 4) == 9 and f([2, 12, 1, 11, 4, 5], 6) == 0
+    r = random.Random(1015)
+    for _ in range(200):
+        a = [r.randint(0, 31) for _ in range(r.randint(1, 8))]
+        k = r.randint(1, len(a))
+        want = sum(1 << b for b in range(6) if sum(x >> b & 1 for x in a) >= k)
+        assert f(a[:], k) == want
+
+
+@test(f"{BM}:column-count#Sort by number of one bits")
+def _(ns):
+    f = ns["sort_by_bits"]
+    assert f([0, 1, 2, 3, 4, 5, 6, 7, 8]) == [0, 1, 2, 4, 8, 3, 5, 6, 7]
+
+
+@test(f"{BM}:column-count#Can the array be sorted (equal popcount swaps)")
+def _(ns):
+    f = ns["can_sort_array"]
+    assert f([8, 4, 2, 30, 15]) is True and f([1, 2, 3, 4, 5]) is True and f([3, 16, 8, 4, 2]) is False
+    r = random.Random(1016)
+    for _ in range(300):
+        a = [r.randint(1, 15) for _ in range(r.randint(1, 7))]
+        # bubble sort restricted to swaps of equal popcount neighbours
+        b = a[:]
+        changed = True
+        while changed:
+            changed = False
+            for i in range(len(b) - 1):
+                if b[i] > b[i + 1] and bin(b[i]).count("1") == bin(b[i + 1]).count("1"):
+                    b[i], b[i + 1] = b[i + 1], b[i]
+                    changed = True
+        assert f(a[:]) is (b == sorted(b))
+
+
+@test(f"{BM}:binary-shape")
+def _(ns):
+    f = ns["has_alternating_bits"]
+    for n in range(1, 500):
+        s = bin(n)[2:]
+        assert f(n) is all(s[i] != s[i + 1] for i in range(len(s) - 1))
+
+
+@test(f"{BM}:binary-shape#Binary gap")
+def _(ns):
+    f = ns["binary_gap"]
+    assert f(22) == 2 and f(8) == 0 and f(5) == 2 and f(6) == 1
+    for n in range(1, 600):
+        ones = [i for i, c in enumerate(reversed(bin(n)[2:])) if c == "1"]
+        assert f(n) == max([b - a for a, b in zip(ones, ones[1:])] or [0])

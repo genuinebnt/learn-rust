@@ -36525,6 +36525,77 @@
    "role": "practice",
    "practice_of": null,
    "priority": "strong"
+  },
+  {
+   "id": "lc-can-make-palindrome-from-substring",
+   "slug": "can-make-palindrome-from-substring",
+   "number": 1177,
+   "title": "Can Make Palindrome from Substring",
+   "difficulty": "medium",
+   "pattern": "Bit Manipulation",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Hash Table",
+    "String",
+    "Bit Manipulation",
+    "Prefix Sum"
+   ],
+   "companies": [
+    {
+     "name": "Akuna Capital",
+     "group": "Trading",
+     "frequency": 100.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Bit Manipulation:parity-mask",
+   "order": 101748,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-number-of-wonderful-substrings",
+   "slug": "number-of-wonderful-substrings",
+   "number": 1915,
+   "title": "Number of Wonderful Substrings",
+   "difficulty": "medium",
+   "pattern": "Bit Manipulation",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Hash Table",
+    "String",
+    "Bit Manipulation",
+    "Prefix Sum"
+   ],
+   "companies": [
+    {
+     "name": "Uber",
+     "group": "Top tech",
+     "frequency": 20.3,
+     "recent": true
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 19.5,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Bit Manipulation:parity-mask",
+   "order": 101749,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
   }
  ]
 }

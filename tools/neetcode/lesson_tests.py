@@ -2505,3 +2505,152 @@ def _(ns):
                 for v, w in g[u]:
                     want[v] = min(want[v], want[u] + w)
         assert f(g, 0) == want
+
+
+# ---- extras of the DP pages
+
+
+def _min_cost_model(cost):
+    n = len(cost)
+    best = [0] * (n + 1)
+    for i in range(2, n + 1):
+        best[i] = min(best[i - 1] + cost[i - 1], best[i - 2] + cost[i - 2])
+    return best[n]
+
+
+def _check_min_cost(ns):
+    f = ns["min_cost_climbing"]
+    assert f([10, 15, 20]) == 15 and f([1, 100, 1, 1, 1, 100, 1, 1, 100, 1]) == 6
+    r = random.Random(401)
+    for _ in range(200):
+        c = [r.randint(0, 20) for _ in range(r.randint(2, 14))]
+        assert f(c) == _min_cost_model(c)
+
+
+@test("1-D Dynamic Programming:memo-vs-table")
+def _(ns):
+    _check_min_cost(ns)
+
+
+@test("1-D Dynamic Programming:memo-vs-table#Bottom-up (table)")
+def _(ns):
+    _check_min_cost(ns)
+    assert ns["min_cost_climbing"]([1] * 5000) == 2500  # no recursion limit
+
+
+def _edit_model(a, b):
+    t = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]
+    for i in range(len(a) + 1):
+        for j in range(len(b) + 1):
+            if i == 0 or j == 0:
+                t[i][j] = i + j
+            elif a[i - 1] == b[j - 1]:
+                t[i][j] = t[i - 1][j - 1]
+            else:
+                t[i][j] = 1 + min(t[i - 1][j], t[i][j - 1], t[i - 1][j - 1])
+    return t[-1][-1]
+
+
+def _check_edit(ns):
+    f = ns["edit_distance"]
+    assert f("horse", "ros") == 3 and f("intention", "execution") == 5 and f("", "abc") == 3 and f("abc", "") == 3 and f("", "") == 0
+    r = random.Random(402)
+    for _ in range(300):
+        a = "".join(r.choice("abc") for _ in range(r.randint(0, 7)))
+        b = "".join(r.choice("abc") for _ in range(r.randint(0, 7)))
+        assert f(a, b) == _edit_model(a, b), (a, b)
+
+
+@test("1-D Dynamic Programming:rolling-row")
+def _(ns):
+    _check_edit(ns)
+
+
+@test("1-D Dynamic Programming:rolling-row#One row and a diagonal")
+def _(ns):
+    _check_edit(ns)
+
+
+@test("1-D Dynamic Programming:reconstruct")
+def _(ns):
+    f = ns["largest_divisible_subset"]
+    assert len(f([1, 2, 3])) == 2 and f([1, 2, 4, 8]) == [1, 2, 4, 8] and f([]) == []
+    r = random.Random(403)
+    for _ in range(300):
+        nums = r.sample(range(1, 40), r.randint(0, 9))
+        got = f(list(nums))
+        assert set(got) <= set(nums) and len(got) == len(set(got))
+        assert all(b % a == 0 for a, b in zip(got, got[1:])), got  # a chain: each divides the next
+        # brute force: the best size over every subset that is a chain
+        best = 0
+        for mask in range(1 << len(nums)):
+            sub = sorted(nums[i] for i in range(len(nums)) if mask >> i & 1)
+            if all(b % a == 0 for a, b in zip(sub, sub[1:])):
+                best = max(best, len(sub))
+        assert len(got) == best, (nums, got, best)
+
+
+@test("1-D Dynamic Programming:window-dp")
+def _(ns):
+    f = ns["new_21_game"]
+    assert abs(f(10, 1, 10) - 1.0) < 1e-9 and abs(f(6, 1, 10) - 0.6) < 1e-9 and abs(f(21, 17, 10) - 0.73278) < 1e-5
+    r = random.Random(404)
+    for _ in range(200):
+        k, w = r.randint(0, 12), r.randint(1, 8)
+        n = r.randint(0, k + w + 2)
+        # model: probability of each total, O(n * w)
+        p = [0.0] * (k + w + 1)
+        p[0] = 1.0
+        for i in range(k):
+            for d in range(1, w + 1):
+                p[i + d] += p[i] / w
+        want = sum(p[k:n + 1]) if k > 0 else 1.0
+        assert abs(f(n, k, w) - want) < 1e-9, (n, k, w)
+
+
+@test("1-D Dynamic Programming:window-dp#Monotonic deque (range-max transition)")
+def _(ns):
+    f = ns["constrained_subset_sum"]
+    assert f([10, 2, -10, 5, 20], 2) == 37 and f([-1, -2, -3], 1) == -1 and f([10, -2, -10, -5, 20], 2) == 23
+    r = random.Random(405)
+    for _ in range(300):
+        nums = [r.randint(-9, 9) for _ in range(r.randint(1, 9))]
+        k = r.randint(1, 4)
+        dp = list(nums)
+        for i in range(len(nums)):
+            for j in range(max(0, i - k), i):
+                dp[i] = max(dp[i], dp[j] + nums[i])
+        assert f(nums, k) == max(dp), (nums, k)
+
+
+@test("2-D Dynamic Programming:tree-dp")
+def _(ns):
+    f = ns["rob"]
+
+    def build(vals, shape):
+        nodes = [TreeNode(v) for v in vals]
+        for i in range(1, len(nodes)):
+            parent = nodes[shape[i - 1] % i]
+            if parent.left is None:
+                parent.left = nodes[i]
+            elif parent.right is None:
+                parent.right = nodes[i]
+            else:  # both taken: attach below the left child's chain
+                p = parent.left
+                while p.left is not None:
+                    p = p.left
+                p.left = nodes[i]
+        return nodes
+
+    assert f(None) == 0
+    r = random.Random(406)
+    for _ in range(300):
+        n = r.randint(1, 9)
+        vals = [r.randint(0, 9) for _ in range(n)]
+        nodes = build(vals, [r.randrange(100) for _ in range(n)])
+        edges = [(i, j) for i, a in enumerate(nodes) for j, b in enumerate(nodes) if a.left is b or a.right is b]
+        want = 0
+        for mask in range(1 << n):
+            if all(not (mask >> i & 1 and mask >> j & 1) for i, j in edges):
+                want = max(want, sum(vals[i] for i in range(n) if mask >> i & 1))
+        assert f(nodes[0]) == want, (vals, edges)

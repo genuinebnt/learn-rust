@@ -1,8 +1,10 @@
 pattern = "1-D Dynamic Programming"
 intro = "A 1-D DP keeps one number (or a small set) per position and builds each from earlier ones. Say what dp[i] means in words first, write the recurrence, then fix the order you fill it in. Most of the twelve ideas below are the same loop with a different meaning for dp[i]."
+groups = ["Linear and sequence DP", "Knapsack family", "Coin change", "Longest increasing subsequence", "Palindromic DP", "Counting DP", "Game and minimax DP", "Bitmask DP", "Digit DP", "Probability and expected value", "Prefix-sum and monotonic-queue optimisation", "Divide and conquer, Knuth and convex hull trick", "Matrix exponentiation", "Space optimisation", "Reconstruction", "Memoisation versus tabulation"]
 
 [[technique]]
 id = "1-D Dynamic Programming:recurrence"
+group = "Linear and sequence DP"
 signals = [
     "the answer for n is built from the answers for a few smaller values (n - 1, n - 2, ...)",
     "count the ways to reach a position, or the cheapest way to get there",
@@ -25,6 +27,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:take-skip"
+group = "Linear and sequence DP"
 signals = [
     "pick items along a line, but you can't pick two neighbours",
     "maximise a total where taking one item rules out the next",
@@ -46,6 +49,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:expand"
+group = "Palindromic DP"
 signals = [
     "palindromic substrings: find the longest one, or count them all",
     "there are only 2n - 1 possible centres",
@@ -70,6 +74,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:unbounded"
+group = "Coin change"
 signals = [
     "the same item or coin can be used any number of times",
     "fewest items to reach a total, or the number of ways to reach it",
@@ -94,6 +99,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:min-max-run"
+group = "Linear and sequence DP"
 signals = [
     "the best product or value of a subarray, where a negative can flip a bad run into a good one",
     "a running maximum alone gives the wrong answer",
@@ -117,6 +123,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:prefix-dp"
+group = "Linear and sequence DP"
 signals = [
     "can a string be split into pieces from a dictionary?",
     "dp[i] says whether the first i characters work",
@@ -141,6 +148,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:lis"
+group = "Longest increasing subsequence"
 signals = [
     "the longest strictly increasing subsequence, or a chain where each item must exceed the last",
     "items may be skipped, but their order is kept",
@@ -169,6 +177,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:subset"
+group = "Knapsack family"
 signals = [
     "choose some items so their total hits a target exactly",
     "split an array into two groups with equal sums",
@@ -191,6 +200,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:partition-dp"
+group = "Linear and sequence DP"
 signals = [
     "cut a sequence into consecutive groups, and each group has a cost",
     "the cost of a group depends on its contents (its tallest item, its sum)",
@@ -219,6 +229,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:count-states"
+group = "Counting DP"
 signals = [
     "count the sequences of a given length when each step is limited by the current state",
     "a small number of states (digits, positions, last letter) with fixed transitions",
@@ -245,6 +256,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:game"
+group = "Game and minimax DP"
 signals = [
     "two players take turns and both play perfectly",
     "each turn takes a few items from one end of a line",
@@ -273,6 +285,7 @@ pitfalls = [
 
 [[technique]]
 id = "1-D Dynamic Programming:bitmask"
+group = "Bitmask DP"
 signals = [
     "n is tiny (about 12 to 20) and you must try combinations of items",
     "each item is in or out of a group, so a subset is an integer",
@@ -302,3 +315,1048 @@ pitfalls = [
     "Disjoint groups: a & b == 0. Enumerating the submasks of the complement guarantees it.",
     "3 to the power n is the cost of all disjoint pairs, so this only works for small n.",
 ]
+
+[[extra]]
+id = "1-D Dynamic Programming:memo-vs-table"
+name = "Memoisation and tabulation"
+group = "Memoisation versus tabulation"
+signals = [
+    "you can say the answer for a state in terms of smaller states, and the same state is reached again and again",
+    "the plain recursion is exponential and the number of distinct states is small",
+    "you are not sure in which order to fill a table: write the recursion first and let the calls find the order",
+]
+template_name = "Top-down (memoised)"
+template = '''
+from functools import cache
+
+
+def min_cost_climbing(cost):
+    """Cheapest way to the top, starting on step 0 or step 1."""
+    n = len(cost)
+
+    @cache
+    def best(i):  # cheapest cost to stand on step i
+        if i < 2:
+            return 0
+        return min(best(i - 1) + cost[i - 1], best(i - 2) + cost[i - 2])
+
+    return best(n)
+'''
+pitfalls = [
+    "Recursion depth is the length of the chain of states: about 1000 in Python. Rewrite bottom-up (or raise the limit) for long inputs.",
+    "The memo key must contain everything the answer depends on, and nothing it does not (a mutable list cannot be a key).",
+    "Top-down only visits the states it needs: on a sparse state space it can be much cheaper than filling the whole table.",
+]
+examples = ["climbing-stairs", "min-cost-climbing-stairs", "house-robber", "decode-ways"]
+
+[[extra.variant]]
+name = "Bottom-up (table)"
+note = "The same recurrence with the order written out: no recursion limit, and the table can often shrink to a few variables."
+template = '''
+def min_cost_climbing(cost):
+    n = len(cost)
+    dp = [0] * (n + 1)  # dp[i]: cheapest cost to stand on step i
+    for i in range(2, n + 1):
+        dp[i] = min(dp[i - 1] + cost[i - 1], dp[i - 2] + cost[i - 2])
+    return dp[n]
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:rolling-row"
+name = "Rolling array: keep only the previous row"
+group = "Space optimisation"
+signals = [
+    "a 2-D table whose row i only reads row i - 1 (and the cells to its left in the same row)",
+    "the table is too large for memory, or you only need the final cell",
+    "edit distance, LCS, grid paths: the answer is one number, not the path",
+]
+template_name = "Two rows"
+template = '''
+def edit_distance(a, b):
+    prev = list(range(len(b) + 1))  # the row for the empty prefix of a
+    for i in range(1, len(a) + 1):
+        cur = [i] + [0] * len(b)
+        for j in range(1, len(b) + 1):
+            if a[i - 1] == b[j - 1]:
+                cur[j] = prev[j - 1]
+            else:
+                cur[j] = 1 + min(prev[j], cur[j - 1], prev[j - 1])
+        prev = cur
+    return prev[-1]
+'''
+pitfalls = [
+    "You cannot rebuild the answer (the edit script, the LCS) from the last row alone: reconstruction needs the table or Hirschberg's method.",
+    "Put the shorter string on the inside so the row is short.",
+    "Rows that read only the row above can drop to one array, but the order of the writes then matters (see the next tab).",
+]
+examples = ["edit-distance", "longest-common-subsequence", "minimum-path-sum", "unique-paths"]
+
+[[extra.variant]]
+name = "One row and a diagonal"
+note = "Overwrite the row in place. The cell to the upper left is about to be overwritten, so carry it in a variable."
+template = '''
+def edit_distance(a, b):
+    row = list(range(len(b) + 1))
+    for i in range(1, len(a) + 1):
+        diag = row[0]  # the previous row's value at column j - 1
+        row[0] = i
+        for j in range(1, len(b) + 1):
+            above = row[j]  # needed as `diag` for the next column
+            if a[i - 1] == b[j - 1]:
+                row[j] = diag
+            else:
+                row[j] = 1 + min(above, row[j - 1], diag)
+            diag = above
+    return row[-1]
+'''
+
+[[extra]]
+id = "1-D Dynamic Programming:reconstruct"
+name = "Rebuild the answer, not only its value"
+group = "Reconstruction"
+signals = [
+    "the problem asks for the subset, the sequence or the path itself, not its size or cost",
+    "the table has the optimal value; you now need the choices that produced it",
+    "any optimal answer is accepted, or a specific one (the lexicographically smallest)",
+]
+template = '''
+def largest_divisible_subset(nums):
+    nums = sorted(nums)
+    n = len(nums)
+    best = [1] * n   # best[i]: size of the largest chain ending at i
+    prev = [-1] * n  # prev[i]: the element before i in that chain
+    for i in range(n):
+        for j in range(i):
+            if nums[i] % nums[j] == 0 and best[j] + 1 > best[i]:
+                best[i] = best[j] + 1
+                prev[i] = j
+    end = max(range(n), key=best.__getitem__, default=-1)
+    chain = []
+    while end != -1:  # walk back through the parent pointers
+        chain.append(nums[end])
+        end = prev[end]
+    return chain[::-1]
+'''
+pitfalls = [
+    "Store the choice (a parent index) when you improve a cell, in the same place you update the value.",
+    "Walk back from the best cell, which is not always the last one.",
+    "With ties, the answer you rebuild depends on < versus <=: say which one you keep.",
+]
+examples = ["largest-divisible-subset", "shortest-common-supersequence", "word-break-ii"]
+
+[[extra]]
+id = "1-D Dynamic Programming:window-dp"
+name = "Sliding-window DP: prefix sums and a monotonic deque"
+group = "Prefix-sum and monotonic-queue optimisation"
+signals = [
+    "dp[i] is a sum or a maximum over the previous k states, so the plain recurrence is O(n k)",
+    "the transition range slides one step per position",
+    "n and k are both around 10^5",
+]
+template_name = "Prefix sums (range-sum transition)"
+template = '''
+def new_21_game(n, k, max_pts):
+    """Probability of ending with at most n points, drawing 1..max_pts
+    until the total reaches k."""
+    if k == 0 or n >= k + max_pts - 1:
+        return 1.0
+    dp = [0.0] * (n + 1)  # dp[i]: probability of reaching exactly i
+    dp[0] = 1.0
+    window = 1.0  # sum of dp[j] over the last max_pts j with j < k
+    answer = 0.0
+    for i in range(1, n + 1):
+        dp[i] = window / max_pts
+        if i < k:
+            window += dp[i]
+        else:
+            answer += dp[i]
+        if i - max_pts >= 0 and i - max_pts < k:
+            window -= dp[i - max_pts]
+    return answer
+'''
+pitfalls = [
+    "Add the new state to the window and drop the one that leaves it in the same step, in that order.",
+    "Only states that can still move on belong in the window (here: totals below k).",
+    "A range-max transition needs a deque of candidates, not a running sum (see the next tab).",
+]
+examples = ["new-21-game", "jump-game-vii", "constrained-subsequence-sum", "sliding-window-maximum"]
+
+[[extra.variant]]
+name = "Monotonic deque (range-max transition)"
+note = "Keep the indices of the window in decreasing order of dp: the front is always the best one."
+template = '''
+from collections import deque
+
+
+def constrained_subset_sum(nums, k):
+    """Largest sum of a non-empty subsequence whose chosen indices are
+    at most k apart."""
+    dp = [0] * len(nums)
+    queue = deque()  # indices in the window, dp decreasing
+    best = float("-inf")
+    for i, x in enumerate(nums):
+        dp[i] = x + (dp[queue[0]] if queue and dp[queue[0]] > 0 else 0)
+        best = max(best, dp[i])
+        while queue and dp[queue[-1]] <= dp[i]:
+            queue.pop()  # i is better and later: they can never win
+        queue.append(i)
+        if queue[0] <= i - k:
+            queue.popleft()  # out of the window for the next position
+    return best
+'''
+
+[[listed]]
+name = "Maximum subarray"
+group = "Linear and sequence DP"
+note = "e.g. Kadane"
+
+[[listed]]
+name = "Subarray with one deletion"
+group = "Linear and sequence DP"
+
+[[listed]]
+name = "Jump-reach DP"
+group = "Linear and sequence DP"
+
+[[listed]]
+name = "Counting compositions of n"
+group = "Linear and sequence DP"
+
+[[listed]]
+name = "Dp[i] = best over all j < i"
+group = "Linear and sequence DP"
+note = "e.g. the O(n squared) transition"
+
+[[listed]]
+name = "Weighted interval scheduling"
+group = "Linear and sequence DP"
+note = "e.g. sort by end, binary search the last compatible job"
+
+[[listed]]
+name = "Dp indexed by value instead of position"
+group = "Linear and sequence DP"
+
+[[listed]]
+name = "Dp with a hash map as sparse state"
+group = "Linear and sequence DP"
+
+[[listed]]
+name = "Pascal's triangle and other table recurrences"
+group = "Linear and sequence DP"
+
+[[listed]]
+name = "Ugly numbers"
+group = "Linear and sequence DP"
+note = "e.g. pointers into earlier answers"
+
+[[listed]]
+name = "Integer break and other number-splitting recurrences"
+group = "Linear and sequence DP"
+
+[[listed]]
+name = "Minimum subset difference"
+group = "Knapsack family"
+
+[[listed]]
+name = "Bounded knapsack"
+group = "Knapsack family"
+note = "e.g. binary splitting / monotonic queue"
+
+[[listed]]
+name = "Two-budget knapsack"
+group = "Knapsack family"
+note = "e.g. a 2-D capacity"
+
+[[listed]]
+name = "Group knapsack"
+group = "Knapsack family"
+note = "e.g. at most one item per group"
+
+[[listed]]
+name = "Knapsack with dependencies between items"
+group = "Knapsack family"
+
+[[listed]]
+name = "Combinations versus permutations"
+group = "Knapsack family"
+note = "e.g. which loop is outer"
+
+[[listed]]
+name = "Exact-fill versus at-most-fill"
+group = "Knapsack family"
+note = "e.g. how dp is initialised"
+
+[[listed]]
+name = "Count / min / max / feasibility variants of the same table"
+group = "Knapsack family"
+
+[[listed]]
+name = "Knapsack on value instead of weight"
+group = "Knapsack family"
+note = "e.g. swap the dimensions when the capacity is huge"
+
+[[listed]]
+name = "Meet in the middle for large n"
+group = "Knapsack family"
+
+[[listed]]
+name = "Bitset-accelerated subset sum"
+group = "Knapsack family"
+
+[[listed]]
+name = "Knapsack with a greedy contrast"
+group = "Knapsack family"
+note = "e.g. fractional versus 0/1"
+
+[[listed]]
+name = "Unreachable amounts"
+group = "Coin change"
+note = "e.g. infinity sentinel"
+
+[[listed]]
+name = "BFS over remaining amount as the alternative to DP"
+group = "Coin change"
+
+[[listed]]
+name = "Limited number of each coin"
+group = "Coin change"
+
+[[listed]]
+name = "At most k coins"
+group = "Coin change"
+
+[[listed]]
+name = "Canonical coin systems"
+group = "Coin change"
+note = "e.g. when greedy is correct"
+
+[[listed]]
+name = "Largest unreachable amount"
+group = "Coin change"
+note = "e.g. Frobenius, math"
+
+[[listed]]
+name = "Inverse coin change"
+group = "Coin change"
+note = "e.g. rebuild the coin set from a ways table"
+
+[[listed]]
+name = "Coin change with reconstruction"
+group = "Coin change"
+
+[[listed]]
+name = "Huge amounts"
+group = "Coin change"
+note = "e.g. periodicity, matrix power"
+
+[[listed]]
+name = "Sums of distinct powers"
+group = "Coin change"
+
+[[listed]]
+name = "Dice-and-target and stairs problems as coin change in disguise"
+group = "Coin change"
+
+[[listed]]
+name = "Reconstruct one LIS"
+group = "Longest increasing subsequence"
+note = "e.g. predecessor array"
+
+[[listed]]
+name = "Fenwick / segment tree indexed by value"
+group = "Longest increasing subsequence"
+
+[[listed]]
+name = "LIS with a maximum gap between neighbours"
+group = "Longest increasing subsequence"
+
+[[listed]]
+name = "Longest bitonic / mountain subsequence"
+group = "Longest increasing subsequence"
+note = "e.g. LIS from both ends"
+
+[[listed]]
+name = "Minimum deletions to make sorted"
+group = "Longest increasing subsequence"
+note = "e.g. n minus LIS"
+
+[[listed]]
+name = "Longest arithmetic subsequence"
+group = "Longest increasing subsequence"
+note = "e.g. fixed difference / any difference"
+
+[[listed]]
+name = "Longest Fibonacci-like subsequence"
+group = "Longest increasing subsequence"
+
+[[listed]]
+name = "Weighted LIS"
+group = "Longest increasing subsequence"
+note = "e.g. best team with no conflicts, maximum-sum increasing subsequence"
+
+[[listed]]
+name = "Longest ideal subsequence"
+group = "Longest increasing subsequence"
+note = "e.g. alphabet-indexed"
+
+[[listed]]
+name = "Longest decreasing / Dilworth"
+group = "Longest increasing subsequence"
+note = "e.g. minimum number of chains"
+
+[[listed]]
+name = "LIS over a circular array"
+group = "Longest increasing subsequence"
+
+[[listed]]
+name = "Boolean table is_pal[i][j]"
+group = "Palindromic DP"
+
+[[listed]]
+name = "Manacher in O"
+group = "Palindromic DP"
+note = "e.g. n"
+
+[[listed]]
+name = "Minimum cuts for a palindrome partition"
+group = "Palindromic DP"
+
+[[listed]]
+name = "All palindrome partitions"
+group = "Palindromic DP"
+note = "e.g. table + backtracking"
+
+[[listed]]
+name = "Minimum insertions to make a palindrome"
+group = "Palindromic DP"
+
+[[listed]]
+name = "K-palindrome"
+group = "Palindromic DP"
+note = "e.g. valid palindrome III"
+
+[[listed]]
+name = "Count distinct palindromic subsequences"
+group = "Palindromic DP"
+
+[[listed]]
+name = "Count palindromic subsequences of length k"
+group = "Palindromic DP"
+note = "e.g. prefix and suffix counts"
+
+[[listed]]
+name = "Non-overlapping palindromic substrings"
+group = "Palindromic DP"
+note = "e.g. DP or greedy over a table"
+
+[[listed]]
+name = "Products of two disjoint palindromic subsequences"
+group = "Palindromic DP"
+note = "e.g. bitmask"
+
+[[listed]]
+name = "Rolling-hash palindrome checks"
+group = "Palindromic DP"
+
+[[listed]]
+name = "Palindromic tree"
+group = "Palindromic DP"
+note = "e.g. eertree"
+
+[[listed]]
+name = "Compositions and paths with steps"
+group = "Counting DP"
+
+[[listed]]
+name = "Domino and tromino tilings"
+group = "Counting DP"
+
+[[listed]]
+name = "Arrangements with a constraint"
+group = "Counting DP"
+note = "e.g. rearrange sticks with k visible, k inverse pairs, music playlists"
+
+[[listed]]
+name = "Counting subsequences"
+group = "Counting DP"
+
+[[listed]]
+name = "Counting partitions into k non-empty groups"
+group = "Counting DP"
+
+[[listed]]
+name = "Catalan-numbered structures"
+group = "Counting DP"
+note = "e.g. non-crossing handshakes, parentheses"
+
+[[listed]]
+name = "Insertion DP on permutations"
+group = "Counting DP"
+note = "e.g. count permutations by inversions"
+
+[[listed]]
+name = "Inclusion-exclusion with DP"
+group = "Counting DP"
+
+[[listed]]
+name = "Stirling numbers"
+group = "Counting DP"
+
+[[listed]]
+name = "Strings that avoid forbidden substrings"
+group = "Counting DP"
+note = "e.g. automaton states"
+
+[[listed]]
+name = "Counting with a prefix-sum speedup"
+group = "Counting DP"
+
+[[listed]]
+name = "Counting distinct objects"
+group = "Counting DP"
+note = "e.g. avoid double counting by a canonical order"
+
+[[listed]]
+name = "Count sub-multisets with a bounded sum"
+group = "Counting DP"
+
+[[listed]]
+name = "Counting paths with exactly k turns"
+group = "Counting DP"
+
+[[listed]]
+name = "Combinatorics shortcut versus DP"
+group = "Counting DP"
+
+[[listed]]
+name = "Handle negative values after modulo"
+group = "Counting DP"
+
+[[listed]]
+name = "Subset-state games"
+group = "Game and minimax DP"
+note = "e.g. can I win"
+
+[[listed]]
+name = "Win / lose / draw states with retrograde analysis on a graph"
+group = "Game and minimax DP"
+note = "e.g. cat and mouse"
+
+[[listed]]
+name = "Nim and Sprague-Grundy numbers"
+group = "Game and minimax DP"
+
+[[listed]]
+name = "Parity shortcuts"
+group = "Game and minimax DP"
+note = "e.g. stone game I"
+
+[[listed]]
+name = "Game with a growing limit M"
+group = "Game and minimax DP"
+
+[[listed]]
+name = "Suffix-sum formulation"
+group = "Game and minimax DP"
+
+[[listed]]
+name = "Split-the-row games"
+group = "Game and minimax DP"
+
+[[listed]]
+name = "Memoised minimax with alpha-beta pruning"
+group = "Game and minimax DP"
+
+[[listed]]
+name = "Who moves first state"
+group = "Game and minimax DP"
+
+[[listed]]
+name = "Cooperative versus adversarial turns"
+group = "Game and minimax DP"
+
+[[listed]]
+name = "Strategy as a threshold"
+group = "Game and minimax DP"
+note = "e.g. binary search on the answer plus a game check"
+
+[[listed]]
+name = "TSP / Hamiltonian path"
+group = "Bitmask DP"
+
+[[listed]]
+name = "Shortest path visiting all nodes"
+group = "Bitmask DP"
+note = "e.g. BFS over (mask, node)"
+
+[[listed]]
+name = "Permutation DP via mask"
+group = "Bitmask DP"
+note = "e.g. beautiful arrangement, squareful arrays"
+
+[[listed]]
+name = "Minimum sufficient set"
+group = "Bitmask DP"
+note = "e.g. stickers to spell a word"
+
+[[listed]]
+name = "Subset games"
+group = "Bitmask DP"
+note = "e.g. can I win"
+
+[[listed]]
+name = "Pairing DP"
+group = "Bitmask DP"
+note = "e.g. maximise score after n operations"
+
+[[listed]]
+name = "Assignment problem"
+group = "Bitmask DP"
+
+[[listed]]
+name = "Iterating submasks"
+group = "Bitmask DP"
+note = "e.g. 3 to the n"
+
+[[listed]]
+name = "Sum over subsets (SOS) DP"
+group = "Bitmask DP"
+
+[[listed]]
+name = "Mask over the alphabet"
+group = "Bitmask DP"
+
+[[listed]]
+name = "Set of distinct values as state"
+group = "Bitmask DP"
+note = "e.g. bitwise ORs of subarrays"
+
+[[listed]]
+name = "Mask plus remainder"
+group = "Bitmask DP"
+note = "e.g. hats, counting arrangements"
+
+[[listed]]
+name = "Lowest-set-bit transitions"
+group = "Bitmask DP"
+
+[[listed]]
+name = "Mask of characters for string problems"
+group = "Bitmask DP"
+
+[[listed]]
+name = "Meet in the middle on subsets"
+group = "Bitmask DP"
+
+[[listed]]
+name = "Knapsack over subsets of items"
+group = "Bitmask DP"
+
+[[listed]]
+name = "Account balancing"
+group = "Bitmask DP"
+note = "e.g. debt settlement by subset"
+
+[[listed]]
+name = "Count numbers up to N with a property"
+group = "Digit DP"
+
+[[listed]]
+name = "State ="
+group = "Digit DP"
+note = "e.g. position, tight, started, extra"
+
+[[listed]]
+name = "No two consecutive ones in binary"
+group = "Digit DP"
+
+[[listed]]
+name = "Count numbers with unique digits"
+group = "Digit DP"
+
+[[listed]]
+name = "Count special integers"
+group = "Digit DP"
+note = "e.g. distinct digits"
+
+[[listed]]
+name = "Digit sum / divisible by k"
+group = "Digit DP"
+note = "e.g. remainder in the state"
+
+[[listed]]
+name = "Count occurrences of a digit"
+group = "Digit DP"
+
+[[listed]]
+name = "Range [L, R] as f(R) - f"
+group = "Digit DP"
+note = "e.g. L - 1"
+
+[[listed]]
+name = "Digits from an allowed set"
+group = "Digit DP"
+
+[[listed]]
+name = "Rotated or confusing digits"
+group = "Digit DP"
+
+[[listed]]
+name = "Memoise only when not tight and already started"
+group = "Digit DP"
+
+[[listed]]
+name = "Stepping numbers"
+group = "Digit DP"
+
+[[listed]]
+name = "K-th number with a property"
+group = "Digit DP"
+note = "e.g. descend by counts"
+
+[[listed]]
+name = "Binary-representation DP"
+group = "Digit DP"
+
+[[listed]]
+name = "Numbers with an order constraint on digits"
+group = "Digit DP"
+note = "e.g. monotone, alternating"
+
+[[listed]]
+name = "Lexicographic ranking of permutations"
+group = "Digit DP"
+
+[[listed]]
+name = "Random walk probability after k steps"
+group = "Probability and expected value"
+note = "e.g. knight on a board"
+
+[[listed]]
+name = "Dice-sum probabilities with a sliding window"
+group = "Probability and expected value"
+note = "e.g. New 21 Game"
+
+[[listed]]
+name = "Expected number of steps by backward DP"
+group = "Probability and expected value"
+
+[[listed]]
+name = "Soup-servings style problems that converge for large n"
+group = "Probability and expected value"
+note = "e.g. cap n"
+
+[[listed]]
+name = "Champagne-tower flow simulation"
+group = "Probability and expected value"
+
+[[listed]]
+name = "Absorbing states and cyclic expectations"
+group = "Probability and expected value"
+note = "e.g. Gaussian elimination"
+
+[[listed]]
+name = "Probability of winning a game against a random opponent"
+group = "Probability and expected value"
+
+[[listed]]
+name = "Linearity of expectation DP"
+group = "Probability and expected value"
+
+[[listed]]
+name = "Coupon collector"
+group = "Probability and expected value"
+
+[[listed]]
+name = "Probability with a bitmask of remaining items"
+group = "Probability and expected value"
+
+[[listed]]
+name = "Markov chain steps by matrix power"
+group = "Probability and expected value"
+
+[[listed]]
+name = "Expected value modulo a prime"
+group = "Probability and expected value"
+note = "e.g. modular inverses"
+
+[[listed]]
+name = "Probability of reaching a target before another"
+group = "Probability and expected value"
+
+[[listed]]
+name = "DP over the probability that an event fails"
+group = "Probability and expected value"
+
+[[listed]]
+name = "Monotonic deque for partition counts with a max - min limit"
+group = "Prefix-sum and monotonic-queue optimisation"
+
+[[listed]]
+name = "Prefix-max along a row"
+group = "Prefix-sum and monotonic-queue optimisation"
+note = "e.g. points with cost"
+
+[[listed]]
+name = "Left-to-right and right-to-left max passes"
+group = "Prefix-sum and monotonic-queue optimisation"
+
+[[listed]]
+name = "Fenwick / segment tree for dp[i] = best over a value range"
+group = "Prefix-sum and monotonic-queue optimisation"
+note = "e.g. LIS II"
+
+[[listed]]
+name = "Coordinate compression for the tree index"
+group = "Prefix-sum and monotonic-queue optimisation"
+
+[[listed]]
+name = "Difference arrays for range-add transitions"
+group = "Prefix-sum and monotonic-queue optimisation"
+
+[[listed]]
+name = "Last-occurrence map for distinct subsequence counts"
+group = "Prefix-sum and monotonic-queue optimisation"
+
+[[listed]]
+name = "Sorted events plus binary search"
+group = "Prefix-sum and monotonic-queue optimisation"
+
+[[listed]]
+name = "Best-so-far per key"
+group = "Prefix-sum and monotonic-queue optimisation"
+note = "e.g. per remainder, per value"
+
+[[listed]]
+name = "Monotonic stack contribution"
+group = "Prefix-sum and monotonic-queue optimisation"
+note = "e.g. subarray minimums, min-product"
+
+[[listed]]
+name = "Sqrt decomposition for transitions"
+group = "Prefix-sum and monotonic-queue optimisation"
+
+[[listed]]
+name = "Two-pointer window for dp that depends on a range of length k"
+group = "Prefix-sum and monotonic-queue optimisation"
+
+[[listed]]
+name = "Divide and conquer optimisation"
+group = "Divide and conquer, Knuth and convex hull trick"
+note = "e.g. monotone optimal split for k-partition DP"
+
+[[listed]]
+name = "Knuth optimisation"
+group = "Divide and conquer, Knuth and convex hull trick"
+note = "e.g. interval DP in O(n squared)"
+
+[[listed]]
+name = "Monge arrays and SMAWK"
+group = "Divide and conquer, Knuth and convex hull trick"
+
+[[listed]]
+name = "Convex hull trick (monotone slopes) and Li Chao tree"
+group = "Divide and conquer, Knuth and convex hull trick"
+
+[[listed]]
+name = "The quadrangle inequality as the thing to check"
+group = "Divide and conquer, Knuth and convex hull trick"
+
+[[listed]]
+name = "Aliens trick / Lagrangian relaxation"
+group = "Divide and conquer, Knuth and convex hull trick"
+note = "e.g. WQS binary search on the penalty"
+
+[[listed]]
+name = "Slope trick"
+group = "Divide and conquer, Knuth and convex hull trick"
+note = "e.g. convex piecewise-linear dp"
+
+[[listed]]
+name = "1D/1D optimisation with a monotonic queue"
+group = "Divide and conquer, Knuth and convex hull trick"
+
+[[listed]]
+name = "CDQ divide and conquer for dp ordered by time"
+group = "Divide and conquer, Knuth and convex hull trick"
+
+[[listed]]
+name = "Offline D&C with rollback"
+group = "Divide and conquer, Knuth and convex hull trick"
+
+[[listed]]
+name = "Bitset optimisation as the practical alternative"
+group = "Divide and conquer, Knuth and convex hull trick"
+
+[[listed]]
+name = "Linear recurrence as a transition matrix"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Fast Fibonacci and tribonacci"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Counting walks of length n in a graph"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Counting strings of length n by automaton state"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Knight dialer / vowel permutation for huge n"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Kitamasa and characteristic polynomials"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Augmented matrix to carry a running sum"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Exponentiation by squaring modulo p"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Berlekamp-Massey for an unknown recurrence"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Min-plus (tropical) matrix power for shortest paths with exactly k edges"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Fast doubling"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Tilings of a strip with large n"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Gaussian elimination for expected values on cyclic chains"
+group = "Matrix exponentiation"
+
+[[listed]]
+name = "Parity trick dp[i & 1]"
+group = "Space optimisation"
+
+[[listed]]
+name = "Bitset DP"
+group = "Space optimisation"
+
+[[listed]]
+name = "Hirschberg when the answer must be reconstructed"
+group = "Space optimisation"
+
+[[listed]]
+name = "Keep only reachable states"
+group = "Space optimisation"
+note = "e.g. hash map"
+
+[[listed]]
+name = "A window of the last k rows"
+group = "Space optimisation"
+
+[[listed]]
+name = "In-place DP on the input"
+group = "Space optimisation"
+
+[[listed]]
+name = "Transpose so the short dimension is the array"
+group = "Space optimisation"
+
+[[listed]]
+name = "Give up space when reconstruction needs the full table"
+group = "Space optimisation"
+
+[[listed]]
+name = "Rebuild the LCS or the edit script"
+group = "Reconstruction"
+
+[[listed]]
+name = "Rebuild a subset-sum solution"
+group = "Reconstruction"
+
+[[listed]]
+name = "Lexicographically smallest optimal answer"
+group = "Reconstruction"
+note = "e.g. compare while filling, or fill from the end"
+
+[[listed]]
+name = "Enumerate all solutions with memoised results"
+group = "Reconstruction"
+note = "e.g. word break II, unique BSTs II"
+
+[[listed]]
+name = "Count versus list"
+group = "Reconstruction"
+
+[[listed]]
+name = "Rebuild a tree structure"
+group = "Reconstruction"
+
+[[listed]]
+name = "Rebuild the path through a grid or a coin set"
+group = "Reconstruction"
+
+[[listed]]
+name = "K-th solution by descending with counts"
+group = "Reconstruction"
+
+[[listed]]
+name = "Tie-breaking rules for a deterministic answer"
+group = "Reconstruction"
+
+[[listed]]
+name = "Reconstruction in linear space"
+group = "Reconstruction"
+note = "e.g. Hirschberg"
+
+[[listed]]
+name = "Fill order"
+group = "Memoisation versus tabulation"
+note = "e.g. by length, by index, by topological order, by decreasing capacity"
+
+[[listed]]
+name = "Top-down wins on sparse state spaces"
+group = "Memoisation versus tabulation"
+
+[[listed]]
+name = "Bottom-up wins on recursion depth"
+group = "Memoisation versus tabulation"
+
+[[listed]]
+name = "Recursion limit and the iterative rewrite"
+group = "Memoisation versus tabulation"
+
+[[listed]]
+name = "Memo key design"
+group = "Memoisation versus tabulation"
+note = "e.g. tuples, masks, packed integers; drop arguments that do not affect the answer"
+
+[[listed]]
+name = "DFS + memo on implicit DAGs"
+group = "Memoisation versus tabulation"
+
+[[listed]]
+name = "Cycles in the state graph"
+group = "Memoisation versus tabulation"
+note = "e.g. a visiting sentinel; DP is invalid on cycles"
+
+[[listed]]
+name = "Pull versus push DP"
+group = "Memoisation versus tabulation"
+
+[[listed]]
+name = "BFS over states as the alternative"
+group = "Memoisation versus tabulation"
+note = "e.g. coin change, perfect squares, fewest steps"
+
+[[listed]]
+name = "From brute force to DP"
+group = "Memoisation versus tabulation"
+note = "e.g. write the recursion, find the overlapping calls, memoise, then tabulate"

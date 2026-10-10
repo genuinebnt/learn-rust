@@ -1,8 +1,10 @@
 pattern = "2-D Dynamic Programming"
 intro = "A 2-D DP has two things that change at once: a row and a column, two positions in two strings, or the two ends of an interval. Draw the table, say what each cell means, and see which neighbouring cells it needs. That also tells you the order to fill it and which rows you can throw away."
+groups = ["LCS and edit distance", "Interval DP", "Grid and path DP", "Tree DP", "DAG and graph DP", "State machine DP", "Constrained subsequences", "Broken profile and tiling DP"]
 
 [[technique]]
 id = "2-D Dynamic Programming:grid-dp"
+group = "Grid and path DP"
 signals = [
     "move through a grid, usually only right and down",
     "count the paths, or find the cheapest path, from one corner to another",
@@ -27,6 +29,7 @@ pitfalls = [
 
 [[technique]]
 id = "2-D Dynamic Programming:two-string"
+group = "LCS and edit distance"
 signals = [
     "compare two strings or two arrays position by position",
     "longest common subsequence, edit distance, or interleaving",
@@ -52,6 +55,7 @@ pitfalls = [
 
 [[technique]]
 id = "2-D Dynamic Programming:pair-dp"
+group = "Constrained subsequences"
 signals = [
     "a subsequence where each element is decided by the previous two",
     "the state is the last two chosen positions (j, k)",
@@ -79,6 +83,7 @@ pitfalls = [
 
 [[technique]]
 id = "2-D Dynamic Programming:state-machine"
+group = "State machine DP"
 signals = [
     "buy and sell with a rule: a cooldown, a fee, or a limited number of trades",
     "you are always in one of a few named states (holding, sold, resting)",
@@ -101,6 +106,7 @@ pitfalls = [
 
 [[technique]]
 id = "2-D Dynamic Programming:dfs-memo"
+group = "Grid and path DP"
 signals = [
     "the best path in a grid where you can move in any of four directions",
     "moves are only allowed under a rule (strictly increasing) so there are no cycles",
@@ -133,6 +139,7 @@ pitfalls = [
 
 [[technique]]
 id = "2-D Dynamic Programming:interval"
+group = "Interval DP"
 signals = [
     "remove or merge items from a line, and the cost depends on the neighbours at that moment",
     "the answer for a range [i, j] is built from two smaller ranges",
@@ -157,3 +164,475 @@ pitfalls = [
     "Loop by increasing range length so the smaller ranges are ready.",
     "Pad the ends with a neutral value so there are no special cases at the borders.",
 ]
+
+[[extra]]
+id = "2-D Dynamic Programming:tree-dp"
+name = "Tree DP: a tuple per node"
+group = "Tree DP"
+signals = [
+    "a choice at a node limits the choices at its children (take or skip, coloured or not)",
+    "the answer for a node is built from the answers of its children, then reported to its parent",
+    "the best value may pass through a node without being a root-to-leaf chain",
+]
+template = '''
+def rob(root):
+    """House robber on a tree: no two directly linked nodes both taken."""
+
+    def go(node):
+        """(best total if node is taken, best total if it is skipped)"""
+        if not node:
+            return 0, 0
+        left_take, left_skip = go(node.left)
+        right_take, right_skip = go(node.right)
+        take = node.val + left_skip + right_skip
+        skip = max(left_take, left_skip) + max(right_take, right_skip)
+        return take, skip
+
+    return max(go(root))
+'''
+pitfalls = [
+    "Return one tuple per node (one number per state): the DP table is the return value, not an array.",
+    "When the answer can bend at a node (path sum, diameter), return the best single chain and update a separate best with the two chains joined.",
+    "A deep tree can exceed Python's recursion limit: raise it, or process nodes in post-order with a stack.",
+]
+examples = ["house-robber-iii", "binary-tree-maximum-path-sum", "diameter-of-binary-tree", "maximum-average-subtree"]
+
+[[listed]]
+name = "Reconstruct the LCS"
+group = "LCS and edit distance"
+
+[[listed]]
+name = "Delete-only distance and minimum ASCII delete sum"
+group = "LCS and edit distance"
+
+[[listed]]
+name = "Shortest common supersequence"
+group = "LCS and edit distance"
+
+[[listed]]
+name = "Longest common substring"
+group = "LCS and edit distance"
+note = "e.g. contiguous, resets to 0"
+
+[[listed]]
+name = "Wildcard matching"
+group = "LCS and edit distance"
+note = "e.g. '?' and '*'"
+
+[[listed]]
+name = "Uncrossed lines"
+group = "LCS and edit distance"
+note = "e.g. LCS on arrays"
+
+[[listed]]
+name = "LCS of three strings"
+group = "LCS and edit distance"
+note = "e.g. 3-D table"
+
+[[listed]]
+name = "Linear-space Hirschberg"
+group = "LCS and edit distance"
+
+[[listed]]
+name = "Banded edit distance O"
+group = "LCS and edit distance"
+note = "e.g. nd"
+
+[[listed]]
+name = "Transposition edit distance"
+group = "LCS and edit distance"
+note = "e.g. Damerau"
+
+[[listed]]
+name = "Minimal edit script"
+group = "LCS and edit distance"
+
+[[listed]]
+name = "Sequence alignment with gap penalties"
+group = "LCS and edit distance"
+
+[[listed]]
+name = "LCS with a bitset"
+group = "LCS and edit distance"
+
+[[listed]]
+name = "LCS of permutations reduced to LIS"
+group = "LCS and edit distance"
+
+[[listed]]
+name = "Matrix chain multiplication"
+group = "Interval DP"
+
+[[listed]]
+name = "Minimum cost to cut a stick"
+group = "Interval DP"
+
+[[listed]]
+name = "Merge stones"
+group = "Interval DP"
+note = "e.g. k-way merge with prefix sums"
+
+[[listed]]
+name = "Optimal binary search tree and Catalan splits"
+group = "Interval DP"
+
+[[listed]]
+name = "Strange printer"
+group = "Interval DP"
+
+[[listed]]
+name = "Remove boxes"
+group = "Interval DP"
+note = "e.g. an extra dimension for equal neighbours"
+
+[[listed]]
+name = "Both-ends games"
+group = "Interval DP"
+note = "e.g. interval game"
+
+[[listed]]
+name = "Minimum insertions / removals to make a palindrome"
+group = "Interval DP"
+
+[[listed]]
+name = "String compression and encoding by repeats"
+group = "Interval DP"
+
+[[listed]]
+name = "Polygon triangulation"
+group = "Interval DP"
+
+[[listed]]
+name = "Parenthesisation"
+group = "Interval DP"
+note = "e.g. different ways to add parentheses, boolean evaluation"
+
+[[listed]]
+name = "Circular interval DP"
+group = "Interval DP"
+note = "e.g. double the array"
+
+[[listed]]
+name = "Interval DP with an extra count dimension"
+group = "Interval DP"
+note = "e.g. k pieces"
+
+[[listed]]
+name = "Zuma-style removals"
+group = "Interval DP"
+
+[[listed]]
+name = "Expression and bracket DP"
+group = "Interval DP"
+
+[[listed]]
+name = "Dungeon game"
+group = "Grid and path DP"
+note = "e.g. fill backward from the goal"
+
+[[listed]]
+name = "Maximal rectangle"
+group = "Grid and path DP"
+note = "e.g. histogram per row"
+
+[[listed]]
+name = "Largest plus sign"
+group = "Grid and path DP"
+note = "e.g. four directional passes"
+
+[[listed]]
+name = "K walkers on a grid"
+group = "Grid and path DP"
+
+[[listed]]
+name = "Maximum / minimum product path"
+group = "Grid and path DP"
+note = "e.g. track both extremes"
+
+[[listed]]
+name = "Row-to-row transition cost"
+group = "Grid and path DP"
+note = "e.g. min over previous row, prefix-max trick"
+
+[[listed]]
+name = "Grid with remaining-budget dimension"
+group = "Grid and path DP"
+note = "e.g. obstacles removable, turns"
+
+[[listed]]
+name = "Submatrix counts with prefix sums"
+group = "Grid and path DP"
+
+[[listed]]
+name = "Combinatorial shortcut (binomials) versus DP"
+group = "Grid and path DP"
+
+[[listed]]
+name = "Three-state camera cover / dominating set"
+group = "Tree DP"
+
+[[listed]]
+name = "Largest BST subtree"
+group = "Tree DP"
+note = "e.g. return min, max, size, validity"
+
+[[listed]]
+name = "Counting tree shapes"
+group = "Tree DP"
+note = "e.g. unique BSTs, full binary trees, Catalan"
+
+[[listed]]
+name = "Tree knapsack"
+group = "Tree DP"
+note = "e.g. distribute a budget among children, O(n squared) merge"
+
+[[listed]]
+name = "Rerooting"
+group = "Tree DP"
+note = "e.g. sum of distances, edge reversals"
+
+[[listed]]
+name = "Parent-state DP"
+group = "Tree DP"
+note = "e.g. colouring a tree"
+
+[[listed]]
+name = "Longest univalue / consecutive path"
+group = "Tree DP"
+
+[[listed]]
+name = "Vertex cover and matching on trees"
+group = "Tree DP"
+
+[[listed]]
+name = "Collect-apples style edge cost DP"
+group = "Tree DP"
+
+[[listed]]
+name = "Good leaf pairs"
+group = "Tree DP"
+note = "e.g. depth array merge"
+
+[[listed]]
+name = "Counting paths with a property"
+group = "Tree DP"
+note = "e.g. parity masks"
+
+[[listed]]
+name = "Small-to-large merging of subtree maps"
+group = "Tree DP"
+
+[[listed]]
+name = "DP on n-ary trees and on parent arrays"
+group = "Tree DP"
+
+[[listed]]
+name = "Longest path in a DAG"
+group = "DAG and graph DP"
+
+[[listed]]
+name = "Number of paths in a DAG"
+group = "DAG and graph DP"
+
+[[listed]]
+name = "DP in topological order"
+group = "DAG and graph DP"
+note = "e.g. Kahn: parallel courses, largest colour value"
+
+[[listed]]
+name = "Shortest path with an edge-count dimension"
+group = "DAG and graph DP"
+note = "e.g. Bellman-Ford layers, cheapest flights within k stops"
+
+[[listed]]
+name = "Counting shortest paths"
+group = "DAG and graph DP"
+note = "e.g. Dijkstra with a ways array"
+
+[[listed]]
+name = "Floyd-Warshall as DP over intermediate vertices"
+group = "DAG and graph DP"
+
+[[listed]]
+name = "DP over strongly connected components"
+group = "DAG and graph DP"
+
+[[listed]]
+name = "Functional-graph DP"
+group = "DAG and graph DP"
+note = "e.g. chain lengths and cycles"
+
+[[listed]]
+name = "Resource-constrained paths"
+group = "DAG and graph DP"
+note = "e.g. state = node + fuel / time"
+
+[[listed]]
+name = "Minimum-cost paths over a state graph"
+group = "DAG and graph DP"
+
+[[listed]]
+name = "Walk counting by adjacency-matrix power"
+group = "DAG and graph DP"
+
+[[listed]]
+name = "Hamiltonian path and TSP"
+group = "DAG and graph DP"
+note = "see bitmask"
+
+[[listed]]
+name = "DP on a graph of subproblems"
+group = "DAG and graph DP"
+note = "e.g. word ladder as BFS versus DP"
+
+[[listed]]
+name = "Alternating-sign subsequence sum"
+group = "State machine DP"
+
+[[listed]]
+name = "Flip string to monotone"
+group = "State machine DP"
+note = "e.g. 0s then 1s"
+
+[[listed]]
+name = "Paint with no equal neighbours"
+group = "State machine DP"
+note = "e.g. last-colour state"
+
+[[listed]]
+name = "String avoiding a pattern"
+group = "State machine DP"
+note = "e.g. KMP automaton as DP states"
+
+[[listed]]
+name = "DFA-driven counting"
+group = "State machine DP"
+
+[[listed]]
+name = "Per-parity or per-remainder states"
+group = "State machine DP"
+note = "e.g. visit array positions with a penalty"
+
+[[listed]]
+name = "Phases of a shape"
+group = "State machine DP"
+note = "e.g. increasing then decreasing"
+
+[[listed]]
+name = "Last-chosen-value state"
+group = "State machine DP"
+
+[[listed]]
+name = "Best of a few modes carried along the scan"
+group = "State machine DP"
+
+[[listed]]
+name = "Operations with a toggle state"
+group = "State machine DP"
+note = "e.g. flip / not flipped"
+
+[[listed]]
+name = "States that become a matrix"
+group = "State machine DP"
+note = "see matrix exponentiation"
+
+[[listed]]
+name = "Gap constraint between chosen indices"
+group = "Constrained subsequences"
+note = "e.g. jump, constrained subsequence sum"
+
+[[listed]]
+name = "Difference constraint between neighbours"
+group = "Constrained subsequences"
+note = "e.g. longest subsequence with difference d"
+
+[[listed]]
+name = "At most k changes between adjacent chosen elements"
+group = "Constrained subsequences"
+note = "e.g. good subsequence"
+
+[[listed]]
+name = "Alphabet-indexed best"
+group = "Constrained subsequences"
+note = "e.g. longest ideal subsequence"
+
+[[listed]]
+name = "Subsequence selected by parity or remainder of adjacent sums"
+group = "Constrained subsequences"
+note = "e.g. valid subsequence"
+
+[[listed]]
+name = "Choosing one of two arrays per position"
+group = "Constrained subsequences"
+note = "e.g. non-decreasing from two arrays"
+
+[[listed]]
+name = "Matching a target as a subsequence"
+group = "Constrained subsequences"
+note = "e.g. distinct subsequences, number of matching subsequences with next-occurrence tables"
+
+[[listed]]
+name = "Is-subsequence and next-pointer automaton"
+group = "Constrained subsequences"
+
+[[listed]]
+name = "Subsequence with a sum constraint"
+group = "Constrained subsequences"
+note = "e.g. knapsack"
+
+[[listed]]
+name = "At-most-k removals"
+group = "Constrained subsequences"
+
+[[listed]]
+name = "Binary subsequence below a bound"
+group = "Constrained subsequences"
+note = "e.g. greedy + DP"
+
+[[listed]]
+name = "Products or sums over an alternating subsequence"
+group = "Constrained subsequences"
+
+[[listed]]
+name = "Domino tiling of a w x n board with a frontier mask"
+group = "Broken profile and tiling DP"
+
+[[listed]]
+name = "Row-mask DP with precomputed compatibility"
+group = "Broken profile and tiling DP"
+note = "e.g. maximum students taking an exam, paint an n x 3 grid"
+
+[[listed]]
+name = "Counting tilings of 2 x n and 3 x n with dominoes and trominoes"
+group = "Broken profile and tiling DP"
+
+[[listed]]
+name = "Broken profile"
+group = "Broken profile and tiling DP"
+note = "e.g. cell by cell, a mask of the last w cells"
+
+[[listed]]
+name = "Plug DP"
+group = "Broken profile and tiling DP"
+note = "e.g. connectivity states for Hamiltonian cycles on grids"
+
+[[listed]]
+name = "Steiner tree"
+group = "Broken profile and tiling DP"
+note = "e.g. mask of terminals"
+
+[[listed]]
+name = "Profile DP plus matrix power for huge n"
+group = "Broken profile and tiling DP"
+
+[[listed]]
+name = "Counting independent sets on grid strips"
+group = "Broken profile and tiling DP"
+
+[[listed]]
+name = "Gray-code ordering of masks"
+group = "Broken profile and tiling DP"
+
+[[listed]]
+name = "Tiling with squares: backtracking versus DP"
+group = "Broken profile and tiling DP"

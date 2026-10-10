@@ -235,6 +235,620 @@ pitfalls = [
     "The profit is added to your capital, and the start cost is not deducted. It is only a threshold.",
 ]
 
+[[extra]]
+id = "Heap / Priority Queue:top-k-key"
+name = "Top k by a key: frequency, distance, weakness"
+group = "Top-k selection"
+signals = [
+    "the k most frequent, the k closest, the k weakest, the k largest by some score",
+    "a heap of size k keeps the best k seen so far, and its root is the one to throw out",
+    "O(n log k) beats sorting everything when k is small",
+]
+template_name = "Top k frequent words"
+template = '''
+import heapq
+from collections import Counter
+
+
+def top_k_frequent(words, k):
+    count = Counter(words)
+    # most frequent first; ties in alphabetical order
+    return heapq.nsmallest(k, count, key=lambda w: (-count[w], w))
+'''
+pitfalls = [
+    "Put the whole ordering in one key: (-count, word) sorts by frequency and breaks ties by name.",
+    "A size-k heap of the *worst of the best* gives O(n log k); nsmallest does that for you.",
+    "For a distance use the squared distance: no square root, no float error.",
+]
+examples = ["top-k-frequent-words", "k-closest-points-to-origin", "find-k-closest-elements", "the-k-weakest-rows-in-a-matrix"]
+
+[[extra.variant]]
+name = "K closest points (max-heap of size k)"
+note = "Keep the k nearest; the farthest of them sits at the root and leaves first."
+template = '''
+import heapq
+
+
+def k_closest(points, k):
+    heap = []  # max-heap by distance: store the negative
+    for x, y in points:
+        d = x * x + y * y
+        if len(heap) < k:
+            heapq.heappush(heap, (-d, x, y))
+        elif -heap[0][0] > d:
+            heapq.heapreplace(heap, (-d, x, y))  # drop the farthest
+    return [[x, y] for _, x, y in heap]
+'''
+
+[[extra.variant]]
+name = "K closest elements (window)"
+note = "The answer is a window of k elements in the sorted array: binary search its left end."
+template = '''
+def find_closest_elements(arr, k, x):
+    lo, hi = 0, len(arr) - k  # the left end of the window
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if x - arr[mid] > arr[mid + k] - x:
+            lo = mid + 1  # the window is better one step to the right
+        else:
+            hi = mid
+    return arr[lo:lo + k]
+'''
+
+[[extra]]
+id = "Heap / Priority Queue:frontier"
+name = "Expand a frontier: k smallest pairs and sums"
+group = "K-way merge"
+signals = [
+    "the k smallest pairs (or sums) from two sorted lists, or the k-th smallest in a sorted matrix",
+    "never build all n * m candidates: start with the smallest and push only its neighbours",
+    "each pop gives the next smallest, so k pops give the answer",
+]
+template_name = "K smallest pairs"
+template = '''
+import heapq
+
+
+def k_smallest_pairs(nums1, nums2, k):
+    if not nums1 or not nums2:
+        return []
+    heap = [(nums1[i] + nums2[0], i, 0) for i in range(min(k, len(nums1)))]
+    heapq.heapify(heap)  # the first column: pair i with nums2[0]
+    out = []
+    while heap and len(out) < k:
+        _, i, j = heapq.heappop(heap)
+        out.append([nums1[i], nums2[j]])
+        if j + 1 < len(nums2):  # the next candidate in this row
+            heapq.heappush(heap, (nums1[i] + nums2[j + 1], i, j + 1))
+    return out
+'''
+pitfalls = [
+    "Start with only the first column (at most k entries): later cells are bigger than their left neighbour.",
+    "Push the right neighbour of the cell you pop, and only that one: no cell is added twice.",
+    "Stop at k pops: the heap never holds more than k entries.",
+]
+examples = ["find-k-pairs-with-smallest-sums", "kth-smallest-element-in-a-sorted-matrix", "find-the-kth-smallest-sum-of-a-matrix-with-sorted-rows", "ugly-number-ii", "super-ugly-number"]
+
+[[extra.variant]]
+name = "Kth smallest in a sorted matrix"
+note = "Rows are sorted: a heap of row heads gives the values in order."
+template = '''
+import heapq
+
+
+def kth_smallest(matrix, k):
+    heap = [(row[0], r, 0) for r, row in enumerate(matrix)]
+    heapq.heapify(heap)
+    for _ in range(k - 1):
+        _, r, c = heapq.heappop(heap)
+        if c + 1 < len(matrix[r]):
+            heapq.heappush(heap, (matrix[r][c + 1], r, c + 1))
+    return heap[0][0]
+'''
+
+[[extra.variant]]
+name = "Ugly numbers (merge the multiples)"
+note = "Each ugly number times each prime is a candidate; a pointer per prime merges the streams in order."
+template = '''
+def nth_super_ugly_number(n, primes):
+    ugly = [1]
+    point = [0] * len(primes)  # per prime: the ugly number it multiplies
+    for _ in range(n - 1):
+        nxt = min(ugly[point[i]] * p for i, p in enumerate(primes))
+        ugly.append(nxt)
+        for i, p in enumerate(primes):
+            if ugly[point[i]] * p == nxt:
+                point[i] += 1  # advance every prime that produced it
+    return ugly[-1]
+'''
+
+[[extra]]
+id = "Heap / Priority Queue:own-heap"
+name = "Write the heap yourself"
+group = "Heapify and heap sort"
+signals = [
+    "implement a priority queue, or sort in place with O(1) extra memory",
+    "a complete tree in an array: the parent of i is (i - 1) // 2, its children are 2i + 1 and 2i + 2",
+    "push sifts up, pop moves the last item to the root and sifts down",
+]
+template_name = "Min-heap class"
+template = '''
+class MinHeap:
+    def __init__(self, items=()):
+        self.a = list(items)
+        for i in range(len(self.a) // 2 - 1, -1, -1):
+            self._down(i)  # heapify in O(n): from the last parent up
+
+    def push(self, x):
+        self.a.append(x)
+        self._up(len(self.a) - 1)
+
+    def pop(self):
+        a = self.a
+        a[0], a[-1] = a[-1], a[0]
+        top = a.pop()
+        if a:
+            self._down(0)
+        return top
+
+    def _up(self, i):
+        a = self.a
+        while i and a[i] < a[(i - 1) // 2]:
+            a[i], a[(i - 1) // 2] = a[(i - 1) // 2], a[i]
+            i = (i - 1) // 2
+
+    def _down(self, i):
+        a, n = self.a, len(self.a)
+        while True:
+            small = i
+            for c in (2 * i + 1, 2 * i + 2):
+                if c < n and a[c] < a[small]:
+                    small = c
+            if small == i:
+                return
+            a[i], a[small] = a[small], a[i]
+            i = small
+
+    def __len__(self):
+        return len(self.a)
+'''
+pitfalls = [
+    "Heapify from the last parent down to 0: O(n). Pushing n items one by one is O(n log n).",
+    "Sift down toward the smaller child, and stop when neither child is smaller.",
+    "Pop: swap the root with the last item, remove the last, then sift the new root down.",
+]
+examples = ["sort-an-array", "kth-largest-element-in-an-array"]
+
+[[extra.variant]]
+name = "Heap sort in place"
+note = "Build a max-heap in the array, then swap the root to the end and shrink the heap."
+template = '''
+def heap_sort(a):
+    def down(i, n):
+        while True:
+            big = i
+            for c in (2 * i + 1, 2 * i + 2):
+                if c < n and a[c] > a[big]:
+                    big = c
+            if big == i:
+                return
+            a[i], a[big] = a[big], a[i]
+            i = big
+
+    n = len(a)
+    for i in range(n // 2 - 1, -1, -1):
+        down(i, n)
+    for end in range(n - 1, 0, -1):
+        a[0], a[end] = a[end], a[0]  # the biggest goes to its place
+        down(0, end)
+    return a
+'''
+
+[[extra]]
+id = "Heap / Priority Queue:lazy-design"
+name = "Design with a heap and lazy deletion"
+group = "Lazy deletion and indexed heaps"
+signals = [
+    "a system that updates a value (a rating, a priority, an index) and always answers with the best one",
+    "a heap cannot update an entry in place: push the new entry and ignore the old one when it surfaces",
+    "a dictionary holds the truth; a popped entry that disagrees with it is stale",
+]
+template_name = "Food ratings"
+template = '''
+import heapq
+from collections import defaultdict
+
+
+class FoodRatings:
+    def __init__(self, foods, cuisines, ratings):
+        self.info = {}  # food -> (cuisine, current rating)
+        self.heap = defaultdict(list)  # cuisine -> [(-rating, food)]
+        for f, c, r in zip(foods, cuisines, ratings):
+            self.info[f] = (c, r)
+            heapq.heappush(self.heap[c], (-r, f))
+
+    def changeRating(self, food, newRating):
+        cuisine, _ = self.info[food]
+        self.info[food] = (cuisine, newRating)
+        # the old entry stays in the heap; it is skipped when it surfaces
+        heapq.heappush(self.heap[cuisine], (-newRating, food))
+
+    def highestRated(self, cuisine):
+        h = self.heap[cuisine]
+        while -h[0][0] != self.info[h[0][1]][1]:
+            heapq.heappop(h)  # stale: the food has another rating now
+        return h[0][1]
+'''
+pitfalls = [
+    "Compare the popped entry with the dictionary before trusting it, and pop it if they differ.",
+    "Push every update: the heap grows, but each entry is popped at most once, so the total stays O(n log n).",
+    "Break ties inside the tuple (rating, then name) so equal ratings are ordered the way the problem asks.",
+]
+examples = ["design-a-food-rating-system", "design-a-number-container-system", "design-task-manager", "stock-price-fluctuation", "most-frequent-ids"]
+
+[[extra.variant]]
+name = "Number containers"
+note = "A min-heap of indexes per number; an index is valid only if the map still points to that number."
+template = '''
+import heapq
+from collections import defaultdict
+
+
+class NumberContainers:
+    def __init__(self):
+        self.at = {}  # index -> number
+        self.heap = defaultdict(list)  # number -> min-heap of indexes
+
+    def change(self, index, number):
+        self.at[index] = number
+        heapq.heappush(self.heap[number], index)
+
+    def find(self, number):
+        h = self.heap[number]
+        while h and self.at[h[0]] != number:
+            heapq.heappop(h)  # that index holds another number now
+        return h[0] if h else -1
+'''
+
+[[extra.variant]]
+name = "Stock price (latest, max, min)"
+note = "Two heaps with the timestamp; an entry is stale when the stored price at that time has changed."
+template = '''
+import heapq
+
+
+class StockPrice:
+    def __init__(self):
+        self.price = {}  # timestamp -> price
+        self.latest = 0
+        self.lo, self.hi = [], []  # (price, time) and (-price, time)
+
+    def update(self, timestamp, price):
+        self.price[timestamp] = price
+        self.latest = max(self.latest, timestamp)
+        heapq.heappush(self.lo, (price, timestamp))
+        heapq.heappush(self.hi, (-price, timestamp))
+
+    def current(self):
+        return self.price[self.latest]
+
+    def maximum(self):
+        while -self.hi[0][0] != self.price[self.hi[0][1]]:
+            heapq.heappop(self.hi)  # corrected since
+        return -self.hi[0][0]
+
+    def minimum(self):
+        while self.lo[0][0] != self.price[self.lo[0][1]]:
+            heapq.heappop(self.lo)
+        return self.lo[0][0]
+'''
+
+[[extra]]
+id = "Heap / Priority Queue:minimax-path"
+name = "Best bottleneck path: a heap on the worst step"
+group = "Heaps in graph algorithms"
+signals = [
+    "a path where only its worst edge (or cell) counts: minimum effort, rising water, widest path",
+    "Dijkstra with max (or min) instead of a sum: the cost of a path is its worst step",
+    "pop the cheapest frontier cell; the first time the target is popped is the answer",
+]
+template_name = "Path with minimum effort"
+template = '''
+import heapq
+
+
+def minimum_effort_path(heights):
+    rows, cols = len(heights), len(heights[0])
+    best = [[float("inf")] * cols for _ in range(rows)]
+    best[0][0] = 0
+    heap = [(0, 0, 0)]  # (largest climb on the path so far, row, col)
+    while heap:
+        effort, r, c = heapq.heappop(heap)
+        if (r, c) == (rows - 1, cols - 1):
+            return effort
+        if effort > best[r][c]:
+            continue  # a stale entry
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < rows and 0 <= b < cols:
+                nxt = max(effort, abs(heights[a][b] - heights[r][c]))
+                if nxt < best[a][b]:
+                    best[a][b] = nxt
+                    heapq.heappush(heap, (nxt, a, b))
+    return 0
+'''
+pitfalls = [
+    "The cost of a path is the maximum along it, not the sum: combine with max when you extend.",
+    "Skip entries whose cost is already worse than the best known for that cell.",
+    "For the widest path (maximise the minimum) negate the values and use the same code.",
+]
+examples = ["path-with-minimum-effort", "swim-in-rising-water", "path-with-maximum-minimum-value"]
+
+[[extra.variant]]
+name = "Swim in rising water"
+note = "The time to reach a cell is the highest cell on the way: a heap on that maximum."
+template = '''
+import heapq
+
+
+def swim_in_water(grid):
+    n = len(grid)
+    seen = {(0, 0)}
+    heap = [(grid[0][0], 0, 0)]
+    while heap:
+        t, r, c = heapq.heappop(heap)
+        if (r, c) == (n - 1, n - 1):
+            return t
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < n and 0 <= b < n and (a, b) not in seen:
+                seen.add((a, b))
+                heapq.heappush(heap, (max(t, grid[a][b]), a, b))
+'''
+
+[[extra.variant]]
+name = "Maximise the minimum on a path"
+note = "A max-heap on the smallest value so far."
+template = '''
+import heapq
+
+
+def maximum_minimum_path(grid):
+    rows, cols = len(grid), len(grid[0])
+    seen = {(0, 0)}
+    heap = [(-grid[0][0], 0, 0)]  # negated: a max-heap
+    while heap:
+        neg, r, c = heapq.heappop(heap)
+        if (r, c) == (rows - 1, cols - 1):
+            return -neg
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < rows and 0 <= b < cols and (a, b) not in seen:
+                seen.add((a, b))
+                heapq.heappush(heap, (-min(-neg, grid[a][b]), a, b))
+'''
+
+[[extra]]
+id = "Heap / Priority Queue:sort-key-heap"
+name = "Sort by one key, keep a heap of the other"
+group = "Greedy with a heap"
+signals = [
+    "choose k items to maximise (a sum of one value) times (the minimum of another), or the like",
+    "sort by the key that acts as the minimum, so the current item is always the limit",
+    "a min-heap of size k keeps the best sum of the other value",
+]
+template_name = "Maximum performance of a team"
+template = '''
+import heapq
+
+
+def max_performance(n, speed, efficiency, k):
+    best, total, heap = 0, 0, []  # heap: the speeds of the chosen engineers
+    # the current engineer has the lowest efficiency in the team
+    for e, s in sorted(zip(efficiency, speed), reverse=True):
+        heapq.heappush(heap, s)
+        total += s
+        if len(heap) > k:
+            total -= heapq.heappop(heap)  # drop the slowest
+        best = max(best, total * e)
+    return best % (10**9 + 7)
+'''
+pitfalls = [
+    "Sorting by efficiency (descending) makes the current engineer the minimum, so the formula is a plain product.",
+    "Drop the smallest speed when the team is too big: removing it never lowers the minimum efficiency.",
+    "Take the modulus only at the very end: the best value is compared exactly.",
+]
+examples = ["maximum-performance-of-a-team", "minimum-cost-to-hire-k-workers", "maximum-subsequence-score", "total-cost-to-hire-k-workers"]
+
+[[extra.variant]]
+name = "Maximum subsequence score"
+note = "Sort by nums2 descending; keep the k largest nums1 values in a min-heap."
+template = '''
+import heapq
+
+
+def max_score(nums1, nums2, k):
+    best, total, heap = 0, 0, []
+    for b, a in sorted(zip(nums2, nums1), reverse=True):
+        heapq.heappush(heap, a)
+        total += a
+        if len(heap) > k:
+            total -= heapq.heappop(heap)
+        if len(heap) == k:
+            best = max(best, total * b)  # b is the minimum nums2 so far
+    return best
+'''
+
+[[extra.variant]]
+name = "Minimum cost to hire k workers"
+note = "Sort by wage per unit of quality; the current ratio is paid to everyone, and a max-heap keeps the k smallest qualities."
+template = '''
+import heapq
+
+
+def mincost_to_hire_workers(quality, wage, k):
+    best, total, heap = float("inf"), 0, []  # heap: negated qualities
+    for ratio, q in sorted((w / q, q) for q, w in zip(quality, wage)):
+        heapq.heappush(heap, -q)
+        total += q
+        if len(heap) > k:
+            total += heapq.heappop(heap)  # drop the top quality (negated)
+        if len(heap) == k:
+            best = min(best, total * ratio)
+    return best
+'''
+
+[[extra]]
+id = "Heap / Priority Queue:two-ends"
+name = "Cheapest from the two ends of a list"
+group = "Greedy with a heap"
+signals = [
+    "hire k people, each time the cheapest from the first c or the last c of the list that remain",
+    "two heaps, one for each end, filled from both sides until they meet",
+    "ties between the two ends go to the smaller index",
+]
+template = '''
+import heapq
+
+
+def total_cost(costs, k, candidates):
+    n = len(costs)
+    left = costs[:candidates]
+    right = costs[max(candidates, n - candidates):]
+    heapq.heapify(left)
+    heapq.heapify(right)
+    i, j = candidates, n - candidates - 1  # next to enter each heap
+    total = 0
+    for _ in range(k):
+        if not right or (left and left[0] <= right[0]):
+            total += heapq.heappop(left)
+            if i <= j:
+                heapq.heappush(left, costs[i])
+                i += 1
+        else:
+            total += heapq.heappop(right)
+            if i <= j:
+                heapq.heappush(right, costs[j])
+                j -= 1
+    return total
+'''
+pitfalls = [
+    "The two heaps must not share a cost: stop refilling when the indexes meet (i > j).",
+    "Compare the two roots; on a tie take the left one.",
+    "When n < 2 * candidates the right heap starts empty or short: slice with max(candidates, n - candidates).",
+]
+examples = ["total-cost-to-hire-k-workers"]
+
+[[extra]]
+id = "Heap / Priority Queue:marginal-gain"
+name = "Best marginal gain at each step"
+group = "Greedy with a heap"
+signals = [
+    "spread a limited resource (extra students, increments) where it improves the total the most",
+    "the gain of the next unit at each place is computable, and gains only shrink",
+    "pop the biggest gain, apply it, push the new gain of that place",
+]
+template = '''
+import heapq
+
+
+def max_average_ratio(classes, extra):
+    def gain(p, t):  # how much one more passing student adds
+        return (p + 1) / (t + 1) - p / t
+
+    heap = [(-gain(p, t), p, t) for p, t in classes]
+    heapq.heapify(heap)
+    for _ in range(extra):
+        _, p, t = heapq.heappop(heap)
+        p, t = p + 1, t + 1
+        heapq.heappush(heap, (-gain(p, t), p, t))
+    return sum(p / t for _, p, t in heap) / len(classes)
+'''
+pitfalls = [
+    "This works because the gain of the next unit never grows: a diminishing-return greedy.",
+    "Recompute the gain of only the class you changed, and push it back.",
+    "Float gains are fine here; for exact answers compare fractions by cross-multiplication.",
+]
+examples = ["maximum-average-pass-ratio", "maximum-number-of-eaten-apples"]
+
+[[extra]]
+id = "Heap / Priority Queue:order-book"
+name = "Two books: matching orders"
+group = "Two heaps and the median"
+signals = [
+    "buy orders and sell orders arrive; a buy matches the cheapest sell at or below its price",
+    "a max-heap of buys against a min-heap of sells; the roots are the best offers",
+    "match while the best buy meets the best sell, and what is left joins the backlog",
+]
+template = '''
+import heapq
+
+
+def get_number_of_backlog_orders(orders):
+    buys, sells = [], []  # buys: (-price, amount); sells: (price, amount)
+    for price, amount, kind in orders:
+        if kind == 0:  # a buy
+            while amount and sells and sells[0][0] <= price:
+                p, a = heapq.heappop(sells)
+                take = min(a, amount)
+                amount -= take
+                if a > take:
+                    heapq.heappush(sells, (p, a - take))
+            if amount:
+                heapq.heappush(buys, (-price, amount))
+        else:  # a sell
+            while amount and buys and -buys[0][0] >= price:
+                p, a = heapq.heappop(buys)
+                take = min(a, amount)
+                amount -= take
+                if a > take:
+                    heapq.heappush(buys, (p, a - take))
+            if amount:
+                heapq.heappush(sells, (price, amount))
+    total = sum(a for _, a in buys) + sum(a for _, a in sells)
+    return total % (10**9 + 7)
+'''
+pitfalls = [
+    "Match against the best opposite offer only: the buy heap is a max-heap (negate), the sell heap a min-heap.",
+    "A partly filled resting order goes back with its remaining amount.",
+    "Count the amounts, not the entries, in the backlog.",
+]
+examples = ["number-of-orders-in-the-backlog"]
+
+[[extra]]
+id = "Heap / Priority Queue:servers"
+name = "Free servers and busy servers"
+group = "Scheduling with heaps"
+signals = [
+    "tasks arrive over time and go to the best free server (lowest weight, then lowest index)",
+    "one heap of free servers by (weight, index), one of busy servers by (finish time, ...)",
+    "before assigning, release every server that has finished by now",
+]
+template = '''
+import heapq
+
+
+def assign_tasks(servers, tasks):
+    free = [(w, i) for i, w in enumerate(servers)]
+    heapq.heapify(free)
+    busy = []  # (time it frees up, weight, index)
+    out, time = [], 0
+    for j, duration in enumerate(tasks):
+        time = max(time, j)  # task j arrives at second j
+        if not free:
+            time = max(time, busy[0][0])  # wait for the first to free up
+        while busy and busy[0][0] <= time:
+            t, w, i = heapq.heappop(busy)
+            heapq.heappush(free, (w, i))
+        w, i = heapq.heappop(free)
+        out.append(i)
+        heapq.heappush(busy, (time + duration, w, i))
+    return out
+'''
+pitfalls = [
+    "Move finished servers from busy to free before choosing: only then is the best free server known.",
+    "When nobody is free, jump the clock to the earliest finish time instead of stepping second by second.",
+    "A task never starts before it arrives: keep time at least j.",
+]
+examples = ["process-tasks-using-servers", "find-servers-that-handled-most-number-of-requests", "meeting-rooms-iii"]
+
 [[listed]]
 name = "K largest or smallest items: size-k heap / sort and slice / heapq.nlargest"
 group = "Top-k selection"

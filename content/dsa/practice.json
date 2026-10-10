@@ -36269,6 +36269,113 @@
    "role": "practice",
    "practice_of": null,
    "priority": "practice"
+  },
+  {
+   "id": "lc-find-the-kth-smallest-sum-of-a-matrix-with-sorted-rows",
+   "slug": "find-the-kth-smallest-sum-of-a-matrix-with-sorted-rows",
+   "number": 1439,
+   "title": "Find the Kth Smallest Sum of a Matrix With Sorted Rows",
+   "difficulty": "hard",
+   "pattern": "Heap / Priority Queue",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Binary Search",
+    "Heap (Priority Queue)",
+    "Matrix"
+   ],
+   "companies": [
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 23.4,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 7.2,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Heap / Priority Queue:frontier",
+   "order": 101742,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-maximum-number-of-eaten-apples",
+   "slug": "maximum-number-of-eaten-apples",
+   "number": 1705,
+   "title": "Maximum Number of Eaten Apples",
+   "difficulty": "medium",
+   "pattern": "Heap / Priority Queue",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Greedy",
+    "Heap (Priority Queue)"
+   ],
+   "companies": [
+    {
+     "name": "Uber",
+     "group": "Top tech",
+     "frequency": 47.5,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Heap / Priority Queue:marginal-gain",
+   "order": 101743,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-total-cost-to-hire-k-workers",
+   "slug": "total-cost-to-hire-k-workers",
+   "number": 2462,
+   "title": "Total Cost to Hire K Workers",
+   "difficulty": "medium",
+   "pattern": "Heap / Priority Queue",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Two Pointers",
+    "Heap (Priority Queue)",
+    "Simulation"
+   ],
+   "companies": [
+    {
+     "name": "Bloomberg",
+     "group": "Top tech",
+     "frequency": 13.4,
+     "recent": true
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 12.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Heap / Priority Queue:sort-key-heap",
+   "order": 101744,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
   }
  ]
 }

@@ -6641,3 +6641,360 @@ def _(ns):
         seq = r.sample(range(1, 20), r.randint(1, 6))
         want = sum(1 for p in _it.permutations(seq) if shape(p) == shape(seq)) - 1
         assert f(seq[:]) == want % (10**9 + 7)
+
+
+# ---- heap / priority queue (extras) ---------------------------------------------------------------------------------
+
+import heapq as _hq  # noqa: E402
+
+H = "Heap / Priority Queue"
+
+
+@test(f"{H}:top-k-key")
+def _(ns):
+    f = ns["top_k_frequent"]
+    assert f(["i", "love", "leetcode", "i", "love", "coding"], 2) == ["i", "love"]
+    r = random.Random(500)
+    for _ in range(150):
+        w = [r.choice("abcdef") for _ in range(r.randint(1, 15))]
+        k = r.randint(1, len(set(w)))
+        cnt = {x: w.count(x) for x in set(w)}
+        assert f(w[:], k) == sorted(cnt, key=lambda x: (-cnt[x], x))[:k]
+
+
+@test(f"{H}:top-k-key#K closest points (max-heap of size k)")
+def _(ns):
+    f = ns["k_closest"]
+    r = random.Random(501)
+    for _ in range(150):
+        pts = [[r.randint(-9, 9), r.randint(-9, 9)] for _ in range(r.randint(1, 10))]
+        k = r.randint(1, len(pts))
+        got = sorted(x * x + y * y for x, y in f([p[:] for p in pts], k))
+        assert got == sorted(x * x + y * y for x, y in pts)[:k]
+
+
+@test(f"{H}:top-k-key#K closest elements (window)")
+def _(ns):
+    f = ns["find_closest_elements"]
+    assert f([1, 2, 3, 4, 5], 4, 3) == [1, 2, 3, 4] and f([1, 1, 2, 3, 4, 5], 4, -1) == [1, 1, 2, 3]
+    r = random.Random(502)
+    for _ in range(300):
+        arr = sorted(r.randint(-8, 8) for _ in range(r.randint(1, 10)))
+        k, x = r.randint(1, len(arr)), r.randint(-10, 10)
+        want = sorted(sorted(arr, key=lambda v: (abs(v - x), v))[:k])
+        assert f(arr[:], k, x) == want
+
+
+@test(f"{H}:frontier")
+def _(ns):
+    f = ns["k_smallest_pairs"]
+    assert f([1, 7, 11], [2, 4, 6], 3) == [[1, 2], [1, 4], [1, 6]] and f([1, 1, 2], [1, 2, 3], 2) == [[1, 1], [1, 1]]
+    r = random.Random(503)
+    for _ in range(200):
+        a = sorted(r.randint(0, 9) for _ in range(r.randint(0, 5)))
+        b = sorted(r.randint(0, 9) for _ in range(r.randint(0, 5)))
+        k = r.randint(1, 8)
+        got = f(a[:], b[:], k)
+        want = sorted(([x, y] for x in a for y in b), key=lambda p: p[0] + p[1])[:k]
+        assert [x + y for x, y in got] == [x + y for x, y in want] and len(got) == len(want)
+
+
+@test(f"{H}:frontier#Kth smallest in a sorted matrix")
+def _(ns):
+    f = ns["kth_smallest"]
+    assert f([[1, 5, 9], [10, 11, 13], [12, 13, 15]], 8) == 13
+    r = random.Random(504)
+    for _ in range(150):
+        m = [sorted(r.randint(0, 20) for _ in range(3)) for _ in range(r.randint(1, 4))]
+        flat = sorted(v for row in m for v in row)
+        k = r.randint(1, len(flat))
+        assert f([row[:] for row in m], k) == flat[k - 1]
+
+
+@test(f"{H}:frontier#Ugly numbers (merge the multiples)")
+def _(ns):
+    f = ns["nth_super_ugly_number"]
+    assert f(12, [2, 7, 13, 19]) == 32 and f(1, [2, 3, 5]) == 1
+    for primes in ([2, 3, 5], [2, 7, 13, 19]):
+        want, x = [], 1
+        while len(want) < 40:
+            y = x
+            for p in primes:
+                while y % p == 0:
+                    y //= p
+            if y == 1:
+                want.append(x)
+            x += 1
+        for n in range(1, 41):
+            assert f(n, primes[:]) == want[n - 1]
+
+
+@test(f"{H}:own-heap")
+def _(ns):
+    cls = ns["MinHeap"]
+    r = random.Random(505)
+    for _ in range(100):
+        items = [r.randint(-20, 20) for _ in range(r.randint(0, 12))]
+        h = cls(items)
+        ref = items[:]
+        _hq.heapify(ref)
+        for _ in range(r.randint(0, 12)):
+            if r.random() < 0.5 or not ref:
+                v = r.randint(-20, 20)
+                h.push(v)
+                _hq.heappush(ref, v)
+            else:
+                assert h.pop() == _hq.heappop(ref)
+            assert len(h) == len(ref)
+        assert [h.pop() for _ in range(len(ref))] == sorted(ref)
+
+
+@test(f"{H}:own-heap#Heap sort in place")
+def _(ns):
+    f = ns["heap_sort"]
+    r = random.Random(506)
+    for _ in range(150):
+        a = [r.randint(-9, 9) for _ in range(r.randint(0, 15))]
+        b = a[:]
+        assert f(b) == sorted(a) and b == sorted(a)
+
+
+@test(f"{H}:lazy-design")
+def _(ns):
+    cls = ns["FoodRatings"]
+    t = cls(["kimchi", "miso", "sushi", "moussaka", "ramen", "bulgogi"], ["korean", "japanese", "japanese", "greek", "japanese", "korean"], [9, 12, 8, 15, 14, 7])
+    assert t.highestRated("korean") == "kimchi" and t.highestRated("japanese") == "ramen"
+    t.changeRating("sushi", 16)
+    assert t.highestRated("japanese") == "sushi"
+    t.changeRating("ramen", 16)
+    assert t.highestRated("japanese") == "ramen"
+    r = random.Random(507)
+    for _ in range(60):
+        foods = [f"f{i}" for i in range(6)]
+        cuis = [r.choice("ab") for _ in foods]
+        rat = [r.randint(1, 5) for _ in foods]
+        t, cur = cls(foods, cuis, rat[:]), dict(zip(foods, rat))
+        for _ in range(20):
+            if r.random() < 0.5:
+                f_, v = r.choice(foods), r.randint(1, 5)
+                t.changeRating(f_, v)
+                cur[f_] = v
+            else:
+                c = r.choice("ab")
+                pool = [f_ for f_ in foods if cuis[foods.index(f_)] == c]
+                if pool:
+                    assert t.highestRated(c) == min(pool, key=lambda x: (-cur[x], x))
+
+
+@test(f"{H}:lazy-design#Number containers")
+def _(ns):
+    r = random.Random(508)
+    for _ in range(100):
+        nc, at = ns["NumberContainers"](), {}
+        for _ in range(25):
+            if r.random() < 0.6:
+                i, v = r.randint(1, 6), r.randint(1, 3)
+                nc.change(i, v)
+                at[i] = v
+            else:
+                v = r.randint(1, 3)
+                idx = [i for i, x in at.items() if x == v]
+                assert nc.find(v) == (min(idx) if idx else -1)
+
+
+@test(f"{H}:lazy-design#Stock price (latest, max, min)")
+def _(ns):
+    r = random.Random(509)
+    for _ in range(100):
+        sp, price = ns["StockPrice"](), {}
+        for _ in range(20):
+            t, p = r.randint(1, 8), r.randint(1, 9)
+            sp.update(t, p)
+            price[t] = p
+            assert sp.current() == price[max(price)] and sp.maximum() == max(price.values()) and sp.minimum() == min(price.values())
+
+
+def _dijkstra_bottleneck(grid, step, start_cost):
+    rows, cols = len(grid), len(grid[0])
+    best = {(0, 0): start_cost}
+    heap = [(start_cost, 0, 0)]
+    while heap:
+        c, r, k = _hq.heappop(heap)
+        if c > best[(r, k)]:
+            continue
+        for a, b in ((r + 1, k), (r - 1, k), (r, k + 1), (r, k - 1)):
+            if 0 <= a < rows and 0 <= b < cols:
+                n = step(c, grid[r][k], grid[a][b])
+                if n < best.get((a, b), 10**9):
+                    best[(a, b)] = n
+                    _hq.heappush(heap, (n, a, b))
+    return best[(rows - 1, cols - 1)]
+
+
+@test(f"{H}:minimax-path")
+def _(ns):
+    f = ns["minimum_effort_path"]
+    assert f([[1, 2, 2], [3, 8, 2], [5, 3, 5]]) == 2 and f([[1, 2, 3], [3, 8, 4], [5, 3, 5]]) == 1
+    r = random.Random(510)
+    for _ in range(100):
+        g = _grid(r, r.randint(1, 4), r.randint(1, 4), [1, 3, 5, 9])
+        assert f([row[:] for row in g]) == _dijkstra_bottleneck(g, lambda c, a, b: max(c, abs(a - b)), 0)
+
+
+@test(f"{H}:minimax-path#Swim in rising water")
+def _(ns):
+    f = ns["swim_in_water"]
+    assert f([[0, 2], [1, 3]]) == 3
+    r = random.Random(511)
+    for _ in range(100):
+        n = r.randint(1, 4)
+        vals = r.sample(range(n * n), n * n)
+        g = [vals[i * n:(i + 1) * n] for i in range(n)]
+        assert f([row[:] for row in g]) == _dijkstra_bottleneck(g, lambda c, a, b: max(c, b), g[0][0])
+
+
+@test(f"{H}:minimax-path#Maximise the minimum on a path")
+def _(ns):
+    f = ns["maximum_minimum_path"]
+    assert f([[5, 4, 5], [1, 2, 6], [7, 4, 6]]) == 4 and f([[2, 2, 1, 2, 2, 2], [1, 2, 2, 2, 1, 2]]) == 2
+    r = random.Random(512)
+    for _ in range(100):
+        g = _grid(r, r.randint(1, 4), r.randint(1, 4), [1, 3, 5, 9])
+        neg = [[-v for v in row] for row in g]
+        want = -_dijkstra_bottleneck(neg, lambda c, a, b: max(c, b), neg[0][0])
+        assert f([row[:] for row in g]) == want
+
+
+@test(f"{H}:sort-key-heap")
+def _(ns):
+    f = ns["max_performance"]
+    assert f(6, [2, 10, 3, 1, 5, 8], [5, 4, 3, 9, 7, 2], 2) == 60 and f(6, [2, 10, 3, 1, 5, 8], [5, 4, 3, 9, 7, 2], 3) == 68
+    r = random.Random(513)
+    for _ in range(150):
+        n = r.randint(1, 7)
+        sp = [r.randint(1, 9) for _ in range(n)]
+        ef = [r.randint(1, 9) for _ in range(n)]
+        k = r.randint(1, n)
+        want = max(sum(sp[i] for i in c) * min(ef[i] for i in c) for j in range(1, k + 1) for c in _it.combinations(range(n), j))
+        assert f(n, sp[:], ef[:], k) == want % (10**9 + 7)
+
+
+@test(f"{H}:sort-key-heap#Maximum subsequence score")
+def _(ns):
+    f = ns["max_score"]
+    assert f([1, 3, 3, 2], [2, 1, 3, 4], 3) == 12 and f([4, 2, 3, 1, 1], [7, 5, 10, 9, 6], 1) == 30
+    r = random.Random(514)
+    for _ in range(150):
+        n = r.randint(1, 7)
+        a = [r.randint(0, 9) for _ in range(n)]
+        b = [r.randint(0, 9) for _ in range(n)]
+        k = r.randint(1, n)
+        want = max(sum(a[i] for i in c) * min(b[i] for i in c) for c in _it.combinations(range(n), k))
+        assert f(a[:], b[:], k) == want
+
+
+@test(f"{H}:sort-key-heap#Minimum cost to hire k workers")
+def _(ns):
+    f = ns["mincost_to_hire_workers"]
+    assert abs(f([10, 20, 5], [70, 50, 30], 2) - 105.0) < 1e-6 and abs(f([3, 1, 10, 10, 1], [4, 8, 2, 2, 7], 3) - 30.66667) < 1e-4
+    r = random.Random(515)
+    for _ in range(150):
+        n = r.randint(1, 6)
+        q = [r.randint(1, 9) for _ in range(n)]
+        w = [r.randint(1, 20) for _ in range(n)]
+        k = r.randint(1, n)
+        best = float("inf")
+        for c in _it.combinations(range(n), k):
+            ratio = max(w[i] / q[i] for i in c)
+            best = min(best, ratio * sum(q[i] for i in c))
+        assert abs(f(q[:], w[:], k) - best) < 1e-6
+
+
+@test(f"{H}:two-ends")
+def _(ns):
+    f = ns["total_cost"]
+    assert f([17, 12, 10, 2, 7, 2, 11, 20, 8], 3, 4) == 11 and f([1, 2, 4, 1], 3, 3) == 4
+    r = random.Random(516)
+    for _ in range(300):
+        c = [r.randint(1, 9) for _ in range(r.randint(1, 10))]
+        k, cand = r.randint(1, len(c)), r.randint(1, 5)
+        rest, total = list(range(len(c))), 0
+        for _ in range(k):
+            pool = rest[:cand] + rest[max(cand, len(rest) - cand):] if len(rest) > cand else rest[:]
+            pool = sorted(set(rest[:cand]) | set(rest[-cand:]))
+            pick = min(pool, key=lambda i: (c[i], i))
+            total += c[pick]
+            rest.remove(pick)
+        assert f(c[:], k, cand) == total, (c, k, cand)
+
+
+@test(f"{H}:marginal-gain")
+def _(ns):
+    f = ns["max_average_ratio"]
+    assert abs(f([[1, 2], [3, 5], [2, 2]], 2) - 0.78333) < 1e-4 and abs(f([[2, 4], [3, 9], [4, 5], [2, 10]], 4) - 0.53485) < 1e-4
+    r = random.Random(517)
+    for _ in range(100):
+        cl = []
+        for _ in range(r.randint(1, 3)):
+            t = r.randint(1, 5)
+            cl.append([r.randint(1, t), t])
+        extra = r.randint(0, 4)
+        best = 0
+        for alloc in _it.product(range(extra + 1), repeat=len(cl)):
+            if sum(alloc) == extra:
+                best = max(best, sum((p + a) / (t + a) for (p, t), a in zip(cl, alloc)) / len(cl))
+        assert abs(f([c[:] for c in cl], extra) - best) < 1e-9
+
+
+@test(f"{H}:order-book")
+def _(ns):
+    f = ns["get_number_of_backlog_orders"]
+    assert f([[10, 5, 0], [15, 2, 1], [25, 1, 1], [30, 4, 0]]) == 6 and f([[7, 1000000000, 1], [15, 3, 0], [5, 999999995, 0], [5, 1, 1]]) == 999999984
+    r = random.Random(518)
+    for _ in range(200):
+        orders = [[r.randint(1, 6), r.randint(1, 4), r.randint(0, 1)] for _ in range(r.randint(1, 8))]
+        buys, sells = [], []
+        for price, amt, kind in orders:
+            if kind == 0:
+                while amt and sells and min(s[0] for s in sells) <= price:
+                    s = min(sells)
+                    take = min(s[1], amt)
+                    amt -= take
+                    s[1] -= take
+                    if s[1] == 0:
+                        sells.remove(s)
+                if amt:
+                    buys.append([price, amt])
+            else:
+                while amt and buys and max(b[0] for b in buys) >= price:
+                    b = max(buys)
+                    take = min(b[1], amt)
+                    amt -= take
+                    b[1] -= take
+                    if b[1] == 0:
+                        buys.remove(b)
+                if amt:
+                    sells.append([price, amt])
+        assert f([o[:] for o in orders]) == sum(b[1] for b in buys) + sum(s[1] for s in sells)
+
+
+@test(f"{H}:servers")
+def _(ns):
+    f = ns["assign_tasks"]
+    assert f([3, 3, 2], [1, 2, 3, 2, 1, 2]) == [2, 2, 0, 2, 1, 2] and f([5, 1, 4, 3, 2], [2, 1, 2, 4, 5, 2, 1]) == [1, 4, 1, 4, 1, 3, 2]
+    r = random.Random(519)
+    for _ in range(200):
+        servers = [r.randint(1, 5) for _ in range(r.randint(1, 4))]
+        tasks = [r.randint(1, 5) for _ in range(r.randint(1, 8))]
+        free_at, out = [0] * len(servers), []
+        t = 0
+        for j, d in enumerate(tasks):
+            t = max(t, j)
+            avail = [i for i in range(len(servers)) if free_at[i] <= t]
+            if not avail:
+                t = max(t, min(free_at))
+                avail = [i for i in range(len(servers)) if free_at[i] <= t]
+            pick = min(avail, key=lambda i: (servers[i], i))
+            out.append(pick)
+            free_at[pick] = t + d
+        assert f(servers[:], tasks[:]) == out

@@ -149,6 +149,12 @@ def main():
 
     # --- the problems to add: the hand-made mapping (technique_problems.json), checked against the rules
     mapping = {k: v for k, v in json.loads((ROOT / "tools/neetcode/technique_problems.json").read_text()).items() if not k.startswith("_")}
+    # an extra's examples are its problems: any that the catalog does not have yet is added under that extra
+    for f in DSA.glob("lessons/*.toml"):
+        for e in tomllib.loads(f.read_text()).get("extra", []):
+            for slug in e.get("examples", []):
+                if slug not in lists and slug not in practice:
+                    mapping.setdefault(slug, e["id"])
     new, skipped = [], []
     for slug, tech in mapping.items():
         if slug in lists or slug in practice:

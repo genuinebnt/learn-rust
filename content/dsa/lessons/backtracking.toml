@@ -247,6 +247,7 @@ pitfalls = [
 [[technique]]
 id = "Backtracking:n-queens"
 group = "Constraint satisfaction"
+template_name = "Sets"
 signals = [
     "place pieces on a board so none attack each other",
     "one piece per row, so the only choice is the column",
@@ -280,6 +281,27 @@ pitfalls = [
     "Placing one queen per row guarantees no two share a row, so rows are never checked.",
     "Add to all three sets before recursing and remove from all three after.",
 ]
+
+[[technique.variant]]
+name = "Bitmasks"
+note = "Columns and both diagonals as bits of one integer each: the free columns of a row are one expression."
+template = '''
+def total_n_queens(n):
+    full = (1 << n) - 1
+
+    def go(cols, d1, d2):
+        if cols == full:
+            return 1
+        count = 0
+        free = full & ~(cols | d1 | d2)  # columns still safe in this row
+        while free:
+            bit = free & -free  # the lowest free column
+            free ^= bit
+            count += go(cols | bit, (d1 | bit) << 1 & full, (d2 | bit) >> 1)
+        return count
+
+    return go(0, 0, 0)
+'''
 
 [[technique]]
 id = "Backtracking:split-memo"
@@ -315,44 +337,1162 @@ pitfalls = [
     "Looping over the distinct word lengths is cheaper than testing every word at each position.",
 ]
 
-[[listed]]
-name = "Subsets: include-or-skip recursion / start-index loop"
+[[extra]]
+id = "Backtracking:combinations-k"
+name = "Combinations of k items"
 group = "Subsets, combinations and permutations"
+signals = [
+    "choose exactly k items from n, in any order, with no repeats",
+    "the answer lists every k-subset (or counts the ways to pick k that satisfy a rule)",
+    "the numbers or items are distinct and each is used at most once",
+]
+template = '''
+def combine(n, k):
+    """Every k-subset of 1..n."""
+    out, path = [], []
 
-[[listed]]
-name = "Subsets and subsequences with duplicates: sort and skip / per-level seen set"
-group = "Subsets, combinations and permutations"
-note = "Related lesson: Skipping duplicates at the same level"
+    def go(start):
+        if len(path) == k:
+            out.append(path[:])
+            return
+        # stop early: fewer than k - len(path) numbers are left
+        for x in range(start, n - (k - len(path)) + 2):
+            path.append(x)
+            go(x + 1)
+            path.pop()
 
-[[listed]]
-name = "Arrangements of a multiset of any length / partial permutations of k items"
-group = "Subsets, combinations and permutations"
+    go(1)
+    return out
+'''
+pitfalls = [
+    "Start the next loop at x + 1: that is what makes (1, 2) and (2, 1) the same combination.",
+    "Copy the path (path[:]) when you record it: the list keeps changing.",
+    "The upper bound of the loop prunes dead branches: without it the search still works but visits many partial paths that cannot reach size k.",
+]
+examples = ["combinations", "combination-sum-iii", "subsets", "permutations"]
 
-[[listed]]
-name = "Best-subset search: take / skip with a running feasibility state"
-group = "Subsets, combinations and permutations"
+[[extra]]
+id = "Backtracking:bitmask-subsets"
+name = "Every subset as a bitmask"
+group = "Bitmask state"
+signals = [
+    "n is at most about 20 and you must look at every subset",
+    "a subset needs a quick membership test or a quick union (OR) with another",
+    "checking a condition on every subset is cheaper than building them recursively",
+]
+template = '''
+def all_subsets(nums):
+    """Subset number m holds nums[i] when bit i of m is set."""
+    n = len(nums)
+    return [[nums[i] for i in range(n) if mask >> i & 1]
+            for mask in range(1 << n)]
 
-[[listed]]
-name = "Sudoku: row, column and box sets, most-constrained cell first"
+
+def count_subsets(nums, ok):
+    """How many subsets satisfy ok(list)."""
+    n = len(nums)
+    total = 0
+    for mask in range(1 << n):
+        if ok([nums[i] for i in range(n) if mask >> i & 1]):
+            total += 1
+    return total
+'''
+pitfalls = [
+    "1 << n subsets: for n = 20 that is a million; the check per subset must be cheap.",
+    "Test a bit with (mask >> i) & 1, not mask & i.",
+    "Precedence: in Python, mask >> i & 1 is (mask >> i) & 1, but write the parentheses when it is not obvious.",
+]
+examples = ["subsets", "maximum-length-of-a-concatenated-string-with-unique-characters", "the-number-of-beautiful-subsets", "count-number-of-maximum-bitwise-or-subsets"]
+
+[[extra]]
+id = "Backtracking:letter-product"
+name = "One choice per position"
+group = "String generation"
+signals = [
+    "each position of the answer picks one option from its own small set",
+    "phone-keypad letters, upper or lower case, one of several spellings",
+    "the answer size is the product of the options, so every answer is listed",
+]
+template = '''
+KEYS = {"2": "abc", "3": "def", "4": "ghi", "5": "jkl",
+        "6": "mno", "7": "pqrs", "8": "tuv", "9": "wxyz"}
+
+
+def letter_combinations(digits):
+    if not digits:
+        return []
+    out = [""]
+    for d in digits:
+        out = [prefix + c for prefix in out for c in KEYS[d]]
+    return out
+
+
+def letter_case_permutations(s):
+    out = [""]
+    for ch in s:
+        options = {ch.lower(), ch.upper()}  # one option for a digit
+        out = [prefix + c for prefix in out for c in options]
+    return out
+'''
+pitfalls = [
+    "An empty input has no combinations ([]), not one empty string ([\"\"]) in the phone problem.",
+    "The answer is exponential: build it level by level (as here) or recurse, but never construct strings by repeated concatenation inside the innermost loop more than once.",
+    "A digit has no case: the set {c.lower(), c.upper()} has one element for it.",
+]
+examples = ["letter-combinations-of-a-phone-number", "letter-case-permutation", "brace-expansion"]
+
+[[extra]]
+id = "Backtracking:min-removals"
+name = "Fewest removals by BFS levels"
+group = "String generation"
+signals = [
+    "remove the fewest characters (or edits) so that a string becomes valid, and list every result",
+    "all answers have the same length, so breadth first search stops at the first valid level",
+    "the string is short (about 25 characters or fewer)",
+]
+template = '''
+def remove_invalid_parentheses(s):
+    def valid(t):
+        open_ = 0
+        for ch in t:
+            if ch == "(":
+                open_ += 1
+            elif ch == ")":
+                open_ -= 1
+                if open_ < 0:
+                    return False
+        return open_ == 0
+
+    level = {s}
+    while level:
+        good = [t for t in level if valid(t)]
+        if good:
+            return good  # the fewest removals: stop at this level
+        level = {t[:i] + t[i + 1:] for t in level
+                 for i in range(len(t)) if t[i] in "()"}
+    return [""]
+'''
+pitfalls = [
+    "Use a set per level: removing different characters often gives the same string, and duplicates multiply.",
+    "Stop at the first level that has a valid string: deeper levels remove more than needed.",
+    "Only remove parentheses; letters are never removed.",
+]
+examples = ["remove-invalid-parentheses", "minimum-remove-to-make-valid-parentheses"]
+
+[[extra]]
+id = "Backtracking:operators"
+name = "Inserting operators with a carried operand"
+group = "String generation"
+signals = [
+    "place +, - or * between the digits of a string so that the expression equals a target",
+    "multiplication binds tighter, so the last term must be undone and redone",
+    "numbers cannot have leading zeros",
+]
+template = '''
+def add_operators(num, target):
+    out = []
+
+    def go(i, expr, value, last):
+        # value: the total so far; last: the term a * could still extend
+        if i == len(num):
+            if value == target:
+                out.append(expr)
+            return
+        for j in range(i, len(num)):
+            if j > i and num[i] == "0":
+                break  # no leading zeros
+            piece = num[i:j + 1]
+            v = int(piece)
+            if i == 0:
+                go(j + 1, piece, v, v)
+            else:
+                go(j + 1, expr + "+" + piece, value + v, v)
+                go(j + 1, expr + "-" + piece, value - v, -v)
+                go(j + 1, expr + "*" + piece,
+                   value - last + last * v, last * v)
+
+    go(0, "", 0, 0)
+    return out
+'''
+pitfalls = [
+    "For *, take the last term back out of the total and put last * v back in: 2 + 3 * 4 is 2 + 12, not 5 * 4.",
+    "Keep the sign inside last (-v for a minus): then a following * multiplies the signed term.",
+    "A piece such as \"05\" is not allowed, but \"0\" alone is.",
+]
+examples = ["expression-add-operators", "different-ways-to-add-parentheses"]
+
+[[extra]]
+id = "Backtracking:segments"
+name = "Cutting a string into valid segments"
+group = "Partitioning"
+signals = [
+    "cut a digit string into a fixed number of pieces that each obey a rule (range, no leading zero)",
+    "the number of cut points is small, so every split can be tried",
+    "the pieces are numbers: a Fibonacci-like or descending sequence, or the parts of an IP address",
+]
+template = '''
+def restore_ip_addresses(s):
+    out = []
+
+    def go(i, parts):
+        if len(parts) == 4:
+            if i == len(s):
+                out.append(".".join(parts))
+            return
+        for size in (1, 2, 3):
+            if i + size > len(s):
+                break
+            piece = s[i:i + size]
+            if (len(piece) > 1 and piece[0] == "0") or int(piece) > 255:
+                continue
+            go(i + size, parts + [piece])
+
+    go(0, [])
+    return out
+'''
+pitfalls = [
+    "Reject a leading zero for a multi-digit piece and check the range before recursing.",
+    "Prune with lengths: the rest of the string must still fit into the remaining parts.",
+    "For a sequence rule (Fibonacci), the first two pieces decide the rest: loop over them and verify, instead of branching at every cut.",
+]
+examples = ["restore-ip-addresses", "additive-number", "split-array-into-fibonacci-sequence", "splitting-a-string-into-descending-consecutive-values"]
+
+[[extra]]
+id = "Backtracking:sudoku"
+name = "Sudoku: constraint sets and the most constrained cell"
 group = "Constraint satisfaction"
+signals = [
+    "fill a board so that row, column and box constraints all hold",
+    "the choices for a cell shrink as the board fills",
+    "plain left-to-right filling is too slow: the order of cells matters",
+]
+template = '''
+def solve_sudoku(board):
+    """board: 9 lists of 9 characters, '.' for empty. Solved in place."""
+    used = [set() for _ in range(27)]  # 9 rows, 9 columns, 9 boxes
 
-[[listed]]
-name = "Position-value assignment: divisibility and adjacency rules"
-group = "Constraint satisfaction"
+    def groups(r, c):
+        return used[r], used[9 + c], used[18 + r // 3 * 3 + c // 3]
 
-[[listed]]
-name = "Truth and consistency assignment: each item in or out, checked against claims"
+    empty = []
+    for r in range(9):
+        for c in range(9):
+            if board[r][c] == ".":
+                empty.append((r, c))
+            else:
+                for g in groups(r, c):
+                    g.add(board[r][c])
+
+    def options(r, c):
+        row, col, box = groups(r, c)
+        return [d for d in "123456789"
+                if d not in row and d not in col and d not in box]
+
+    def go():
+        if not empty:
+            return True
+        # the cell with the fewest options goes first
+        k = min(range(len(empty)), key=lambda i: len(options(*empty[i])))
+        empty[k], empty[-1] = empty[-1], empty[k]
+        r, c = empty.pop()
+        for d in options(r, c):
+            board[r][c] = d
+            for g in groups(r, c):
+                g.add(d)
+            if go():
+                return True
+            for g in groups(r, c):
+                g.discard(d)
+        board[r][c] = "."
+        empty.append((r, c))
+        return False
+
+    go()
+'''
+pitfalls = [
+    "Undo everything you set (the board cell and all three sets) before trying the next digit.",
+    "Choosing the cell with the fewest options first is what turns a hopeless search into a fast one.",
+    "Restore the cell to the empty list on failure: the caller may try its next digit.",
+]
+examples = ["sudoku-solver", "valid-sudoku", "n-queens-ii"]
+
+[[extra]]
+id = "Backtracking:kth-permutation"
+name = "The k-th permutation, and the next one"
+group = "Iterative generation"
+signals = [
+    "the answer is one permutation in lexicographic order, not all of them",
+    "k can be huge, so counting beats generating",
+    "the next arrangement in order, in place and without extra memory",
+]
+template_name = "k-th permutation (factorial digits)"
+template = '''
+from math import factorial
+
+
+def get_permutation(n, k):
+    """The k-th (1-based) permutation of 1..n in lexicographic order."""
+    digits = list(range(1, n + 1))
+    k -= 1
+    out = []
+    for i in range(n, 0, -1):
+        block = factorial(i - 1)  # permutations that share a first digit
+        index, k = divmod(k, block)
+        out.append(str(digits.pop(index)))
+    return "".join(out)
+'''
+pitfalls = [
+    "Make k zero-based first: then divmod gives the digit's index directly.",
+    "Each digit fixes (i - 1)! permutations: count them, never generate them.",
+    "Remove the used digit from the list so the next position sees only what is left.",
+]
+examples = ["permutation-sequence", "next-permutation", "the-k-th-lexicographical-string-of-all-happy-strings-of-length-n"]
+
+[[extra.variant]]
+name = "Next permutation (in place)"
+note = "Find the rightmost ascent, swap with the next larger value to its right, and reverse the tail."
+template = '''
+def next_permutation(nums):
+    i = len(nums) - 2
+    while i >= 0 and nums[i] >= nums[i + 1]:
+        i -= 1  # the rightmost position that can still grow
+    if i >= 0:
+        j = len(nums) - 1
+        while nums[j] <= nums[i]:
+            j -= 1
+        nums[i], nums[j] = nums[j], nums[i]
+    nums[i + 1:] = reversed(nums[i + 1:])  # the smallest tail
+'''
+
+[[extra]]
+id = "Backtracking:path-undo"
+name = "Enumerating paths with a shared path list"
+group = "Path enumeration in graphs and trees"
+signals = [
+    "list every path from a start to a goal in a DAG or a tree",
+    "the path is built while descending: append on the way down, pop on the way back",
+    "no visited set is needed because the structure has no cycles",
+]
+template = '''
+def all_paths(graph):
+    """All paths from node 0 to node n - 1 of a DAG (adjacency lists)."""
+    n = len(graph)
+    out, path = [], [0]
+
+    def go(u):
+        if u == n - 1:
+            out.append(path[:])  # copy: the list is reused
+            return
+        for v in graph[u]:
+            path.append(v)
+            go(v)
+            path.pop()
+
+    go(0)
+    return out
+'''
+pitfalls = [
+    "Copy the path when recording it, and pop after every recursive call.",
+    "In a graph that may have cycles you also need a per-path visited set that you undo.",
+    "The number of paths can be exponential: the output size is the lower bound on the work.",
+]
+examples = ["all-paths-from-source-to-target", "binary-tree-paths", "path-sum-ii"]
+
+[[extra]]
+id = "Backtracking:meet-in-the-middle"
+name = "Meet in the middle"
+group = "Meet in the middle"
+signals = [
+    "n is about 30 to 40: 2^n is too many, 2^(n/2) is fine",
+    "choose a subset whose sum is closest to a target, or count subsets with a given sum",
+    "the two halves interact only through one number (a sum, a difference)",
+]
+template = '''
+from bisect import bisect_left
+
+
+def closest_subset_sum(nums, goal):
+    """Smallest |sum(subset) - goal| over all subsets."""
+    def sums(a):
+        out = [0]
+        for x in a:
+            out += [v + x for v in out]
+        return out
+
+    half = len(nums) // 2
+    left = sums(nums[:half])
+    right = sorted(sums(nums[half:]))
+    best = abs(goal)
+    for a in left:
+        i = bisect_left(right, goal - a)
+        for j in (i - 1, i):  # the two neighbours of the ideal partner
+            if 0 <= j < len(right):
+                best = min(best, abs(a + right[j] - goal))
+    return best
+'''
+pitfalls = [
+    "Sort one half and binary search from the other: that is the O(2^(n/2) * n) step.",
+    "Check both neighbours of the insertion point: the closest value is on either side.",
+    "Split evenly: an uneven split makes the bigger half the bottleneck.",
+]
+examples = ["closest-subsequence-sum", "partition-array-into-two-arrays-to-minimize-sum-difference", "split-array-with-same-average", "4sum-ii"]
+
+[[extra]]
+id = "Backtracking:bound-prune"
+name = "Pruning with a best-so-far bound"
+group = "Pruning techniques"
+signals = [
+    "minimise the largest load (or cost) over an assignment of items to buckets",
+    "a partial assignment that is already as bad as the best known cannot win",
+    "interchangeable buckets (equal loads) lead to the same futures",
+]
+template = '''
+def distribute_cookies(cookies, k):
+    """Minimise the largest total any of k children gets."""
+    cookies = sorted(cookies, reverse=True)  # big items fail fast
+    loads = [0] * k
+    best = [sum(cookies)]
+
+    def go(i):
+        if i == len(cookies):
+            best[0] = min(best[0], max(loads))
+            return
+        seen = set()
+        for b in range(k):
+            if loads[b] in seen or loads[b] + cookies[i] >= best[0]:
+                continue  # same load as another bucket, or no better
+            seen.add(loads[b])
+            loads[b] += cookies[i]
+            go(i + 1)
+            loads[b] -= cookies[i]
+
+    go(0)
+    return best[0]
+'''
+pitfalls = [
+    "Seed the bound with a feasible answer (here: everything to one child) or the first branches prune nothing.",
+    "Skip a bucket whose load equals one you already tried at this level: it is a symmetric branch.",
+    "Place the largest items first: they fail (and prune) earliest.",
+]
+examples = ["fair-distribution-of-cookies", "find-minimum-time-to-finish-all-jobs", "partition-to-k-equal-sum-subsets"]
+
+[[extra]]
+id = "Backtracking:game-memo"
+name = "Game search over a used-mask with memo"
+group = "Game-tree search"
+signals = [
+    "two players alternate picking from a shared set of numbers",
+    "the state is the set of numbers used so far (plus a running total)",
+    "the question is whether the player to move can force a win",
+]
+template = '''
+from functools import cache
+
+
+def can_i_win(max_choosable, desired_total):
+    if desired_total <= 0:
+        return True
+    if max_choosable * (max_choosable + 1) // 2 < desired_total:
+        return False  # nobody can reach the total
+
+    @cache
+    def win(used, remaining):
+        # used is a bitmask; the remaining total follows from it
+        for x in range(1, max_choosable + 1):
+            bit = 1 << x
+            if used & bit:
+                continue
+            if x >= remaining or not win(used | bit, remaining - x):
+                return True  # win now, or leave the opponent losing
+        return False
+
+    return win(0, desired_total)
+'''
+pitfalls = [
+    "The mask alone is the state: the remaining total is determined by it, so it need not be in the key.",
+    "Handle 'nobody can ever reach the total' before searching: otherwise the first player is wrongly said to lose by exhaustion.",
+    "A position is winning if some move leaves the opponent in a losing one.",
+]
+examples = ["can-i-win", "predict-the-winner", "stone-game", "cat-and-mouse"]
+
+[[extra]]
+id = "Backtracking:gray-code"
+name = "Gray code"
+group = "Iterative generation"
+signals = [
+    "list all n-bit values so that neighbours differ in exactly one bit",
+    "walk all subsets changing one element at a time",
+    "a closed form exists: i xor (i shifted right by one)",
+]
+template = '''
+def gray_code(n):
+    return [i ^ (i >> 1) for i in range(1 << n)]
+'''
+pitfalls = [
+    "Consecutive values differ in one bit, and so do the last and the first: the sequence is a cycle.",
+    "The reflect-and-prefix construction gives the same sequence: mirror the list and set a new top bit on the mirrored half.",
+    "Any start value works by xor-ing every element with it.",
+]
+examples = ["gray-code"]
+
+[[extra]]
+id = "Backtracking:multiset-counts"
+name = "Arrangements of a multiset, from counts"
+group = "Subsets, combinations and permutations"
+signals = [
+    "the items repeat (tiles, letters, equal numbers) and duplicate answers must not be produced",
+    "the sequences may have any length, or all the same length",
+    "the state is how many of each item are left, not which positions are used",
+]
+template = '''
+from collections import Counter
+
+
+def num_tile_possibilities(tiles):
+    """Distinct non-empty sequences that can be made from the tiles."""
+    left = Counter(tiles)
+
+    def go():
+        total = 0
+        for ch in left:  # one branch per distinct letter, not per tile
+            if left[ch]:
+                left[ch] -= 1
+                total += 1 + go()  # this sequence, then every longer one
+                left[ch] += 1
+        return total
+
+    return go()
+'''
+pitfalls = [
+    "Branch over the distinct values with a count, not over the positions: equal items then never give the same sequence twice.",
+    "Each node of the search is itself an answer when sequences of any length count, so add 1 before recursing deeper.",
+    "Count, do not build, when only the number is asked: the sequences themselves are exponential.",
+]
+examples = ["letter-tile-possibilities", "permutations-ii"]
+
+[[extra]]
+id = "Backtracking:position-rule"
+name = "Fill the slots, each under its own rule"
 group = "Constraint satisfaction"
+signals = [
+    "place the values 1..n into n positions, and each position accepts only some values",
+    "the rule is about a value and its position (divides, differs by one, is a square with the neighbour)",
+    "the count of valid arrangements is asked, or the smallest or largest one",
+]
+template = '''
+def count_arrangements(n):
+    """Permutations of 1..n where each value divides its position
+    or the position divides the value."""
+    used = [False] * (n + 1)
+
+    def go(pos):
+        if pos == 0:
+            return 1
+        total = 0
+        for v in range(1, n + 1):
+            if not used[v] and (v % pos == 0 or pos % v == 0):
+                used[v] = True
+                total += go(pos - 1)
+                used[v] = False
+        return total
+
+    return go(n)  # fill from the last slot: it is the most constrained
+'''
+pitfalls = [
+    "Fill the most constrained slots first (here the large positions): the dead ends then come early.",
+    "Check the rule when you place a value, not when the arrangement is complete.",
+    "Keep a used flag per value, and clear it after the recursive call.",
+]
+examples = ["beautiful-arrangement", "construct-the-lexicographically-largest-valid-sequence", "number-of-squareful-arrays"]
+
+[[extra]]
+id = "Backtracking:digit-walk"
+name = "Digit by digit under a local rule"
+group = "String generation"
+signals = [
+    "build numbers or strings one character at a time, where each choice depends on the previous one",
+    "the rule is about neighbours: they differ by k, no two zeros together, no two equal letters",
+    "the answer lists every valid string, or the k-th of them",
+]
+template = '''
+def nums_same_consec_diff(n, k):
+    """Every n-digit number (no leading zero) whose neighbouring
+    digits differ by exactly k."""
+    out = []
+
+    def go(num, last, left):
+        if left == 0:
+            out.append(num)
+            return
+        for d in {last - k, last + k}:  # a set: k = 0 is one choice
+            if 0 <= d <= 9:
+                go(num * 10 + d, d, left - 1)
+
+    for first in range(1, 10):
+        go(first, first, n - 1)
+    return out
+'''
+pitfalls = [
+    "Keep the previous digit as an argument: the next choice is a function of it and nothing else.",
+    "When k is 0 the two choices last - k and last + k are the same digit: use a set, or the number is listed twice.",
+    "The first digit has its own rule (no leading zero), so it is a separate outer loop.",
+]
+examples = ["numbers-with-same-consecutive-differences", "generate-binary-strings-without-adjacent-zeros", "construct-smallest-number-from-di-string", "count-numbers-with-unique-digits"]
+
+[[extra]]
+id = "Backtracking:lexi-walk"
+name = "Lexicographic number walk"
+group = "Iterative generation"
+signals = [
+    "1..n must come out in dictionary order (1, 10, 100, 11, 12, 2, ...) without sorting strings",
+    "the k-th number in dictionary order for a very large n",
+    "numbers form a tree: the children of x are 10x .. 10x + 9",
+]
+template_name = "Iterative walk"
+template = '''
+def lexical_order(n):
+    """1..n in dictionary order, without building strings."""
+    out, cur = [], 1
+    for _ in range(n):
+        out.append(cur)
+        if cur * 10 <= n:
+            cur *= 10  # one level deeper
+        else:
+            if cur >= n:
+                cur //= 10  # the last leaf: climb first
+            cur += 1
+            while cur % 10 == 0:
+                cur //= 10  # a carry: 19 -> 2, not 20
+    return out
+'''
+pitfalls = [
+    "Going deeper (x10) comes first; only when that is past n do you move to the next sibling (+1).",
+    "After +1 you can land on a number that ends in 0 (19 + 1 = 20): drop the zeros to return to the parent's sibling.",
+    "The depth is only about 6 for n up to 10^6 or more: the walk is O(n) with O(1) memory.",
+]
+examples = ["lexicographical-numbers", "k-th-smallest-in-lexicographical-order"]
+
+[[extra.variant]]
+name = "K-th in dictionary order"
+note = "Count the numbers under a prefix, and skip the whole subtree when k is not inside it."
+template = '''
+def find_kth_number(n, k):
+    cur, k = 1, k - 1  # k more steps from 1
+    while k > 0:
+        steps, lo, hi = 0, cur, cur + 1
+        while lo <= n:  # numbers under cur, level by level
+            steps += min(n + 1, hi) - lo
+            lo *= 10
+            hi *= 10
+        if steps <= k:
+            k -= steps  # the answer is not under cur: next sibling
+            cur += 1
+        else:
+            k -= 1  # inside: go to the first child
+            cur *= 10
+    return cur
+'''
+
+[[extra]]
+id = "Backtracking:split-combine"
+name = "Split, solve both sides, combine every pair"
+group = "Partitioning"
+signals = [
+    "list every result of evaluating or building something by choosing where to split it",
+    "each part is the same problem on a smaller range, and the results of two parts are combined pairwise",
+    "the counts are Catalan numbers: parenthesisations, binary trees with n nodes",
+]
+template_name = "Parenthesisations"
+template = '''
+from functools import cache
+from operator import add, mul, sub
+
+OPS = {"+": add, "-": sub, "*": mul}
+
+
+def diff_ways_to_compute(expression):
+    @cache
+    def go(s):
+        if s.isdigit():
+            return [int(s)]
+        out = []
+        for i, ch in enumerate(s):
+            if ch in OPS:
+                for a in go(s[:i]):  # every result of the left part
+                    for b in go(s[i + 1:]):  # paired with every right one
+                        out.append(OPS[ch](a, b))
+        return out
+
+    return sorted(go(expression))
+'''
+pitfalls = [
+    "A part with no operator is a number: that is the base case, and it has exactly one result.",
+    "The left results and the right results combine as a product: every left with every right.",
+    "Memoise on the sub-expression: the same range is asked many times, and the cached lists must not be modified.",
+]
+examples = ["different-ways-to-add-parentheses", "unique-binary-search-trees-ii", "all-possible-full-binary-trees"]
+
+[[extra.variant]]
+name = "All binary search trees"
+note = "The split point is the root: every left subtree is paired with every right subtree."
+template = '''
+def generate_trees(n):
+    def build(lo, hi):
+        if lo > hi:
+            return [None]
+        return [TreeNode(root, left, right)
+                for root in range(lo, hi + 1)
+                for left in build(lo, root - 1)
+                for right in build(root + 1, hi)]
+
+    return build(1, n) if n else []
+'''
+
+[[extra]]
+id = "Backtracking:eulerian"
+name = "Use every edge once (Hierholzer)"
+group = "Path enumeration in graphs and trees"
+signals = [
+    "a route must use every ticket, road or edge exactly once",
+    "the answer is one valid route, often the smallest in dictionary order",
+    "a sequence in which every window of length n appears exactly once (a de Bruijn sequence)",
+]
+template_name = "Itinerary"
+template = '''
+from collections import defaultdict
+
+
+def find_itinerary(tickets):
+    """Use every ticket once, starting at JFK, smallest route first."""
+    graph = defaultdict(list)
+    for a, b in sorted(tickets, reverse=True):  # pop() = smallest
+        graph[a].append(b)
+    route = []
+
+    def visit(city):
+        while graph[city]:
+            visit(graph[city].pop())  # use the ticket, never again
+        route.append(city)  # added when stuck: post-order
+
+    visit("JFK")
+    return route[::-1]
+'''
+pitfalls = [
+    "Add a city to the route when it is stuck (after the loop), then reverse: the dead end must come last in the route.",
+    "Remove a ticket as it is used (pop): that is the only visited state needed.",
+    "Plain backtracking also works but is slow in the worst case; Hierholzer visits every edge once, O(E log E) with the sort.",
+]
+examples = ["reconstruct-itinerary", "valid-arrangement-of-pairs", "cracking-the-safe"]
+
+[[extra.variant]]
+name = "De Bruijn sequence (the safe)"
+note = "Nodes are the last n - 1 digits; every edge is one more digit; an Eulerian circuit visits every n-digit password."
+template = '''
+def crack_safe(n, k):
+    seen, out = set(), []
+
+    def visit(node):
+        for d in map(str, range(k)):
+            edge = node + d
+            if edge not in seen:
+                seen.add(edge)
+                visit(edge[1:])
+                out.append(d)  # post-order, as in Hierholzer
+
+    start = "0" * (n - 1)
+    visit(start)
+    return "".join(out) + start
+'''
+
+[[extra]]
+id = "Backtracking:all-shortest"
+name = "All shortest paths: BFS layers, then walk back"
+group = "Path enumeration in graphs and trees"
+signals = [
+    "list every shortest transformation or path, not just one",
+    "a plain DFS over all paths is exponential, but the shortest ones are few",
+    "BFS first for distances and parents, then DFS from the target back to the source",
+]
+template = '''
+from collections import defaultdict
+
+
+def find_ladders(begin, end, words):
+    words = set(words)
+    if end not in words:
+        return []
+    parents = defaultdict(set)  # word -> words one step nearer to begin
+    level, seen, found = {begin}, {begin}, False
+    while level and not found:
+        nxt = set()
+        for w in level:
+            for i in range(len(w)):
+                for c in "abcdefghijklmnopqrstuvwxyz":
+                    v = w[:i] + c + w[i + 1:]
+                    if v in words and v not in seen:
+                        nxt.add(v)
+                        parents[v].add(w)
+                        found = found or v == end
+        seen |= nxt  # a whole level at once, after it is complete
+        level = nxt
+    out, path = [], [end]
+
+    def back(w):
+        if w == begin:
+            out.append(path[::-1])
+            return
+        for p in parents[w]:
+            path.append(p)
+            back(p)
+            path.pop()
+
+    if found:
+        back(end)
+    return out
+'''
+pitfalls = [
+    "Mark words as seen only when their whole level is done: two words of the same level may both lead to a third one, and both parents are needed.",
+    "Stop at the level that contains the target: deeper levels only give longer paths.",
+    "Walk back from the target through the parents: walking forward wastes time on branches that never reach it.",
+]
+examples = ["word-ladder-ii"]
+
+[[extra]]
+id = "Backtracking:best-walk"
+name = "The best walk from any start, with a visited set"
+group = "Grid and word search with visited state"
+signals = [
+    "start from every cell (or node) and find the best total over self-avoiding walks",
+    "a cell may be used once per walk, but a different walk may reuse it",
+    "the grid or graph is small enough (up to about 25 cells or 10 edges per node) for the exponential search",
+]
+template_name = "Grid (maximum gold)"
+template = '''
+def get_maximum_gold(grid):
+    rows, cols = len(grid), len(grid[0])
+
+    def go(r, c):
+        gold = grid[r][c]
+        grid[r][c] = 0  # mark: a visited cell looks empty
+        best = 0
+        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+            if 0 <= a < rows and 0 <= b < cols and grid[a][b]:
+                best = max(best, go(a, b))
+        grid[r][c] = gold  # restore for the next walk
+        return gold + best
+
+    return max((go(r, c) for r in range(rows) for c in range(cols)
+                if grid[r][c]), default=0)
+'''
+pitfalls = [
+    "Restore the cell after exploring it: the next start must see the grid as it was.",
+    "Start the walk from every non-empty cell: the best walk does not have to begin at a corner.",
+    "Mutating the grid is the visited set; with a graph use a counter per node and undo it.",
+]
+examples = ["path-with-maximum-gold", "maximum-path-quality-of-a-graph", "unique-paths-iii"]
+
+[[extra.variant]]
+name = "Graph with a time limit"
+note = "A node's value counts the first time it is visited in this walk; the walk must return to node 0 within the time."
+template = '''
+def maximal_path_quality(values, edges, max_time):
+    graph = [[] for _ in values]
+    for u, v, t in edges:
+        graph[u].append((v, t))
+        graph[v].append((u, t))
+    visits = [0] * len(values)
+    visits[0] = 1
+    best = 0
+
+    def go(u, time, quality):
+        nonlocal best
+        if u == 0:
+            best = max(best, quality)
+        for v, t in graph[u]:
+            if time + t <= max_time:
+                visits[v] += 1
+                first = visits[v] == 1  # value counts once per walk
+                go(v, time + t, quality + (values[v] if first else 0))
+                visits[v] -= 1  # undo
+
+    go(0, 0, values[0])
+    return best
+'''
+
+[[extra]]
+id = "Backtracking:verbal-sum"
+name = "Verbal arithmetic: a weight per letter"
+group = "Constraint satisfaction"
+signals = [
+    "letters stand for distinct digits and words must add up to another word",
+    "the sum is linear in the letters: each letter's total weight is a signed sum of powers of ten",
+    "no number may start with a zero",
+]
+template = '''
+def is_solvable(words, result):
+    weight = {}
+    for w in words:
+        for i, ch in enumerate(reversed(w)):
+            weight[ch] = weight.get(ch, 0) + 10 ** i
+    for i, ch in enumerate(reversed(result)):
+        weight[ch] = weight.get(ch, 0) - 10 ** i
+    leading = {w[0] for w in words + [result] if len(w) > 1}
+    letters = list(weight)
+    used = [False] * 10
+
+    def go(i, total):
+        if i == len(letters):
+            return total == 0  # the equation holds
+        for d in range(10):
+            if used[d] or (d == 0 and letters[i] in leading):
+                continue
+            used[d] = True
+            ok = go(i + 1, total + weight[letters[i]] * d)
+            used[d] = False
+            if ok:
+                return True
+        return False
+
+    return go(0, 0)
+'''
+pitfalls = [
+    "Add each word with positive weights and the result with negative ones: a solution is a total of exactly zero.",
+    "A letter at the front of a longer word cannot be 0, but a one-letter word may be 0.",
+    "At most 10 letters can exist: 10! assignments at worst, so no further pruning is needed.",
+]
+examples = ["verbal-arithmetic-puzzle"]
+
+[[extra]]
+id = "Backtracking:pyramid"
+name = "Build a structure layer by layer from a rule table"
+group = "Constraint satisfaction"
+signals = [
+    "each layer is determined by the layer below through a table of allowed triples",
+    "several choices per position, so a layer has a product of options",
+    "a valid structure exists if any combination of choices reaches the top",
+]
+template = '''
+from collections import defaultdict
+from functools import cache
+
+
+def pyramid_transition(bottom, allowed):
+    rules = defaultdict(list)
+    for a, b, c in allowed:  # a and b side by side may carry c above
+        rules[a + b].append(c)
+
+    @cache
+    def can_build(row):
+        if len(row) == 1:
+            return True
+
+        def above(i, cur):  # choose the block above position i
+            if i == len(row) - 1:
+                return can_build(cur)
+            return any(above(i + 1, cur + c) for c in rules[row[i:i + 2]])
+
+        return above(0, "")
+
+    return can_build(bottom)
+'''
+pitfalls = [
+    "Memoise on the row: different choices below often produce the same row above.",
+    "A pair with no rule has no options, which fails that branch immediately: rules[...] must be read without inserting.",
+    "Build the next row position by position and recurse only when it is complete.",
+]
+examples = ["pyramid-transition-matrix"]
+
+[[extra]]
+id = "Backtracking:best-subset"
+name = "Best subset under a running constraint"
+group = "Subsets, combinations and permutations"
+signals = [
+    "choose some of the items to maximise a score, subject to a limited supply",
+    "each item is taken or skipped, and taking it uses part of a shared budget",
+    "n is small (15 to 25), so every subset is tried with the budget carried along",
+]
+template = '''
+from collections import Counter
+
+
+def max_score_words(words, letters, score):
+    have = Counter(letters)
+    need = [Counter(w) for w in words]
+    value = [sum(score[ord(c) - 97] for c in w) for w in words]
+
+    def go(i):
+        if i == len(words):
+            return 0
+        best = go(i + 1)  # skip word i
+        if all(have[c] >= n for c, n in need[i].items()):
+            have.subtract(need[i])  # take it
+            best = max(best, value[i] + go(i + 1))
+            have.update(need[i])  # give it back
+        return best
+
+    return go(0)
+'''
+pitfalls = [
+    "Check that the budget allows the item before taking it, and give it back after the recursive call.",
+    "Use a Counter's subtract and update (not minus) so the same object is changed and restored.",
+    "If many items are equal or the budget is a single number, a DP over the budget is faster.",
+]
+examples = ["maximum-score-words-formed-by-letters", "maximum-number-of-achievable-transfer-requests", "maximum-good-people-based-on-statements", "maximum-rows-covered-by-columns"]
+
+[[extra]]
+id = "Backtracking:submask"
+name = "Groups drawn from a mask (submask enumeration)"
+group = "Bitmask state"
+signals = [
+    "split n (up to about 15) items into the fewest groups that each satisfy a limit",
+    "the best answer for a set is the best of (a group inside it) + (the answer for the rest)",
+    "every subset of every subset is looked at: 3^n in total",
+]
+template = '''
+def min_sessions(tasks, limit):
+    """Fewest sessions of length <= limit that cover all the tasks."""
+    n = len(tasks)
+    total = [0] * (1 << n)  # total[m]: the sum of the tasks in m
+    for m in range(1, 1 << n):
+        low = m & -m
+        total[m] = total[m ^ low] + tasks[low.bit_length() - 1]
+    best = [n + 1] * (1 << n)
+    best[0] = 0
+    for m in range(1, 1 << n):
+        sub = m
+        while sub:  # every non-empty submask of m
+            if total[sub] <= limit:
+                best[m] = min(best[m], best[m ^ sub] + 1)
+            sub = (sub - 1) & m
+    return best[(1 << n) - 1]
+'''
+pitfalls = [
+    "sub = (sub - 1) & m walks all submasks of m in decreasing order, ending at 0: stop the loop at 0.",
+    "Precompute the sum of every mask once from its lowest bit; recomputing it in the inner loop costs a factor n.",
+    "3^n operations: n = 14 is about 5 million, n = 20 is too slow.",
+]
+examples = ["minimum-number-of-work-sessions-to-finish-the-tasks", "partition-to-k-equal-sum-subsets", "find-minimum-time-to-finish-all-jobs"]
+
+[[extra]]
+id = "Backtracking:mask-assign"
+name = "Assignment by mask"
+group = "Bitmask state"
+signals = [
+    "match n people with n items to minimise a total cost or maximise a score",
+    "the next person to place is the number of bits already set in the mask",
+    "n is up to about 14 to 20, so n! is too slow but 2^n * n is fine",
+]
+template = '''
+def max_compatibility_sum(students, mentors):
+    """Match each student with one mentor: most agreeing answers."""
+    n = len(students)
+    fit = [[sum(x == y for x, y in zip(s, m)) for m in mentors]
+           for s in students]
+    dp = [-1] * (1 << n)  # dp[mask]: the first popcount(mask) students
+    dp[0] = 0             # are matched with exactly the mentors in mask
+    for mask in range(1 << n):
+        if dp[mask] < 0:
+            continue
+        i = bin(mask).count("1")  # the next student to place
+        if i == n:
+            continue
+        for j in range(n):
+            if not mask >> j & 1:
+                nxt = mask | 1 << j
+                dp[nxt] = max(dp[nxt], dp[mask] + fit[i][j])
+    return dp[(1 << n) - 1]
+'''
+pitfalls = [
+    "The position being filled comes from the mask itself (its popcount): the state is one number.",
+    "The dp is filled in increasing mask order, because a mask only ever grows by adding a bit.",
+    "A mask holds the set, not the order: that is why it is n! down to 2^n * n.",
+]
+examples = ["maximum-compatibility-score-sum", "number-of-ways-to-wear-different-hats-to-each-other", "find-the-shortest-superstring"]
+
+[[extra]]
+id = "Backtracking:unique-split"
+name = "Split into as many distinct pieces as possible"
+group = "Partitioning"
+signals = [
+    "cut a string into pieces that must all be different, and maximise their number",
+    "the string is short (about 16 to 20 characters)",
+    "a seen set of pieces is shared down the recursion and undone on the way back",
+]
+template = '''
+def max_unique_split(s):
+    seen, best = set(), 0
+
+    def go(i, count):
+        nonlocal best
+        if count + len(s) - i <= best:
+            return  # even one character per piece cannot beat best
+        if i == len(s):
+            best = count
+            return
+        for j in range(i + 1, len(s) + 1):
+            piece = s[i:j]
+            if piece not in seen:
+                seen.add(piece)
+                go(j, count + 1)
+                seen.discard(piece)
+
+    go(0, 0)
+    return best
+'''
+pitfalls = [
+    "Undo the seen set after each recursive call, or a piece would stay forbidden for the other branches.",
+    "The bound count + remaining characters is the most that can still be reached: cut the branch when it cannot beat best.",
+    "The result is the number of pieces, not the pieces themselves: no list is built.",
+]
+examples = ["split-a-string-into-the-max-number-of-unique-substrings"]
+
+[[extra]]
+id = "Backtracking:lazy-iterator"
+name = "Lazy generation: an iterator over combinations"
+group = "Iterative generation"
+signals = [
+    "an object must hand out the next combination on demand, with next() and hasNext()",
+    "the full list is too big to build, so only the current one is kept",
+    "the next combination is found from the current one by changing the rightmost index that can move",
+]
+template = '''
+class CombinationIterator:
+    def __init__(self, characters, k):
+        self.chars, self.k = characters, k
+        self.idx = list(range(k))  # positions of the current one
+        self.done = k > len(characters)
+
+    def next(self):
+        out = "".join(self.chars[i] for i in self.idx)
+        self._advance()
+        return out
+
+    def hasNext(self):
+        return not self.done
+
+    def _advance(self):
+        n, k = len(self.chars), self.k
+        i = k - 1
+        while i >= 0 and self.idx[i] == n - k + i:
+            i -= 1  # already at its largest possible position
+        if i < 0:
+            self.done = True
+            return
+        self.idx[i] += 1
+        for j in range(i + 1, k):  # the tail restarts right after it
+            self.idx[j] = self.idx[j - 1] + 1
+'''
+pitfalls = [
+    "Find the rightmost index that has room (it can still move right), move it by one, and reset everything after it.",
+    "Advance when the current one is handed out, so hasNext is a single flag.",
+    "A Python generator over itertools.combinations is simpler when no class is required.",
+]
+examples = ["iterator-for-combination"]
 
 [[listed]]
 name = "Board placement and tiling"
 group = "Constraint satisfaction"
 note = "Related lesson: Constraint sets for placement"
-
-[[listed]]
-name = "Layered construction from a local rule table: build level by level"
-group = "Constraint satisfaction"
-note = "e.g. pyramids, row tilings"
 
 [[listed]]
 name = "Colouring and group assignment under conflicts"
@@ -365,33 +1505,6 @@ group = "Constraint satisfaction"
 [[listed]]
 name = "Exact cover: Algorithm X / dancing links"
 group = "Constraint satisfaction"
-
-[[listed]]
-name = "Verbal arithmetic and digit puzzles"
-group = "Constraint satisfaction"
-
-[[listed]]
-name = "Split a string into numbers under a rule: additive / Fibonacci / descending, no leading zeros"
-group = "Partitioning"
-
-[[listed]]
-name = "Split into distinct pieces, maximise the count"
-group = "Partitioning"
-
-[[listed]]
-name = "Equal-sum groups: item to bucket / bucket takes items"
-group = "Partitioning"
-note = "Related lesson: Partitioning into K equal groups"
-
-[[listed]]
-name = "Dictionary splits: every sentence, with memo"
-group = "Partitioning"
-note = "Related lesson: Splitting with a memoized DFS"
-
-[[listed]]
-name = "Split at an operator: every parenthesisation, split-and-combine with memo"
-group = "Partitioning"
-note = "Related lesson: Splitting with a memoized DFS"
 
 [[listed]]
 name = "Split into parts whose sum matches a target"
@@ -407,57 +1520,8 @@ name = "Fewest pieces: backtracking with memo, then DP"
 group = "Partitioning"
 
 [[listed]]
-name = "Balanced parentheses: open / close counters"
-group = "String generation"
-note = "Related lesson: Building a valid sequence under a rule"
-
-[[listed]]
-name = "Remove invalid parentheses: minimum removals, level BFS / DFS with dedupe"
-group = "String generation"
-problems = [
-    { slug = "remove-invalid-parentheses", title = "Remove Invalid Parentheses", number = 301, difficulty = "hard", premium = false },
-]
-
-[[listed]]
-name = "One choice per position: phone letters / letter case / brace expansion"
-group = "String generation"
-
-[[listed]]
-name = "Segmented numeric strings: IP addresses / coordinates"
-group = "String generation"
-
-[[listed]]
-name = "Expression building: insert operators with the carried operand / combine pairs"
-group = "String generation"
-
-[[listed]]
-name = "Digit-by-digit numbers: digit constraints / strobogrammatic / consecutive differences"
-group = "String generation"
-
-[[listed]]
-name = "The k-th string in order: count branches and skip / stop at the k-th"
-group = "String generation"
-note = "Related lesson: Choices that can repeat, with a start index"
-
-[[listed]]
-name = "Sequences under structural rules: DI patterns / no adjacent zeros / nested placement"
-group = "String generation"
-
-[[listed]]
 name = "Mappings and substitutions: bijective pattern / synonym expansion"
 group = "String generation"
-
-[[listed]]
-name = "Covering sequences: De Bruijn / cracking the safe"
-group = "String generation"
-
-[[listed]]
-name = "Best path from any start: maximum gold / longest self-avoiding path"
-group = "Grid and word search with visited state"
-
-[[listed]]
-name = "Cover every cell: Hamiltonian grid paths"
-group = "Grid and word search with visited state"
 
 [[listed]]
 name = "Exploring an unknown map with physical undo: robot, interactive"
@@ -466,31 +1530,6 @@ group = "Grid and word search with visited state"
 [[listed]]
 name = "Knight tours, self-avoiding walks, maze path counting"
 group = "Grid and word search with visited state"
-
-[[listed]]
-name = "Root-to-leaf paths: path list with pop / string passed by value"
-group = "Path enumeration in graphs and trees"
-
-[[listed]]
-name = "All paths in a DAG: no visited set needed"
-group = "Path enumeration in graphs and trees"
-note = "Related lesson: Building a valid sequence under a rule"
-
-[[listed]]
-name = "All simple paths in a general graph: per-path visited, length and target limits"
-group = "Path enumeration in graphs and trees"
-
-[[listed]]
-name = "All shortest paths: BFS layers, then DFS reconstruction"
-group = "Path enumeration in graphs and trees"
-
-[[listed]]
-name = "Eulerian trail by backtracking / Hierholzer"
-group = "Path enumeration in graphs and trees"
-
-[[listed]]
-name = "Generating all trees: all BSTs / all full binary trees"
-group = "Path enumeration in graphs and trees"
 
 [[listed]]
 name = "Path counting with carried sums: prefix-sum map with undo"
@@ -510,14 +1549,6 @@ note = "Related lesson: Skipping duplicates at the same level"
 name = "Sorted break: stop the loop at the first candidate that is too big"
 group = "Pruning techniques"
 note = "Related lesson: Choices that can repeat, with a start index"
-
-[[listed]]
-name = "Feasibility bounds: not enough items left, suffix sums, remaining target"
-group = "Pruning techniques"
-
-[[listed]]
-name = "Symmetry breaking: interchangeable buckets, mirrored halves"
-group = "Pruning techniques"
 
 [[listed]]
 name = "Fail-first ordering: largest first / most-constrained variable"
@@ -541,59 +1572,8 @@ name = "Used set as an integer mask, memo over the mask"
 group = "Bitmask state"
 
 [[listed]]
-name = "Enumerate every mask and test it"
-group = "Bitmask state"
-
-[[listed]]
-name = "Column and diagonal masks: N-Queens bit tricks"
-group = "Bitmask state"
-note = "Related lesson: Constraint sets for placement"
-
-[[listed]]
-name = "Assignment by mask and position"
-group = "Bitmask state"
-
-[[listed]]
-name = "Game state as a mask"
-group = "Bitmask state"
-
-[[listed]]
-name = "Submask enumeration: groups drawn from a subset of a subset"
-group = "Bitmask state"
-
-[[listed]]
-name = "Multiset counts as the state key"
-group = "Bitmask state"
-
-[[listed]]
-name = "Two halves: enumerate each half, sort, two pointers"
-group = "Meet in the middle"
-note = "e.g. balanced split"
-
-[[listed]]
-name = "Closest to a target / count subsets with a given sum"
-group = "Meet in the middle"
-note = "Related lesson: Skipping duplicates at the same level"
-
-[[listed]]
-name = "K-sum by pairs: hash the pair sums"
-group = "Meet in the middle"
-
-[[listed]]
 name = "Bidirectional search on a state space"
 group = "Meet in the middle"
-
-[[listed]]
-name = "K-th permutation: factorial number system"
-group = "Iterative generation"
-
-[[listed]]
-name = "Gray code: reflection / i xor"
-group = "Iterative generation"
-note = "e.g. i >> 1"
-problems = [
-    { slug = "gray-code", title = "Gray Code", number = 89, difficulty = "medium", premium = false },
-]
 
 [[listed]]
 name = "Next combination / subsets by counting masks"
@@ -601,20 +1581,8 @@ group = "Iterative generation"
 note = "Related lesson: Skipping duplicates at the same level"
 
 [[listed]]
-name = "Lexicographic order walks: iterative number-trie DFS with branch counting"
-group = "Iterative generation"
-
-[[listed]]
 name = "Minimal-change permutations: Heap's algorithm / Steinhaus-Johnson-Trotter"
 group = "Iterative generation"
-
-[[listed]]
-name = "Lazy generation: iterators and generators over combinations"
-group = "Iterative generation"
-
-[[listed]]
-name = "Branch and bound: cut on best-so-far with an optimistic bound"
-group = "Branch and bound and search order"
 
 [[listed]]
 name = "Iterative deepening / depth-limited search"
@@ -631,11 +1599,6 @@ group = "Branch and bound and search order"
 [[listed]]
 name = "Relaxation bounds for TSP-style problems: MST / assignment bound"
 group = "Branch and bound and search order"
-
-[[listed]]
-name = "Minimax with memo: (mask, remaining) /"
-group = "Game-tree search"
-note = "e.g. left, right"
 
 [[listed]]
 name = "Alpha-beta pruning and move ordering"

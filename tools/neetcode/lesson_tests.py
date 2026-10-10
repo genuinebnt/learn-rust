@@ -2079,6 +2079,571 @@ def _(ns):
     assert f("a" * 40 + "b", ["a", "aa", "aaa"]) == []
 
 
+@test("Backtracking:combinations-k")
+def _(ns):
+    f = ns["combine"]
+    assert f(4, 2) == [[1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]]
+    for n in range(1, 8):
+        for k in range(1, n + 1):
+            got = f(n, k)
+            assert sorted(map(tuple, got)) == sorted(_it.combinations(range(1, n + 1), k)) and len(got) == len({tuple(g) for g in got})
+
+
+@test("Backtracking:bitmask-subsets")
+def _(ns):
+    f, g = ns["all_subsets"], ns["count_subsets"]
+    for n in range(0, 8):
+        got = f(list(range(n)))
+        assert len(got) == 2**n and len({tuple(x) for x in got}) == 2**n
+    r = random.Random(165)
+    for _ in range(100):
+        a = [r.randint(1, 9) for _ in range(r.randint(0, 9))]
+        want = sum(1 for k in range(len(a) + 1) for c in _it.combinations(a, k) if sum(c) % 3 == 0)
+        assert g(a, lambda x: sum(x) % 3 == 0) == want
+
+
+@test("Backtracking:letter-product")
+def _(ns):
+    f, h = ns["letter_combinations"], ns["letter_case_permutations"]
+    assert f("") == [] and sorted(f("23")) == ["ad", "ae", "af", "bd", "be", "bf", "cd", "ce", "cf"]
+    assert len(f("7979")) == 4 * 4 * 4 * 4
+    assert sorted(h("a1b2")) == ["A1B2", "A1b2", "a1B2", "a1b2"]
+    assert h("12") == ["12"] and len(h("abcde")) == 32
+
+
+@test("Backtracking:min-removals")
+def _(ns):
+    f = ns["remove_invalid_parentheses"]
+    assert sorted(f("()())()")) == ["(())()", "()()()"] and sorted(f("(a)())()")) == ["(a())()", "(a)()()"]
+    assert f(")(") == [""]
+    r = random.Random(166)
+
+    def good(t):
+        d = 0
+        for ch in t:
+            d += (ch == "(") - (ch == ")")
+            if d < 0:
+                return False
+        return d == 0
+
+    for _ in range(200):
+        s = "".join(r.choice("()a") for _ in range(r.randint(0, 9)))
+        pos = [i for i, ch in enumerate(s) if ch in "()"]
+        best, found = None, set()
+        for mask in range(1 << len(pos)):
+            gone = {pos[i] for i in range(len(pos)) if mask >> i & 1}
+            t = "".join(ch for i, ch in enumerate(s) if i not in gone)
+            if good(t) and (best is None or len(gone) < best):
+                best, found = len(gone), set()
+            if good(t) and len(gone) == best:
+                found.add(t)
+        got = f(s)
+        assert sorted(got) == sorted(found) and len(got) == len(set(got))
+
+
+@test("Backtracking:operators")
+def _(ns):
+    f = ns["add_operators"]
+    assert sorted(f("123", 6)) == ["1*2*3", "1+2+3"] and sorted(f("232", 8)) == ["2*3+2", "2+3*2"]
+    assert sorted(f("105", 5)) == ["1*0+5", "10-5"] and sorted(f("00", 0)) == ["0*0", "0+0", "0-0"]
+    assert f("3456237490", 9191) == []
+    r = random.Random(167)
+    for _ in range(80):
+        num = "".join(r.choice("0123456789") for _ in range(r.randint(1, 5)))
+        target = r.randint(-20, 60)
+        want = set()
+        for ops in _it.product(["", "+", "-", "*"], repeat=len(num) - 1):
+            expr = num[0] + "".join(o + c for o, c in zip(ops, num[1:]))
+            nums = expr.replace("+", " ").replace("-", " ").replace("*", " ").split()
+            if any(len(x) > 1 and x[0] == "0" for x in nums):
+                continue
+            if eval(expr) == target:
+                want.add(expr)
+        got = f(num, target)
+        assert sorted(got) == sorted(want) and len(got) == len(set(got)), (num, target)
+
+
+@test("Backtracking:segments")
+def _(ns):
+    f = ns["restore_ip_addresses"]
+    assert sorted(f("25525511135")) == ["255.255.11.135", "255.255.111.35"]
+    assert f("0000") == ["0.0.0.0"] and sorted(f("101023")) == sorted(
+        ["1.0.10.23", "1.0.102.3", "10.1.0.23", "10.10.2.3", "101.0.2.3"])
+    r = random.Random(168)
+    for _ in range(150):
+        s = "".join(r.choice("0125") for _ in range(r.randint(1, 12)))
+        want = set()
+        for cuts in _it.combinations(range(1, len(s)), 3):
+            parts = [s[a:b] for a, b in zip((0,) + cuts, cuts + (len(s),))]
+            if all((len(x) == 1 or x[0] != "0") and int(x) <= 255 for x in parts):
+                want.add(".".join(parts))
+        got = f(s)
+        assert sorted(got) == sorted(want) and len(got) == len(set(got))
+
+
+@test("Backtracking:sudoku")
+def _(ns):
+    f = ns["solve_sudoku"]
+    puzzles = [
+        ["53..7....", "6..195...", ".98....6.", "8...6...3", "4..8.3..1", "7...2...6", ".6....28.", "...419..5", "....8..79"],
+        ["..9748...", "7........", ".2.1.9...", "..7...24.", ".64.1.59.", ".98...3..", "...8.3.2.", "........6", "...2759.."],
+    ]
+    for rows in puzzles + [["." * 9] * 9]:
+        board = [list(row) for row in rows]
+        f(board)
+        digits = set("123456789")
+        for i in range(9):
+            assert set(board[i]) == digits and {board[r][i] for r in range(9)} == digits
+            assert {board[i // 3 * 3 + a][i % 3 * 3 + b] for a in range(3) for b in range(3)} == digits
+        for r in range(9):
+            for c in range(9):
+                assert rows[r][c] in (".", board[r][c]), "a given digit was changed"
+
+
+@test("Backtracking:kth-permutation")
+def _(ns):
+    f = ns["get_permutation"]
+    for n in range(1, 7):
+        every = ["".join(map(str, p)) for p in _it.permutations(range(1, n + 1))]
+        assert [f(n, k) for k in range(1, len(every) + 1)] == every
+    assert f(9, 362880) == "987654321"
+
+
+@test("Backtracking:kth-permutation#Next permutation (in place)")
+def _(ns):
+    f = ns["next_permutation"]
+    r = random.Random(169)
+    for _ in range(300):
+        a = [r.randint(0, 3) for _ in range(r.randint(0, 7))]
+        bigger = [p for p in set(_it.permutations(a)) if list(p) > a]
+        want = list(min(bigger)) if bigger else sorted(a)
+        b = a[:]
+        f(b)
+        assert b == want, (a, b, want)
+
+
+@test("Backtracking:path-undo")
+def _(ns):
+    f = ns["all_paths"]
+    assert sorted(f([[1, 2], [3], [3], []])) == [[0, 1, 3], [0, 2, 3]]
+    r = random.Random(171)
+    for _ in range(150):
+        n = r.randint(2, 7)
+        g = [[j for j in range(i + 1, n) if r.random() < 0.5] for i in range(n)]
+        want, stack = [], [(0,)]
+        while stack:
+            p = stack.pop()
+            if p[-1] == n - 1:
+                want.append(list(p))
+            else:
+                stack += [p + (v,) for v in g[p[-1]]]
+        got = f([row[:] for row in g])
+        assert sorted(got) == sorted(want)
+        assert len({id(x) for x in got}) == len(got), "every path must be its own list"
+
+
+@test("Backtracking:meet-in-the-middle")
+def _(ns):
+    f = ns["closest_subset_sum"]
+    assert f([5, -7, 3, 5], 6) == 0 and f([7, -9, 15, -2], -5) == 1 and f([1, 2, 3], -7) == 7
+    r = random.Random(172)
+    for _ in range(200):
+        a = [r.randint(-12, 12) for _ in range(r.randint(1, 11))]
+        goal = r.randint(-40, 40)
+        want = min(abs(sum(c) - goal) for k in range(len(a) + 1) for c in _it.combinations(a, k))
+        assert f(a[:], goal) == want, (a, goal)
+
+
+@test("Backtracking:bound-prune")
+def _(ns):
+    f = ns["distribute_cookies"]
+    assert f([8, 15, 10, 20, 8], 2) == 31 and f([6, 1, 3, 2, 2, 4, 1, 2], 3) == 7 and f([5], 1) == 5
+    r = random.Random(173)
+    for _ in range(120):
+        a = [r.randint(1, 9) for _ in range(r.randint(1, 8))]
+        k = r.randint(1, 4)
+        want = min(max(sum(a[i] for i in range(len(a)) if x[i] == g) for g in range(k)) for x in _it.product(range(k), repeat=len(a)))
+        assert f(a[:], k) == want, (a, k)
+
+
+@test("Backtracking:game-memo")
+def _(ns):
+    f = ns["can_i_win"]
+    assert f(10, 11) is False and f(10, 0) is True and f(10, 40) is False and f(4, 6) is True
+    for m in range(1, 8):
+        for total in range(1, 30):
+            if m * (m + 1) // 2 < total:
+                assert f(m, total) is False
+                continue
+
+            def win(used, remaining):
+                return any(x >= remaining or not win(used | {x}, remaining - x) for x in range(1, m + 1) if x not in used)
+
+            assert f(m, total) is win(frozenset(), total), (m, total)
+
+
+@test("Backtracking:gray-code")
+def _(ns):
+    f = ns["gray_code"]
+    assert f(2) == [0, 1, 3, 2]
+    for n in range(1, 11):
+        g = f(n)
+        assert g[0] == 0 and sorted(g) == list(range(2**n))
+        assert all(bin(g[i] ^ g[(i + 1) % len(g)]).count("1") == 1 for i in range(len(g)))
+
+
+@test("Backtracking:n-queens#Bitmasks")
+def _(ns):
+    f = ns["total_n_queens"]
+    assert [f(n) for n in range(1, 9)] == [1, 0, 0, 2, 10, 4, 40, 92]
+
+
+@test("Backtracking:multiset-counts")
+def _(ns):
+    f = ns["num_tile_possibilities"]
+    assert f("AAB") == 8 and f("AAABBC") == 188 and f("V") == 1
+    r = random.Random(174)
+    for _ in range(100):
+        t = "".join(r.choice("abc") for _ in range(r.randint(1, 6)))
+        want = {"".join(p) for k in range(1, len(t) + 1) for p in _it.permutations(t, k)}
+        assert f(t) == len(want)
+
+
+@test("Backtracking:position-rule")
+def _(ns):
+    f = ns["count_arrangements"]
+    assert [f(n) for n in range(1, 7)] == [1, 2, 3, 8, 10, 36]
+    for n in range(1, 9):
+        want = sum(1 for p in _it.permutations(range(1, n + 1)) if all(v % i == 0 or i % v == 0 for i, v in enumerate(p, 1)))
+        assert f(n) == want
+
+
+@test("Backtracking:digit-walk")
+def _(ns):
+    f = ns["nums_same_consec_diff"]
+    assert sorted(f(3, 7)) == [181, 292, 707, 818, 929] and sorted(f(2, 1))[:3] == [10, 12, 21]
+    for n in range(2, 6):
+        for k in range(0, 10):
+            want = [x for x in range(10 ** (n - 1), 10**n) if all(abs(int(a) - int(b)) == k for a, b in zip(str(x), str(x)[1:]))]
+            got = f(n, k)
+            assert sorted(got) == want and len(got) == len(set(got)), (n, k)
+
+
+@test("Backtracking:lexi-walk")
+def _(ns):
+    f = ns["lexical_order"]
+    assert f(13) == [1, 10, 11, 12, 13, 2, 3, 4, 5, 6, 7, 8, 9]
+    for n in list(range(1, 400)) + [1000, 1001, 12345, 99999, 100000]:
+        assert f(n) == sorted(range(1, n + 1), key=str), n
+
+
+@test("Backtracking:lexi-walk#K-th in dictionary order")
+def _(ns):
+    f = ns["find_kth_number"]
+    assert f(13, 2) == 10 and f(1, 1) == 1
+    for n in (9, 13, 100, 101, 1234, 20000):
+        order = sorted(range(1, n + 1), key=str)
+        for k in list(range(1, min(n, 60) + 1)) + [n, n // 2 + 1]:
+            assert f(n, k) == order[k - 1], (n, k)
+    assert f(10**9, 10**9) == 999999999
+
+
+@test("Backtracking:split-combine")
+def _(ns):
+    f = ns["diff_ways_to_compute"]
+    assert f("2-1-1") == [0, 2] and f("2*3-4*5") == [-34, -14, -10, -10, 10]
+    r = random.Random(175)
+
+    def brute(toks):
+        if len(toks) == 1:
+            return [toks[0]]
+        out = []
+        for i in range(1, len(toks), 2):
+            for a in brute(toks[:i]):
+                for b in brute(toks[i + 1:]):
+                    out.append(a + b if toks[i] == "+" else a - b if toks[i] == "-" else a * b)
+        return out
+
+    for _ in range(100):
+        k = r.randint(1, 5)
+        toks = [r.randint(0, 20)]
+        for _ in range(k):
+            toks += [r.choice("+-*"), r.randint(0, 20)]
+        expr = "".join(map(str, toks))
+        assert f(expr) == sorted(brute(toks))
+
+
+@test("Backtracking:split-combine#All binary search trees")
+def _(ns):
+    f = ns["generate_trees"]
+    assert f(0) == [] and [len(f(n)) for n in range(1, 7)] == [1, 2, 5, 14, 42, 132]
+
+    def inorder(t):
+        return inorder(t.left) + [t.val] + inorder(t.right) if t else []
+
+    def shape(t):
+        return None if t is None else (t.val, shape(t.left), shape(t.right))
+
+    for n in range(1, 6):
+        trees = f(n)
+        assert all(inorder(t) == list(range(1, n + 1)) for t in trees)
+        assert len({shape(t) for t in trees}) == len(trees)
+
+
+@test("Backtracking:eulerian")
+def _(ns):
+    f = ns["find_itinerary"]
+    assert f([["MUC", "LHR"], ["JFK", "MUC"], ["SFO", "SJC"], ["LHR", "SFO"]]) == ["JFK", "MUC", "LHR", "SFO", "SJC"]
+    assert f([["JFK", "SFO"], ["JFK", "ATL"], ["SFO", "ATL"], ["ATL", "JFK"], ["ATL", "SFO"]]) == ["JFK", "ATL", "JFK", "SFO", "ATL", "SFO"]
+    r = random.Random(176)
+    for _ in range(150):
+        cities = ["JFK", "AAA", "BBB", "CCC"]
+        walk = ["JFK"]
+        for _ in range(r.randint(1, 7)):
+            walk.append(r.choice(cities))
+        tickets = [[a, b] for a, b in zip(walk, walk[1:])]
+        r.shuffle(tickets)
+
+        def best(city, left, path):
+            if not left:
+                return path
+            for t in sorted(set(map(tuple, left))):
+                if t[0] == city:
+                    rest = [list(x) for x in left]
+                    rest.remove(list(t))
+                    got = best(t[1], rest, path + [t[1]])
+                    if got:
+                        return got
+            return None
+
+        assert f([t[:] for t in tickets]) == best("JFK", tickets, ["JFK"]), tickets
+
+
+@test("Backtracking:eulerian#De Bruijn sequence (the safe)")
+def _(ns):
+    f = ns["crack_safe"]
+    assert f(1, 2) in ("01", "10")
+    for n, k in ((1, 4), (2, 2), (2, 3), (3, 2), (3, 3), (4, 2), (2, 10)):
+        s = f(n, k)
+        assert len(s) == k**n + n - 1
+        assert {s[i:i + n] for i in range(len(s) - n + 1)} == {"".join(p) for p in _it.product("0123456789"[:k], repeat=n)}
+
+
+@test("Backtracking:all-shortest")
+def _(ns):
+    f = ns["find_ladders"]
+    got = f("hit", "cog", ["hot", "dot", "dog", "lot", "log", "cog"])
+    assert sorted(got) == [["hit", "hot", "dot", "dog", "cog"], ["hit", "hot", "lot", "log", "cog"]]
+    assert f("hit", "cog", ["hot", "dot", "dog", "lot", "log"]) == []
+    r = random.Random(177)
+    for _ in range(120):
+        words = list({"".join(r.choice("abc") for _ in range(3)) for _ in range(r.randint(1, 9))})
+        begin, end = "".join(r.choice("abc") for _ in range(3)), r.choice(words)
+        if begin == end:
+            continue
+        pool = set(words)
+        found, best = [], [10**9]
+
+        def go(path):
+            w = path[-1]
+            if len(path) > best[0]:
+                return
+            if w == end:
+                if len(path) < best[0]:
+                    best[0], found[:] = len(path), []
+                found.append(path[:])
+                return
+            for v in pool:
+                if v not in path and sum(a != b for a, b in zip(w, v)) == 1:
+                    path.append(v)
+                    go(path)
+                    path.pop()
+
+        go([begin])
+        assert sorted(f(begin, end, words)) == sorted(found), (begin, end, words)
+
+
+@test("Backtracking:best-walk")
+def _(ns):
+    f = ns["get_maximum_gold"]
+    assert f([[0, 6, 0], [5, 8, 7], [0, 9, 0]]) == 24
+    assert f([[1, 0, 7], [2, 0, 6], [3, 4, 5], [0, 3, 0], [9, 0, 20]]) == 28
+    r = random.Random(178)
+
+    def brute(g):
+        rows, cols = len(g), len(g[0])
+
+        def go(i, j, seen):
+            best = 0
+            for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):
+                if 0 <= a < rows and 0 <= b < cols and g[a][b] and (a, b) not in seen:
+                    best = max(best, go(a, b, seen | {(a, b)}))
+            return g[i][j] + best
+
+        return max((go(i, j, frozenset({(i, j)})) for i in range(rows) for j in range(cols) if g[i][j]), default=0)
+
+    for _ in range(150):
+        g = _grid(r, r.randint(1, 4), r.randint(1, 4), [0, 0, 1, 2, 5])
+        assert f([row[:] for row in g]) == brute(g)
+
+
+@test("Backtracking:best-walk#Graph with a time limit")
+def _(ns):
+    f = ns["maximal_path_quality"]
+    assert f([0, 32, 10, 43], [[0, 1, 10], [1, 2, 15], [0, 3, 10]], 49) == 75
+    assert f([5, 10, 15, 20], [[0, 1, 10], [1, 2, 10], [0, 3, 10]], 30) == 25
+    assert f([1, 2, 3, 4], [[0, 1, 10], [1, 2, 11], [2, 3, 12], [1, 3, 13]], 50) == 7
+    r = random.Random(179)
+    for _ in range(100):
+        n = r.randint(1, 5)
+        values = [r.randint(0, 20) for _ in range(n)]
+        edges = [[a, b, r.randint(1, 6)] for a in range(n) for b in range(a + 1, n) if r.random() < 0.6]
+        limit = r.randint(1, 16)
+        best = 0
+        stack = [(0, 0, frozenset({0}))]
+        seen = set()
+        while stack:
+            st = stack.pop()
+            if st in seen:
+                continue
+            seen.add(st)
+            u, t, vis = st
+            if u == 0:
+                best = max(best, sum(values[i] for i in vis))
+            for a, b, w in edges:
+                for x, y in ((a, b), (b, a)):
+                    if x == u and t + w <= limit:
+                        stack.append((y, t + w, vis | {y}))
+        assert f(values, [e[:] for e in edges], limit) == best
+
+
+@test("Backtracking:verbal-sum")
+def _(ns):
+    f = ns["is_solvable"]
+    assert f(["SEND", "MORE"], "MONEY") is True and f(["SIX", "SEVEN", "SEVEN"], "TWENTY") is True
+    assert f(["LEET", "CODE"], "POINT") is False and f(["A", "B"], "A") is True
+    r = random.Random(180)
+    for _ in range(80):
+        words = ["".join(r.choice("abcd") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 2))]
+        result = "".join(r.choice("abcd") for _ in range(r.randint(1, 4)))
+        letters = sorted(set("".join(words) + result))
+        lead = {w[0] for w in words + [result] if len(w) > 1}
+
+        def value(w, m):
+            return int("".join(str(m[c]) for c in w))
+
+        want = any(
+            all(not (m[c] == 0 and c in lead) for c in letters) and sum(value(w, m) for w in words) == value(result, m)
+            for p in _it.permutations(range(10), len(letters))
+            for m in [dict(zip(letters, p))]
+        )
+        assert f(words[:], result) is want, (words, result)
+
+
+@test("Backtracking:pyramid")
+def _(ns):
+    f = ns["pyramid_transition"]
+    assert f("BCD", ["BCC", "CDE", "CEA", "FFF"]) is True
+    assert f("AAAA", ["AAB", "AAC", "BCD", "BBE", "DEF"]) is False
+    r = random.Random(181)
+
+    def brute(row, rules):
+        if len(row) == 1:
+            return True
+        opts = [[t[2] for t in rules if t[:2] == row[i:i + 2]] for i in range(len(row) - 1)]
+        return any(brute("".join(c), rules) for c in _it.product(*opts))
+
+    for _ in range(150):
+        rules = list({"".join(r.choice("ABC") for _ in range(3)) for _ in range(r.randint(1, 10))})
+        row = "".join(r.choice("ABC") for _ in range(r.randint(2, 5)))
+        assert f(row, rules[:]) is brute(row, rules), (row, rules)
+
+
+@test("Backtracking:best-subset")
+def _(ns):
+    f = ns["max_score_words"]
+    s2 = [1, 0, 9, 5, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    assert f(["dog", "cat", "dad", "good"], list("abcdddgoo"), s2) == 23
+    r = random.Random(182)
+    for _ in range(120):
+        words = ["".join(r.choice("abc") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 6))]
+        letters = [r.choice("abc") for _ in range(r.randint(0, 8))]
+        sc = [r.randint(0, 9) for _ in range(26)]
+        best = 0
+        for mask in range(1 << len(words)):
+            used = [c for i in range(len(words)) if mask >> i & 1 for c in words[i]]
+            if all(used.count(c) <= letters.count(c) for c in set(used)):
+                best = max(best, sum(sc[ord(c) - 97] for c in used))
+        assert f(words, letters[:], sc) == best
+
+
+@test("Backtracking:submask")
+def _(ns):
+    f = ns["min_sessions"]
+    assert f([1, 2, 3], 3) == 2 and f([3, 1, 3, 1, 1], 8) == 2 and f([1, 2, 3, 4, 5], 15) == 1
+    r = random.Random(183)
+    for _ in range(100):
+        limit = r.randint(3, 9)
+        tasks = [r.randint(1, limit) for _ in range(r.randint(1, 7))]
+
+        def brute(i, bins):
+            if i == len(tasks):
+                return len(bins)
+            best = len(tasks) + 1
+            for b in range(len(bins)):
+                if bins[b] + tasks[i] <= limit:
+                    bins[b] += tasks[i]
+                    best = min(best, brute(i + 1, bins))
+                    bins[b] -= tasks[i]
+            return min(best, brute(i + 1, bins + [tasks[i]]))
+
+        assert f(tasks[:], limit) == brute(0, []), (tasks, limit)
+
+
+@test("Backtracking:mask-assign")
+def _(ns):
+    f = ns["max_compatibility_sum"]
+    assert f([[1, 1, 0], [1, 0, 1], [0, 0, 1]], [[1, 0, 0], [0, 0, 1], [1, 1, 0]]) == 8
+    assert f([[0, 0], [0, 0], [0, 0]][:2], [[1, 1], [1, 1]]) == 0
+    r = random.Random(184)
+    for _ in range(100):
+        n, q = r.randint(1, 6), r.randint(1, 4)
+        a = [[r.randint(0, 1) for _ in range(q)] for _ in range(n)]
+        b = [[r.randint(0, 1) for _ in range(q)] for _ in range(n)]
+        want = max(sum(sum(x == y for x, y in zip(a[i], b[p[i]])) for i in range(n)) for p in _it.permutations(range(n)))
+        assert f(a, b) == want
+
+
+@test("Backtracking:unique-split")
+def _(ns):
+    f = ns["max_unique_split"]
+    assert f("ababccc") == 5 and f("aba") == 2 and f("aa") == 1
+    r = random.Random(185)
+    for _ in range(150):
+        s = "".join(r.choice("abc") for _ in range(r.randint(1, 11)))
+        best = 0
+        for mask in range(1 << (len(s) - 1)):
+            cuts = [0] + [i + 1 for i in range(len(s) - 1) if mask >> i & 1] + [len(s)]
+            parts = [s[a:b] for a, b in zip(cuts, cuts[1:])]
+            if len(set(parts)) == len(parts):
+                best = max(best, len(parts))
+        assert f(s) == best, s
+
+
+@test("Backtracking:lazy-iterator")
+def _(ns):
+    cls = ns["CombinationIterator"]
+    it = cls("abc", 2)
+    assert [it.next(), it.hasNext(), it.next(), it.hasNext(), it.next(), it.hasNext()] == ["ab", True, "ac", True, "bc", False]
+    for n in range(1, 8):
+        for k in range(1, n + 1):
+            chars = "abcdefgh"[:n]
+            it, got = cls(chars, k), []
+            while it.hasNext():
+                got.append(it.next())
+            assert got == ["".join(c) for c in _it.combinations(chars, k)]
+
+
 # ---- tries ----------------------------------------------------------------------------------------------------------
 
 @test("Tries:trie")

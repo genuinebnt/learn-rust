@@ -91,14 +91,12 @@
   "middle-of-the-linked-list": "Linked List:fast-slow",
   "palindrome-linked-list": "Linked List:fast-slow",
   "delete-the-middle-node-of-a-linked-list": "Linked List:fast-slow",
-  "clone-binary-tree-with-random-pointer": "Linked List:clone-map",
   "design-browser-history": "Linked List:design-list",
   "design-a-text-editor": "Linked List:design-list",
   "all-oone-data-structure": "Linked List:lru",
   "lfu-cache": "Linked List:lru",
   "unique-paths-iii": "Backtracking:grid",
   "path-with-maximum-gold": "Backtracking:grid",
-  "word-squares": "Backtracking:construct",
   "n-queens-ii": "Backtracking:n-queens",
   "minimum-moves-to-spread-stones-over-grid": "Backtracking:include-exclude"
 }

@@ -34388,6 +34388,462 @@
    "role": "practice",
    "practice_of": "lc-transpose-matrix",
    "priority": "strong"
+  },
+  {
+   "id": "lc-cat-and-mouse",
+   "slug": "cat-and-mouse",
+   "number": 913,
+   "title": "Cat and Mouse",
+   "difficulty": "hard",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Math",
+    "Dynamic Programming",
+    "Graph Theory",
+    "Topological Sort",
+    "Memoization",
+    "Minimax",
+    "Game Theory",
+    "zero-sum-game"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 22.1,
+     "recent": false
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 7.3,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:game-memo",
+   "order": 101696,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-closest-subsequence-sum",
+   "slug": "closest-subsequence-sum",
+   "number": 1755,
+   "title": "Closest Subsequence Sum",
+   "difficulty": "hard",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Two Pointers",
+    "Dynamic Programming",
+    "Bit Manipulation",
+    "Meet in the Middle",
+    "Sorting",
+    "Bitmask"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 8.1,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:meet-in-the-middle",
+   "order": 101697,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-maximum-path-quality-of-a-graph",
+   "slug": "maximum-path-quality-of-a-graph",
+   "number": 2065,
+   "title": "Maximum Path Quality of a Graph",
+   "difficulty": "hard",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Backtracking",
+    "Graph Theory"
+   ],
+   "companies": [
+    {
+     "name": "Apple",
+     "group": "Big Tech",
+     "frequency": 35.0,
+     "recent": false
+    },
+    {
+     "name": "DoorDash",
+     "group": "Top tech",
+     "frequency": 34.2,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:best-walk",
+   "order": 101698,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-verbal-arithmetic-puzzle",
+   "slug": "verbal-arithmetic-puzzle",
+   "number": 1307,
+   "title": "Verbal Arithmetic Puzzle",
+   "difficulty": "hard",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Math",
+    "String",
+    "Backtracking"
+   ],
+   "companies": [
+    {
+     "name": "Atlassian",
+     "group": "Top tech",
+     "frequency": 59.3,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 5.5,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:verbal-sum",
+   "order": 101699,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-maximum-compatibility-score-sum",
+   "slug": "maximum-compatibility-score-sum",
+   "number": 1947,
+   "title": "Maximum Compatibility Score Sum",
+   "difficulty": "medium",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Dynamic Programming",
+    "Backtracking",
+    "Bit Manipulation",
+    "Bitmask",
+    "hungarian-algorithm",
+    "bipartite-graph",
+    "successive-shortest-path-algorithm",
+    "matching-graph",
+    "perfect-matching",
+    "minimum-cost-flow",
+    "flow-network"
+   ],
+   "companies": [
+    {
+     "name": "Meta",
+     "group": "Big Tech",
+     "frequency": 21.5,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:mask-assign",
+   "order": 101700,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-cracking-the-safe",
+   "slug": "cracking-the-safe",
+   "number": 753,
+   "title": "Cracking the Safe",
+   "difficulty": "hard",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "String",
+    "Depth-First Search",
+    "Graph Theory",
+    "Eulerian Circuit",
+    "eulerian-path",
+    "eulerian-graph"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 23.3,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:eulerian",
+   "order": 101701,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-maximum-number-of-achievable-transfer-requests",
+   "slug": "maximum-number-of-achievable-transfer-requests",
+   "number": 1601,
+   "title": "Maximum Number of Achievable Transfer Requests",
+   "difficulty": "hard",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Backtracking",
+    "Bit Manipulation",
+    "Enumeration"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 21.9,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:best-subset",
+   "order": 101702,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-iterator-for-combination",
+   "slug": "iterator-for-combination",
+   "number": 1286,
+   "title": "Iterator for Combination",
+   "difficulty": "medium",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "String",
+    "Backtracking",
+    "Design",
+    "Iterator"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 16.4,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:lazy-iterator",
+   "order": 101703,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-valid-arrangement-of-pairs",
+   "slug": "valid-arrangement-of-pairs",
+   "number": 2097,
+   "title": "Valid Arrangement of Pairs",
+   "difficulty": "hard",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Depth-First Search",
+    "Graph Theory",
+    "Eulerian Circuit",
+    "eulerian-path",
+    "semi-eulerian-graph"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:eulerian",
+   "order": 101704,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-minimum-number-of-work-sessions-to-finish-the-tasks",
+   "slug": "minimum-number-of-work-sessions-to-finish-the-tasks",
+   "number": 1986,
+   "title": "Minimum Number of Work Sessions to Finish the Tasks",
+   "difficulty": "medium",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Dynamic Programming",
+    "Backtracking",
+    "Bit Manipulation",
+    "Bitmask"
+   ],
+   "companies": [
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:submask",
+   "order": 101705,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-number-of-ways-to-wear-different-hats-to-each-other",
+   "slug": "number-of-ways-to-wear-different-hats-to-each-other",
+   "number": 1434,
+   "title": "Number of Ways to Wear Different Hats to Each Other",
+   "difficulty": "hard",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Dynamic Programming",
+    "Bit Manipulation",
+    "Bitmask",
+    "bipartite-graph",
+    "matching-graph",
+    "perfect-matching"
+   ],
+   "companies": [
+    {
+     "name": "Roblox",
+     "group": "Top tech",
+     "frequency": 91.5,
+     "recent": false
+    },
+    {
+     "name": "DE Shaw",
+     "group": "Trading",
+     "frequency": 37.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:mask-assign",
+   "order": 101706,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-find-the-shortest-superstring",
+   "slug": "find-the-shortest-superstring",
+   "number": 943,
+   "title": "Find the Shortest Superstring",
+   "difficulty": "hard",
+   "pattern": "Backtracking",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "String",
+    "Dynamic Programming",
+    "Bit Manipulation",
+    "Bitmask",
+    "hamiltonian-path"
+   ],
+   "companies": [
+    {
+     "name": "DE Shaw",
+     "group": "Trading",
+     "frequency": 37.0,
+     "recent": false
+    },
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 16.4,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Backtracking:mask-assign",
+   "order": 101707,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
   }
  ]
 }

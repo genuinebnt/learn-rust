@@ -23,7 +23,7 @@ LeetCode problems that practise it**.
 |---|---|
 | P1 | Every problem is a **catalog problem**: it opens the site's own **problem page** (statement, hints, the log of attempts) and that page links to LeetCode to solve it, exactly like the NeetCode ones. |
 | P2 | A problem that is **not** in a NeetCode list has **no solution attached** (no `pages/<slug>.toml` is required). Solutions may be added to any problem later; the data model must allow it (rule S1). |
-| P3 | A problem is on the right of exactly one technique (its `technique`), and appears under that technique's pattern. |
+| P3 | A problem belongs to one technique (its `technique`) and appears under that technique's pattern. A technique card may also list a problem of another technique as an *example* (`examples` of an `[[extra]]`) when the same idea solves it. |
 | P4 | Free problems only; a premium problem is never added (it cannot be solved without a subscription). |
 | P5 | Problems that are not in a NeetCode list are **added to the catalog** (as `practice` problems in `content/dsa/practice.json`) so that they are tracked. |
 
@@ -70,7 +70,7 @@ This is what `is_practice` already does in the API; the new problems use it unch
 | V1 | every catalog problem has at least one company (from the site's company set) and one topic tag |
 | V2 | every `technique` of a practice problem is a technique of `problems.json` or an `[[extra]]` of its pattern |
 | V3 | every technique or extra has signals, a template that **runs** and passes its behaviour test, and pitfalls |
-| V4 | every technique that has a problem has a lesson (L4); a `[[listed]]` entry has no problems |
+| V4 | every technique that has a problem has a lesson (L4); a `[[listed]]` entry is never shown with problems (its `problems`, if any, are candidates waiting for an implementation) |
 | V5 | no premium problem in `practice.json` |
 | V6 | a problem's `lists` decide its list tag; nothing else sets it |
 | V7 | progress safety: no problem id that has progress is removed or renamed without an entry in `retired.txt` / the renames |

@@ -120,7 +120,14 @@ async fn main() -> anyhow::Result<()> {
         let mut dirs: Vec<_> = entries.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.join("course.toml").is_file()).collect();
         dirs.sort();
         for d in dirs {
-            courses.push(anneal_content::course::Course::load(&d).with_context(|| format!("loading course {}", d.display()))?);
+            let course = anneal_content::course::Course::load(&d).with_context(|| format!("loading course {}", d.display()))?;
+            // the solutions the course ships with (courses/<id>/solutions.json), so they need no manual upload
+            match anneal_api::course::seed_solutions(&db, &course, &d).await {
+                Ok(0) => {}
+                Ok(n) => tracing::info!(course = %course.id, written = n, "loaded the shipped solutions"),
+                Err(e) => tracing::warn!(course = %course.id, "could not load the shipped solutions: {e:#}"),
+            }
+            courses.push(course);
         }
     }
     tracing::info!(courses = courses.len(), stages = courses.iter().map(|c| c.stages().count()).sum::<usize>(), "courses loaded");

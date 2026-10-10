@@ -1951,7 +1951,7 @@ fn solutions(course_id: &str, courses: &Path, out: Option<PathBuf>, only: &[Stri
     let ranks = course.ranks();
     let reference = root.join("reference");
     if !reference.is_dir() {
-        bail!("{} has no reference/ (it is kept out of the public repo; see docs/BUSTUB.md §7)", root.display());
+        bail!("{} has no reference/ (the solution tree the stage markers live in)", root.display());
     }
     fn files(base: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> anyhow::Result<()> {
         let mut entries: Vec<_> = fs::read_dir(dir)?.filter_map(|e| e.ok()).collect();

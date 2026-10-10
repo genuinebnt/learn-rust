@@ -1,0 +1,17 @@
+[package]
+name = "bustub"
+version = "0.1.0"
+edition = "2021"
+description = "BusTub (CMU 15-445) in Rust: built stage by stage with `anneal course`."
+
+# This repo is its own workspace, not part of any parent directory's.
+[workspace]
+
+[dependencies]
+
+[dev-dependencies]
+# Property tests: random operation sequences checked against a simple model, shrunk to the shortest failing one.
+proptest = { version = "1", default-features = false, features = ["std"] }
+
+[profile.test]
+opt-level = 1

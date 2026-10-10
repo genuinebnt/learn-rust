@@ -457,3 +457,41 @@ pub async fn put_repo(State(s): State<AppState>, Path(course): Path<String>, Jso
         .await?;
     Ok(Json(json!({ "url": url })))
 }
+
+/// The solutions a course ships with: `courses/<id>/solutions.json`, written by `anneal course solutions --out` (CI does this at deploy time
+/// from the reference, which is not in the image). Loaded at start-up so nobody has to upload them. Stages the course does not have are
+/// skipped, a row is only rewritten when it changed, and a missing or unreadable file changes nothing. Returns how many rows were written.
+pub async fn seed_solutions(db: &sqlx::PgPool, course: &Course, dir: &std::path::Path) -> anyhow::Result<usize> {
+    let path = dir.join("solutions.json");
+    let Ok(text) = std::fs::read_to_string(&path) else { return Ok(0) };
+    let stages: HashMap<String, Vec<SolutionFileOut>> = serde_json::from_str(&text).map_err(|e| anyhow::anyhow!("{}: {e}", path.display()))?;
+    let mut written = 0;
+    for (id, files) in stages {
+        if course.stage(&id).is_none() || files.is_empty() || course.stage(&id).is_some_and(|x| x.kind == "challenge") {
+            continue;
+        }
+        let size: usize = files.iter().map(|f| f.path.len() + f.lines.iter().map(|l| l.len() + 1).sum::<usize>()).sum();
+        if size > MAX_SOLUTION {
+            tracing::warn!(stage = %id, "a shipped solution is too large and was skipped");
+            continue;
+        }
+        let value = serde_json::to_value(&files)?;
+        let r = sqlx::query(
+            "INSERT INTO course_solutions (course, stage_id, files) VALUES ($1, $2, $3)
+             ON CONFLICT (course, stage_id) DO UPDATE SET files = $3, updated_at = now() WHERE course_solutions.files IS DISTINCT FROM $3",
+        )
+        .bind(&course.id)
+        .bind(&id)
+        .bind(value)
+        .execute(db)
+        .await?;
+        written += r.rows_affected() as usize;
+    }
+    Ok(written)
+}
+
+#[derive(Deserialize, Serialize)]
+struct SolutionFileOut {
+    path: String,
+    lines: Vec<String>,
+}

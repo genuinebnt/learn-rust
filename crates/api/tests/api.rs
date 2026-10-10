@@ -1791,3 +1791,31 @@ async fn the_overview_names_the_last_run_the_cli_reported(db: PgPool) {
     assert_eq!(last["stage_id"], "1a-02", "{last}");
     assert_eq!((last["ok"].as_bool(), last["passed"].as_i64(), last["total"].as_i64()), (Some(true), Some(1), Some(1)));
 }
+
+#[sqlx::test(migrator = "anneal_api::MIGRATOR")]
+async fn shipped_solutions_are_loaded_once_and_only_for_stages_the_course_has(db: PgPool) {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../courses/bustub");
+    let course = anneal_content::course::Course::load(&root).expect("courses/bustub");
+    let dir = tempfile::tempdir().unwrap();
+    let write = |text: &str| std::fs::write(dir.path().join("solutions.json"), text).unwrap();
+    let seed = |db: &PgPool| {
+        let (db, course, dir) = (db.clone(), &course, dir.path().to_owned());
+        async move { anneal_api::course::seed_solutions(&db, course, &dir).await.unwrap() }
+    };
+
+    // no file: nothing happens
+    assert_eq!(seed(&db).await, 0);
+    // a stage of the course, one it does not have, and a challenge (which never has a published solution)
+    write(r#"{"1a-01": [{"path": "src/a.rs", "lines": ["+let x = 1;"]}], "nope-99": [{"path": "src/b.rs", "lines": ["+y"]}], "1a-c1": [{"path": "src/c.rs", "lines": ["+z"]}]}"#);
+    assert_eq!(seed(&db).await, 1, "only 1a-01");
+    let n: i64 = sqlx::query_scalar("SELECT count(*) FROM course_solutions").fetch_one(&db).await.unwrap();
+    assert_eq!(n, 1);
+    // unchanged: no row is rewritten, and a changed solution is
+    assert_eq!(seed(&db).await, 0);
+    write(r#"{"1a-01": [{"path": "src/a.rs", "lines": ["+let x = 2;"]}]}"#);
+    assert_eq!(seed(&db).await, 1);
+    // the app now offers it
+    let app = test_app(db.clone());
+    let page = call(&app, Method::GET, "/api/courses/bustub/stages/1a-01", None).await.1;
+    assert_eq!(page["solution"]["available"], true, "{page}");
+}

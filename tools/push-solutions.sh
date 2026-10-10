@@ -1,6 +1,7 @@
 #!/bin/bash
-# Uploads every stage's solution diff (from the gitignored courses/bustub/reference) to the anneal web app, so the Solution tab can reveal it.
-# Run it after a module ships, because the diffs follow the stage ids and the template.
+# Uploads every stage's solution diff (from courses/bustub/reference) to a running anneal app, so the Solution tab can reveal it.
+# Normally NOT needed: CI generates courses/bustub/solutions.json at deploy time and the app loads it at start-up (docs/BUSTUB.md §8).
+# Use it for a local app whose checkout is newer than the last start, or to push to an app that was not restarted.
 #   ANNEAL_PASSPHRASE=... tools/push-solutions.sh [https://anneal.genuinebasil.dev]   (the app's address; default is the local one)
 set -euo pipefail
 cd "$(dirname "$0")/.."

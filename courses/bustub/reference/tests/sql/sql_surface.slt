@@ -1,0 +1,91 @@
+# The SQL surface of module 3i, as a script: operators, BETWEEN and IN, CASE, COALESCE, NULLIF, LIKE, OFFSET, DISTINCT aggregates.
+
+statement ok
+create table t(a int, b int);
+
+statement ok
+insert into t values (1, 10), (2, 20), (null, 30), (4, 0), (5, null);
+
+query
+select 2 + 3 * 4, 17 / 5, 17 % 5, -17 / 5;
+----
+14 3 2 -3
+
+statement error
+select 1 / 0;
+
+query
+select a from t where a is null;
+----
+integer_null
+
+query rowsort
+select a from t where a between 2 and 4;
+----
+2
+4
+
+query rowsort
+select a from t where a in (1, 5, null);
+----
+1
+5
+
+query
+select a from t where a not in (1, null);
+----
+
+query
+select a, case when a >= 4 then 'big' when a >= 2 then 'mid' else 'small' end from t where a is not null order by a;
+----
+1 small
+2 mid
+4 big
+5 big
+
+query
+select a, coalesce(a, b, -1) from t where a is null;
+----
+integer_null 30
+
+query
+select a / nullif(b, 0) from t where a = 4;
+----
+integer_null
+
+query
+select a from t where a is not null order by a limit 2 offset 1;
+----
+2
+4
+
+query
+select count(distinct b), sum(distinct b) from t;
+----
+4 60
+
+query
+select count(distinct a) from t where b >= 0;
+----
+3
+
+statement ok
+create table w(name varchar(20));
+
+statement ok
+insert into w values ('apple'), ('banana'), ('a_b%');
+
+query rowsort
+select name from w where name like 'a%';
+----
+apple
+a_b%
+
+query
+select name from w where name like 'a\_b\%';
+----
+a_b%
+
+query
+select name from w where name not like '%a%';
+----

@@ -140,7 +140,7 @@ courses/bustub/
   modules/<NN>-<slug>/stages/<NN>-<slug>/stage.toml   id, title, kind, difficulty, tests = ["bin::filter", ...], retest?
   modules/<NN>-<slug>/stages/<NN>-<slug>/stage.md
   template/            generated: the repo as it is before stage 1 (committed; what `init` copies)
-  reference/           the complete solution with stage markers       <- NOT committed (§8)
+  reference/           the complete solution with stage markers       <- committed (§8): never embedded in the CLI, never in the image
 ```
 
 The reference tree is the whole learner repo with the solution written out. What a learner writes is marked:
@@ -171,7 +171,7 @@ rest of the function needs, so every state compiles). `anneal course template` w
 | **Extra tests** (property tests, model checks, loom, fuzz against a `HashMap` model) | only where a port could differ from C++ in ways BusTub's tests don't see; **deferred** | later, per module | open |
 
 Two directions, as the owner put it: **the reference passes the stage tests and BusTub's tests** (so the answers anneal ships are right), and **the learner's code
-passes the same tests** (so theirs are right). `tools/course-smoke.sh` is the one command that checks all of it; the CI job can't run it, because the reference isn't in the public repo.
+passes the same tests** (so theirs are right). `tools/course-smoke.sh` is the one command that checks all of it; the CI job doesn't run it (it needs a long build per stage); run it before shipping a module.
 
 ## 7. Delivery: chunk by chunk
 
@@ -181,9 +181,11 @@ Order of modules: BusTub's (1a → 1e → 2a → 2c → 3 → 4 → 5), with the
 
 ## 8. Decisions and risks
 
-1. **Where the reference lives.** BusTub's README asks students not to publish solutions and this repo is public. Recommendation: the reference stays out of the repo
-   (`courses/bustub/.gitignore` ignores `/reference/`; a private repo mounted at that path would back it up). Until the owner decides it exists **only on this machine**: back it up.
-   `template/` (stubs, no solutions) and all stage text, tests and tooling are public.
+1. **Where the reference lives.** In this repo, at `courses/bustub/reference/` (owner's decision, 2026-10-10). It is original Rust, not CMU's C++; the
+   repo is public, so the solutions are public too. Two things keep it from leaking into products: `crates/cli/build.rs` embeds only `course.toml`,
+   `lectures.toml`, `modules/` and `template/`, and `.dockerignore` excludes `courses/*/reference` from the app image. The server learns the solutions
+   from `courses/bustub/solutions.json`, which CI generates from the reference at deploy time and the API loads at start-up (no manual upload).
+   `tools/push-solutions.sh` still works against a running app.
 2. **Licence.** BusTub is MIT; ported tests and short C++ excerpts keep the CMU copyright line (in the test files and the template README).
 3. **Defaults chosen:** std only (no new crates, no image rebuild) until a stage names a crate; `BUSTUB_PAGE_SIZE` 8192 as in BusTub; macOS/Linux only (positional I/O via `FileExt`);
    tests visible; hooks never block; progress local.

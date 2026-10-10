@@ -1,0 +1,96 @@
+# Module 3j as a script: RIGHT and FULL joins, filters over outer joins, set operations.
+
+statement ok
+create table a(x int, y int);
+
+statement ok
+create table b(x int, z int);
+
+statement ok
+insert into a values (1, 10), (2, 20), (3, 30), (null, 40);
+
+statement ok
+insert into b values (2, 200), (3, 300), (4, 400), (null, 500);
+
+query rowsort
+select a.x, b.z from a right join b on a.x = b.x;
+----
+2 200
+3 300
+integer_null 400
+integer_null 500
+
+query rowsort
+select a.x, b.x from a full join b on a.x = b.x;
+----
+1 integer_null
+2 2
+3 3
+integer_null 4
+integer_null integer_null
+integer_null integer_null
+
+query rowsort
+select a.x from a left join b on a.x = b.x where b.z is null;
+----
+1
+integer_null
+
+query rowsort
+select a.x, b.z from a left join b on a.x = b.x where b.z > 250;
+----
+3 300
+
+query rowsort
+select x from a union select x from b;
+----
+1
+2
+3
+4
+integer_null
+
+query rowsort
+select x from a union all select x from b;
+----
+1
+2
+2
+3
+3
+4
+integer_null
+integer_null
+
+query rowsort
+select x from a intersect select x from b;
+----
+2
+3
+integer_null
+
+query rowsort
+select x from a except select x from b;
+----
+1
+
+query
+select x from a union select x from b order by x limit 3;
+----
+integer_null
+1
+2
+
+query rowsort
+select x from a union select x from b intersect select x from a where y > 25;
+----
+1
+2
+3
+integer_null
+
+statement error
+select x, y from a union select x from b;
+
+statement error
+select x from a union select 'one';

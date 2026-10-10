@@ -777,6 +777,34 @@ pitfalls = [
 ]
 examples = ["greatest-common-divisor-traversal", "number-of-good-paths"]
 
+[[extra.variant]]
+name = "GCD sort of an array"
+note = "Two numbers may swap when they share a factor: union by prime factors, then each sorted value must stay in its own component."
+template = '''
+def gcd_sort(nums):
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for x in nums:
+        n, p = x, 2
+        while p * p <= n:
+            if n % p == 0:
+                parent[find(x)] = find(p)  # x and its prime p are connected
+                while n % p == 0:
+                    n //= p
+            p += 1
+        if n > 1:
+            parent[find(x)] = find(n)
+    # each value must be connected to the sorted value of its position
+    return all(find(a) == find(b) for a, b in zip(nums, sorted(nums)))
+'''
+
 [[extra]]
 id = "Advanced Graphs:two-phase"
 name = "Two phases: distances first, then a path"

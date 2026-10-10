@@ -7,24 +7,24 @@ A **card** is a technique with a tested Python implementation (signals, template
 | topic | cards | from the lists | extra | templates | list problems | other problems | names only |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | 1-D Dynamic Programming | 29 | 12 | 17 | 53 | 55 | 53 | 209 |
-| 2-D Dynamic Programming | 18 | 6 | 12 | 34 | 50 | 29 | 96 |
-| Advanced Graphs | 18 | 7 | 11 | 26 | 30 | 14 | 115 |
+| 2-D Dynamic Programming | 19 | 6 | 13 | 36 | 50 | 30 | 96 |
+| Advanced Graphs | 18 | 7 | 11 | 27 | 30 | 14 | 115 |
 | Arrays & Hashing | 32 | 15 | 17 | 61 | 175 | 85 | 92 |
 | Backtracking | 37 | 9 | 28 | 43 | 36 | 39 | 46 |
-| Binary Search | 19 | 8 | 11 | 40 | 43 | 35 | 75 |
+| Binary Search | 19 | 8 | 11 | 41 | 43 | 35 | 75 |
 | Bit Manipulation | 17 | 6 | 11 | 37 | 31 | 24 | 67 |
 | Graphs | 27 | 12 | 15 | 49 | 71 | 51 | 87 |
 | Greedy | 54 | 13 | 41 | 83 | 67 | 72 | 66 |
 | Heap / Priority Queue | 17 | 7 | 10 | 28 | 33 | 34 | 108 |
 | Intervals | 19 | 4 | 15 | 34 | 21 | 27 | 32 |
-| Linked List | 23 | 9 | 14 | 40 | 40 | 19 | 84 |
-| Math & Geometry | 26 | 13 | 13 | 43 | 63 | 66 | 194 |
+| Linked List | 23 | 9 | 14 | 41 | 40 | 19 | 84 |
+| Math & Geometry | 27 | 13 | 14 | 45 | 63 | 67 | 194 |
 | Sliding Window | 21 | 9 | 12 | 37 | 41 | 37 | 42 |
 | Stack | 23 | 9 | 14 | 39 | 39 | 36 | 74 |
 | Trees | 40 | 12 | 28 | 96 | 93 | 56 | 19 |
-| Tries | 12 | 3 | 9 | 21 | 12 | 13 | 40 |
+| Tries | 12 | 3 | 9 | 22 | 12 | 13 | 40 |
 | Two Pointers | 22 | 8 | 14 | 46 | 43 | 34 | 10 |
-| **all** | **454** | 162 | 292 | 810 | 943 | 724 | 1456 |
+| **all** | **456** | 162 | 294 | 818 | 943 | 726 | 1456 |
 
 ## What is still to do
 

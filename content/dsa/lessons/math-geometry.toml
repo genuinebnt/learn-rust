@@ -854,6 +854,18 @@ def min_time_to_visit_all_points(points):
                for (x1, y1), (x2, y2) in zip(points, points[1:]))
 '''
 
+[[extra.variant]]
+name = "Day of the year"
+note = "Days in the months before this one, plus the day; February has 29 days in a leap year."
+template = '''
+def day_of_year(date):
+    y, m, d = map(int, date.split("-"))
+    leap = y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)
+    feb = 29 if leap else 28
+    months = [31, feb, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    return sum(months[:m - 1]) + d
+'''
+
 [[extra]]
 id = "Math & Geometry:square-sums"
 name = "Sums of squares and powers: two pointers and base digits"
@@ -1035,6 +1047,43 @@ pitfalls = [
     "Python's random.shuffle does exactly this.",
 ]
 examples = ["shuffle-an-array"]
+
+[[extra]]
+id = "Math & Geometry:convex-hull"
+name = "Convex hull: the fence around points"
+group = "Geometry"
+signals = [
+    "the smallest convex polygon that contains every point, or the points on the boundary of it",
+    "sort by x (then y), build the lower chain and the upper chain with a stack, and keep only left turns",
+    "the sign of a cross product tells a left turn, a right turn or a straight line",
+]
+template_name = "Erect the fence (monotone chain)"
+template = '''
+def outer_trees(trees):
+    pts = sorted(map(tuple, trees))
+    if len(pts) <= 2:
+        return [list(p) for p in pts]
+
+    def cross(o, a, b):  # > 0 for a left turn at a
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    def chain(points):
+        out = []
+        for p in points:
+            while len(out) >= 2 and cross(out[-2], out[-1], p) < 0:
+                out.pop()  # a right turn: the last point is inside
+            out.append(p)  # a straight line keeps the point on the fence
+        return out
+
+    hull = set(chain(pts)) | set(chain(pts[::-1]))  # lower and upper chains
+    return [list(p) for p in hull]
+'''
+pitfalls = [
+    "Pop on a strictly negative cross product to keep points that lie on an edge; pop on <= 0 for the corners only.",
+    "Build the lower chain left to right and the upper chain right to left, then join them.",
+    "Fewer than three points are their own hull.",
+]
+examples = ["erect-the-fence"]
 
 [[listed]]
 name = "Extract digits with % 10 and // 10 (right to left) / convert to a string and index"

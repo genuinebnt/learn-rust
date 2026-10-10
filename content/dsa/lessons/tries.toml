@@ -357,6 +357,35 @@ def minimum_length_encoding(words):
     return total
 '''
 
+[[extra.variant]]
+name = "Stream of characters (reversed trie)"
+note = "Insert the words reversed; after each new letter walk the trie backwards over the most recent letters."
+template = '''
+class StreamChecker:
+    def __init__(self, words):
+        self.root = {}
+        self.longest = max(map(len, words))
+        for w in words:
+            node = self.root
+            for ch in reversed(w):  # a suffix check becomes a prefix walk
+                node = node.setdefault(ch, {})
+            node["$"] = True
+        self.recent = []  # the last letters, newest at the end
+
+    def query(self, letter):
+        self.recent.append(letter)
+        if len(self.recent) > self.longest:
+            self.recent.pop(0)  # older letters can not matter
+        node = self.root
+        for ch in reversed(self.recent):  # newest letter first
+            if ch not in node:
+                return False
+            node = node[ch]
+            if "$" in node:
+                return True  # a word ends exactly here
+        return False
+'''
+
 [[extra]]
 id = "Tries:folders"
 name = "Folders as a trie"

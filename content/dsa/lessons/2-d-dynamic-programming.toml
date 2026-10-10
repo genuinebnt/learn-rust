@@ -783,6 +783,21 @@ def number_of_arithmetic_slices_subarrays(nums):
     return total
 '''
 
+[[extra.variant]]
+name = "Longest arithmetic subsequence"
+note = "For each pair (j, i) the longest progression ending at i with difference nums[i] - nums[j]: a dictionary per index."
+template = '''
+def longest_arith_seq_length(nums):
+    best = 2  # any two numbers form a progression
+    length = [{} for _ in nums]  # length[i][d]: ending at i, step d
+    for i in range(len(nums)):
+        for j in range(i):
+            d = nums[i] - nums[j]
+            length[i][d] = length[j].get(d, 1) + 1  # extend or start
+            best = max(best, length[i][d])
+    return best
+'''
+
 [[extra]]
 id = "2-D Dynamic Programming:k-groups"
 name = "Split into k groups: dp[i][k]"
@@ -830,6 +845,46 @@ def paint_walls(cost, time):
             dp[walls] = min(dp[walls], dp[max(0, walls - 1 - t)] + c)
     return dp[n]
 '''
+
+[[extra]]
+id = "2-D Dynamic Programming:row-masks"
+name = "Row masks: seat people row by row"
+group = "Broken profile and tiling DP"
+signals = [
+    "place people, tiles or colours in a grid with few columns (about 8), where each row only depends on the row before",
+    "the state of a row is a bitmask of the occupied cells: at most 2^cols states",
+    "precompute which masks are valid within a row, then which pairs of masks fit together across rows",
+]
+template_name = "Maximum students taking an exam"
+template = '''
+def max_students(seats):
+    rows, cols = len(seats), len(seats[0])
+    broken = [sum(1 << c for c in range(cols) if seats[r][c] == "#")
+              for r in range(rows)]  # the unusable seats of each row
+    # dp[mask]: the most students so far, with this mask in the last row
+    dp = {0: 0}
+    for r in range(rows):
+        nxt = {}
+        for mask in range(1 << cols):
+            if mask & broken[r] or mask & (mask << 1):
+                continue  # a broken seat, or two neighbours in one row
+            best = -1
+            for prev, total in dp.items():
+                # nobody sits on a diagonal in front of this student
+                if mask & (prev << 1) or mask & (prev >> 1):
+                    continue
+                best = max(best, total)
+            if best >= 0:
+                nxt[mask] = best + bin(mask).count("1")
+        dp = nxt
+    return max(dp.values())
+'''
+pitfalls = [
+    "mask & (mask << 1) catches two students next to each other in the same row.",
+    "mask & (prev << 1) and mask & (prev >> 1) catch a student looking at the upper left or upper right.",
+    "Only the previous row matters: the state is one mask, and there are at most 2^cols of them.",
+]
+examples = ["maximum-students-taking-exam", "painting-a-grid-with-three-different-colors", "domino-and-tromino-tiling"]
 
 [[listed]]
 name = "Reconstruct the LCS"

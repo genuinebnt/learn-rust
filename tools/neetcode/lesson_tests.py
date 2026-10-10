@@ -12898,3 +12898,142 @@ def _(ns):
             if len(paid) + sum(time[i] for i in paid) >= n:
                 best = min(best, sum(cost[i] for i in paid))
         assert f(cost[:], time[:]) == best
+
+
+# ---- last batch -----------------------------------------------------------------------------------------------------
+
+@test("Math & Geometry:dates#Day of the year")
+def _(ns):
+    import datetime
+    f = ns["day_of_year"]
+    assert f("2019-01-09") == 9 and f("2019-02-10") == 41 and f("2004-03-01") == 61
+    for _ in range(300):
+        d = datetime.date(1900, 1, 1) + datetime.timedelta(days=random.randint(0, 50000))
+        assert f(d.isoformat()) == d.timetuple().tm_yday
+
+
+@test("Tries:shortest-root#Stream of characters (reversed trie)")
+def _(ns):
+    cls = ns["StreamChecker"]
+    sc = cls(["cd", "f", "kl"])
+    assert [sc.query(c) for c in "abcdefghijkl"] == [False, False, False, True, False, True, False, False, False, False, False, True]
+    r = random.Random(1900)
+    for _ in range(100):
+        words = list({"".join(r.choice("ab") for _ in range(r.randint(1, 3))) for _ in range(r.randint(1, 4))})
+        sc, text = cls(words), ""
+        for _ in range(15):
+            ch = r.choice("ab")
+            text += ch
+            assert sc.query(ch) is any(text.endswith(w) for w in words)
+
+
+@test("Linked List:reservoir#Random pick index (array with repeats)")
+def _(ns):
+    import random as _random
+    cls = ns["Solution"]
+    _random.seed(11)
+    s = cls([1, 2, 3, 3, 3])
+    counts = {2: 0, 3: 0, 4: 0}
+    for _ in range(3000):
+        counts[s.pick(3)] += 1
+    assert all(abs(c - 1000) < 150 for c in counts.values()) and s.pick(1) == 0
+
+
+@test("Binary Search:merge-count#Count of range sum")
+def _(ns):
+    f = ns["count_range_sum"]
+    assert f([-2, 5, -1], -2, 2) == 3 and f([0], 0, 0) == 1
+    r = random.Random(1901)
+    for _ in range(200):
+        a = [r.randint(-4, 6) for _ in range(r.randint(1, 8))]
+        lo = r.randint(-6, 3)
+        hi = lo + r.randint(0, 8)
+        want = sum(1 for i in range(len(a)) for j in range(i + 1, len(a) + 1) if lo <= sum(a[i:j]) <= hi)
+        assert f(a[:], lo, hi) == want
+
+
+@test("Advanced Graphs:prime-dsu#GCD sort of an array")
+def _(ns):
+    from math import gcd
+    f = ns["gcd_sort"]
+    assert f([7, 21, 3]) is True and f([5, 2, 6, 2]) is False and f([10, 5, 9, 3, 15]) is True
+    r = random.Random(1902)
+    for _ in range(300):
+        a = [r.randint(2, 20) for _ in range(r.randint(1, 6))]
+        seen, stack = {tuple(a)}, [tuple(a)]
+        target = tuple(sorted(a))
+        ok = False
+        while stack:
+            t = stack.pop()
+            if t == target:
+                ok = True
+                break
+            for i in range(len(t)):
+                for j in range(i + 1, len(t)):
+                    if gcd(t[i], t[j]) > 1:
+                        u = list(t)
+                        u[i], u[j] = u[j], u[i]
+                        u = tuple(u)
+                        if u not in seen:
+                            seen.add(u)
+                            stack.append(u)
+        assert f(a[:]) is ok, a
+
+
+@test("Math & Geometry:convex-hull")
+def _(ns):
+    f = ns["outer_trees"]
+    assert sorted(map(tuple, f([[1, 1], [2, 2], [2, 0], [2, 4], [3, 3], [4, 2]]))) == [(1, 1), (2, 0), (2, 4), (3, 3), (4, 2)]
+    r = random.Random(1903)
+    for _ in range(200):
+        pts = list({(r.randint(0, 5), r.randint(0, 5)) for _ in range(r.randint(1, 9))})
+
+        def cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+        want = set()
+        if len(pts) <= 2:
+            want = set(pts)
+        else:
+            for a in pts:
+                for b in pts:
+                    if a != b and all(cross(a, b, c) >= 0 for c in pts):  # every point left of or on the line a -> b
+                        want |= {c for c in pts if cross(a, b, c) == 0 and min(a[0], b[0]) <= c[0] <= max(a[0], b[0]) and min(a[1], b[1]) <= c[1] <= max(a[1], b[1])}
+            if not want:
+                want = set(pts)  # all points on one line: they all lie on the fence
+            # collinear case: the hull is the segment between the extremes, with every point between
+            if all(cross(pts[0], pts[1], c) == 0 for c in pts):
+                want = set(pts)
+        assert {tuple(p) for p in f([list(p) for p in pts])} == want, pts
+
+
+@test("2-D Dynamic Programming:row-masks")
+def _(ns):
+    f = ns["max_students"]
+    assert f([["#", ".", "#", "#", ".", "#"], [".", "#", "#", "#", "#", "."], ["#", ".", "#", "#", ".", "#"]]) == 4 and f([[".", "#"], ["#", "#"], ["#", "."], ["#", "#"], [".", "#"]]) == 3
+    r = random.Random(1904)
+    for _ in range(60):
+        R, C = r.randint(1, 3), r.randint(1, 4)
+        g = [[r.choice(".#") for _ in range(C)] for _ in range(R)]
+        cells = [(i, j) for i in range(R) for j in range(C) if g[i][j] == "."]
+        best = 0
+        for mask in range(1 << len(cells)):
+            chosen = {cells[i] for i in range(len(cells)) if mask >> i & 1}
+            if all(not ((i, j + 1) in chosen or (i - 1, j - 1) in chosen or (i - 1, j + 1) in chosen) for i, j in chosen):
+                best = max(best, len(chosen))
+        assert f([row[:] for row in g]) == best, g
+
+
+@test("2-D Dynamic Programming:arithmetic-dict#Longest arithmetic subsequence")
+def _(ns):
+    f = ns["longest_arith_seq_length"]
+    assert f([3, 6, 9, 12]) == 4 and f([9, 4, 7, 2, 10]) == 3 and f([20, 1, 15, 3, 10, 5, 8]) == 4
+    r = random.Random(1905)
+    for _ in range(200):
+        a = [r.randint(0, 8) for _ in range(r.randint(2, 8))]
+        best = 2
+        for k in range(3, len(a) + 1):
+            for idx in _it.combinations(range(len(a)), k):
+                if len({a[idx[i + 1]] - a[idx[i]] for i in range(k - 1)}) == 1:
+                    best = max(best, k)
+        assert f(a[:]) == best

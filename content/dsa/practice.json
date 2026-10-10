@@ -36729,6 +36729,94 @@
    "role": "practice",
    "practice_of": null,
    "priority": "practice"
+  },
+  {
+   "id": "lc-maximum-students-taking-exam",
+   "slug": "maximum-students-taking-exam",
+   "number": 1349,
+   "title": "Maximum Students Taking Exam",
+   "difficulty": "hard",
+   "pattern": "2-D Dynamic Programming",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Dynamic Programming",
+    "Bit Manipulation",
+    "Matrix",
+    "Bitmask",
+    "maximum-flow",
+    "maximum-matching",
+    "bipartite-graph",
+    "edmonds-karp-algorithm",
+    "mpm-algorithm",
+    "push-relabel-algorithm",
+    "minimum-cut",
+    "matching-graph",
+    "flow-network",
+    "dinics-algorithm"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 12.6,
+     "recent": false
+    },
+    {
+     "name": "Microsoft",
+     "group": "Big Tech",
+     "frequency": 7.3,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "2-D Dynamic Programming:row-masks",
+   "order": 101753,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
+  },
+  {
+   "id": "lc-erect-the-fence",
+   "slug": "erect-the-fence",
+   "number": 587,
+   "title": "Erect the Fence",
+   "difficulty": "hard",
+   "pattern": "Math & Geometry",
+   "lists": [
+    "practice"
+   ],
+   "premium": false,
+   "tags": [
+    "Array",
+    "Math",
+    "Geometry",
+    "convex-hull",
+    "polygons"
+   ],
+   "companies": [
+    {
+     "name": "Google",
+     "group": "Big Tech",
+     "frequency": 19.5,
+     "recent": false
+    },
+    {
+     "name": "Amazon",
+     "group": "Big Tech",
+     "frequency": 5.0,
+     "recent": false
+    }
+   ],
+   "video": null,
+   "technique": "Math & Geometry:convex-hull",
+   "order": 101754,
+   "role": "practice",
+   "practice_of": null,
+   "priority": "practice"
   }
  ]
 }

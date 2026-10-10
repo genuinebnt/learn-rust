@@ -305,3 +305,27 @@ d9-union-find-as-a-reusable-struct
 d9-word-ladder
 d9-zero-one-bfs-on-a-grid
 d9-zero-one-matrix
+
+# 2026-10-10: practice problems that no company of the site's set asks (companies are mandatory).
+lc-substring-xor-queries
+lc-find-maximum-number-of-string-pairs
+lc-minimum-operations-to-exceed-threshold-value-i
+lc-design-bitset
+lc-reconstruct-a-2-row-binary-matrix
+lc-find-the-power-of-k-size-subarrays-ii
+lc-k-highest-ranked-items-within-a-price-range
+lc-maximum-elegance-of-a-k-length-subsequence
+lc-minimum-time-to-visit-disappearing-nodes
+lc-minimum-time-to-reach-destination-in-directed-graph
+lc-shortest-path-with-at-most-k-consecutive-identical-characters
+lc-house-robber-v
+lc-count-of-sub-multisets-with-bounded-sum
+lc-partition-string-into-minimum-beautiful-substrings
+lc-number-of-strings-which-can-be-rearranged-to-contain-substring
+lc-visit-array-positions-to-maximize-score
+lc-removing-minimum-and-maximum-from-array
+lc-maximize-the-topmost-element-after-k-moves
+lc-minimum-number-of-food-buckets-to-feed-the-hamsters
+lc-find-palindrome-with-fixed-length
+lc-apply-bitwise-operations-to-make-strings-equal
+lc-count-the-number-of-beautiful-subarrays

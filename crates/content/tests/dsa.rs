@@ -142,7 +142,7 @@ fn a_pattern_page_can_have_groups_variants_extras_and_listed_techniques() {
 
     // Each way an extra, a variant or a group can be wrong is reported, and the bad entry is not loaded.
     write(&extra("examples = [\"nope\"]\n"));
-    assert!(issues().iter().any(|m| m.contains("Two Pointers:meet: the example nope isn't a problem in the NeetCode lists")), "{:?}", issues());
+    assert!(issues().iter().any(|m| m.contains("Two Pointers:meet: the example nope isn't a problem of the site (the NeetCode lists or practice.json)")), "{:?}", issues());
     write(&extra("examples = []\n"));
     assert!(issues().iter().any(|m| m.contains("needs at least one example problem")), "{:?}", issues());
     write(&extra("examples = [\"two-sum\"]\n").replace("group = \"Walks\"\nsignals = [\"s\"]", "group = \"Elsewhere\"\nsignals = [\"s\"]"));
@@ -160,30 +160,48 @@ fn a_pattern_page_can_have_groups_variants_extras_and_listed_techniques() {
 }
 
 #[test]
-fn listed_techniques_carry_verified_problems_and_groups_carry_tags_and_more_problems() {
+fn every_problem_carries_companies_and_topic_tags_and_a_practice_problem_may_belong_to_an_extra() {
     let dir = root_with(&std::fs::read_to_string(fixture().join("dsa/problems.json")).unwrap());
-    std::fs::create_dir_all(dir.path().join("dsa/lessons")).unwrap();
-    let write = |text: &str| std::fs::write(dir.path().join("dsa/lessons/two-pointers.toml"), text).unwrap();
     let issues = || -> Vec<String> { Catalog::load(dir.path()).unwrap().issues.into_iter().map(|i| i.message).collect() };
-    let head = "pattern = \"Two Pointers\"\nintro = \"x\"\ngroups = [\"Walks\"]\n";
-    let tail = "\n[[technique]]\nid = \"Two Pointers:opposite\"\nsignals = [\"a\"]\ntemplate = \"pass\"\npitfalls = [\"b\"]\n";
-    let problem = "{ slug = \"critical-connections-in-a-network\", title = \"Critical Connections in a Network\", number = 1192, difficulty = \"hard\" }";
-
-    write(&format!(
-        "{head}\n[group_tags]\n\"Walks\" = [\"two-pointers\"]\n{tail}\n[[listed]]\nname = \"Bridges\"\ngroup = \"Walks\"\nproblems = [{problem}]\n\n[[group_problem]]\ngroup = \"Walks\"\nslug = \"two-sum\"\ntitle = \"Two Sum\"\nnumber = 1\ndifficulty = \"easy\"\n"
-    ));
+    let practice = |json: &str| std::fs::write(dir.path().join("dsa/practice.json"), json).unwrap();
+    let entry = |extra: &str| {
+        format!(
+            r#"{{"generated": "x", "problems": [{{"id": "lc-meet", "slug": "meet", "number": 9001, "title": "Meet", "difficulty": "medium", "pattern": "Two Pointers",
+            "lists": ["practice"], "premium": false, "tags": ["Array"], "companies": [{{"name": "Google", "group": "Big Tech", "frequency": 40.0, "recent": true}}],
+            "video": null, "technique": "Two Pointers:meet", "order": 100000, "role": "practice", "practice_of": null{extra}}}]}}"#
+        )
+    };
+    std::fs::create_dir_all(dir.path().join("dsa/lessons")).unwrap();
+    let lessons = |body: &str| std::fs::write(dir.path().join("dsa/lessons/two-pointers.toml"), format!("pattern = \"Two Pointers\"\nintro = \"x\"\n[[technique]]\nid = \"Two Pointers:opposite\"\nsignals = [\"a\"]\ntemplate = \"pass\"\npitfalls = [\"b\"]\n{body}")).unwrap();
+    let extra = "\n[[extra]]\nid = \"Two Pointers:meet\"\nname = \"Meet\"\ngroup = \"x\"\nsignals = [\"s\"]\ntemplate = \"pass\"\npitfalls = [\"p\"]\nexamples = [\"two-sum\"]\n";
+    // the extra does not exist yet: the problem's technique is unknown
+    practice(&entry(""));
+    lessons("");
+    assert!(issues().iter().any(|m| m.contains("lc-meet: unknown technique Two Pointers:meet")), "{:?}", issues());
+    // with the extra it loads, defaults to priority "practice", and shows up under the extra's technique id
+    lessons(extra);
     let loaded = Catalog::load(dir.path()).unwrap();
     assert!(loaded.issues.is_empty(), "{:?}", loaded.issues);
-    let d = &loaded.catalog.dsa;
-    assert_eq!(d.listed["Two Pointers"][0].problems[0].number, 1192);
-    assert_eq!(d.group_tags["Two Pointers"]["Walks"], ["two-pointers"]);
-    assert_eq!(d.group_problems["Two Pointers"]["Walks"][0].slug, "two-sum");
-
-    // a problem without a usable difficulty, a tag that is not a slug, and a group that was not declared
-    write(&format!("{head}{tail}\n[[listed]]\nname = \"Bridges\"\ngroup = \"Walks\"\nproblems = [{}]\n", problem.replace("\"hard\"", "\"brutal\"")));
-    assert!(issues().iter().any(|m| m.contains("needs a slug, a title, a number and easy, medium or hard")), "{:?}", issues());
-    write(&format!("{head}\n[group_tags]\n\"Walks\" = [\"Not A Slug\"]\n{tail}"));
-    assert!(issues().iter().any(|m| m.contains("is not a LeetCode tag slug")), "{:?}", issues());
-    write(&format!("{head}\n[group_tags]\n\"Elsewhere\" = [\"trie\"]\n{tail}"));
-    assert!(issues().iter().any(|m| m.contains("the group \"Elsewhere\" is not declared in `groups`")), "{:?}", issues());
+    let p = loaded.catalog.practice_tracks.iter().flat_map(|t| &t.problems).find(|p| p.id == "lc-meet").unwrap();
+    assert_eq!(p.dsa.as_ref().unwrap().priority, "practice");
+    // an explicit priority is kept, and a wrong one is refused
+    practice(&entry(r#", "priority": "must""#));
+    let loaded = Catalog::load(dir.path()).unwrap();
+    assert_eq!(loaded.catalog.practice_tracks.iter().flat_map(|t| &t.problems).find(|p| p.id == "lc-meet").unwrap().dsa.as_ref().unwrap().priority, "must");
+    practice(&entry(r#", "priority": "urgent""#));
+    assert!(issues().iter().any(|m| m.contains("priority must be one of")), "{:?}", issues());
+    // companies and topic tags are mandatory
+    practice(&entry("").replace(r#""companies": [{"name": "Google", "group": "Big Tech", "frequency": 40.0, "recent": true}]"#, r#""companies": []"#));
+    assert!(issues().iter().any(|m| m.contains("needs at least one company")), "{:?}", issues());
+    practice(&entry("").replace(r#""tags": ["Array"]"#, r#""tags": []"#));
+    assert!(issues().iter().any(|m| m.contains("needs at least one LeetCode topic tag")), "{:?}", issues());
+    // a NeetCode-list problem without a company is an error unless waived in dsa/no_company.txt
+    let mut main: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(fixture().join("dsa/problems.json")).unwrap()).unwrap();
+    main["problems"][0]["companies"] = serde_json::json!([]);
+    let id = main["problems"][0]["id"].as_str().unwrap().to_owned();
+    std::fs::write(dir.path().join("dsa/problems.json"), main.to_string()).unwrap();
+    practice(&entry(""));
+    assert!(issues().iter().any(|m| m.contains(&format!("{id}: needs at least one company"))), "{:?}", issues());
+    std::fs::write(dir.path().join("dsa/no_company.txt"), format!("# waived\n{id}\n")).unwrap();
+    assert!(!issues().iter().any(|m| m.contains("needs at least one company")), "{:?}", issues());
 }

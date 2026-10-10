@@ -11,15 +11,6 @@ groups = ["Opposite-end pointers", "Same-direction pointers (reader / writer, fa
 
 
 
-[group_tags]
-"Opposite-end pointers" = ["two-pointers"]
-"Same-direction pointers (reader / writer, fast / slow)" = ["two-pointers"]
-"K-sum on sorted arrays" = ["sorting", "two-pointers"]
-"String pointers" = ["string", "two-pointers"]
-"Partition pointers" = ["two-pointers"]
-"Pointer + binary search" = ["binary-search"]
-"Pointers and greedy" = ["greedy", "two-pointers"]
-
 [[technique]]
 id = "Two Pointers:in-place"
 group = "String pointers"
@@ -243,86 +234,6 @@ pitfalls = [
     "Update the running maximum before adding the water, so the water is never negative.",
     "The version with two arrays (left_max[i], right_max[i]) is easier to explain. Offer it first.",
 ]
-
-[[group_problem]]
-group = "Opposite-end pointers"
-slug = "3sum-closest"
-title = "3Sum Closest"
-number = 16
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "K-sum on sorted arrays"
-slug = "valid-triangle-number"
-title = "Valid Triangle Number"
-number = 611
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Merge-like walks"
-slug = "intersection-of-two-arrays-ii"
-title = "Intersection of Two Arrays II"
-number = 350
-difficulty = "easy"
-premium = false
-
-[[group_problem]]
-group = "Merge-like walks"
-slug = "long-pressed-name"
-title = "Long Pressed Name"
-number = 925
-difficulty = "easy"
-premium = false
-
-[[group_problem]]
-group = "String pointers"
-slug = "reverse-vowels-of-a-string"
-title = "Reverse Vowels of a String"
-number = 345
-difficulty = "easy"
-premium = false
-
-[[group_problem]]
-group = "String pointers"
-slug = "compare-version-numbers"
-title = "Compare Version Numbers"
-number = 165
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Rotation and reversal"
-slug = "reverse-words-in-a-string"
-title = "Reverse Words in a String"
-number = 151
-difficulty = "medium"
-premium = false
-
-[[group_problem]]
-group = "Rotation and reversal"
-slug = "reverse-string-ii"
-title = "Reverse String II"
-number = 541
-difficulty = "easy"
-premium = false
-
-[[group_problem]]
-group = "Rotation and reversal"
-slug = "rotate-string"
-title = "Rotate String"
-number = 796
-difficulty = "easy"
-premium = false
-
-[[group_problem]]
-group = "In-place dedupe and compaction"
-slug = "remove-all-adjacent-duplicates-in-string"
-title = "Remove All Adjacent Duplicates In String"
-number = 1047
-difficulty = "easy"
-premium = false
 
 [[listed]]
 name = "Converging pair on a sorted array / palindrome check / palindrome with one deletion / move the shorter side / fill the output from both ends / trapping water with a left and right max / shrink matching ends / farthest pair / swap ends inward"

@@ -76,6 +76,9 @@ pub struct DsaProblem {
     /// The technique it belongs to, e.g. `Graphs:topo`.
     pub technique: String,
     pub role: Role,
+    /// `must`, `strong`, `practice` or `warmup`. In the lists the must-learn problem is `must` and the rest `practice`; outside them
+    /// it is computed from company frequency and concept weight (docs/DSA_LEARN_PAGE_SPEC.md).
+    pub priority: String,
     /// For a practice problem, the must-learn problem that teaches its technique.
     pub practice_of: Option<String>,
     /// The written lesson, when there is one. Served by its own endpoint, not with the lists.
@@ -116,10 +119,6 @@ pub struct DsaCatalog {
     pub extras: BTreeMap<String, Vec<Extra>>,
     /// Techniques that are known and not written yet, by pattern name, in file order.
     pub listed: BTreeMap<String, Vec<Listed>>,
-    /// LeetCode topic tags (slugs) that belong to a group, by pattern name then group: the page links to LeetCode's own list.
-    pub group_tags: BTreeMap<String, BTreeMap<String, Vec<String>>>,
-    /// More LeetCode problems per group (outside the lists), by pattern name then group.
-    pub group_problems: BTreeMap<String, BTreeMap<String, Vec<External>>>,
 }
 
 /// One more tab of a template: the same idea written another way (recursive and iterative DFS).
@@ -158,20 +157,6 @@ pub struct Extra {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct External {
-    pub slug: String,
-    pub title: String,
-    pub number: u32,
-    /// `easy`, `medium` or `hard`.
-    pub difficulty: String,
-    #[serde(default)]
-    pub premium: bool,
-}
-
-/// A LeetCode problem for a whole group of a pattern page: it carries one of the group's LeetCode topic tags and is not in the lists.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct GroupProblem {
-    pub group: String,
     pub slug: String,
     pub title: String,
     pub number: u32,
@@ -226,11 +211,6 @@ struct LessonFile {
     /// The groups of the page, in order. Every `group` below is one of them.
     #[serde(default)]
     groups: Vec<String>,
-    /// LeetCode topic tags that belong to a group (`group_tags."Shortest paths" = ["shortest-path"]`).
-    #[serde(default)]
-    group_tags: BTreeMap<String, Vec<String>>,
-    #[serde(default)]
-    group_problem: Vec<GroupProblem>,
     technique: Vec<Lesson>,
     #[serde(default)]
     extra: Vec<Extra>,
@@ -265,7 +245,11 @@ struct Raw {
     role: Role,
     #[serde(default)]
     practice_of: Option<String>,
+    #[serde(default)]
+    priority: Option<String>,
 }
+
+const PRIORITIES: [&str; 4] = ["must", "strong", "practice", "warmup"];
 
 /// A JSON object read as a list, keeping the file's order (a map would sort the keys).
 fn ordered_groups<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<CompanyGroup>, D::Error> {
@@ -305,6 +289,19 @@ struct PracticeFile {
     problems: Vec<Raw>,
 }
 
+/// The ids in `<root>/dsa/practice.json` (empty when the file is absent or broken: `load_practice` reports that).
+fn practice_ids(root: &Path) -> std::collections::BTreeSet<String> {
+    let Ok(text) = std::fs::read_to_string(root.join("dsa").join("practice.json")) else { return Default::default() };
+    serde_json::from_str::<PracticeFile>(&text).map(|f| f.problems.into_iter().map(|p| p.id).collect()).unwrap_or_default()
+}
+
+/// Ids of NeetCode-list problems that no company of the site's set asks (`<root>/dsa/no_company.txt`): the only exception to the rule
+/// that every problem carries a company.
+fn no_company_waivers(root: &Path) -> std::collections::BTreeSet<String> {
+    let Ok(text) = std::fs::read_to_string(root.join("dsa").join("no_company.txt")) else { return Default::default() };
+    text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_owned).collect()
+}
+
 /// Reads `<root>/dsa/problems.json` and `practice.json`. Absent means no DSA section; a broken file is reported, not fatal.
 pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
     let path = root.join("dsa").join("problems.json");
@@ -325,7 +322,17 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
             _ => issues.push(Issue { path: path.clone(), message: format!("technique {}: {} isn't its must-learn problem", t.id, t.must_learn) }),
         }
     }
+    let waived = no_company_waivers(root);
     for p in &file.problems {
+        if p.companies.is_empty() && !waived.contains(&p.id) {
+            issues.push(Issue { path: path.clone(), message: format!("{}: needs at least one company (mandatory; see dsa/no_company.txt)", p.id) });
+        }
+        if p.tags.is_empty() {
+            issues.push(Issue { path: path.clone(), message: format!("{}: needs at least one LeetCode topic tag (mandatory)", p.id) });
+        }
+        if p.priority.as_deref().is_some_and(|v| !PRIORITIES.contains(&v)) {
+            issues.push(Issue { path: path.clone(), message: format!("{}: priority must be one of {PRIORITIES:?}", p.id) });
+        }
         if let Some(teacher) = &p.practice_of
             && by_id.get(teacher.as_str()).is_none_or(|t| t.role != Role::MustLearn)
         {
@@ -374,8 +381,10 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
             }
         })
         .collect();
-    let practice_tracks = load_practice(root, &file, &tracks, &names, issues);
-    let loaded = load_lessons(root, &file.techniques, &by_id, issues);
+    let practice_set = practice_ids(root);
+    let loaded = load_lessons(root, &file.techniques, &by_id, &practice_set, issues);
+    let extra_techniques: BTreeMap<String, String> = loaded.extras.iter().flat_map(|(pat, v)| v.iter().map(move |e| (e.id.clone(), pat.clone()))).collect();
+    let practice_tracks = load_practice(root, &file, &tracks, &names, &extra_techniques, issues);
     Loaded {
         tracks,
         practice_tracks,
@@ -387,8 +396,7 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
             lesson_groups: loaded.groups,
             extras: loaded.extras,
             listed: loaded.listed,
-            group_tags: loaded.group_tags,
-            group_problems: loaded.group_problems,
+
         },
     }
 }
@@ -396,7 +404,7 @@ pub(crate) fn load(root: &Path, issues: &mut Vec<Issue>) -> Loaded {
 /// `<root>/dsa/practice.json`: LeetCode problems **outside** the NeetCode lists that drill a technique (decision 24).
 /// They load as problems in a hidden copy of each pattern's track, so they can be logged and show in activity, but never
 /// count toward the lists, a track's readiness or the review schedule.
-fn load_practice(root: &Path, main: &File, tracks: &[Track], names: &BTreeMap<&str, &str>, issues: &mut Vec<Issue>) -> Vec<Track> {
+fn load_practice(root: &Path, main: &File, tracks: &[Track], names: &BTreeMap<&str, &str>, extras: &BTreeMap<String, String>, issues: &mut Vec<Issue>) -> Vec<Track> {
     let path = root.join("dsa").join("practice.json");
     let Ok(text) = std::fs::read_to_string(&path) else {
         return Vec::new();
@@ -420,10 +428,16 @@ fn load_practice(root: &Path, main: &File, tracks: &[Track], names: &BTreeMap<&s
             issues.push(problem_issue("is listed twice".into()));
         } else if p.premium {
             issues.push(problem_issue("needs LeetCode Premium; practice problems are free ones".into()));
-        } else if !techniques.contains_key(p.technique.as_str()) {
+        } else if p.companies.is_empty() {
+            issues.push(problem_issue("needs at least one company of the site's set (mandatory)".into()));
+        } else if p.tags.is_empty() {
+            issues.push(problem_issue("needs at least one LeetCode topic tag (mandatory)".into()));
+        } else if p.priority.as_deref().is_some_and(|v| !PRIORITIES.contains(&v)) {
+            issues.push(problem_issue(format!("priority must be one of {PRIORITIES:?}")));
+        } else if !techniques.contains_key(p.technique.as_str()) && !extras.contains_key(&p.technique) {
             issues.push(problem_issue(format!("unknown technique {}", p.technique)));
-        } else if techniques[p.technique.as_str()].pattern != p.pattern {
-            issues.push(problem_issue(format!("technique {} belongs to {}, not {}", p.technique, techniques[p.technique.as_str()].pattern, p.pattern)));
+        } else if techniques.get(p.technique.as_str()).map(|t| t.pattern.as_str()).or_else(|| extras.get(&p.technique).map(String::as_str)) != Some(p.pattern.as_str()) {
+            issues.push(problem_issue(format!("technique {} does not belong to the pattern {}", p.technique, p.pattern)));
         } else if !tracks.iter().any(|t| t.name == p.pattern) {
             issues.push(problem_issue(format!("unknown pattern {}", p.pattern)));
         } else {
@@ -491,6 +505,7 @@ fn problem(p: &Raw, names: &BTreeMap<&str, &str>, root: &Path, page: Option<&Pag
             video: p.video.clone(),
             technique: p.technique.clone(),
             role: p.role,
+            priority: p.priority.clone().unwrap_or_else(|| if p.role == Role::MustLearn { "must".into() } else { "practice".into() }),
             practice_of: p.practice_of.clone(),
             page: page.cloned(),
         }),
@@ -505,15 +520,13 @@ struct LoadedLessons {
     groups: BTreeMap<String, Vec<String>>,
     extras: BTreeMap<String, Vec<Extra>>,
     listed: BTreeMap<String, Vec<Listed>>,
-    group_tags: BTreeMap<String, BTreeMap<String, Vec<String>>>,
-    group_problems: BTreeMap<String, BTreeMap<String, Vec<External>>>,
 }
 
 /// `<root>/dsa/lessons/*.toml`: the pattern lessons. A lesson for an unknown technique, one filed under the wrong pattern,
 /// a duplicate or an empty one is reported, and so is a group the file did not declare, an extra whose id is taken or whose
 /// example is not a problem in the lists, and a variant without a template. Techniques without a lesson are allowed (the
 /// page says so).
-fn load_lessons(root: &Path, techniques: &[Technique], by_id: &BTreeMap<&str, &Raw>, issues: &mut Vec<Issue>) -> LoadedLessons {
+fn load_lessons(root: &Path, techniques: &[Technique], by_id: &BTreeMap<&str, &Raw>, practice: &std::collections::BTreeSet<String>, issues: &mut Vec<Issue>) -> LoadedLessons {
     let dir = root.join("dsa").join("lessons");
     let mut out = LoadedLessons::default();
     let Ok(entries) = std::fs::read_dir(&dir) else { return out };
@@ -593,8 +606,11 @@ fn load_lessons(root: &Path, techniques: &[Technique], by_id: &BTreeMap<&str, &R
                 issues.push(problem(format!("the group {:?} is not declared in `groups`", extra.group)));
             } else if let Some(m) = variants_ok(&extra.template_name, &extra.variants) {
                 issues.push(problem(m));
-            } else if let Some(bad) = extra.examples.iter().find(|s| !by_id.contains_key(format!("lc-{s}").as_str())) {
-                issues.push(problem(format!("the example {bad} isn't a problem in the NeetCode lists")));
+            } else if let Some(bad) = extra.examples.iter().find(|s| {
+                let id = format!("lc-{s}");
+                !by_id.contains_key(id.as_str()) && !practice.contains(&id)
+            }) {
+                issues.push(problem(format!("the example {bad} isn't a problem of the site (the NeetCode lists or practice.json)")));
             } else {
                 seen.push(extra.id.clone());
                 out.extras.entry(file.pattern.clone()).or_default().push(extra);
@@ -610,25 +626,6 @@ fn load_lessons(root: &Path, techniques: &[Technique], by_id: &BTreeMap<&str, &R
                 issues.push(issue(&item.name, format!("the problem {:?} needs a slug, a title, a number and easy, medium or hard", p.slug)));
             } else {
                 out.listed.entry(file.pattern.clone()).or_default().push(item);
-            }
-        }
-        for gp in file.group_problem {
-            if !group_ok(&gp.group) || file.groups.is_empty() {
-                issues.push(issue("group_problem", format!("the group {:?} is not declared in `groups`", gp.group)));
-            } else if gp.slug.trim().is_empty() || gp.title.trim().is_empty() || gp.number == 0 || !matches!(gp.difficulty.as_str(), "easy" | "medium" | "hard") {
-                issues.push(issue("group_problem", format!("{:?} needs a slug, a title, a number and easy, medium or hard", gp.slug)));
-            } else {
-                let ext = External { slug: gp.slug, title: gp.title, number: gp.number, difficulty: gp.difficulty, premium: gp.premium };
-                out.group_problems.entry(file.pattern.clone()).or_default().entry(gp.group).or_default().push(ext);
-            }
-        }
-        for (group, tags) in file.group_tags {
-            if !group_ok(&group) || (file.groups.is_empty()) {
-                issues.push(issue("group_tags", format!("the group {group:?} is not declared in `groups`")));
-            } else if let Some(t) = tags.iter().find(|t| t.is_empty() || !t.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')) {
-                issues.push(issue("group_tags", format!("{t:?} is not a LeetCode tag slug")));
-            } else {
-                out.group_tags.entry(file.pattern.clone()).or_default().insert(group, tags);
             }
         }
     }

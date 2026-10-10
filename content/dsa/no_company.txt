@@ -1,0 +1,23 @@
+# NeetCode-list problems that no company of the site's set asks: the only exception to the mandatory company tag.
+lc-array-transformation
+lc-count-strictly-increasing-subarrays
+lc-count-substrings-with-only-one-distinct-letter
+lc-count-vowels-permutation
+lc-counting-elements
+lc-encode-n-ary-tree-to-binary-tree
+lc-find-first-palindromic-string-in-the-array
+lc-find-polygon-with-the-largest-perimeter
+lc-find-the-longest-valid-obstacle-course-at-each-position
+lc-greatest-common-divisor-traversal
+lc-how-many-apples-can-you-put-into-the-basket
+lc-maximize-score-after-n-operations
+lc-maximum-number-of-ones
+lc-maximum-product-difference-between-two-pairs
+lc-maximum-transactions-without-negative-balance
+lc-minimum-factorization
+lc-perform-string-shifts
+lc-print-immutable-linked-list-in-reverse
+lc-redistribute-characters-to-make-all-strings-equal
+lc-remove-colored-pieces-if-both-neighbors-are-the-same-color
+lc-split-concatenated-strings
+lc-splitting-a-string-into-descending-consecutive-values

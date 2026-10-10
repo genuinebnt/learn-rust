@@ -83,7 +83,7 @@
     "Two Pointers",
     "Sorting"
    ],
-   "companies": [],
+   "companies": [{"name": "Google", "group": "Big Tech", "frequency": 50.0, "recent": false}],
    "video": null,
    "technique": "Two Pointers:opposite",
    "order": 100002,

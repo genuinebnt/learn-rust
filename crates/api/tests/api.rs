@@ -1268,9 +1268,17 @@ async fn a_pattern_lists_its_techniques_with_lessons_and_progress(db: PgPool) {
     assert!(p["intro"].as_str().unwrap().starts_with("Two indexes"));
     let t = &p["techniques"][0];
     assert_eq!((t["id"].as_str(), t["lesson"]["signals"].as_array().unwrap().len()), (Some("Two Pointers:opposite"), 2));
-    // Must-learn first, with the pattern's practice problems counted apart.
-    assert_eq!((t["problems"][0]["id"].as_str(), t["problems"].as_array().unwrap().len(), t["solved"].as_u64()), (Some("lc-valid-palindrome"), 3, Some(1)));
-    assert_eq!((t["practice_total"].as_u64(), t["practice_solved"].as_u64()), (Some(2), Some(1)));
+    // Must-learn first; the problems outside the lists follow, each marked by its list tag (none for them), and only the NeetCode ones
+    // count in `solved`.
+    let rows = t["problems"].as_array().unwrap();
+    assert_eq!((rows[0]["id"].as_str(), rows.len(), t["solved"].as_u64()), (Some("lc-valid-palindrome"), 5, Some(1)));
+    let outside: Vec<_> = rows.iter().filter(|r| r["list_tag"].is_null()).collect();
+    assert_eq!(outside.len(), 2, "two problems of this technique are outside the lists");
+    assert!(outside.iter().all(|r| r["priority"].is_string() && r["companies"].as_array().is_some_and(|c| !c.is_empty()) && !r["tags"].as_array().unwrap().is_empty()));
+    assert_eq!(rows[0]["list_tag"].as_str(), Some("blind75"), "the narrowest list it is in");
+    // Logging one of them is tracked (it is solved) but not counted.
+    let logged: Vec<_> = outside.iter().filter(|r| r["state"]["solved"].as_bool() == Some(true)).collect();
+    assert_eq!(logged.len(), 1, "the logged practice problem shows as solved");
     // A technique with no lesson written still lists its problems.
     let (_, a) = call(&app, Method::GET, "/api/dsa/patterns/D1", None).await;
     assert_eq!((a["techniques"][0]["lesson"].clone(), a["intro"].clone()), (Value::Null, Value::Null));

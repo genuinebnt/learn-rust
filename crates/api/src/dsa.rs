@@ -62,9 +62,20 @@ pub(crate) struct ProblemRow<'a> {
     role: Role,
     practice_of: Option<&'a str>,
     order: u32,
-    /// A written lesson exists for it.
+    /// A written lesson (solution) exists for it.
     has_page: bool,
+    /// `must`, `strong`, `practice` or `warmup`.
+    priority: &'a str,
+    /// Asked by a company of the site's set in the last six months.
+    recent: bool,
+    /// The narrowest NeetCode list it is in (`blind75`, `neetcode150`, `neetcode250`, `all`); none for a problem outside them.
+    list_tag: Option<&'static str>,
     pub(crate) state: Standing,
+}
+
+/// The narrowest of the NeetCode lists a problem is in, if any (docs/DSA_LEARN_PAGE_SPEC.md, section 3).
+fn narrowest_list(lists: &[String]) -> Option<&'static str> {
+    ["blind75", "neetcode150", "neetcode250", "all"].into_iter().find(|l| lists.iter().any(|x| x == l))
 }
 
 /// How a problem stands: nothing yet, or the latest review's grade.
@@ -151,6 +162,9 @@ pub(crate) fn row<'a>(t: &'a Track, p: &'a Problem, progress: &HashMap<String, P
         practice_of: d.practice_of.as_deref(),
         order: p.meta.order,
         has_page: d.page.is_some(),
+        priority: &d.priority,
+        recent: d.companies.iter().any(|c| c.recent),
+        list_tag: narrowest_list(&d.lists),
         state: state_of(progress.get(&p.id), reviews.get(p.id.as_str()).copied(), today),
     }
 }
@@ -436,6 +450,17 @@ struct LessonTechnique<'a> {
     practice_solved: usize,
 }
 
+/// The order of problems under a technique: the must-learn one first, then by priority, the NeetCode ones before the others, then easier first.
+fn sort_for_learning(rows: &mut [ProblemRow]) {
+    let rank = |p: &ProblemRow| match p.priority {
+        "must" => 0,
+        "strong" => 1,
+        "practice" => 2,
+        _ => 3,
+    };
+    rows.sort_by_key(|p| (p.role != Role::MustLearn, rank(p), p.list_tag.is_none(), p.difficulty as u8, p.number));
+}
+
 /// A lesson for a technique that has no must-learn problem: its example problems, with progress.
 #[derive(Serialize)]
 struct LessonExtra<'a> {
@@ -456,30 +481,40 @@ pub async fn pattern(State(s): State<AppState>, Path(code): Path<String>) -> Api
     let extras = s.catalog.practice_tracks.iter().find(|x| x.code == track.code).map(|x| x.problems.as_slice()).unwrap_or_default();
     let mut techniques = Vec::new();
     for t in s.catalog.dsa.techniques.iter().filter(|t| t.pattern == track.name) {
+        // the NeetCode ones and the others that practise the same technique (the others only count as tracked, never toward a goal)
         let mut problems: Vec<ProblemRow> = track.problems.iter().filter(|p| dsa_of(p).technique == t.id).map(|p| row(track, p, &progress, &by_problem, today)).collect();
-        problems.sort_by_key(|p| (p.role != Role::MustLearn, p.premium, p.order));
-        let practice: Vec<&Problem> = extras.iter().filter(|p| dsa_of(p).technique == t.id).collect();
+        problems.extend(extras.iter().filter(|p| dsa_of(p).technique == t.id).map(|p| row(track, p, &progress, &by_problem, today)));
+        sort_for_learning(&mut problems);
         techniques.push(LessonTechnique {
             id: &t.id,
             name: &t.name,
             lesson: s.catalog.dsa.lessons.get(&t.id),
-            solved: problems.iter().filter(|p| p.state.solved).count(),
+            solved: problems.iter().filter(|p| p.state.solved && p.list_tag.is_some()).count(),
             problems,
-            practice_total: practice.len(),
-            practice_solved: practice.iter().filter(|p| progress.get(&p.id).is_some_and(|r| r.solved)).count(),
+            practice_total: 0,
+            practice_solved: 0,
         });
     }
-    // Example problems may belong to another pattern's track (0-1 BFS is taught with a problem filed under Advanced Graphs).
+    // An extra's problems: its examples (any problem of the site, possibly filed under another pattern) and the problems whose technique it is.
     let mut extra_lessons = Vec::new();
+    let all_tracks = || dsa_tracks(&s.catalog).chain(s.catalog.practice_tracks.iter());
     for e in s.catalog.dsa.extras.get(&track.name).map(Vec::as_slice).unwrap_or_default() {
-        let examples: Vec<ProblemRow> = e
+        let mut examples: Vec<ProblemRow> = e
             .examples
             .iter()
             .filter_map(|slug| {
                 let id = format!("lc-{slug}");
-                dsa_tracks(&s.catalog).find_map(|t| t.problems.iter().find(|p| p.id == id).map(|p| row(t, p, &progress, &by_problem, today)))
+                all_tracks().find_map(|t| t.problems.iter().find(|p| p.id == id).map(|p| row(t, p, &progress, &by_problem, today)))
             })
             .collect();
+        for t in all_tracks() {
+            for p in t.problems.iter().filter(|p| dsa_of(p).technique == e.id) {
+                if !examples.iter().any(|x| x.id == p.id) {
+                    examples.push(row(t, p, &progress, &by_problem, today));
+                }
+            }
+        }
+        sort_for_learning(&mut examples);
         extra_lessons.push(LessonExtra { id: &e.id, name: &e.name, group: &e.group, lesson: e, examples });
     }
     let value = serde_json::json!({
@@ -491,8 +526,6 @@ pub async fn pattern(State(s): State<AppState>, Path(code): Path<String>) -> Api
         "techniques": techniques,
         "extras": extra_lessons,
         "listed": s.catalog.dsa.listed.get(&track.name),
-        "group_tags": s.catalog.dsa.group_tags.get(&track.name),
-        "group_problems": s.catalog.dsa.group_problems.get(&track.name),
     });
     Ok(Json(value))
 }
